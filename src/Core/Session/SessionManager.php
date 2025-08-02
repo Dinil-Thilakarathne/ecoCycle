@@ -188,6 +188,18 @@ class SessionManager
     }
 
     /**
+     * Alias for put() method (Laravel-like syntax)
+     * 
+     * @param string $key
+     * @param mixed $value
+     * @return void
+     */
+    public function set(string $key, $value): void
+    {
+        $this->put($key, $value);
+    }
+
+    /**
      * Check if session has key
      * 
      * @param string $key
