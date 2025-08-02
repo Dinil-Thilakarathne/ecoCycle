@@ -388,3 +388,56 @@ if (!function_exists('abort')) {
         exit($code);
     }
 }
+
+if (!function_exists('dashboard_redirect')) {
+    /**
+     * Redirect user to their appropriate dashboard based on role
+     * 
+     * @param array|null $user
+     * @return Core\Http\Response
+     */
+    function dashboard_redirect(?array $user = null): Core\Http\Response
+    {
+        if (!$user) {
+            $user = auth();
+        }
+
+        if (!$user) {
+            return redirect('/login');
+        }
+
+        $dashboardUrls = [
+            'admin' => '/admin',
+            'customer' => '/customer',
+            'collector' => '/collector',
+            'company' => '/company'
+        ];
+
+        $role = $user['role'] ?? 'customer';
+        $url = $dashboardUrls[$role] ?? '/customer';
+
+        return redirect($url);
+    }
+}
+
+if (!function_exists('can_access_dashboard')) {
+    /**
+     * Check if user can access a specific dashboard
+     * 
+     * @param string $dashboardType
+     * @param array|null $user
+     * @return bool
+     */
+    function can_access_dashboard(string $dashboardType, ?array $user = null): bool
+    {
+        if (!$user) {
+            $user = auth();
+        }
+
+        if (!$user) {
+            return false;
+        }
+
+        return $user['role'] === $dashboardType;
+    }
+}
