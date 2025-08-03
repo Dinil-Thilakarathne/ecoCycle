@@ -10,33 +10,17 @@ class PageController extends BaseController
     /**
      * Display the home page with HTML view
      */
-    public function home(Request $request): Response
-    {
-        return $this->view('home', [
-            'title' => 'Home - Custom PHP Framework'
-        ]);
-    }
+    // public function home(Request $request): Response
+    // {
+    //     return $this->view('pages/home', [
+    //         'title' => 'Welcome to EcoCycle - Sustainable Waste Management',
+    //         'description' => 'EcoCycle provides reliable, sustainable waste management and recycling solutions.',
+    //         'bodyClass' => 'home-page',
 
-    /**
-     * Display the about page
-     */
-    public function about(Request $request): Response
-    {
-        return $this->view('about', [
-            'title' => 'About - Custom PHP Framework'
-        ]);
-    }
+    //          'pageStyle' ...
+    //     ]);
+    // }
 
-    /**
-     * Display a demo page
-     */
-    public function demo(Request $request): Response
-    {
-        return $this->view('page-demo', [
-            'title' => 'Page Demo - Custom PHP Framework',
-            'pageViews' => rand(50, 500)
-        ]);
-    }
 
     /**
      * Handle form submission
