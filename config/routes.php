@@ -32,50 +32,27 @@ $router->post('/register', 'AuthController@register');
 
 // Admin Dashboard Routes (Public for development)
 $router->get('/admin', 'Controllers\Admin\AdminDashboardController@index');
-$router->get('/admin/users', 'Controllers\Admin\AdminDashboardController@users');
-$router->get('/admin/settings', 'Controllers\Admin\AdminDashboardController@settings');
-$router->get('/admin/reports', 'Controllers\Admin\AdminDashboardController@reports');
-$router->get('/admin/content', 'Controllers\Admin\AdminDashboardController@content');
+
 
 // Customer Dashboard Routes (Public for development)
 $router->get('/customer', 'Controllers\Customer\CustomerDashboardController@index');
-$router->get('/customer/schedule', 'Controllers\Customer\CustomerDashboardController@schedulePickup');
-$router->get('/customer/history', 'Controllers\Customer\CustomerDashboardController@pickupHistory');
-$router->get('/customer/rewards', 'Controllers\Customer\CustomerDashboardController@rewards');
-$router->get('/customer/education', 'Controllers\Customer\CustomerDashboardController@education');
-$router->get('/customer/profile', 'Controllers\Customer\CustomerDashboardController@profile');
 
 // Collector Dashboard Routes (Public for development)
 $router->get('/collector', 'Controllers\Collector\CollectorDashboardController@index');
-$router->get('/collector/pickups', 'Controllers\Collector\CollectorDashboardController@pickups');
-$router->get('/collector/routes', 'Controllers\Collector\CollectorDashboardController@routes');
-$router->get('/collector/earnings', 'Controllers\Collector\CollectorDashboardController@earnings');
-$router->get('/collector/reports', 'Controllers\Collector\CollectorDashboardController@reports');
-$router->get('/collector/profile', 'Controllers\Collector\CollectorDashboardController@profile');
 
 // Company Dashboard Routes (Public for development)
 $router->get('/company', 'Controllers\Company\CompanyDashboardController@index');
-$router->get('/company/waste', 'Controllers\Company\CompanyDashboardController@wasteManagement');
-$router->get('/company/schedule', 'Controllers\Company\CompanyDashboardController@scheduleCollection');
-$router->get('/company/analytics', 'Controllers\Company\CompanyDashboardController@analytics');
-$router->get('/company/billing', 'Controllers\Company\CompanyDashboardController@billing');
-$router->get('/company/sustainability', 'Controllers\Company\CompanyDashboardController@sustainability');
-$router->get('/company/profile', 'Controllers\Company\CompanyDashboardController@profile');
 
 // Legacy routes for backward compatibility
 $router->get('/legacy', 'HomeController@index');
 $router->get('/legacy/about', 'HomeController@about');
 
-// Example routes for your application
 $router->get('/example', 'ExampleController@index');
 $router->post('/example', 'ExampleController@store');
 $router->get('/example/{id}', 'ExampleController@show');
 
-// HTML Page routes (old style)
-$router->get('/old/home', 'PageController@home');
-$router->get('/old/page', 'PageController@demo');
-$router->get('/old/page/about', 'PageController@about');
-$router->post('/old/page/submit', 'PageController@submitForm');
+
+// New page routes with correct paths
 
 // User profile route (example with parameters)
 $router->get('/user/{username}', 'PageController@userProfile');
