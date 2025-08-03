@@ -50,3 +50,5 @@ storage/sessions/*
 # Temporary files
 tmp/
 temp/
+
+vendor
