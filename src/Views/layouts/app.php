@@ -36,6 +36,19 @@
     <!-- JavaScript Files -->
     <!-- Core JS -->
     <script src="/js/app.js"></script>
+
+    <!-- Live Reload for Development (only loads on localhost/development) -->
+    <?php if ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1'): ?>
+        <?php
+        $hotReloaderPath = __DIR__ . '/../../../utils/HotReloader.php';
+        if (file_exists($hotReloaderPath)) {
+            require_once $hotReloaderPath;
+            new HotReloader\HotReloader('/phrWatcher.php');
+        } else {
+            echo '<script src="/js/simple-live-reload.js"></script>';
+        }
+        ?>
+    <?php endif; ?>
 </body>
 
 </html>
