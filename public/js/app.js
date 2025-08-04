@@ -1,0 +1,3 @@
+/**
+ * EcoCycle - Main Application JavaScript
+ */
