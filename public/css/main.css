@@ -1,2 +1,6 @@
 @import url("./base/reset.css");
 @import url("./base/theme.css");
+
+body {
+  background-color: pink;
+}
