@@ -56,6 +56,7 @@
     Roboto, sans-serif;
   --font-family-mono: "Fira Code", Consolas, "Courier New", monospace;
   --font-family-serif: "Merriweather", Georgia, serif;
+  --font-family-poppins: "Poppins", sans-serif;
 
   --text-xs: 0.75rem; /* 12px */
   --text-sm: 0.875rem; /* 14px */
