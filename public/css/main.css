@@ -1,6 +1,9 @@
 @import url("./base/reset.css");
 @import url("./base/theme.css");
 
+/* @import url("./dashboard.css"); */
+@import url("./components/common.css");
+
 body {
-  background-color: pink;
+  font-family: var(--font-family-poppins);
 }
