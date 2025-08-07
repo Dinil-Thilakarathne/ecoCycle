@@ -1,29 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $pageTitle ?> - EcoCycle</title>
-    <link rel="stylesheet" href="<?= asset('css/main.css') ?>">
-    <link rel="stylesheet" href="<?= asset('css/dashboard.css') ?>">
-</head>
-
-<body class="dashboard-layout <?= $userType ?>-dashboard">
-
-    <!-- Sidebar Navigation -->
-    <nav class="dashboard-sidebar">
+<!-- Sidebar Navigation -->
+<nav class="dashboard-sidebar">
+    <div>
+        <img src="/assets/logo-text-black.png" />
+    </div>
+    <div class="nav-menu-container">
+        <h3 class="nav-menu__header">Dashboards</h3>
         <ul class="nav-menu">
             <?php
             $navigation = [];
             switch ($userType) {
                 case 'admin':
                     $navigation = [
-                        ['title' => 'Dashboard', 'url' => '/admin', 'icon' => 'dashboard'],
+                        ['title' => 'Overview', 'url' => '/admin', 'icon' => 'chart-column'],
+                        ['title' => 'Pickup Requests', 'url' => '/admin/pickup-requests', 'icon' => 'truck'],
+                        ['title' => 'Bidding', 'url' => '/admin/bidding', 'icon' => 'auction'],
                         ['title' => 'User Management', 'url' => '/admin/users', 'icon' => 'users'],
-                        ['title' => 'Reports', 'url' => '/admin/reports', 'icon' => 'analytics'],
-                        ['title' => 'Content', 'url' => '/admin/content', 'icon' => 'content'],
-                        ['title' => 'Settings', 'url' => '/admin/settings', 'icon' => 'settings'],
+                        ['title' => 'Vehicles', 'url' => '/admin/vehicles', 'icon' => 'car'],
+                        ['title' => 'Payments', 'url' => '/admin/payments', 'icon' => 'credit-card'],
+                        ['title' => 'Analytics', 'url' => '/admin/analytics', 'icon' => 'chart'],
+                        ['title' => 'Notifications', 'url' => '/admin/notifications', 'icon' => 'bell'],
                     ];
                     break;
                 case 'customer':
@@ -64,26 +59,29 @@
                 ?>
                 <li class="nav-item <?= $isActive ?>">
                     <a href="<?= $item['url'] ?>" class="nav-link">
-                        <i class="icon icon-<?= $item['icon'] ?>"></i>
+                        <i class="fa-solid fa-<?= $item['icon'] ?>"></i>
                         <span><?= $item['title'] ?></span>
                     </a>
                 </li>
             <?php endforeach; ?>
         </ul>
-    </nav>
+    </div>
+</nav>
 
-    <!-- Main Content -->
-    <main class="dashboard-content">
-        <div class="content-header">
+<!-- Main Content -->
+<main class="dashboard-content">
+    <div class="content-header">
+        <div class="content-header__title">
+            <i class="fa-solid fa-square-caret-left"></i>
             <h1><?= $pageTitle ?></h1>
         </div>
-
-        <div class="content-body">
-            <?= $content ?>
+        <div class="content-header__icons">
+            <i class="fa-solid fa-bell"></i>
+            <i class="fa-solid fa-gear"></i>
         </div>
-    </main>
+    </div>
 
-    <script src="<?= asset('js/dashboard.js') ?>"></script>
-</body>
-
-</html>
+    <div class="content-body">
+        <?= $content ?>
+    </div>
+</main>

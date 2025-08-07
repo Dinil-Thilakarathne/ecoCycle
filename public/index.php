@@ -34,6 +34,9 @@ if (!function_exists('env')) {
 // Load helper functions
 require_once __DIR__ . '/../src/helpers.php';
 
+// import auto-reloader 
+require_once __DIR__ . '/../vendor/autoload.php';
+
 use Core\Application;
 
 try {

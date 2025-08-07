@@ -92,6 +92,13 @@ class Application
      */
     protected function bootstrap(): void
     {
+        // Set timeout configurations for development
+        if (Environment::get('APP_ENV') === 'development') {
+            ini_set('max_execution_time', '300');
+            ini_set('default_socket_timeout', '300');
+            ini_set('memory_limit', '256M');
+        }
+
         // Load environment variables
         Environment::load($this->basePath);
 

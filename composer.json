@@ -37,9 +37,10 @@
     ]
   },
   "scripts": {
-    "serve": "php -S localhost:8000 -t public",
+    "serve": "php -c php-dev.ini -S localhost:8000 -t public",
     "watch": "php watch-files.php",
-    "dev": "echo 'Starting development server and file watcher...' && (php -S localhost:8000 -t public > /dev/null 2>&1 &) && php watch-files.php"
+    "dev": "echo 'Starting development server and file watcher...' && (php -c php-dev.ini -S localhost:8000 -t public > /dev/null 2>&1 &) && php watch-files.php",
+    "serve-prod": "php -S localhost:8000 -t public"
   },
   "config": {
     "optimize-autoloader": true,
