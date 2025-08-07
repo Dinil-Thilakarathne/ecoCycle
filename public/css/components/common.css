@@ -43,7 +43,7 @@
 }
 
 .tag {
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-2) var(--space-8);
   border: 1px solid var(--neutral-300);
   border-radius: var(--radius-full);
   width: fit-content;
