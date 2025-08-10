@@ -28,6 +28,7 @@
   "autoload": {
     "psr-4": {
       "Core\\": "src/Core/",
+      "EcoCycle\\Core\\": "src/Core/",
       "Controllers\\": "src/Controllers/",
       "Models\\": "src/Models/",
       "Middleware\\": "src/Middleware/"
