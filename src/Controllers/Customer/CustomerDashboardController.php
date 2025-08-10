@@ -3,6 +3,7 @@
 namespace Controllers\Customer;
 
 use Controllers\DashboardController;
+use EcoCycle\Core\Navigation\NavigationConfig;
 use Core\Http\Request;
 use Core\Http\Response;
 
@@ -111,14 +112,7 @@ class CustomerDashboardController extends DashboardController
 
     protected function getNavigationItems(): array
     {
-        return [
-            ['title' => 'Dashboard', 'url' => '/customer', 'icon' => 'home'],
-            ['title' => 'Schedule Pickup', 'url' => '/customer/schedule', 'icon' => 'calendar'],
-            ['title' => 'Pickup History', 'url' => '/customer/history', 'icon' => 'history'],
-            ['title' => 'My Rewards', 'url' => '/customer/rewards', 'icon' => 'gift'],
-            ['title' => 'Education', 'url' => '/customer/education', 'icon' => 'book'],
-            ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user'],
-        ];
+        return NavigationConfig::getNavigation($this->userType);
     }
 
     // Placeholder methods for data retrieval

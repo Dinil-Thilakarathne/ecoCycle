@@ -3,6 +3,7 @@
 namespace Controllers\Collector;
 
 use Controllers\DashboardController;
+use EcoCycle\Core\Navigation\NavigationConfig;
 use Core\Http\Request;
 use Core\Http\Response;
 
@@ -116,14 +117,7 @@ class CollectorDashboardController extends DashboardController
 
     protected function getNavigationItems(): array
     {
-        return [
-            ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'dashboard'],
-            ['title' => 'Pickups', 'url' => '/collector/pickups', 'icon' => 'truck'],
-            ['title' => 'Routes', 'url' => '/collector/routes', 'icon' => 'map'],
-            ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'money'],
-            ['title' => 'Reports', 'url' => '/collector/reports', 'icon' => 'chart'],
-            ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user'],
-        ];
+        return NavigationConfig::getNavigation($this->userType);
     }
 
     // Placeholder methods for data retrieval
