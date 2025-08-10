@@ -373,3 +373,131 @@
     max-width: 120px;
   }
 }
+
+/* Tabs Component */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tabs-list {
+  display: flex;
+  background-color: var(--neutral-100);
+  border-radius: var(--radius-lg);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.tabs-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--neutral-600);
+
+  &:hover {
+    background-color: var(--neutral-200);
+    color: var(--neutral-900);
+  }
+
+  &.active {
+    background-color: var(--neutral-0);
+    color: var(--neutral-900);
+    box-shadow: var(--shadow-sm);
+  }
+
+  & i {
+    width: 16px;
+  }
+}
+
+.tabs-content {
+  display: none;
+
+  &.active {
+    display: block;
+  }
+}
+
+/* Search Input */
+.search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  & input {
+    width: 256px;
+    padding: var(--space-2) var(--space-4) var(--space-2) var(--space-10);
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    transition: border-color var(--transition-fast);
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(28, 227, 106, 0.1);
+    }
+
+    &::placeholder {
+      color: var(--neutral-500);
+    }
+  }
+
+  & .search-icon {
+    position: absolute;
+    left: var(--space-3);
+    color: var(--neutral-500);
+    pointer-events: none;
+  }
+}
+
+/* Action buttons group */
+.action-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--neutral-300);
+  background: var(--neutral-0);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background-color: var(--neutral-100);
+    border-color: var(--neutral-400);
+  }
+
+  &.approve:hover {
+    background-color: var(--success-light);
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  &.suspend:hover {
+    background-color: var(--danger-light);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  & i {
+    width: 16px;
+    height: 16px;
+  }
+}
