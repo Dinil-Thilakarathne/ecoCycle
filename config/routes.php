@@ -8,6 +8,7 @@
  */
 
 use Core\PageRouter;
+use EcoCycle\Core\Navigation\RouteConfig;
 
 $router = app('router');
 
@@ -30,18 +31,29 @@ $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 
-// Admin Dashboard Routes (Public for development)
-$router->get('/admin', 'Controllers\Admin\AdminDashboardController@index');
+// Auto-register all dashboard routes based on NavigationConfig
+// This ensures consistency between navigation and routes
+RouteConfig::registerDashboardRoutes($router);
 
+// Development and utility routes
+$router->get('/routes/list', function () use ($router) {
+    $routes = RouteConfig::getAllDashboardRoutes();
+    return response()->json([
+        'status' => 'success',
+        'message' => 'All registered dashboard routes',
+        'routes' => $routes
+    ]);
+});
 
-// Customer Dashboard Routes (Public for development)
-$router->get('/customer', 'Controllers\Customer\CustomerDashboardController@index');
-
-// Collector Dashboard Routes (Public for development)
-$router->get('/collector', 'Controllers\Collector\CollectorDashboardController@index');
-
-// Company Dashboard Routes (Public for development)
-$router->get('/company', 'Controllers\Company\CompanyDashboardController@index');
+$router->get('/routes/validate', function () {
+    $missing = RouteConfig::validateRoutes();
+    return response()->json([
+        'status' => empty($missing) ? 'success' : 'warning',
+        'message' => empty($missing) ? 'All routes are valid' : 'Some routes are missing controller methods',
+        'missing_methods' => $missing,
+        'method_stubs' => empty($missing) ? [] : RouteConfig::generateMissingMethodStubs()
+    ]);
+});
 
 // Legacy routes for backward compatibility
 $router->get('/legacy', 'HomeController@index');
@@ -72,15 +84,36 @@ $router->get('/500', function () {
 
 // Test route to check if system is working
 $router->get('/test', function () {
+    $userTypes = EcoCycle\Core\Navigation\NavigationConfig::getAvailableUserTypes();
+    $dashboards = [];
+
+    foreach ($userTypes as $userType) {
+        $dashboards[$userType] = "/{$userType}";
+    }
+
     return response()->json([
         'status' => 'success',
         'message' => 'EcoCycle Framework is working!',
-        'dashboards' => [
-            'admin' => '/admin',
-            'customer' => '/customer',
-            'collector' => '/collector',
-            'company' => '/company'
+        'navigation_system' => 'Centralized NavigationConfig',
+        'auto_routes' => 'Enabled via RouteConfig',
+        'dashboards' => $dashboards,
+        'auth' => [
+            'login' => '/login',
+            'register' => '/register'
         ],
-        'login' => '/login'
+        'utilities' => [
+            'routes_list' => '/routes/list',
+            'routes_validate' => '/routes/validate',
+            'diagnostic' => '/diagnostic'
+        ]
     ]);
+});
+
+// Route diagnostic page
+$router->get('/diagnostic', function () {
+    ob_start();
+    include base_path('public/diagnostic.php');
+    $content = ob_get_clean();
+
+    return response()->setContent($content)->setHeader('Content-Type', 'text/html');
 });
