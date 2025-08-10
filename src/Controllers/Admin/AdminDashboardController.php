@@ -69,6 +69,18 @@ class AdminDashboardController extends DashboardController
     }
 
     /**
+     * Bidding management page
+     */
+    public function bidding(): Response
+    {
+        $data = [
+            'pageTitle' => 'Bidding Management',
+        ];
+
+        return $this->renderDashboard('biddingManagement', $data);
+    }
+
+    /**
      * Reports and analytics
      */
     public function reports(): Response
