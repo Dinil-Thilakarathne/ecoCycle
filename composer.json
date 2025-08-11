@@ -41,11 +41,15 @@
     "serve": "php -c php-dev.ini -S localhost:8000 -t public",
     "watch": "php watch-files.php",
     "dev": "echo 'Starting development server and file watcher...' && (php -c php-dev.ini -S localhost:8000 -t public > /dev/null 2>&1 &) && php watch-files.php",
-    "serve-prod": "php -S localhost:8000 -t public"
+    "serve-prod": "php -S localhost:8000 -t public",
+    "sass:build": "sass src/scss/main.scss public/css/main.css --style=compressed",
+    "sass:watch": "sass src/scss/main.scss public/css/main.css --watch --style=expanded",
+    "sass:dev": "sass src/scss/main.scss public/css/main.css --watch --style=expanded --source-map"
   },
   "config": {
     "optimize-autoloader": true,
-    "sort-packages": true
+    "sort-packages": true,
+    "process-timeout": 0
   },
   "extra": {
     "framework": {
