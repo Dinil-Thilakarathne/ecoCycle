@@ -90,9 +90,11 @@ function formatTimeRemaining($endTime)
 
 // Calculate statistics
 $activeRounds = array_filter($biddingRounds, function ($round) {
-    return $round['status'] === 'active'; });
+    return $round['status'] === 'active';
+});
 $completedRounds = array_filter($biddingRounds, function ($round) {
-    return $round['status'] === 'completed'; });
+    return $round['status'] === 'completed';
+});
 $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
 ?>
 
@@ -200,7 +202,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 <td>
                                     <div style="display: flex; gap: 8px;">
                                         <?php if ($round['status'] === 'completed'): ?>
-                                            <button class="btn btn-primary btn-sm"
+                                            <button class="btn btn-primary btn-sm outline"
                                                 onclick="approveWinner('<?= $round['id'] ?>')">
                                                 Approve
                                             </button>
