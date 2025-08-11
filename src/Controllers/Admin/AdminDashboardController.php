@@ -57,6 +57,18 @@ class AdminDashboardController extends DashboardController
     }
 
     /**
+     * Vehicle management page
+     */
+    public function vehicles(): Response
+    {
+        $data = [
+            'pageTitle' => 'Vehicle Management',
+        ];
+
+        return $this->renderDashboard('vehicles', $data);
+    }
+
+    /**
      * System settings page
      */
     public function settings(): Response
