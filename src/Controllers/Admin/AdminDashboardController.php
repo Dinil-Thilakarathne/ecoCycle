@@ -3,6 +3,7 @@
 namespace Controllers\Admin;
 
 use Controllers\DashboardController;
+use EcoCycle\Core\Navigation\NavigationConfig;
 use Core\Http\Request;
 use Core\Http\Response;
 
@@ -32,6 +33,16 @@ class AdminDashboardController extends DashboardController
 
         return $this->renderDashboard('dashboard', $data);
     }
+    /**
+     * Pickup request page
+     */
+    public function pickupRequest(): Response
+    {
+        $data = [
+            'pageTitle' => 'Pickup Requests',
+        ];
+        return $this->renderDashboard('pickupRequest', $data);
+    }
 
     /**
      * User management page
@@ -46,6 +57,18 @@ class AdminDashboardController extends DashboardController
     }
 
     /**
+     * Vehicle management page
+     */
+    public function vehicles(): Response
+    {
+        $data = [
+            'pageTitle' => 'Vehicle Management',
+        ];
+
+        return $this->renderDashboard('vehicles', $data);
+    }
+
+    /**
      * System settings page
      */
     public function settings(): Response
@@ -55,6 +78,18 @@ class AdminDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('settings', $data);
+    }
+
+    /**
+     * Bidding management page
+     */
+    public function bidding(): Response
+    {
+        $data = [
+            'pageTitle' => 'Bidding Management',
+        ];
+
+        return $this->renderDashboard('biddingManagement', $data);
     }
 
     /**
@@ -83,12 +118,6 @@ class AdminDashboardController extends DashboardController
 
     protected function getNavigationItems(): array
     {
-        return [
-            ['title' => 'Dashboard', 'url' => '/admin', 'icon' => 'dashboard'],
-            ['title' => 'User Management', 'url' => '/admin/users', 'icon' => 'users'],
-            ['title' => 'Reports', 'url' => '/admin/reports', 'icon' => 'analytics'],
-            ['title' => 'Content', 'url' => '/admin/content', 'icon' => 'content'],
-            ['title' => 'Settings', 'url' => '/admin/settings', 'icon' => 'settings'],
-        ];
+        return NavigationConfig::getNavigation($this->userType);
     }
 }

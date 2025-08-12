@@ -108,12 +108,51 @@ abstract class DashboardController extends BaseController
             'pageTitle' => $data['pageTitle'] ?? ucfirst($this->userType) . ' Dashboard'
         ]);
 
-        return $this->view("layouts/dashboard", [
-            'content' => $this->renderView($view, $data),
-            'user' => $this->user,
+        // Create dashboard content by including dashboard layout with specific view content
+        ob_start();
+        $content = $this->renderView($view, $data);
+        $userType = $this->userType;
+        $pageTitle = $data['pageTitle'];
+        include __DIR__ . '/../Views/layouts/dashboard.php';
+        $dashboardContent = ob_get_clean();
+
+        // Use a dummy view approach to work with the existing view system
+        return $this->renderWithLayout($dashboardContent, [
+            'title' => $data['pageTitle'] . ' - EcoCycle',
             'userType' => $this->userType,
-            'pageTitle' => $data['pageTitle']
+            'user' => $this->user
         ]);
+    }
+
+    /**
+     * Render content with app layout
+     */
+    protected function renderWithLayout(string $content, array $data = []): Response
+    {
+        $response = app('response');
+
+        // Extract data for the layout
+        extract($data);
+
+        // Start output buffering for layout
+        ob_start();
+
+        // Include the app layout file directly
+        $layoutPath = __DIR__ . "/../Views/layouts/app.php";
+        if (file_exists($layoutPath)) {
+            include $layoutPath;
+        } else {
+            throw new \Exception("App layout not found at {$layoutPath}");
+        }
+
+        // Get the final rendered output
+        $finalOutput = ob_get_clean();
+
+        // Set the response
+        $response->setContent($finalOutput);
+        $response->setHeader('Content-Type', 'text/html');
+
+        return $response;
     }
 
     /**

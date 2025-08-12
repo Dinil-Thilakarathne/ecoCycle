@@ -3,6 +3,7 @@
 namespace Controllers\Company;
 
 use Controllers\DashboardController;
+use EcoCycle\Core\Navigation\NavigationConfig;
 use Core\Http\Request;
 use Core\Http\Response;
 
@@ -134,15 +135,7 @@ class CompanyDashboardController extends DashboardController
 
     protected function getNavigationItems(): array
     {
-        return [
-            ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'dashboard'],
-            ['title' => 'Waste Management', 'url' => '/company/waste', 'icon' => 'recycle'],
-            ['title' => 'Schedule Collection', 'url' => '/company/schedule', 'icon' => 'calendar'],
-            ['title' => 'Analytics', 'url' => '/company/analytics', 'icon' => 'chart'],
-            ['title' => 'Billing', 'url' => '/company/billing', 'icon' => 'invoice'],
-            ['title' => 'Sustainability', 'url' => '/company/sustainability', 'icon' => 'leaf'],
-            ['title' => 'Profile', 'url' => '/company/profile', 'icon' => 'building'],
-        ];
+        return NavigationConfig::getNavigation($this->userType);
     }
 
     // Placeholder methods for data retrieval

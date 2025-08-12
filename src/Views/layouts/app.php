@@ -20,22 +20,31 @@
     <!--  Main styles -->
     <link rel="stylesheet" href="/css/main.css">
 
+    <!-- Dashboard CSS if this is a dashboard page -->
+    <?php if (isset($userType)): ?>
+        <link rel="stylesheet" href="<?= asset('css/dashboard.css') ?>">
+    <?php endif; ?>
+
     <!-- Additional head content -->
     <?= $headContent ?? '' ?>
+
+    <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
 </head>
 
-<body class="<?= $bodyClass ?? '' ?>">
+<body
+    class="<?= $bodyClass ?? '' ?><?php if (isset($userType)): ?> dashboard-layout <?= $userType ?>-dashboard<?php endif; ?>">
 
     <!-- Main Content -->
-    <main class="main-content" role="main">
-        <!-- Page Content -->
-        <?= $content ?? '' ?>
-    </main>
-
+    <?= $content ?? '' ?>
 
     <!-- JavaScript Files -->
     <!-- Core JS -->
     <script src="/js/app.js"></script>
+
+    <!-- Dashboard JS if this is a dashboard page -->
+    <?php if (isset($userType)): ?>
+        <script src="<?= asset('js/dashboard.js') ?>"></script>
+    <?php endif; ?>
 
     <!-- Live Reload for Development (only loads on localhost/development) -->
     <?php if ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1'): ?>
