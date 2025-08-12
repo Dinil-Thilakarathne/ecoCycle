@@ -100,6 +100,61 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('reports', $data);
     }
 
+    public function DailyTask(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection DailyTasks',
+        ];
+
+        return $this->renderDashboard('DailyTask', $data);
+    }
+
+    public function helpsupport(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Help & Support',
+        ];
+
+        return $this->renderDashboard('helpsupport', $data);
+    }
+
+    public function history(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection History',
+        ];
+
+        return $this->renderDashboard('history', $data);
+    }
+
+    public function notification(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Notification',
+        ];
+
+        return $this->renderDashboard('notification', $data);
+    }
+
+     public function schedule(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Schedule',
+        ];
+
+        return $this->renderDashboard('schedule', $data);
+    }
+
+     public function setting(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Setting',
+        ];
+
+        return $this->renderDashboard('setting', $data);
+    }
+
+    
     /**
      * Profile and vehicle info
      */
