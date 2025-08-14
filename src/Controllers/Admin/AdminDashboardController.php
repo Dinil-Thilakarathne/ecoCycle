@@ -69,6 +69,18 @@ class AdminDashboardController extends DashboardController
     }
 
     /**
+     * Payment management page
+     */
+    public function payments(): Response
+    {
+        $data = [
+            'pageTitle' => 'Payment Management',
+        ];
+
+        return $this->renderDashboard('payments', $data);
+    }
+
+    /**
      * System settings page
      */
     public function settings(): Response
@@ -114,6 +126,30 @@ class AdminDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('content', $data);
+    }
+
+    /**
+     * Analytics page
+     */
+    public function analytics(): Response
+    {
+        $data = [
+            'pageTitle' => 'Analytics',
+        ];
+
+        return $this->renderDashboard('analytics', $data);
+    }
+
+    /**
+     * Notifications page
+     */
+    public function notifications(): Response
+    {
+        $data = [
+            'pageTitle' => 'Notifications',
+        ];
+
+        return $this->renderDashboard('notifications', $data);
     }
 
     protected function getNavigationItems(): array
