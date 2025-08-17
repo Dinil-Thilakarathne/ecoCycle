@@ -2,11 +2,11 @@
 use EcoCycle\Core\Navigation\NavigationConfig;
 ?>
 <!-- Sidebar Navigation -->
-<nav class="dashboard-sidebar">
+<aside class="dashboard-sidebar">
     <div>
         <img src="/assets/logo-text-black.png" />
     </div>
-    <div class="nav-menu-container">
+    <nav class="nav-menu-container">
         <h3 class="nav-menu__header">Dashboards</h3>
         <ul class="nav-menu">
             <?php
@@ -25,8 +25,8 @@ use EcoCycle\Core\Navigation\NavigationConfig;
                 </li>
             <?php endforeach; ?>
         </ul>
-    </div>
-</nav>
+    </nav>
+</aside>
 
 <!-- Main Content -->
 <main class="dashboard-content">
