@@ -4,7 +4,7 @@
 /* @import url("./dashboard.css"); */
 @import url("./components/common.css");
 
-@import url("./Collector.css")
+@import url("./Collector.css");
 
 body {
   font-family: var(--font-family-poppins);

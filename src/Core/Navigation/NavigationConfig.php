@@ -51,8 +51,8 @@ class NavigationConfig
             ],
             'collector' => [
                 ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'tachometer-alt', 'description' => 'Collector dashboard'],
-                ['title' => 'Pickups', 'url' => '/collector/dailytasks', 'icon' => 'truck', 'description' => 'Manage pickups'],
-                ['title' => 'Routes', 'url' => '/collector/history', 'icon' => 'time', 'description' => 'Optimize routes'],
+                ['title' => 'Pickups', 'url' => '/collector/dailyTask', 'icon' => 'truck', 'description' => 'Manage pickups'],
+                ['title' => 'Routes', 'url' => '/collector/notification', 'icon' => 'time', 'description' => 'Optimize routes'],
                 ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],
                 ['title' => 'Reports', 'url' => '/collector/reports', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
