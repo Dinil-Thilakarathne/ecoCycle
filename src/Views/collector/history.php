@@ -1,5 +1,7 @@
 <header>
-    <h1>Pickup History</h1>
+    <div class="header">
+        <div>
+            <h1>Pickup History</h1>
     <button><i class="fa-solid fa-file-export"></i>Export</button>
 </header>
 

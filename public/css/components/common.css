@@ -1,4 +1,4 @@
-/*.feature-card {
+.feature-card {
   display: flex;
   flex-direction: column;
   row-gap: var(--space-4);
@@ -96,7 +96,7 @@
 }
 
 /* Activity Card Styles */
-/*.activity-card {
+.activity-card {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--neutral-200);
@@ -155,7 +155,7 @@
 }
 
 /* Status Item Styles */
-/*.status-item {
+.status-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -168,7 +168,7 @@
 }
 
 /* Grid layouts */
-/*.stats-grid {
+.stats-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-6);
@@ -200,7 +200,7 @@
 }
 
 /* Page Header Styles */
-/*.page-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -222,7 +222,7 @@
 }
 
 /* Form Controls */
-/*.form-select {
+.form-select {
   position: relative;
   display: inline-block;
 
@@ -264,7 +264,7 @@
 }
 
 /* Button Styles */
-/*.btn {
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -325,7 +325,7 @@
    /* }
   }
 
-/* & tbody {
+ & tbody {
     & tr {
       border-bottom: 1px solid var(--neutral-100);
 
@@ -346,7 +346,7 @@
     /*  &.font-medium {
         font-weight: var(--font-weight-medium);
       }
-/*    }
+    }
   }
 }
 
@@ -393,10 +393,10 @@
   .cell-truncate {
     max-width: 120px;
   }
-}*/
+}
 
 /* Tabs Component */
-/*.tabs {
+.tabs {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -451,7 +451,7 @@
 }
 
 /* Search Input */
-/*.search-input {
+.search-input {
   position: relative;
   display: flex;
   align-items: center;
@@ -484,7 +484,7 @@
 }
 
 /* Action buttons group */
-/*.action-buttons {
+.action-buttons {
   display: flex;
   gap: var(--space-2);
 }

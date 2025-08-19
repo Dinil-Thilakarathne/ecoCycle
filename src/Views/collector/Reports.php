@@ -1,7 +1,10 @@
-<h1>Collector Report Analysis</h1>
+ <div class="header">
+        <div>
+            <h1>Daily Tasks</h1>
+    </div>
 
 <!-- Summary Cards -->
-<div class="summary-cards">
+<!--lass="summary-cards"
   <div class="card">
     <h3>Average Rating</h3>
     <p>4.7 <i class="fa-solid fa-star" style="color: gold;"></i></p>
@@ -17,7 +20,43 @@
     <p>3</p>
     <div class="subtext">Need attention</div>
   </div>
-</div>
+</div>-->
+
+ <div class="cards-container">
+    <div class="feature-card">
+      <div class="feature-card__header">
+        <div class="feature-card__title">Average Rating</div>
+        <div class="feature-card__icon"><ata-lucide="star"></div>
+      </div>
+      <div class="feature-card__body">4.7</div>
+      <div class="feature-card__footer">
+        <span class="desc">Based on customer feedback</span>
+      </div>
+    </div>
+
+     <div class="cards-container">
+    <div class="feature-card">
+      <div class="feature-card__header">
+        <div class="feature-card__title">Pending Reports</div>
+        <div class="feature-card__icon"><ata-lucide="file-clock"></div>
+      </div>
+      <div class="feature-card__body">3</div>
+      <div class="feature-card__footer">
+        <span class="desc">Need Attention</div>
+      </div>
+    </div>
+
+     <div class="cards-container">
+    <div class="feature-card">
+      <div class="feature-card__header">
+        <div class="feature-card__title">Total Feedbacks</div>
+        <div class="feature-card__icon"><ata-lucide="star"></div>
+      </div>
+      <div class="feature-card__body">3</div>
+      <div class="feature-card__footer">
+        <span class="desc">Recieved from customers</span>
+      </div>
+    </div>
 
 <!-- Customer Feedback Table -->
 <div class="feedback">

@@ -1,4 +1,7 @@
-<h1>Collector Earnings Dashboard</h1>
+ <div class="header">
+        <div>
+            <h1>Collector Earnings</h1>
+    </div>
 
 <!-- Feature Cards -->
 <div class="cards-container">
