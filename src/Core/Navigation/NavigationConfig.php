@@ -58,7 +58,7 @@ class NavigationConfig
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'company' => [
-                ['title' => 'Dashboard', 'url' => '/company/dashboard', 'icon' => 'tachometer-alt', 'description' => 'Company dashboard'],
+                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'tachometer-alt', 'description' => 'Company dashboard'],
                 ['title' => 'Active Bids', 'url' => '/company/activeBids', 'icon' => 'calendar', 'description' => 'Schedule collections'],
                 ['title' => 'Purchases', 'url' => '/company/purchases', 'icon' => 'chart-line', 'description' => 'Business analytics'],
                 ['title' => 'Reports', 'url' => '/company/reports', 'icon' => 'file-invoice-dollar', 'description' => 'Billing and invoices'],
