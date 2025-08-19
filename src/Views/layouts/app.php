@@ -29,6 +29,8 @@
     <?= $headContent ?? '' ?>
 
     <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body

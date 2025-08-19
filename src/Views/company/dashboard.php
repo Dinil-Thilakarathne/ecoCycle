@@ -1,6 +1,5 @@
 <?php
-// dashboard.php
-session_start();
+
 
 
 // Sample data (replace with database queries in real implementation)
@@ -19,43 +18,43 @@ $notifications = [];
 ?>
 
 
-  <!-- Main Content -->
-  <main class="content">
-    <header class="header">
-      <h1>Welcome back!</h1>
-      <p>Here is your latest update on your Dashboard.</p>
+<!-- Main Content -->
+<main class="content">
+  <header class="header">
+    <h1>Welcome back!</h1>
+    <p>Here is your latest update on your Dashboard.</p>
 
-    </header>
+  </header>
 
-    <section class="companyDashboard">
-      <!-- Available Waste Amount -->
-      <div class="c-dashboard-card">
-        <h3>Available Waste Amount</h3>
-        <p class="value">
-          <?php echo array_sum($availableWaste); ?> kg
-        </p>
-        <ul class="waste-list">
-          <?php foreach ($availableWaste as $type => $kg): ?>
-            <li><?php echo $type; ?>: <?php echo $kg; ?> kg</li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-     
+  <section class="companyDashboard">
+    <!-- Available Waste Amount -->
+    <div class="c-dashboard-card">
+      <h3>Available Waste Amount</h3>
+      <p class="value">
+        <?php echo array_sum($availableWaste); ?> kg
+      </p>
+      <ul class="waste-list">
+        <?php foreach ($availableWaste as $type => $kg): ?>
+          <li><?php echo $type; ?>: <?php echo $kg; ?> kg</li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
 
-      <!-- Highest Bids -->
-     <div class="c-dashboard-grid">   
+
+    <!-- Highest Bids -->
+    <div class="c-dashboard-grid">
       <div class="c-dashboard-card">
         <h3>Current Highest Bid for Each Waste Type</h3>
         <ul class="bids">
-          <?php 
-              $bids = [
-                        'Plastic' => ['amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-                        'Paper' => ['amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-                        'Metal' => ['amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-                        'Glass' => ['amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
-                    ];
-              foreach ($bids as $type => $data) {
-              echo "
+          <?php
+          $bids = [
+            'Plastic' => ['amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
+            'Paper' => ['amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
+            'Metal' => ['amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
+            'Glass' => ['amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+          ];
+          foreach ($bids as $type => $data) {
+            echo "
                         <div class='bid-item'>
                             <div class='bid-header'>
                                 <span class='waste-type'>{$type}</span>
@@ -66,8 +65,8 @@ $notifications = [];
                                 <span class='status {$data['status']}'>{$data['status']}</span>
                             </div>
                         </div>";
-              }
-        
+          }
+
           ?>
         </ul>
       </div>
@@ -77,7 +76,7 @@ $notifications = [];
         <h3>Profile & Notifications</h3>
         <div class="profile-box">
           <p><strong>Company Name</strong></p>
-          <a href="http://localhost/Project/profile.php">View Profile</a>
+          <a href="http://localhost:8000/company/profile">View Profile</a>
         </div>
         <ul class="notifications">
           <?php foreach ($notifications as $note => $time): ?>
@@ -85,10 +84,10 @@ $notifications = [];
           <?php endforeach; ?>
         </ul>
         <div class="feedback">
-                        <input type="text" placeholder="Send Feedback">
-                        <button>Send</button>
+          <input type="text" placeholder="Send Feedback">
+          <button>Send</button>
         </div>
       </div>
-     </div> 
-    </section>
-  </main>
+    </div>
+  </section>
+</main>
