@@ -1,4 +1,4 @@
-
+/*
 
     .cards-container {
       display: grid;
@@ -61,7 +61,7 @@
     }
 
     /* ====== Bottom Cards (Tasks & Goals) ====== */
-    .bottom-container {
+    /*.bottom-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
@@ -89,7 +89,7 @@
     }
 
     /* Recent Tasks */
-    .task {
+    /*.task {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -148,7 +148,7 @@
     }
 
     /* Performance Goals */
-    .goal {
+/*    .goal {
       margin-bottom: 20px;
     }
 
@@ -562,7 +562,7 @@
   }
 
   /* Profile Photo */
-  .profile-photo {
+.profile-photo {
     display: flex;
     align-items: center;
     gap: 15px;
@@ -889,3 +889,8 @@ td {
     color: var(--gray);
     margin-top: 4px;
   }
+
+  /* ====== Global Styles ====== */
+
+
+
