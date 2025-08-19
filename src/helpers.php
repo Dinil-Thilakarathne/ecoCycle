@@ -441,3 +441,70 @@ if (!function_exists('can_access_dashboard')) {
         return $user['role'] === $dashboardType;
     }
 }
+
+if (!function_exists('getNavigation')) {
+    /**
+     * Get navigation items for a user type
+     * 
+     * @param string $userType The user role (admin, customer, collector, company)
+     * @return array Navigation items
+     */
+    function getNavigation(string $userType): array
+    {
+        return \EcoCycle\Core\Navigation\NavigationConfig::getNavigation($userType);
+    }
+}
+
+if (!function_exists('isActiveNavigation')) {
+    /**
+     * Check if a navigation URL is active
+     * 
+     * @param string $navUrl The navigation URL
+     * @param string|null $currentUrl Current URL (optional, uses REQUEST_URI if not provided)
+     * @return bool Whether the navigation item is active
+     */
+    function isActiveNavigation(string $navUrl, ?string $currentUrl = null): bool
+    {
+        $currentUrl = $currentUrl ?? ($_SERVER['REQUEST_URI'] ?? '');
+        return \EcoCycle\Core\Navigation\NavigationConfig::isActiveUrl($navUrl, $currentUrl);
+    }
+}
+
+if (!function_exists('getBreadcrumbs')) {
+    /**
+     * Get breadcrumb navigation for current page
+     * 
+     * @param string $userType The user role
+     * @param string|null $currentUrl Current URL (optional, uses REQUEST_URI if not provided)
+     * @return array Breadcrumb items
+     */
+    function getBreadcrumbs(string $userType, ?string $currentUrl = null): array
+    {
+        $currentUrl = $currentUrl ?? ($_SERVER['REQUEST_URI'] ?? '');
+        return \EcoCycle\Core\Navigation\NavigationConfig::getBreadcrumbs($userType, $currentUrl);
+    }
+}
+
+if (!function_exists('validateRoutes')) {
+    /**
+     * Validate that all navigation routes have corresponding controller methods
+     * 
+     * @return array Array of missing methods
+     */
+    function validateRoutes(): array
+    {
+        return \EcoCycle\Core\Navigation\RouteConfig::validateRoutes();
+    }
+}
+
+if (!function_exists('listRoutes')) {
+    /**
+     * Get all dashboard routes
+     * 
+     * @return array Array of route definitions
+     */
+    function listRoutes(): array
+    {
+        return \EcoCycle\Core\Navigation\RouteConfig::getAllDashboardRoutes();
+    }
+}
