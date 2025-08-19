@@ -7,10 +7,6 @@
       <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
     </div>
     <div class="feature-card__body">Rs. 12,500</div>
-    <div class="feature-card__footer">
-      <span class="highlight">+12% from yesterday</span>
-      <span class="desc">Total collected</span>
-    </div>
   </div>
 
   <div class="feature-card">
@@ -19,13 +15,17 @@
       <div class="feature-card__icon"><i class="fa-solid fa-weight-scale"></i></div>
     </div>
     <div class="feature-card__body">245 kg</div>
-    <div class="feature-card__footer">
-      <span class="highlight">+15 kg from avg</span>
-      <span class="desc">Collected today</span>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card__header">
+      <div class="feature-card__title">Avg Rating</div>
+      <div class="feature-card__icon"><i class="fa-solid fa-weight-star"></i></div>
     </div>
+    <div class="feature-card__body">4.3</div>
   </div>
   
-  <div class="stats">
+<!--  <div class="stats">
     <div class="stat-card">
         <h2 style="color: #16a34a;">$90.00</h2>
         <div>Total Earnings</div>
@@ -38,7 +38,7 @@
         <h2 style="color: #f97316;">4.3 <i class="fa-solid fa-star"></i></h2>
         <div>Avg Rating</div>
     </div>
-</div>
+</div>-->
 
 
 <div class="filters">
