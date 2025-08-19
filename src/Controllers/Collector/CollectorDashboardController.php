@@ -42,7 +42,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Pickup assignments
      */
-    public function pickups(): Response
+   /* public function pickups(): Response
     {
         $data = [
             'pageTitle' => 'Pickup Assignments',
@@ -52,12 +52,12 @@ class CollectorDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('pickups', $data);
-    }
+    }*/
 
     /**
      * Route optimization
      */
-    public function routes(): Response
+   /* public function routes(): Response
     {
         $data = [
             'pageTitle' => 'Route Planning',
@@ -67,7 +67,7 @@ class CollectorDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('routes', $data);
-    }
+    }*/
 
     /**
      * Earnings and payments
@@ -109,14 +109,6 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('DailyTask', $data);
     }
 
-    public function helpsupport(): Response
-    {
-        $data = [
-            'pageTitle' => 'Collection Help & Support',
-        ];
-
-        return $this->renderDashboard('helpsupport', $data);
-    }
 
     public function history(): Response
     {
@@ -127,23 +119,7 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('history', $data);
     }
 
-    public function notification(): Response
-    {
-        $data = [
-            'pageTitle' => 'Collection Notification',
-        ];
-
-        return $this->renderDashboard('notification', $data);
-    }
-
-     public function schedule(): Response
-    {
-        $data = [
-            'pageTitle' => 'Collection Schedule',
-        ];
-
-        return $this->renderDashboard('schedule', $data);
-    }
+    
 
      public function setting(): Response
     {
