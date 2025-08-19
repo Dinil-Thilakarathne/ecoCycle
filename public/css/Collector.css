@@ -258,3 +258,128 @@
       color: var(--gray);
       margin-top: 4px;
     }
+
+    
+    /* Tabs */
+    .tabs-list {
+      display: flex;
+      gap: var(--space-2);
+      margin-bottom: var(--space-6);
+    }
+    .tabs-trigger {
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      background: var(--neutral-0);
+      transition: background var(--transition-fast);
+    }
+    .tabs-trigger.active {
+      background: var(--primary);
+      color: var(--neutral-0);
+      border-color: var(--primary);
+    }
+    .tabs-trigger:hover {
+      background: var(--neutral-200);
+    }
+
+    /* Feature Card */
+    .feature-card {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-8);
+      background: var(--neutral-0);
+      max-width: 600px;
+    }
+    .feature-card h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: var(--space-2);
+      color: var(--neutral-900);
+    }
+    .feature-card p {
+      font-size: var(--text-sm);
+      color: var(--neutral-600);
+      margin-bottom: var(--space-4);
+    }
+
+    /* Profile photo */
+    .profile-photo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+    }
+    .profile-photo img {
+      border-radius: var(--radius-full);
+      width: 60px;
+      height: 60px;
+    }
+    .photo-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    .photo-buttons button {
+      border: 1px solid var(--neutral-300);
+      background: var(--neutral-0);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .photo-buttons button:hover {
+      background: var(--neutral-100);
+    }
+
+    /* Form */
+    form {
+      display: grid;
+      gap: var(--space-4);
+    }
+    form label {
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--neutral-700);
+      display: block;
+      margin-bottom: var(--space-1);
+    }
+    form input,
+    form select {
+      width: 100%;
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--neutral-900);
+    }
+    form input:focus,
+    form select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(28, 227, 106, 0.1);
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+    .save {
+      width: 100%;
+      background: var(--success-light);
+      border: 1px solid var(--success);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-semibold);
+      color: #047857;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .save:hover {
+      background: var(--success);
+      color: var(--neutral-0);
+    }
