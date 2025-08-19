@@ -50,7 +50,7 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Total Feedbacks</div>
-        <div class="feature-card__icon"><ata-lucide="star"></div>
+        <div class="feature-card__icon"><ata-lucide="message-circle></div>
       </div>
       <div class="feature-card__body">3</div>
       <div class="feature-card__footer">
