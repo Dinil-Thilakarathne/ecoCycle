@@ -1,5 +1,3 @@
-/*
-
     .cards-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -61,7 +59,7 @@
     }
 
     /* ====== Bottom Cards (Tasks & Goals) ====== */
-    /*.bottom-container {
+    .bottom-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
@@ -89,7 +87,7 @@
     }
 
     /* Recent Tasks */
-    /*.task {
+    .task {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -148,7 +146,7 @@
     }
 
     /* Performance Goals */
-/*    .goal {
+    .goal {
       margin-bottom: 20px;
     }
 
