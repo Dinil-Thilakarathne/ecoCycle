@@ -1,12 +1,31 @@
-<header>
-    <div class="header">
-        <div>
-            <h1>Pickup History</h1>
-    <button><i class="fa-solid fa-file-export"></i>Export</button>
-</header>
+<i class="fa-solid fa-file-export"></i>Export</button>
 
+<div class="cards-container">
+  <div class="feature-card">
+    <div class="feature-card__header">
+      <div class="feature-card__title">Total Earnings</div>
+      <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
+    </div>
+    <div class="feature-card__body">Rs. 12,500</div>
+    <div class="feature-card__footer">
+      <span class="highlight">+12% from yesterday</span>
+      <span class="desc">Total collected</span>
+    </div>
+  </div>
 
-<div class="stats">
+  <div class="feature-card">
+    <div class="feature-card__header">
+      <div class="feature-card__title">Total Weight</div>
+      <div class="feature-card__icon"><i class="fa-solid fa-weight-scale"></i></div>
+    </div>
+    <div class="feature-card__body">245 kg</div>
+    <div class="feature-card__footer">
+      <span class="highlight">+15 kg from avg</span>
+      <span class="desc">Collected today</span>
+    </div>
+  </div>
+  
+  <div class="stats">
     <div class="stat-card">
         <h2 style="color: #16a34a;">$90.00</h2>
         <div>Total Earnings</div>

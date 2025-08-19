@@ -1,9 +1,3 @@
- <div class="header">
-        <div>
-            <h1>Collector Earnings</h1>
-    </div>
-
-<!-- Feature Cards -->
 <div class="cards-container">
   <div class="feature-card">
     <div class="feature-card__header">
@@ -120,3 +114,83 @@
 
 </div>
 
+
+<!--new-->
+<div class="cards-container">
+  <div class="card card-earnings">
+    <i class="fa-solid fa-sack-dollar"></i>
+    <h3>Total Earnings</h3>
+    <div class="value">Rs. 12,500</div>
+  </div>
+  <div class="card card-weight">
+    <i class="fa-solid fa-weight-scale"></i>
+    <h3>Total Weight</h3>
+    <div class="value">245 kg</div>
+  </div>
+  <div class="card card-collections">
+    <i class="fa-solid fa-recycle"></i>
+    <h3>Total Collections</h3>
+    <div class="value">15</div>
+  </div>
+</div>
+
+<!-- Breakdown Section -->
+<div class="breakdown">
+  <h3>Breakdown by Material Type</h3>
+
+  <div class="material">
+    <div class="material-header">
+      <span>Plastic</span>
+      <span>Rs. 6,000 (120kg)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress plastic" style="width: 50%;"></div>
+    </div>
+  </div>
+
+  <div class="material">
+    <div class="material-header">
+      <span>Glass</span>
+      <span>Rs. 3,250 (65kg)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress glass" style="width: 27%;"></div>
+    </div>
+  </div>
+
+  <div class="material">
+    <div class="material-header">
+      <span>Paper</span>
+      <span>Rs. 2,000 (40kg)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress paper" style="width: 16%;"></div>
+    </div>
+  </div>
+
+  <div class="material">
+    <div class="material-header">
+      <span>Metal</span>
+      <span>Rs. 1,250 (20kg)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress metal" style="width: 10%;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Reports Section -->
+<div class="reports">
+  <h3>Reports</h3>
+  <div class="report-options">
+    <button class="active">Daily</button>
+    <button>Weekly</button>
+    <button>Monthly</button>
+  </div>
+  <div class="report-summary">
+    Showing <strong>Daily Report</strong>: Rs. 12,500 earned from 245kg collected.
+  </div>
+</div>
+
+</body>
+</html>
