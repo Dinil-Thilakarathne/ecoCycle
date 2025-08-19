@@ -57,7 +57,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Route optimization
      */
-   /* public function routes(): Response
+   public function history(): Response
     {
         $data = [
             'pageTitle' => 'Route Planning',
@@ -66,8 +66,8 @@ class CollectorDashboardController extends DashboardController
             'routeStats' => $this->getRouteStats()
         ];
 
-        return $this->renderDashboard('routes', $data);
-    }*/
+        return $this->renderDashboard('history', $data);
+    }
 
     /**
      * Earnings and payments
@@ -101,14 +101,6 @@ class CollectorDashboardController extends DashboardController
     }
 
 
-    public function history(): Response
-    {
-        $data = [
-            'pageTitle' => 'Collection History',
-        ];
-
-        return $this->renderDashboard('history', $data);
-    }
 
     
 
