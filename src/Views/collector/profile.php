@@ -1,6 +1,3 @@
-<h1>Collector Profile</h1>
-<p class="subtitle">Manage your collector account and work details</p>
-
 <div class="tabs">
   <div class="tab active">Profile</div>
   <div class="tab">Assignments</div>

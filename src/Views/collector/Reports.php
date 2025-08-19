@@ -1,7 +1,3 @@
- <div class="header">
-        <div>
-            <h1>Daily Tasks</h1>
-    </div>
 
 <!-- Summary Cards -->
 <!--lass="summary-cards"
