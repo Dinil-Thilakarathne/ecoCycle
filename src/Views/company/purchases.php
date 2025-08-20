@@ -38,15 +38,17 @@ $purchaseSummary = [
 ];
 
 $purchaseHistory = [
-    ["id" => "PUR004", "type" => "Glass Bottles", "amount" => "800 kg", "price" => "Rs.400", "pickup_status" => "Completed", "delivery_status" => "Delivered", "date" => "2024-01-10"],
-    ["id" => "PUR005", "type" => "Mixed Recyclables", "amount" => "3,000 kg", "price" => "Rs.1,500", "pickup_status" => "Completed", "delivery_status" => "Delivered", "date" => "2024-01-05"]
+    ["id" => "PUR004", "type" => "Glass Bottles", "amount" => "800 kg", "price" => "Rs.400", "delivery_status" => "Completed", "date" => "2024-01-10"],
+    ["id" => "PUR005", "type" => "Mixed Recyclables", "amount" => "3,000 kg", "price" => "Rs.1,500", "delivery_status" => "Completed", "date" => "2024-01-05"]
 ];
 ?>
 
 <main class="content">
-        <header class="header">
-            <h1>Purchases</h1>
-            <p>Manage your accepted purchases and payment history</p>
+        <header class="page-header">
+            <div class="page-header__content">
+                    <h2 class="page-header__title">Purchases</h2>
+                    <p class="page-header__description">Manage your accepted purchases and payment history</p>
+            </div>
         </header>
 
         <div class="purchases-grid">
@@ -89,8 +91,10 @@ $purchaseHistory = [
         </div>
 
         <!-- Purchase History -->
-        <div class="table-section">
-            <h3>Purchase History</h3>
+        <div class="activity-card">
+            <div class="activity-card__header">
+                <h3 class="activity-card__title">Purchase History</h3>
+            </div>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -98,7 +102,6 @@ $purchaseHistory = [
                         <th>Waste Type</th>
                         <th>Amount</th>
                         <th>Price</th>
-                        <th>Pickup Status</th>
                         <th>Delivery Status</th>
                         <th>Date</th>
                     </tr>
@@ -110,8 +113,7 @@ $purchaseHistory = [
                         <td><?= $history['type'] ?></td>
                         <td><?= $history['amount'] ?></td>
                         <td class="price"><?= $history['price'] ?></td>
-                        <td><span class="status completed"><?= $history['pickup_status'] ?></span></td>
-                        <td><span class="status delivered"><?= $history['delivery_status'] ?></span></td>
+                        <td><span class="status completed"><?= $history['delivery_status'] ?></span></td>
                         <td><?= $history['date'] ?></td>
                     </tr>
                     <?php endforeach; ?>

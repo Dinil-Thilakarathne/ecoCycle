@@ -29,9 +29,11 @@ $helpCategories = [
 ?>
 
 <main class="content">
-        <header class="header">
-            <h1>Help Center</h1>
-            <p>Hi, How can we help you?</p>
+        <header class="page-header">
+            <div class="page-header__content">
+                    <h2 class="page-header__title">Help Center</h2>
+                    <p class="page-header__description">Hi, How can we help you?</p>
+            </div>
         </header>
 
         <!-- Search Form -->

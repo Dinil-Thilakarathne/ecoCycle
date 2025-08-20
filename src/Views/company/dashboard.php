@@ -1,7 +1,5 @@
 <?php
 
-
-
 // Sample data (replace with database queries in real implementation)
 $availableWaste = [
   'Plastic' => 2500,
@@ -20,10 +18,11 @@ $notifications = [];
 
 <!-- Main Content -->
 <main class="content">
-  <header class="header">
-    <h1>Welcome back!</h1>
-    <p>Here is your latest update on your Dashboard.</p>
-
+  <header class="page-header">
+    <div class="page-header__content">
+            <h2 class="page-header__title">Welcome back!</h2>
+            <p class="page-header__description">Here is your latest update on your Dashboard</p>
+    </div>
   </header>
 
   <section class="companyDashboard">

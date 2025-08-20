@@ -18,9 +18,11 @@ $wonBidsPerMonth = [7, 9, 6, 14, 10, 15];
 ?>
 
 <main class="content">
-        <header class="header">
-            <h1>Reports & Analytics</h1>
-        </header>
+    <header class="page-header">
+            <div class="page-header__content">
+                    <h2 class="page-header__title">Reports & Analytics</h2>
+            </div>
+    </header>
         <div class="filters">
             <input type="text" placeholder="Search reports...">
             <select><option>Report type</option></select>

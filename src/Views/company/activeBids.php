@@ -1,7 +1,9 @@
 <main class="content">
-    <header class="header">
-      <h1>Place your bid here!</h1>
-      <p>Submit bids for available waste lots</p>
+    <header class="page-header">
+        <div class="page-header__content">
+                <h2 class="page-header__title">Place your bid here!</h2>
+                <p class="page-header__description">Submit bids for available waste lots</p>
+        </div>
     </header>
 
     <div class="top-section">
@@ -55,8 +57,10 @@
     </div>
     
     <!-- Bidding History -->
-    <div class="table-section">
-                <h3>View Bidding History</h3>
+    <div class="activity-card">
+            <div class="activity-card__header">
+                <h3 class="activity-card__title">View Bidding History</h3>
+            </div>    
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -107,5 +111,6 @@
                         ?>
                     </tbody>
                 </table>
+        
     </div>
 </main>

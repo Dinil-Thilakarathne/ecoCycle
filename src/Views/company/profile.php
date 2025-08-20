@@ -1,11 +1,10 @@
 <?php
-// Example: Profile data (usually fetched from a database)
+// Example: Profile data (usually from DB)
 $company = [
-    "name" => "EcoCycle Company.",
+    "name" => "EcoCycle Company",
     "type" => "Waste Management",
     "reg_number" => "REG-2023-001234",
-    "description" => "Leading waste management company specializing in recyclable materials collection and processing. 
-    Committed to environmental sustainability and circular economy principles.",
+    "description" => "Leading waste management company specializing in recyclable materials collection and processing.",
     "email" => "contact@ecowaste.com",
     "phone" => "+1 (555) 123-4567",
     "website" => "www.ecocycle.com",
@@ -17,7 +16,9 @@ $company = [
     ]
 ];
 
-// Handle form submission (if POST request)
+$showToast = false;
+
+// Handle form submission
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $company["name"] = $_POST["name"];
     $company["type"] = $_POST["type"];
@@ -27,82 +28,110 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $company["phone"] = $_POST["phone"];
     $company["website"] = $_POST["website"];
     $company["address"] = $_POST["address"];
-
-    // Normally you would update the database here
-    echo "<p style='color: green; font-weight: bold;'>Profile updated successfully!</p>";
+    $showToast = true;
 }
 ?>
 
 <main class="content">
-    <header class="header">
-      <h1>Profile</h1>
-      <p>Update your profile here!</p>
+
+     <header class="page-header">
+            <div class="page-header__content">
+                    <h2 class="page-header__title">Company Profile</h2>
+                    <p class="page-header__description">Update your profile here!</p>
+            </div>
     </header>
-        <form method="POST">
-            <!-- Company Information -->
-            <div class="top-section">
-                <div class="p-card">
-                    <h3>Company Information</h3>
-                    <div class="form-group">
-                        <label>Company Name</label>
-                        <input type="text" name="name" value="<?= htmlspecialchars($company['name']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Business Type</label>
-                        <input type="text" name="type" value="<?= htmlspecialchars($company['type']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Registration Number</label>
-                        <input type="text" name="reg_number" value="<?= htmlspecialchars($company['reg_number']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Company Description</label>
-                        <textarea name="description" rows="4"><?= htmlspecialchars($company['description']) ?></textarea>
-                    </div>
-                </div>
 
-                <!-- Account Information -->
-                <div class="p-card">
-                    <h3>Account Information</h3>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" value="<?= htmlspecialchars($company['email']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Phone</label>
-                        <input type="text" name="phone" value="<?= htmlspecialchars($company['phone']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Website</label>
-                        <input type="text" name="website" value="<?= htmlspecialchars($company['website']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Business Address</label>
-                        <textarea name="address" rows="2"><?= htmlspecialchars($company['address']) ?></textarea>
-                    </div>
-                </div>
-            </div>
+    <!-- Company Info -->
+  
+    <a href="#editModal" class="edit-btn">✏️ Edit Profile</a>
+    
+    <div class=p-info-card>
+      <div class="pc-card">
+        <h3>Company Information</h3>
+        <div class="form-group"><label>Name</label>
+          <input type="text" value="<?= htmlspecialchars($company['name']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Type</label>
+          <input type="text" value="<?= htmlspecialchars($company['type']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Registration</label>
+          <input type="text" value="<?= htmlspecialchars($company['reg_number']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Description</label>
+          <textarea disabled><?= htmlspecialchars($company['description']) ?></textarea>
+        </div>
+      </div>
 
-            <!-- Verification Status -->
-            <div class="p-card">
-                <h3>Verification Status</h3>
-                <ul>
-                    <?php foreach($company['verification'] as $item => $status): ?>
-                        <li><?= $item ?>: <span class="verified"><?= $status ? "Verified" : "Not Verified" ?></span></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
+      <!-- Contact Info -->
+      <div class="pc-card">
+        <h3>Contact Information</h3>
+        <div class="form-group"><label>Email</label>
+          <input type="text" value="<?= htmlspecialchars($company['email']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Phone</label>
+          <input type="text" value="<?= htmlspecialchars($company['phone']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Website</label>
+          <input type="text" value="<?= htmlspecialchars($company['website']) ?>" disabled>
+        </div>
+        <div class="form-group"><label>Address</label>
+          <textarea disabled><?= htmlspecialchars($company['address']) ?></textarea>
+        </div>
+      </div>
+    </div>
 
-            <!-- Security & Privacy -->
-            <div class="p-card">
-                <h3>Security & Privacy</h3>
-                <button type="button">Change Password</button>
-                <button type="button">Setup Two-Factor Authentication</button>
-                <button type="button">Privacy Settings</button>
-                <button type="button" class="btn-danger">Delete Account</button>
-            </div>
+    <!-- Verification -->
+    <div class="pc-card">
+      <h3>Verification Status</h3>
+      <ul>
+        <?php foreach($company['verification'] as $item => $status): ?>
+          <li><?= $item ?>:
+            <span class="<?= $status ? 'verified' : 'not-verified' ?>">
+              <?= $status ? 'Verified' : 'Not Verified' ?>
+            </span>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
 
-            <!-- Save Button -->
-            <button type="submit" class="submit">Save Changes</button>
-        </form>
+    <!-- Security -->
+    <div class="pc-card">
+      <h3>Security & Privacy</h3>
+      <p><button class="p-btn">Change Password</button></p>
+      <p><button class="p-btn">Two-Factor Authentication</button></p>
+      <p><button class="p-btn-delete">Delete Account</button></p>
+    </div>
 </main>
+
+
+<!-- Edit Modal -->
+<div id="editModal" class="form-modal">
+  <div class="form-modal-content">
+    <a href="#" class="close">&times;</a>
+    <h2>Edit Profile</h2>
+    <form method="POST">
+      <div class="form-group"><label class="form-lable">Name</label>
+        <input type="text" name="name" value="<?= htmlspecialchars($company['name']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Type</label>
+        <input type="text" name="type" value="<?= htmlspecialchars($company['type']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Registration</label>
+        <input type="text" name="reg_number" value="<?= htmlspecialchars($company['reg_number']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Description</label>
+        <textarea name="description"><?= htmlspecialchars($company['description']) ?></textarea></div>
+      <div class="form-group"><label class="form-lable">Email</label>
+        <input type="email" name="email" value="<?= htmlspecialchars($company['email']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Phone</label>
+        <input type="text" name="phone" value="<?= htmlspecialchars($company['phone']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Website</label>
+        <input type="text" name="website" value="<?= htmlspecialchars($company['website']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Address</label>
+        <textarea name="address"><?= htmlspecialchars($company['address']) ?></textarea></div>
+      <button type="submit" class="p-submit">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<?php if ($showToast): ?>
+<div class="toast">✅ Profile updated successfully!</div>
+<?php endif; ?>
