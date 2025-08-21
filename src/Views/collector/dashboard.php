@@ -92,16 +92,6 @@
 
       <div class="task">
         <div class="task-info">
-          <span class="task-name">Sarah Johnson <span class="status completed">completed</span></span>
-          <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 456 Pine Avenue · Paper · 24kg</span>
-        </div>
-        <div class="task-right">
-          <span class="amount">Rs.2500.00</span>
-        </div>
-      </div>
-
-      <div class="task">
-        <div class="task-info">
           <span class="task-name">Mike Wilson <span class="status pending">pending</span></span>
           <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 789 Elm Road · Metal · 8kg</span>
         </div>

@@ -34,6 +34,11 @@
       width: 110px;
     }
 
+     .highlight {
+      color: var(--green);
+      font-weight: bold;
+    }
+
     /* Pickup Cards */
     .pickup-card {
         background: #fff;
@@ -237,7 +242,7 @@
       border-radius: 8px;
     }
 
-    .in-progress { background: #e6f4ea; color: var(--green); }
+    .in-progress { background: #e6f4ea; color: green; }
     .on-track { background: #e6f0ff; color: #0052cc; }
     .excellent { background: #fff7e6; color: #d98200; }
 
@@ -250,7 +255,7 @@
 
     .progress {
       height: 100%;
-      background: var(--green);
+      background: green;
     }
 
     .goal-footer {
