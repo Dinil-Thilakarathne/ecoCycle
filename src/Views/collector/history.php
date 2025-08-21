@@ -1,6 +1,6 @@
 <i class="fa-solid fa-file-export"></i>Export</button>
 
-<div class="cards-container">
+<div class="feature-cards">
   <div class="feature-card">
     <div class="feature-card__header">
       <div class="feature-card__title">Total Earnings</div>
@@ -25,21 +25,6 @@
     <div class="feature-card__body">4.3</div>
   </div>
   
-<!--  <div class="stats">
-    <div class="stat-card">
-        <h2 style="color: #16a34a;">$90.00</h2>
-        <div>Total Earnings</div>
-    </div>
-    <div class="stat-card">
-        <h2 style="color: #2563eb;">100kg</h2>
-        <div>Total Weight</div>
-    </div>
-    <div class="stat-card">
-        <h2 style="color: #f97316;">4.3 <i class="fa-solid fa-star"></i></h2>
-        <div>Avg Rating</div>
-    </div>
-</div>-->
-
 
 <div class="filters">
     <div class="search-container">

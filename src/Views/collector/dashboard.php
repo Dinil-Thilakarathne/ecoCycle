@@ -1,4 +1,4 @@
- <div class="cards-container">
+ <div class="feature-cards">
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Today's Tasks</div>

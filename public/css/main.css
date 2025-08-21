@@ -1,7 +1,7 @@
 ﻿@import url("./base/reset.css");
 @import url("./base/theme.css");
 
-/* @import url("./dashboard.css"); */
+@import url("./dashboard.css");
 @import url("./components/common.css");
 
 @import url("./Collector.css");
