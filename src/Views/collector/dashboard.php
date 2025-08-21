@@ -2,11 +2,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Today's Tasks</div>
-        <div class="feature-card__icon"><i data-lucide="settings"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
       </div>
       <div class="feature-card__body">8</div>
       <div class="feature-card__footer">
-        <span class="highlight">+2 from yesterday</span>
+        <!--<span class="highlight">+2 from yesterday</span>-->
         <span class="desc">assigned tasks</span>
       </div>
     </div>
@@ -14,11 +14,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Completed</div>
-        <div class="feature-card__icon"><i data-lucide="refresh-ccw"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-table-list"></i></div>
       </div>
       <div class="feature-card__body">5</div>
       <div class="feature-card__footer">
-        <span class="highlight">83% success rate</span>
+        <!--<span class="highlight">83% success rate</span>-->
         <span class="desc">tasks finished</span>
       </div>
     </div>
@@ -26,11 +26,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Pending</div>
-        <div class="feature-card__icon"><i data-lucide="clock"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-clock"></i></div>
       </div>
       <div class="feature-card__body">3</div>
       <div class="feature-card__footer">
-        <span class="highlight">2 hours remaining</span>
+        <!--<span class="highlight">2 hours remaining</span>-->
         <span class="desc">tasks left</span>
       </div>
     </div>
@@ -38,11 +38,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Total Weight</div>
-        <div class="feature-card__icon"><i data-lucide="trending-up"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-weight-hanging"></i></div>
       </div>
       <div class="feature-card__body">245kg</div>
       <div class="feature-card__footer">
-        <span class="highlight">+15kg from avg</span>
+        <!--<span class="highlight">+15kg from avg</span>-->
         <span class="desc">collected today</span>
       </div>
     </div>
@@ -50,11 +50,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Today's Earnings</div>
-        <div class="feature-card__icon"><i data-lucide="dollar-sign"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
       </div>
       <div class="feature-card__body">Rs.5,550.37</div>
       <div class="feature-card__footer">
-        <span class="highlight">+12% from yesterday</span>
+       <!-- <span class="highlight">+12% from yesterday</span>-->
         <span class="desc">total earned</span>
       </div>
     </div>
@@ -62,11 +62,11 @@
     <div class="feature-card">
       <div class="feature-card__header">
         <div class="feature-card__title">Rating</div>
-        <div class="feature-card__icon"><i data-lucide="star"></i></div>
+        <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
       </div>
       <div class="feature-card__body">4.8</div>
       <div class="feature-card__footer">
-        <span class="highlight">Top 3 performer</span>
+        <!--<span class="highlight">Top 3 performer</span>-->
         <span class="desc">customer rating</span>
       </div>
     </div>
