@@ -3,9 +3,6 @@
             <h1>Daily Tasks</h1>
             <div class="sub-header">3 tasks for today <span class="status-tag">Active</span></div>
         </div>
-        <div class="status-tag" style="background:#e3f2fd; color:#1565c0;">Est. Time: 2h 30m remaining</div>
-    </div>
-
     <div class="search-filter">
         <input type="text" class="search-box" placeholder="Search tasks, customers, or locations...">
         <select class="filter">

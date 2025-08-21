@@ -1,6 +1,4 @@
-<i class="fa-solid fa-file-export"></i>Export</button>
-
-<div class="feature-cards">
+<!--<div class="feature-cards">
   <div class="feature-card">
     <div class="feature-card__header">
       <div class="feature-card__title">Total Earnings</div>
@@ -24,7 +22,7 @@
     </div>
     <div class="feature-card__body">4.3</div>
   </div>
-  
+-->
 
 <div class="filters">
     <div class="search-container">
@@ -100,3 +98,4 @@
         <button class="view-btn"><i class="fa-solid fa-eye"></i> View Details</button>
     </div>
 </div>
+
