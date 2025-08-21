@@ -310,13 +310,13 @@
 }
 
 /* Table Styles */
-/*.data-table {
+.data-table {
   width: 100%;
   border-collapse: collapse;
   background-color: var(--neutral-0);
   table-layout: fixed; /* Fixed table layout prevents column width changes */
 
-/*  & thead {
+& thead {
     background-color: var(--neutral-50);
 
     & th {
@@ -327,8 +327,8 @@
       color: var(--neutral-700);
       border-bottom: 1px solid var(--neutral-200);
       overflow: hidden; /* Prevent content overflow */
-     /* white-space: nowrap; /* Prevent text wrapping that could affect height */
-   /* }
+      white-space: nowrap; /* Prevent text wrapping that could affect height */
+   }
   }
 
  & tbody {
@@ -346,10 +346,10 @@
       color: var(--neutral-900);
       vertical-align: middle;
       overflow: hidden; /* Prevent content overflow */
-   /*   white-space: nowrap; /* Prevent text wrapping */
-   /*   text-overflow: ellipsis; /* Show ellipsis for long content */
+      white-space: nowrap; /* Prevent text wrapping */
+      text-overflow: ellipsis; /* Show ellipsis for long content */
 
-    /*  &.font-medium {
+      &.font-medium {
         font-weight: var(--font-weight-medium);
       }
     }
