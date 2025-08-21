@@ -35,7 +35,7 @@
     }
 
      .highlight {
-      color: var(--green);
+      color:rgb(23, 187, 23);
       font-weight: bold;
     }
 
@@ -255,7 +255,7 @@
 
     .progress {
       height: 100%;
-      background: green;
+      background: rgb(12, 204, 12);
     }
 
     .goal-footer {
