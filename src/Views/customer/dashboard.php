@@ -11,47 +11,54 @@
                 </div>
             </div>
 
-            <!-- Stats Cards -->
+            <!-- Stats Feature Cards -->
+            <?php
+            $customerStats = [
+                [
+                    'title' => 'Next Pickup',
+                    'value' => 'Tomorrow',
+                    'icon' => 'fa-solid fa-calendar-day',
+                    'subtitle' => '9:00 AM',
+                ],
+                [
+                    'title' => 'Monthly Collected',
+                    'value' => '45 kg',
+                    'icon' => 'fa-solid fa-weight-hanging',
+                    'subtitle' => 'This month',
+                ],
+                [
+                    'title' => 'Total Earnings',
+                    'value' => '$127.50',
+                    'icon' => 'fa-solid fa-dollar-sign',
+                    'subtitle' => 'This month',
+                ],
+                [
+                    'title' => 'Completed Pickups',
+                    'value' => '12',
+                    'icon' => 'fa-solid fa-check-circle',
+                    'subtitle' => 'This month',
+                ],
+            ];
+            ?>
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-content">
-                        <div class="stat-info">
-                            <div class="stat-value">Tomorrow</div>
-                            <div class="stat-label">Next Pickup</div>
-                            <div class="stat-subtitle">9:00 AM - Regular pickup</div>
+                <?php foreach ($customerStats as $stat): ?>
+                    <div class="feature-card">
+                        <div class="feature-card__header">
+                            <h3 class="feature-card__title">
+                                <?= htmlspecialchars($stat['title']) ?>
+                            </h3>
+                            <div class="feature-card__icon">
+                                <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
+                            </div>
+                        </div>
+                        <p class="feature-card__body">
+                            <?= htmlspecialchars($stat['value']) ?>
+                        </p>
+                        <div class="feature-card__footer">
+                            <span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span>
                         </div>
                     </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-content">
-                        <div class="stat-info">
-                            <div class="stat-value">45 kg</div>
-                            <div class="stat-label">Monthly Collected</div>
-                            <div class="stat-subtitle">This month</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-content">
-                        <div class="stat-info">
-                            <div class="stat-value">$127.50</div>
-                            <div class="stat-label">Total Earnings</div>
-                            <div class="stat-subtitle">This month</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-content">
-                        <div class="stat-info">
-                            <div class="stat-value">12</div>
-                            <div class="stat-label">Completed Pickups</div>
-                            <div class="stat-subtitle">This month</div>
-                        </div>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <!-- Recent Pickups Table -->

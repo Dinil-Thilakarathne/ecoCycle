@@ -41,29 +41,25 @@ class CustomerDashboardController extends DashboardController
     /**
      * Schedule pickup page
      */
-    public function schedulePickup(): Response
+    public function pickup(): Response
     {
         $data = [
-            'pageTitle' => 'Schedule Pickup',
-            'availableSlots' => $this->getAvailableSlots(),
-            'userAddress' => $this->getUserAddress()
+            'pageTitle' => 'Pickup Request',
         ];
 
-        return $this->renderDashboard('schedule-pickup', $data);
+        return $this->renderDashboard('pickup', $data);
     }
 
     /**
      * Pickup history
      */
-    public function pickupHistory(): Response
+    public function payment(): Response
     {
         $data = [
             'pageTitle' => 'Pickup History',
-            'pickupHistory' => $this->getPickupHistory(),
-            'totalWeight' => $this->getTotalWeightRecycled()
         ];
 
-        return $this->renderDashboard('pickup-history', $data);
+        return $this->renderDashboard('payment', $data);
     }
 
     /**

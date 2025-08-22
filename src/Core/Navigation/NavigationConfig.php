@@ -43,8 +43,8 @@ class NavigationConfig
             ],
             'customer' => [
                 ['title' => 'Dashboard', 'url' => '/customer', 'icon' => 'home', 'description' => 'Your dashboard overview'],
-                ['title' => 'Schedule Pickup', 'url' => '/customer/schedule', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
-                ['title' => 'Pickup History', 'url' => '/customer/history', 'icon' => 'history', 'description' => 'View pickup history'],
+                ['title' => 'Pickup Request', 'url' => '/customer/pickup', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
+                ['title' => 'Payment', 'url' => '/customer/payment', 'icon' => 'history', 'description' => 'View pickup history'],
                 ['title' => 'My Rewards', 'url' => '/customer/rewards', 'icon' => 'gift', 'description' => 'Your rewards and points'],
                 ['title' => 'Education', 'url' => '/customer/education', 'icon' => 'book', 'description' => 'Recycling education'],
                 ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user', 'description' => 'Your profile settings'],

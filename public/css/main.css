@@ -1,8 +1,9 @@
 ﻿@import url("./base/reset.css");
 @import url("./base/theme.css");
 
-/* @import url("./dashboard.css"); */
+@import url("./dashboard.css");
 @import url("./components/common.css");
+@import url("./customer.css");
 
 body {
   font-family: var(--font-family-poppins);
