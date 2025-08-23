@@ -57,10 +57,18 @@ class FeatureCard extends HTMLElement {
     this._els.changeVal.textContent = change;
     this._els.period.textContent = period;
 
-    // Apply positive/negative styling if your CSS uses .success / .danger
-    const negative =
-      this.hasAttribute("change-negative") || /^-/.test(change.trim());
-    this._els.changeWrap.className = "tag " + (negative ? "danger" : "success");
+    const trimmedChange = change.trim();
+    if (!trimmedChange) {
+      // Hide the change tag entirely if no change value provided
+      this._els.changeWrap.style.display = "none";
+    } else {
+      this._els.changeWrap.style.display = "";
+      // Apply positive/negative styling if your CSS uses .success / .danger
+      const negative =
+        this.hasAttribute("change-negative") || /^-/.test(trimmedChange);
+      this._els.changeWrap.className =
+        "tag " + (negative ? "danger" : "success");
+    }
   }
 }
 
