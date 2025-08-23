@@ -29,42 +29,84 @@ $wasteTypeData = [
 ?>
 
 
-<h1>Analytics</h1>
-<p>Track your recycling performance and environmental impact</p>
 
-<div class="grid">
-    <div class="card">
-        <h3>Total Waste This Month</h3>
-        <p class="value"><?= $totalWasteThisMonth ?> kg</p>
-        <small>+<?= $wasteIncrease ?>% from last month</small>
+<div class="dashboard-page">
+    <div class="page-header">
+        <div class="header-content">
+            
+            <p ><b>Track your recycling performance and environmental impact</b></p>
+        </div>
     </div>
-    <div class="card">
-        <h3>Recycling Rate</h3>
-        <p class="value"><?= $recyclingRate ?>%</p>
-        <small>Success rate of collections</small>
-    </div>
-    <div class="card">
-        <h3>CO₂ Saved</h3>
-        <p class="value"><?= $co2SavedThisMonth ?> kg</p>
-        <small>Environmental impact</small>
-    </div>
-    <div class="card">
-        <h3>Energy Saved</h3>
-        <p class="value"><?= $energySavedThisMonth ?> kWh</p>
-        <small>Through recycling efforts</small>
-    </div>
-</div>
 
-<!-- Charts -->
-<div class="charts">
-    <div class="chart-container">
-        <h3>Monthly Waste Trends</h3>
-        <canvas id="wasteTrendChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h3>Waste Type Breakdown</h3>
-        <canvas id="wasteBreakdownChart"></canvas>
-    </div>
+        <div class="stats-grid" style="margin-bottom:2.5rem;">
+            <div class="feature-card">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Waste This Month</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-dumpster"></i></div>
+                </div>
+                <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
+                    <?= $totalWasteThisMonth ?> kg
+                </p>
+                <div class="feature-card__footer">
+                    <span class="tag success">+<?= $wasteIncrease ?>% from last month</span>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Recycling Rate</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-recycle"></i></div>
+                </div>
+                <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
+                    <?= $recyclingRate ?>%
+                </p>
+                <div class="feature-card__footer">
+                    <span class="tag success">Success rate of collections</span>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">CO₂ Saved</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-leaf"></i></div>
+                </div>
+                <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
+                    <?= $co2SavedThisMonth ?> kg
+                </p>
+                <div class="feature-card__footer">
+                    <span class="tag success">Environmental impact</span>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Energy Saved</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-bolt"></i></div>
+                </div>
+                <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
+                    <?= $energySavedThisMonth ?> kWh
+                </p>
+                <div class="feature-card__footer">
+                    <span class="tag success">Through recycling efforts</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:2.5rem;">
+            <div class="card">
+                <div class="section-header" style="margin-bottom:1rem;">
+                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;">Monthly Waste Trends</h2>
+                </div>
+                <div style="height:320px;width:100%;">
+                    <canvas id="wasteTrendChart" style="width:100%;height:100%;"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="section-header" style="margin-bottom:1rem;">
+                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;">Waste Type Breakdown</h2>
+                </div>
+                <div style="height:320px;width:100%;">
+                    <canvas id="wasteBreakdownChart" style="width:100%;height:100%;"></canvas>
+                </div>
+            </div>
+        </div>
 </div>
 
 <!-- Include Chart.js from CDN -->

@@ -6,8 +6,8 @@
             <!-- Page Header -->
             <div class="page-header">
                 <div class="header-content">
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Welcome back, John!</p>
+                   
+                    <h1>Welcome back, John!</h1>
                 </div>
             </div>
 

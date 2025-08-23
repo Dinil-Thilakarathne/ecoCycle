@@ -229,7 +229,7 @@ $showSettings = ($action === 'settings');
                         <?= htmlspecialchars($stat['value']) ?>
                     </p>
                     <div class="feature-card__footer">
-                        <span><?= htmlspecialchars($stat['subtitle']) ?></span>
+                        <span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span>
                     </div>
                 </div>
             <?php endforeach; ?>

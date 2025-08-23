@@ -1,154 +1,404 @@
 <?php
 
-// Initialize payment step
-if (!isset($_SESSION['paymentStep'])) $_SESSION['paymentStep'] = 1;
 
-// Initialize payment history (dummy data)
-if (!isset($_SESSION['paymentHistory'])) {
-    $_SESSION['paymentHistory'] = [
-        [
-            'date' => '2025-08-01 10:20',
-            'card' => '**** **** **** 1234',
-            'amount' => 32.39,
-            'status' => 'Completed'
-        ]
-    ];
-}
+$current_plan = [
+    'name' => 'Premium Plan',
+    'price' => 29.99,
+    'billing_date' => '2024-01-15',
+    'next_billing' => '2024-02-15',
+    'status' => 'active'
+];
 
-// Handle form submission
+$current_subscription = [
+    'plan' => 'Basic Plan',
+    'price' => 29.99,
+    'renewal_date' => 'December 15, 2024',
+    'status' => 'active'
+];
+
+$payment_methods = [
+    [
+        'id' => 1,
+        'type' => 'card',
+        'last_four' => '4242',
+        'brand' => 'Visa',
+        'expiry' => '12/26',
+        'is_default' => true
+    ],
+    [
+        'id' => 2,
+        'type' => 'paypal',
+        'email' => 'user@example.com',
+        'is_default' => false
+    ]
+];
+
+$invoice_history = [
+    [
+        'id' => 'INV-2024-01-01',
+        'date' => '2024-01-01',
+        'amount' => 29.99,
+        'status' => 'paid',
+        'description' => 'Premium Plan - January'
+    ],
+    [
+        'id' => 'INV-2023-12-01',
+        'date' => '2023-12-01',
+        'amount' => 29.99,
+        'status' => 'paid',
+        'description' => 'Premium Plan - December'
+    ],
+    [
+        'id' => 'INV-2023-11-01',
+        'date' => '2023-11-01',
+        'amount' => 19.99,
+        'status' => 'paid',
+        'description' => 'Basic Plan - November'
+    ]
+];
+
+// Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['next_step'])) {
-        $_SESSION['paymentStep'] = 2;
-        $_SESSION['paymentData'] = $_POST;
-    } elseif (isset($_POST['prev_step'])) {
-        if ($_SESSION['paymentStep'] == 3) {
-            $_SESSION['paymentStep'] = 2;
-        } else {
-            $_SESSION['paymentStep'] = max(1, $_SESSION['paymentStep']-1);
+    if (isset($_POST['action'])) {
+        switch ($_POST['action']) {
+            case 'change_plan':
+                $success_message = "Plan changed successfully!";
+                break;
+            case 'cancel_subscription':
+                $success_message = "Subscription cancelled successfully!";
+                break;
+            case 'add_payment_method':
+                $success_message = "Payment method added successfully!";
+                break;
+            case 'remove_payment_method':
+                $success_message = "Payment method removed successfully!";
+                break;
         }
-    } elseif (isset($_POST['confirm_payment'])) {
-        $_SESSION['paymentStep'] = 3;
-        // Save payment to history
-        $data = $_SESSION['paymentData'];
-        $_SESSION['paymentHistory'][] = [
-            'date' => date('Y-m-d H:i'),
-            'card' => '**** **** **** ' . substr($data['card_number'], -4),
-            'amount' => 32.39,
-            'status' => 'Completed'
-        ];
     }
 }
 
-$step = $_SESSION['paymentStep'];
-$history = $_SESSION['paymentHistory'];
+function formatDate($date) {
+    return date('M d, Y', strtotime($date));
+}
+
+function formatCurrency($amount) {
+    return '$' . number_format($amount, 2);
+}
 ?>
 
+    <div class="container" style="background: var(--neutral-1);">
+        <header class="page-header">
+            
+            <p><b>Manage your subscription and billing information</b></p>
+        </header>
 
-
-<div class="dashboard-page">
-    <div class="page-header">
-        <div class="header-content">
-            <h1 class="page-title">Payment</h1>
-            <p class="page-subtitle">Secure payment processing for your service</p>
-        </div>
-    </div>
-
-    <!-- Progress -->
-    <div class="progress" style="margin-bottom:2.5rem;">
-            <div class="progress-step <?= $step>=1?'active':'' ?>">1</div>
-            <div class="progress-bar <?= $step>=2?'active':'' ?>"></div>
-            <div class="progress-step <?= $step>=2?'active':'' ?>">2</div>
-            <div class="progress-bar <?= $step>=3?'active':'' ?>"></div>
-            <div class="progress-step <?= $step>=3?'active':'' ?>">3</div>
-    </div>
-
-    <form method="post">
-        <?php if($step==1): ?>
-        <div class="card" style="max-width:420px;margin:0 auto 2rem auto;">
-            <h3 style="text-align:center;margin-bottom:1.5rem;">Payment Information</h3>
-            <div class="form-grid" style="gap:1rem;">
-                <div>
-                    <label>Card Number</label>
-                    <input type="text" name="card_number" placeholder="1234 5678 9012 3456" required>
-                </div>
-                <div>
-                    <label>Expiry</label>
-                    <input type="text" name="expiry" placeholder="MM/YY" required>
-                </div>
-                <div>
-                    <label>CVC</label>
-                    <input type="text" name="cvc" placeholder="123" required>
-                </div>
-                <div>
-                    <label>Cardholder Name</label>
-                    <input type="text" name="cardholder" placeholder="John Doe" required>
-                </div>
+        <?php if (isset($success_message)): ?>
+            <div class="success-message">
+                <?php echo htmlspecialchars($success_message); ?>
             </div>
-            <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
-                <button type="submit" name="next_step" class="btn btn-primary">Continue to Review</button>
-            </div>
-        </div>
-
-        <?php elseif($step==2): ?>
-        <div class="card" style="max-width:420px;margin:0 auto 2rem auto;">
-            <h3 style="text-align:center;margin-bottom:1.5rem;">Review & Confirm</h3>
-            <div style="margin-bottom:1.5rem;">
-                <p><strong>Card:</strong> <?= htmlspecialchars($_SESSION['paymentData']['card_number']) ?></p>
-                <p><strong>Amount:</strong> $32.39</p>
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:1rem;">
-                <button type="submit" name="prev_step" class="btn btn-secondary">Back</button>
-                <button type="submit" name="confirm_payment" class="btn btn-primary">Confirm Payment</button>
-            </div>
-        </div>
-
-        <?php elseif($step==3): ?>
-        <div class="card text-center" style="max-width:420px;margin:0 auto 2rem auto;text-align:center;">
-            <span class="success-icon">&#10003;</span>
-            <h3 style="margin-bottom:1rem;">Payment Successful!</h3>
-            <p>Your payment has been completed.</p>
-            <div style="display:flex;justify-content:center;gap:1rem;margin-top:1.5rem;">
-                <button type="submit" name="prev_step" class="btn btn-secondary">Back</button>
-                <a href="/dashboard.php" style="text-decoration:none;"><button type="button" class="btn btn-primary">Go to Dashboard</button></a>
-            </div>
-        </div>
         <?php endif; ?>
-    </form>
 
-    <div class="table-section" style="margin-top:2.5rem;">
-        <div class="section-header">
-            <h2 class="section-title">Payment History</h2>
-        </div>
-        <div class="table-container" style="max-width:600px;margin:0 auto;">
-            <div class="card" style="padding:0;box-shadow:none;border:none;">
-                <?php if(count($history)>0): ?>
-                <table class="data-table" style="width:100%;min-width:400px;">
-                    <thead>
-                        <tr>
-                            <th style="width:140px;">Date</th>
-                            <th style="width:160px;">Card</th>
-                            <th style="width:100px;text-align:right;">Amount</th>
-                            <th style="width:100px;text-align:center;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($history as $row): ?>
-                        <tr>
-                            <td><?= $row['date'] ?></td>
-                            <td><?= $row['card'] ?></td>
-                            <td style="text-align:right;">$<?= $row['amount'] ?></td>
-                            <td style="text-align:center;">
-                                <span class="status-badge <?= strtolower($row['status']) ?>"><?= $row['status'] ?></span>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <?php else: ?>
-                <p style="padding:2rem;text-align:center;">No payments yet.</p>
-                <?php endif; ?>
+
+        <div class="billing-content" style="background: var(--neutral-1); padding: 2rem; border-radius: 1.5rem;">
+            <!-- Feature Cards (Stats) -->
+            <div class="stats-grid" style="margin-bottom:2.5rem;">
+                <div class="feature-card">
+                    <div class="feature-card__header">
+                        <h3 class="feature-card__title">Next Payment</h3>
+                        <div class="feature-card__icon"><i class="fa-solid fa-calendar-day"></i></div>
+                    </div>
+                    <p class="feature-card__body">
+                        <?= isset($invoice_history[0]) ? formatDate($invoice_history[0]['date']) : '-' ?>
+                    </p>
+                    <div class="feature-card__footer">
+                        <span class="tag success">Due soon</span>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card__header">
+                        <h3 class="feature-card__title">Total Paid</h3>
+                        <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
+                    </div>
+                    <p class="feature-card__body">
+                        <?= formatCurrency(array_sum(array_column($invoice_history, 'amount'))) ?>
+                    </p>
+                    <div class="feature-card__footer">
+                        <span class="tag success">All time</span>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card__header">
+                        <h3 class="feature-card__title">Active Methods</h3>
+                        <div class="feature-card__icon"><i class="fa-solid fa-credit-card"></i></div>
+                    </div>
+                    <p class="feature-card__body">
+                        <?= count($payment_methods) ?>
+                    </p>
+                    <div class="feature-card__footer">
+                        <span class="tag success">Payment options</span>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card__header">
+                        <h3 class="feature-card__title">Invoices</h3>
+                        <div class="feature-card__icon"><i class="fa-solid fa-file-invoice"></i></div>
+                    </div>
+                    <p class="feature-card__body">
+                        <?= count($invoice_history) ?>
+                    </p>
+                    <div class="feature-card__footer">
+                        <span class="tag success">Total invoices</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>Payment Methods</h2>
+                    <button class="btn btn-primary" onclick="showAddPaymentModal()">Add</button>
+                </div>
+                <div class="payment-methods">
+                    <?php foreach ($payment_methods as $method): ?>
+                        <div class="payment-method-card">
+                            <?php if ($method['type'] === 'card'): ?>
+                                <div class="payment-icon">💳</div>
+                                <div class="payment-info">
+                                    <p class="payment-title">•••• •••• •••• <?php echo $method['last_four']; ?></p>
+                                    <p class="payment-details">Expires on <?php echo $method['expiry']; ?></p>
+                                </div>
+                            <?php else: ?>
+                                <div class="payment-icon">💰</div>
+                                <div class="payment-info">
+                                    <p class="payment-title">PayPal Payment Method</p>
+                                    <p class="payment-details">Email: <?php echo $method['email']; ?></p>
+                                </div>
+                            <?php endif; ?>
+                            <div class="payment-actions">
+                                <?php if ($method['is_default']): ?>
+                                    <span class="default-badge">Default</span>
+                                <?php endif; ?>
+                                <button class="btn btn-outline btn-sm" onclick="editPaymentMethod(<?php echo $method['id']; ?>)">Edit</button>
+                                <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fecaca;" onclick="removePaymentMethod(<?php echo $method['id']; ?>)">Remove</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Invoice History Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>Invoice History</h2>
+                </div>
+                <div class="invoice-table">
+                    <div class="table-header">
+                        <div class="col">Invoice</div>
+                        <div class="col">Date</div>
+                        <div class="col">Amount</div>
+                        <div class="col">Status</div>
+                        <div class="col">Actions</div>
+                    </div>
+                    <?php foreach ($invoice_history as $invoice): ?>
+                        <div class="table-row">
+                            <div class="col">
+                                <strong><?php echo htmlspecialchars($invoice['id']); ?></strong>
+                                <p class="invoice-desc"><?php echo htmlspecialchars($invoice['description']); ?></p>
+                            </div>
+                            <div class="col"><?php echo formatDate($invoice['date']); ?></div>
+                            <div class="col"><?php echo formatCurrency($invoice['amount']); ?></div>
+                            <div class="col">
+                                <span class="status-badge <?php echo $invoice['status']; ?>">
+                                    <?php echo ucfirst($invoice['status']); ?>
+                                </span>
+                            </div>
+                            <div class="col">
+                                <button class="btn btn-outline btn-sm" onclick="downloadInvoice('<?php echo $invoice['id']; ?>')">Download</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
+    <!-- Change Plan Modal -->
+    <div id="changePlanModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Change Plan</h2>
+                <span class="close" onclick="hideChangePlanModal()">&times;</span>
+            </div>
+            <form method="POST" class="modal-form">
+                <input type="hidden" name="action" value="change_plan">
+                <div class="plan-options">
+                    <div class="plan-option">
+                        <input type="radio" name="plan" value="basic" id="basic">
+                        <label for="basic" class="plan-label">
+                            <h3>Basic Plan</h3>
+                            <p class="plan-price">$19.99/month</p>
+                            <p>Essential waste management features</p>
+                        </label>
+                    </div>
+                    <div class="plan-option">
+                        <input type="radio" name="plan" value="premium" id="premium" checked>
+                        <label for="premium" class="plan-label">
+                            <h3>Premium Plan</h3>
+                            <p class="plan-price">$29.99/month</p>
+                            <p>All features + priority support</p>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="hideChangePlanModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Change Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Payment Method Modal -->
+    <div id="addPaymentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Payment Method</h2>
+                <span class="close" onclick="hideAddPaymentModal()">&times;</span>
+            </div>
+            <form method="POST" class="modal-form">
+                <input type="hidden" name="action" value="add_payment_method">
+                
+                <div class="payment-type-selector">
+                    <button type="button" class="payment-type-btn active" onclick="selectPaymentType('card')">
+                        Credit Card
+                    </button>
+                    <button type="button" class="payment-type-btn" onclick="selectPaymentType('paypal')">
+                        PayPal
+                    </button>
+                </div>
+
+                <div id="cardForm" class="payment-form">
+                    <div class="form-group">
+                        <label>Card Number</label>
+                        <input type="text" name="card_number" placeholder="1234 5678 9012 3456">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Expiry Date</label>
+                            <input type="text" name="expiry" placeholder="MM/YY">
+                        </div>
+                        <div class="form-group">
+                            <label>CVV</label>
+                            <input type="text" name="cvv" placeholder="123">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Cardholder Name</label>
+                        <input type="text" name="holder_name" placeholder="John Doe">
+                    </div>
+                </div>
+
+                <div id="paypalForm" class="payment-form" style="display: none;">
+                    <div class="form-group">
+                        <label>PayPal Email</label>
+                        <input type="email" name="paypal_email" placeholder="user@example.com">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" onclick="hideAddPaymentModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Payment Method</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cancel Subscription Modal -->
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cancel Subscription</h2>
+                <span class="close" onclick="hideCancelModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel your subscription? You'll lose access to premium features.</p>
+            </div>
+            <form method="POST" class="modal-form">
+                <input type="hidden" name="action" value="cancel_subscription">
+                <div class="modal-actions">
+                    <button type="button" onclick="hideCancelModal()" class="btn btn-outline">Keep Subscription</button>
+                    <button type="submit" class="btn btn-primary" style="background:#dc2626;border-color:#dc2626;">Cancel Subscription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showChangePlanModal() {
+            document.getElementById('changePlanModal').style.display = 'block';
+        }
+
+        function hideChangePlanModal() {
+            document.getElementById('changePlanModal').style.display = 'none';
+        }
+
+        function showAddPaymentModal() {
+            document.getElementById('addPaymentModal').style.display = 'block';
+        }
+
+        function hideAddPaymentModal() {
+            document.getElementById('addPaymentModal').style.display = 'none';
+        }
+
+        function showCancelModal() {
+            document.getElementById('cancelModal').style.display = 'block';
+        }
+
+        function hideCancelModal() {
+            document.getElementById('cancelModal').style.display = 'none';
+        }
+
+        function selectPaymentType(type) {
+            document.querySelectorAll('.payment-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (type === 'card') {
+                document.getElementById('cardForm').style.display = 'block';
+                document.getElementById('paypalForm').style.display = 'none';
+            } else {
+                document.getElementById('cardForm').style.display = 'none';
+                document.getElementById('paypalForm').style.display = 'block';
+            }
+        }
+
+        function editPaymentMethod(id) {
+            alert('Edit payment method ' + id);
+        }
+
+        function removePaymentMethod(id) {
+            if (confirm('Are you sure you want to remove this payment method?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="remove_payment_method">
+                    <input type="hidden" name="method_id" value="${id}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function downloadInvoice(invoiceId) {
+            // In real application, this would download the invoice
+            alert('Downloading invoice: ' + invoiceId);
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>

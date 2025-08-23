@@ -56,7 +56,7 @@ class CustomerDashboardController extends DashboardController
     public function payment(): Response
     {
         $data = [
-            'pageTitle' => 'Pickup History',
+            'pageTitle' => 'Payment',
         ];
 
         return $this->renderDashboard('payment', $data);
@@ -68,7 +68,7 @@ class CustomerDashboardController extends DashboardController
     public function notification(): Response
     {
         $data = [
-            'pageTitle' => 'My Rewards',
+            'pageTitle' => 'Notifications',
             'currentPoints' => $this->getRewardPoints(),
             'rewardHistory' => $this->getRewardHistory(),
             'availableRewards' => $this->getAvailableRewards()
@@ -97,7 +97,7 @@ class CustomerDashboardController extends DashboardController
     public function report(): Response
     {
         $data = [
-            'pageTitle' => 'Recycling Education',
+            'pageTitle' => 'Report',
             'articles' => $this->getEducationalArticles(),
             'tips' => $this->getRecyclingTips(),
             'videos' => $this->getEducationalVideos()

@@ -85,15 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updatePassword'])) {
 
 
 
-<div class="dashboard-page">
+<div class="dashboard-page" style="background: var(--neutral-1  ); border-radius: 1.5rem; padding: 2rem;">
   <?php if (isset($msg)): ?>
     <div class="alert" style="margin-bottom:2rem;"> <?= $msg ?> </div>
   <?php endif; ?>
 
   <div class="page-header">
     <div class="header-content">
-      <h1 class="page-title">Profile</h1>
-      <p class="page-subtitle">Manage your personal information and account settings</p>
+      
+      <p><b>Manage your personal information and account settings</b></p>
     </div>
   </div>
 
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updatePassword'])) {
     <!-- Profile Photo Card -->
     <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;min-width:280px;">
       <div style="width:100%;display:flex;flex-direction:column;align-items:center;">
-        <img src="<?= $profile['profile_pic'] ?>" class="avatar" style="box-shadow:0 2px 12px rgba(34,197,94,0.08);margin-bottom:1rem;">
+        <img src="<?= $profile['profile_pic'] ?>" class="avatar" style="box-shadow:0 2px 12px rgba(167, 228, 26, 0.08);margin-bottom:1rem;">
         <h2 style="margin-bottom:0.5rem;font-size:1.25rem;font-weight:600;color:#1e293b;">Profile Photo</h2>
       </div>
       <form method="POST" enctype="multipart/form-data" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
