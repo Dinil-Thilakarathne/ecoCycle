@@ -5,6 +5,7 @@ import "./feature-card.js";
 import "./activity-card.js";
 import "./activity-item.js";
 import "./status-item.js";
+import "./nav-link.js";
 
 // Example: future components
 // import './ui-button.js';
