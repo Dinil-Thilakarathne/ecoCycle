@@ -67,23 +67,22 @@
                     <h2 class="section-title">Recent Pickups</h2>
                     <p class="section-subtitle">Your latest waste collection activities</p>
                 </div>
-                
-                <div class="table-container">
-                    <table class="data-table">
+                <div class="table-container" style="overflow-x:auto;box-shadow:0 2px 12px rgba(34,197,94,0.08);border-radius:16px;">
+                    <table class="data-table" style="min-width:900px;">
                         <thead>
                             <tr>
                                 <th>Pickup ID</th>
                                 <th>Date & Time</th>
                                 <th>Waste Categories</th>
                                 <th>Weight</th>
-                                <th>Status</th>
+                                <th style="text-align:center;">Status</th>
                                 <th>Collector</th>
-                                <th>Earnings</th>
-                                <th>Actions</th>
+                                <th style="text-align:right;">Earnings</th>
+                                <th style="text-align:center;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
+                            <tr style="background:#f8fafc;">
                                 <td><strong>PU001</strong></td>
                                 <td>
                                     <div class="cell-with-icon">
@@ -106,16 +105,15 @@
                                         15 kg
                                     </div>
                                 </td>
-                                <td><span class="status-badge completed">Completed</span></td>
+                                <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Mike Johnson</td>
-                                <td class="earnings-cell">
+                                <td class="earnings-cell" style="text-align:right;">
                                     <span class="earnings-amount">$45.50</span>
                                 </td>
-                                <td>
-                                    <button class="view-details-btn">View Details</button>
+                                <td style="text-align:center;">
+                                    <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
                                 </td>
                             </tr>
-                            
                             <tr>
                                 <td><strong>PU002</strong></td>
                                 <td>
@@ -138,17 +136,16 @@
                                         25 kg
                                     </div>
                                 </td>
-                                <td><span class="status-badge completed">Completed</span></td>
+                                <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Sarah Wilson</td>
-                                <td class="earnings-cell">
+                                <td class="earnings-cell" style="text-align:right;">
                                     <span class="earnings-amount">$82.00</span>
                                 </td>
-                                <td>
-                                    <button class="view-details-btn">View Details</button>
+                                <td style="text-align:center;">
+                                    <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
                                 </td>
                             </tr>
-                            
-                            <tr>
+                            <tr style="background:#f8fafc;">
                                 <td><strong>PU003</strong></td>
                                 <td>
                                     <div class="cell-with-icon">
@@ -171,16 +168,15 @@
                                         Pending
                                     </div>
                                 </td>
-                                <td><span class="status-badge scheduled">Scheduled</span></td>
+                                <td style="text-align:center;"><span class="status-badge scheduled">Scheduled</span></td>
                                 <td>Mike Johnson</td>
-                                <td class="earnings-cell">
+                                <td class="earnings-cell" style="text-align:right;">
                                     <span class="pending-earnings">Pending</span>
                                 </td>
-                                <td>
-                                    <button class="view-details-btn">View Details</button>
+                                <td style="text-align:center;">
+                                    <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
                                 </td>
                             </tr>
-                            
                             <tr>
                                 <td><strong>PU004</strong></td>
                                 <td>
@@ -203,13 +199,13 @@
                                         18 kg
                                     </div>
                                 </td>
-                                <td><span class="status-badge in-progress">In Progress</span></td>
+                                <td style="text-align:center;"><span class="status-badge in-progress">In Progress</span></td>
                                 <td>David Brown</td>
-                                <td class="earnings-cell">
+                                <td class="earnings-cell" style="text-align:right;">
                                     <span class="pending-earnings">Pending</span>
                                 </td>
-                                <td>
-                                    <button class="view-details-btn">View Details</button>
+                                <td style="text-align:center;">
+                                    <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
                                 </td>
                             </tr>
                         </tbody>

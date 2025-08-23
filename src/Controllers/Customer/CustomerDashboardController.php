@@ -65,7 +65,7 @@ class CustomerDashboardController extends DashboardController
     /**
      * Rewards and points
      */
-    public function rewards(): Response
+    public function notification(): Response
     {
         $data = [
             'pageTitle' => 'My Rewards',
@@ -74,7 +74,7 @@ class CustomerDashboardController extends DashboardController
             'availableRewards' => $this->getAvailableRewards()
         ];
 
-        return $this->renderDashboard('rewards', $data);
+        return $this->renderDashboard('notification', $data);
     }
 
     /**
@@ -94,7 +94,7 @@ class CustomerDashboardController extends DashboardController
     /**
      * Education center
      */
-    public function education(): Response
+    public function report(): Response
     {
         $data = [
             'pageTitle' => 'Recycling Education',
@@ -103,7 +103,7 @@ class CustomerDashboardController extends DashboardController
             'videos' => $this->getEducationalVideos()
         ];
 
-        return $this->renderDashboard('education', $data);
+        return $this->renderDashboard('report', $data);
     }
 
     protected function getNavigationItems(): array

@@ -1,164 +1,154 @@
 <?php
-// ------------------ PHP Variables ------------------
 
-// Invoices
-$invoices = [
-    ["date" => "2024-06-01", "amount" => 120.00, "status" => "Paid"],
-    ["date" => "2024-06-15", "amount" => 80.00,  "status" => "Pending"],
-    ["date" => "2024-07-01", "amount" => 150.00, "status" => "Overdue"],
-    ["date" => "2024-07-15", "amount" => 95.00,  "status" => "Paid"],
-    ["date" => "2024-08-01", "amount" => 200.00, "status" => "Pending"],
-];
+// Initialize payment step
+if (!isset($_SESSION['paymentStep'])) $_SESSION['paymentStep'] = 1;
 
-// Billing info
-$billingInfo = [
-    "name"   => "John Doe",
-    "address"=> "123 Main St, Cityville",
-    "card"   => "**** **** **** 1234",
-    "expiry" => "08/26"
-];
+// Initialize payment history (dummy data)
+if (!isset($_SESSION['paymentHistory'])) {
+    $_SESSION['paymentHistory'] = [
+        [
+            'date' => '2025-08-01 10:20',
+            'card' => '**** **** **** 1234',
+            'amount' => 32.39,
+            'status' => 'Completed'
+        ]
+    ];
+}
 
-// Totals
-$totalInvoices = count($invoices);
-$totalAmount   = array_sum(array_column($invoices, 'amount'));
-$paidAmount    = array_sum(array_column(array_filter($invoices, fn($inv) => $inv['status'] === 'Paid'), 'amount'));
-$pendingAmount = array_sum(array_column(array_filter($invoices, fn($inv) => $inv['status'] === 'Pending'), 'amount'));
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['next_step'])) {
+        $_SESSION['paymentStep'] = 2;
+        $_SESSION['paymentData'] = $_POST;
+    } elseif (isset($_POST['prev_step'])) {
+        if ($_SESSION['paymentStep'] == 3) {
+            $_SESSION['paymentStep'] = 2;
+        } else {
+            $_SESSION['paymentStep'] = max(1, $_SESSION['paymentStep']-1);
+        }
+    } elseif (isset($_POST['confirm_payment'])) {
+        $_SESSION['paymentStep'] = 3;
+        // Save payment to history
+        $data = $_SESSION['paymentData'];
+        $_SESSION['paymentHistory'][] = [
+            'date' => date('Y-m-d H:i'),
+            'card' => '**** **** **** ' . substr($data['card_number'], -4),
+            'amount' => 32.39,
+            'status' => 'Completed'
+        ];
+    }
+}
+
+$step = $_SESSION['paymentStep'];
+$history = $_SESSION['paymentHistory'];
 ?>
 
 
 
-
-
-
-
-<!-- Summary Cards -->
-<div class="summary-grid">
-    <div class="summary-card">
-        <h3>Total Amount</h3>
-        <div class="amount total">$<?= number_format($totalAmount, 2) ?></div>
-        <p><?= $totalInvoices ?> invoices</p>
+<div class="dashboard-page">
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">Payment</h1>
+            <p class="page-subtitle">Secure payment processing for your service</p>
+        </div>
     </div>
-    <div class="summary-card">
-        <h3>Paid</h3>
-        <div class="amount paid">$<?= number_format($paidAmount, 2) ?></div>
-        <p>Successfully processed</p>
+
+    <!-- Progress -->
+    <div class="progress" style="margin-bottom:2.5rem;">
+            <div class="progress-step <?= $step>=1?'active':'' ?>">1</div>
+            <div class="progress-bar <?= $step>=2?'active':'' ?>"></div>
+            <div class="progress-step <?= $step>=2?'active':'' ?>">2</div>
+            <div class="progress-bar <?= $step>=3?'active':'' ?>"></div>
+            <div class="progress-step <?= $step>=3?'active':'' ?>">3</div>
     </div>
-    <div class="summary-card">
-        <h3>Pending</h3>
-        <div class="amount pending">$<?= number_format($pendingAmount, 2) ?></div>
-        <p>Awaiting payment</p>
-    </div>
-    <div class="summary-card">
-        <h3>Overdue</h3>
-        <div class="amount overdue">$<?= number_format($totalAmount - $paidAmount - $pendingAmount, 2) ?></div>
-        <p>Requires attention</p>
+
+    <form method="post">
+        <?php if($step==1): ?>
+        <div class="card" style="max-width:420px;margin:0 auto 2rem auto;">
+            <h3 style="text-align:center;margin-bottom:1.5rem;">Payment Information</h3>
+            <div class="form-grid" style="gap:1rem;">
+                <div>
+                    <label>Card Number</label>
+                    <input type="text" name="card_number" placeholder="1234 5678 9012 3456" required>
+                </div>
+                <div>
+                    <label>Expiry</label>
+                    <input type="text" name="expiry" placeholder="MM/YY" required>
+                </div>
+                <div>
+                    <label>CVC</label>
+                    <input type="text" name="cvc" placeholder="123" required>
+                </div>
+                <div>
+                    <label>Cardholder Name</label>
+                    <input type="text" name="cardholder" placeholder="John Doe" required>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
+                <button type="submit" name="next_step" class="btn btn-primary">Continue to Review</button>
+            </div>
+        </div>
+
+        <?php elseif($step==2): ?>
+        <div class="card" style="max-width:420px;margin:0 auto 2rem auto;">
+            <h3 style="text-align:center;margin-bottom:1.5rem;">Review & Confirm</h3>
+            <div style="margin-bottom:1.5rem;">
+                <p><strong>Card:</strong> <?= htmlspecialchars($_SESSION['paymentData']['card_number']) ?></p>
+                <p><strong>Amount:</strong> $32.39</p>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:1rem;">
+                <button type="submit" name="prev_step" class="btn btn-secondary">Back</button>
+                <button type="submit" name="confirm_payment" class="btn btn-primary">Confirm Payment</button>
+            </div>
+        </div>
+
+        <?php elseif($step==3): ?>
+        <div class="card text-center" style="max-width:420px;margin:0 auto 2rem auto;text-align:center;">
+            <span class="success-icon">&#10003;</span>
+            <h3 style="margin-bottom:1rem;">Payment Successful!</h3>
+            <p>Your payment has been completed.</p>
+            <div style="display:flex;justify-content:center;gap:1rem;margin-top:1.5rem;">
+                <button type="submit" name="prev_step" class="btn btn-secondary">Back</button>
+                <a href="/dashboard.php" style="text-decoration:none;"><button type="button" class="btn btn-primary">Go to Dashboard</button></a>
+            </div>
+        </div>
+        <?php endif; ?>
+    </form>
+
+    <div class="table-section" style="margin-top:2.5rem;">
+        <div class="section-header">
+            <h2 class="section-title">Payment History</h2>
+        </div>
+        <div class="table-container" style="max-width:600px;margin:0 auto;">
+            <div class="card" style="padding:0;box-shadow:none;border:none;">
+                <?php if(count($history)>0): ?>
+                <table class="data-table" style="width:100%;min-width:400px;">
+                    <thead>
+                        <tr>
+                            <th style="width:140px;">Date</th>
+                            <th style="width:160px;">Card</th>
+                            <th style="width:100px;text-align:right;">Amount</th>
+                            <th style="width:100px;text-align:center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($history as $row): ?>
+                        <tr>
+                            <td><?= $row['date'] ?></td>
+                            <td><?= $row['card'] ?></td>
+                            <td style="text-align:right;">$<?= $row['amount'] ?></td>
+                            <td style="text-align:center;">
+                                <span class="status-badge <?= strtolower($row['status']) ?>"><?= $row['status'] ?></span>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php else: ?>
+                <p style="padding:2rem;text-align:center;">No payments yet.</p>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 </div>
-
-<!-- Tabs -->
-<div class="tabs">
-    <button class="tab-button active" data-tab="invoices">Invoices</button>
-    <button class="tab-button" data-tab="billing-info">Billing Info</button>
-</div>
-
-<!-- Invoices Tab -->
-<div class="tab-content active" id="invoices">
-    <h2>Invoice History</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach($invoices as $index => $invoice): ?>
-            <tr>
-                <td><?= date('M j, Y', strtotime($invoice['date'])) ?></td>
-                <td>$<?= number_format($invoice['amount'], 2) ?></td>
-                <td>
-                    <span class="status-badge status-<?= strtolower($invoice['status']) ?>">
-                        <?= htmlspecialchars($invoice['status']) ?>
-                    </span>
-                </td>
-                <td>
-                    <a href="#" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.75rem;">View Details</a>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-    
-    <div class="action-buttons">
-        <button class="btn btn-primary">Download Report</button>
-        <button class="btn btn-secondary">Export CSV</button>
-    </div>
-</div>
-
-<!-- Billing Info Tab -->
-<div class="tab-content" id="billing-info">
-    <h2>Billing Information</h2>
-    <ul class="billing-list">
-        <li><strong>Full Name:</strong> <?= htmlspecialchars($billingInfo['name']) ?></li>
-        <li><strong>Address:</strong> <?= htmlspecialchars($billingInfo['address']) ?></li>
-        <li><strong>Payment Card:</strong> <?= htmlspecialchars($billingInfo['card']) ?></li>
-        <li><strong>Expiry Date:</strong> <?= htmlspecialchars($billingInfo['expiry']) ?></li>
-    </ul>
-    
-    <div class="action-buttons">
-        <button class="btn btn-primary">Update Info</button>
-        <button class="btn btn-secondary">Change Payment Method</button>
-    </div>
-</div>
-
-<script>
-// Tab functionality
-document.querySelectorAll('.tab-button').forEach(button => {
-    button.addEventListener('click', () => {
-        // Remove active classes
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-        
-        // Add active class to clicked button and related content
-        button.classList.add('active');
-        document.getElementById(button.getAttribute('data-tab')).classList.add('active');
-    });
-});
-
-// Add some interactivity to buttons
-document.querySelectorAll('.btn').forEach(button => {
-    if (button.textContent.includes('View Details')) {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            alert('Invoice details would open here');
-        });
-    }
-    
-    if (button.textContent.includes('Download Report')) {
-        button.addEventListener('click', () => {
-            alert('Report download would start here');
-        });
-    }
-    
-    if (button.textContent.includes('Export CSV')) {
-        button.addEventListener('click', () => {
-            alert('CSV export would start here');
-        });
-    }
-    
-    if (button.textContent.includes('Update Info')) {
-        button.addEventListener('click', () => {
-            alert('Update billing info form would open here');
-        });
-    }
-    
-    if (button.textContent.includes('Change Payment')) {
-        button.addEventListener('click', () => {
-            alert('Payment method form would open here');
-        });
-    }
-});
-</script>
 

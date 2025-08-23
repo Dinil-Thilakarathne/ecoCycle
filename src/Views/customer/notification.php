@@ -176,59 +176,76 @@ if ($action === 'view' && $notificationId) {
 $showSettings = ($action === 'settings');
 ?>
 
-    <div class="container">
+    <div class="dashboard-page">
         <!-- Header -->
         <div class="header">
-            <div class="header-content">
-                <h1>Notifications</h1>
-                <p>Stay updated with your latest activities and alerts</p>
-            </div>
-            <div class="header-actions">
-                <a href="?action=mark_all_read" class="btn-secondary">Mark All Read</a>
-                <a href="?action=settings" class="btn-primary">⚙️ Settings</a>
+            <div class="header-actions action-buttons">
+                <a href="?action=mark_all_read" class="btn btn-outline">Mark All Read</a>
+                <a href="?action=settings" class="btn btn-primary">⚙️ Settings</a>
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Stats Feature Cards -->
+        <?php
+        $notificationStats = [
+            [
+                'title' => 'Total Notifications',
+                'value' => $totalNotifications,
+                'icon' => 'fa-solid fa-bell',
+                'subtitle' => 'All time',
+            ],
+            [
+                'title' => 'Unread',
+                'value' => $unreadNotifications,
+                'icon' => 'fa-solid fa-envelope-open',
+                'subtitle' => 'Need attention',
+            ],
+            [
+                'title' => 'High Priority',
+                'value' => $highPriorityNotifications,
+                'icon' => 'fa-solid fa-exclamation-circle',
+                'subtitle' => 'Critical alerts',
+            ],
+            [
+                'title' => 'Today',
+                'value' => $todayNotifications,
+                'icon' => 'fa-solid fa-calendar-day',
+                'subtitle' => 'Received today',
+            ],
+        ];
+        ?>
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-content">
-                    <div class="stat-number"><?php echo $totalNotifications; ?></div>
-                    <div class="stat-label">Total Notifications</div>
+            <?php foreach ($notificationStats as $stat): ?>
+                <div class="feature-card">
+                    <div class="feature-card__header">
+                        <h3 class="feature-card__title">
+                            <?= htmlspecialchars($stat['title']) ?>
+                        </h3>
+                        <div class="feature-card__icon">
+                            <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
+                        </div>
+                    </div>
+                    <p class="feature-card__body">
+                        <?= htmlspecialchars($stat['value']) ?>
+                    </p>
+                    <div class="feature-card__footer">
+                        <span><?= htmlspecialchars($stat['subtitle']) ?></span>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-content">
-                    <div class="stat-number"><?php echo $unreadNotifications; ?></div>
-                    <div class="stat-label">Unread</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-content">
-                    <div class="stat-number"><?php echo $highPriorityNotifications; ?></div>
-                    <div class="stat-label">High Priority</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-content">
-                    <div class="stat-number"><?php echo $todayNotifications; ?></div>
-                    <div class="stat-label">Today</div>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
 
         <!-- Filter Tabs -->
-        <div class="tabs">
-            <a href="?filter=all" class="tab-btn <?php echo $filter === 'all' ? 'active' : ''; ?>">All</a>
-            <a href="?filter=unread" class="tab-btn <?php echo $filter === 'unread' ? 'active' : ''; ?>">Unread (<?php echo $unreadNotifications; ?>)</a>
-            <a href="?filter=pickup" class="tab-btn <?php echo $filter === 'pickup' ? 'active' : ''; ?>">Pickup</a>
-            <a href="?filter=payment" class="tab-btn <?php echo $filter === 'payment' ? 'active' : ''; ?>">Payment</a>
-            <a href="?filter=system" class="tab-btn <?php echo $filter === 'system' ? 'active' : ''; ?>">System</a>
+        <div class="action-buttons" style="margin-bottom:2rem;">
+            <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread (<?php echo $unreadNotifications; ?>)</a>
+            <a href="?filter=pickup" class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
+            <a href="?filter=payment" class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
+            <a href="?filter=system" class="btn <?php echo $filter === 'system' ? 'btn-primary' : 'btn-outline'; ?>">System</a>
         </div>
 
         <!-- Notifications Table -->
-        <div class="table-container">
-            <table class="notifications-table">
+        <div class="table-container" style="overflow-x:auto;">
+            <table class="notifications-table" style="min-width:800px;">
                 <thead>
                     <tr>
                         <th>Notification</th>
@@ -253,36 +270,30 @@ $showSettings = ($action === 'settings');
                     <?php else: ?>
                         <?php foreach ($filteredNotifications as $notification): ?>
                             <tr class="notification-row <?php echo !$notification['isRead'] ? 'unread' : ''; ?>">
-                                
                                 <td class="notification-info">
                                     <div class="notification-details">
                                         <div class="notification-title"><?php echo htmlspecialchars($notification['title']); ?></div>
                                         <div class="notification-message"><?php echo htmlspecialchars(truncateMessage($notification['message'])); ?></div>
                                     </div>
                                 </td>
-                                
                                 <td>
                                     <span class="type-badge <?php echo $notification['category']; ?>">
                                         <?php echo ucfirst($notification['category']); ?>
                                     </span>
                                 </td>
-                                
                                 <td>
                                     <span class="priority-badge <?php echo $notification['priority']; ?>">
                                         <?php echo ucfirst($notification['priority']); ?>
                                     </span>
                                 </td>
-                                
                                 <td class="time-cell">
                                     <?php echo timeAgo($notification['timestamp']); ?>
                                 </td>
-                                
                                 <td>
                                     <span class="status-badge <?php echo getStatusClass($notification['priority'], $notification['isRead']); ?>">
                                         <?php echo !$notification['isRead'] ? 'Unread' : 'Read'; ?>
                                     </span>
                                 </td>
-                                
                                 <td class="actions-cell">
                                     <?php if (!$notification['isRead']): ?>
                                         <a href="?action=mark_read&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn mark-read">Mark Read</a>
