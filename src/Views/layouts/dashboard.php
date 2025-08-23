@@ -30,14 +30,16 @@ if (!$notificationsUrl) {
     <nav class="nav-menu-container">
         <h3 class="nav-menu__header">Dashboards</h3>
         <ul class="nav-menu">
-            <?php foreach ($navigation as $item): ?>
-                <?php $isActive = NavigationConfig::isActiveUrl($item['url'], $currentUrl); ?>
-                <li class="nav-item <?= $isActive ? 'active' : '' ?>">
-                    <nav-link href="<?= htmlspecialchars($item['url']) ?>"
-                        title="<?= htmlspecialchars($item['description'] ?? '') ?>" <?= $isActive ? 'active' : '' ?>>
+            <?php
+            foreach ($navigation as $item):
+                $isActive = NavigationConfig::isActiveUrl($item['url'], $currentUrl) ? 'active' : '';
+                ?>
+                <li class="nav-item <?= $isActive ?>">
+                    <a href="<?= htmlspecialchars($item['url']) ?>" class="nav-link"
+                        title="<?= htmlspecialchars($item['description'] ?? '') ?>">
                         <i class="fa-solid fa-<?= htmlspecialchars($item['icon']) ?>"></i>
-                        <?= htmlspecialchars($item['title']) ?>
-                    </nav-link>
+                        <span><?= htmlspecialchars($item['title']) ?></span>
+                    </a>
                 </li>
             <?php endforeach; ?>
         </ul>
