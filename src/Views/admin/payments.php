@@ -88,16 +88,12 @@ function getStatusTag($status)
 
 <div>
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Payment Overview</h2>
-            <p class="page-header__description">Manage customer payouts and company payments</p>
-        </div>
+    <page-header title="Payment Overview" description="Manage customer payouts and company payments">
         <button class="btn btn-primary">
             <i class="fa-solid fa-credit-card"></i>
             Process Payments
         </button>
-    </div>
+    </page-header>
 
     <!-- Statistics Grid (feature-card components) -->
     <?php
@@ -130,8 +126,8 @@ function getStatusTag($status)
     ?>
     <div class="stats-grid">
         <?php foreach ($paymentStatCards as $card): ?>
-            <feature-card title="<?= htmlspecialchars($card['title']) ?>" value="<?= htmlspecialchars($card['value']) ?>"
-                icon="<?= htmlspecialchars($card['icon']) ?>"
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
                 period="<?= htmlspecialchars($card['period']) ?>"></feature-card>
         <?php endforeach; ?>
     </div>

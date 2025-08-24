@@ -36,13 +36,9 @@ $categoryColors = [
 ?>
 
 <div>
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Analytics & Reports</h2>
-            <p class="page-header__description">View system analytics and generate reports</p>
-        </div>
-        <div style="display: flex; gap: var(--space-2);">
+    <!-- Page Header (component) -->
+    <page-header title="Analytics &amp; Reports" description="View system analytics and generate reports">
+        <div data-header-action style="display: flex; gap: var(--space-2);">
             <button class="btn btn-outline" onclick="exportReport('CSV')">
                 <i class="fa-solid fa-download"></i>
                 Export CSV
@@ -52,55 +48,50 @@ $categoryColors = [
                 Export PDF
             </button>
         </div>
-    </div>
+    </page-header>
 
     <!-- Main Statistics Grid (using feature-card component) -->
     <?php
-        $statCards = [
-            [
-                'title' => 'Total Waste Collected',
-                'value' => number_format($totalWasteCollected) . ' kg',
-                'icon'  => 'fa-solid fa-box',
-                'change' => '+12%',
-                'period' => 'from last month',
-                'negative' => false,
-            ],
-            [
-                'title' => 'Total Revenue',
-                'value' => '$' . number_format($totalRevenue),
-                'icon'  => 'fa-solid fa-arrow-trend-up',
-                'change' => '+8%',
-                'period' => 'from last month',
-                'negative' => false,
-            ],
-            [
-                'title' => 'Active Areas',
-                'value' => $activeAreas,
-                'icon'  => 'fa-solid fa-location-dot',
-                'change' => '',
-                'period' => 'Collection zones',
-                'negative' => false,
-            ],
-            [
-                'title' => 'Avg. Collection/Day',
-                'value' => number_format($avgCollectionPerDay) . ' kg',
-                'icon'  => 'fa-solid fa-chart-column',
-                'change' => '',
-                'period' => 'Daily average',
-                'negative' => false,
-            ],
-        ];
+    $statCards = [
+        [
+            'title' => 'Total Waste Collected',
+            'value' => number_format($totalWasteCollected) . ' kg',
+            'icon' => 'fa-solid fa-box',
+            'change' => '+12%',
+            'period' => 'from last month',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Total Revenue',
+            'value' => '$' . number_format($totalRevenue),
+            'icon' => 'fa-solid fa-arrow-trend-up',
+            'change' => '+8%',
+            'period' => 'from last month',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Active Areas',
+            'value' => $activeAreas,
+            'icon' => 'fa-solid fa-location-dot',
+            'change' => '',
+            'period' => 'Collection zones',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Avg. Collection/Day',
+            'value' => number_format($avgCollectionPerDay) . ' kg',
+            'icon' => 'fa-solid fa-chart-column',
+            'change' => '',
+            'period' => 'Daily average',
+            'negative' => false,
+        ],
+    ];
     ?>
     <div class="stats-grid">
-        <?php foreach($statCards as $card): ?>
-            <feature-card
-                title="<?= htmlspecialchars($card['title']) ?>"
-                value="<?= htmlspecialchars($card['value']) ?>"
-                icon="<?= htmlspecialchars($card['icon']) ?>"
-                period="<?= htmlspecialchars($card['period']) ?>"
-                <?php if(strlen(trim($card['change']))): ?>change="<?= htmlspecialchars($card['change']) ?>"<?php endif; ?>
-                <?php if($card['negative']): ?>change-negative<?php endif; ?>
-            ></feature-card>
+        <?php foreach ($statCards as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>" <?php if (strlen(trim($card['change']))): ?>change="<?= htmlspecialchars($card['change']) ?>" <?php endif; ?>     <?php if ($card['negative']): ?>change-negative<?php endif; ?>></feature-card>
         <?php endforeach; ?>
     </div>
 

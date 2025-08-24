@@ -144,8 +144,8 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
     ?>
     <div class="dashboard-grid feature-cards">
         <?php foreach ($vehicleStats as $card): ?>
-            <feature-card title="<?= htmlspecialchars($card['title']) ?>" value="<?= htmlspecialchars($card['value']) ?>"
-                icon="<?= htmlspecialchars($card['icon']) ?>"
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
                 period="<?= htmlspecialchars($card['period']) ?>"></feature-card>
         <?php endforeach; ?>
     </div>

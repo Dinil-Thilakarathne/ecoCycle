@@ -22,14 +22,9 @@ $recentActivity = [
     <!-- Statistics Grid -->
     <div class="stats-grid">
         <?php foreach ($stats as $stat): ?>
-            <feature-card
-                title="<?= htmlspecialchars($stat['title']) ?>"
-                value="<?= htmlspecialchars($stat['value']) ?>"
-                icon="<?= htmlspecialchars($stat['icon']) ?>"
-                change="<?= htmlspecialchars($stat['change']) ?>"
-                period="from last month"
-                <?php if(strpos($stat['change'], '-') === 0): ?>change-negative<?php endif; ?>
-            ></feature-card>
+            <feature-card unwrap title="<?= htmlspecialchars($stat['title']) ?>"
+                value="<?= htmlspecialchars($stat['value']) ?>" icon="<?= htmlspecialchars($stat['icon']) ?>"
+                change="<?= htmlspecialchars($stat['change']) ?>" period="from last month" <?php if (strpos($stat['change'], '-') === 0): ?>change-negative<?php endif; ?>></feature-card>
         <?php endforeach; ?>
     </div>
 
@@ -37,11 +32,9 @@ $recentActivity = [
     <div class="cards-grid">
         <activity-card title="Recent Activity" description="Latest system activities and updates">
             <?php foreach ($recentActivity as $activity): ?>
-                <activity-item
-                    action="<?= htmlspecialchars($activity['action']) ?>"
+                <activity-item action="<?= htmlspecialchars($activity['action']) ?>"
                     detail="<?= htmlspecialchars($activity['detail']) ?>"
-                    time="<?= htmlspecialchars($activity['time']) ?>"
-                ></activity-item>
+                    time="<?= htmlspecialchars($activity['time']) ?>"></activity-item>
             <?php endforeach; ?>
         </activity-card>
 

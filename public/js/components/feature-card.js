@@ -13,6 +13,15 @@ class FeatureCard extends HTMLElement {
     if (!this._initialized) {
       this._renderSkeleton();
       this._initialized = true;
+      // If 'unwrap' attribute present, render once then replace this custom element with inner markup
+      if (this.hasAttribute("unwrap")) {
+        this._render();
+        const innerRoot = this.firstElementChild; // .feature-card div
+        if (innerRoot) {
+          this.replaceWith(innerRoot);
+        }
+        return; // Stop further lifecycle (no dynamic updates post-unwrap)
+      }
     }
     this._render();
   }
