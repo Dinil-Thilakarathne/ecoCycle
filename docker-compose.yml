@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    container_name: ecocycle-app
+    env_file: .env
+    ports:
+      - "8080:80"
+    volumes:
+      # Mount only needed paths for faster file sync; comment out in production
+      - ./:/var/www/html:delegated
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  db:
+    image: mariadb:11
+    container_name: ecocycle-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-ecocycle}
+      MYSQL_USER: ${DB_USERNAME:-ecocycle}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3307:3306" # Optional external exposure
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: ecocycle-pma
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8090:80"
+    depends_on:
+      - db
+    profiles: [dev]
+
+volumes:
+  db_data:
+## Usage:
+# docker compose up -d --build
+# docker compose --profile dev up -d   (includes phpMyAdmin)
