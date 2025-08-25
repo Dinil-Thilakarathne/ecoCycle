@@ -1,50 +1,60 @@
+version: "3.9"
+
+# Production override: removes dev bind mounts & phpMyAdmin, adds Caddy reverse proxy with HTTPS.
+
 services:
   app:
     build: .
-    container_name: ecocycle-app
-    env_file: .env
-    ports:
-      - "8080:80"
-    volumes:
-      # Mount only needed paths for faster file sync; comment out in production
-      - ./:/var/www/html:delegated
+    image: ecocycle-app:latest
+    restart: unless-stopped
+    # No source bind mount in prod; code baked into image
+    volumes: []
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
     depends_on:
       - db
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+    networks:
+      - web
+      - internal
 
   db:
     image: mariadb:11
-    container_name: ecocycle-db
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-ecocycle}
       MYSQL_USER: ${DB_USERNAME:-ecocycle}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeRootStrong}
     volumes:
       - db_data:/var/lib/mysql
-    ports:
-      - "3307:3306" # Optional external exposure
+    networks:
+      - internal
 
-  phpmyadmin:
-    image: phpmyadmin:5
-    container_name: ecocycle-pma
-    environment:
-      PMA_HOST: db
-      UPLOAD_LIMIT: 64M
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
     ports:
-      - "8090:80"
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${APP_DOMAIN:-example.com}
+      EMAIL: ${SSL_EMAIL:-admin@example.com}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
-      - db
-    profiles: [dev]
+      - app
+    networks:
+      - web
+
+networks:
+  web:
+  internal:
+    internal: true
 
 volumes:
   db_data:
-## Usage:
-# docker compose up -d --build
-# docker compose --profile dev up -d   (includes phpMyAdmin)
+  caddy_data:
+  caddy_config:
