@@ -47,6 +47,9 @@ RUN { \
   echo 'session.use_strict_mode=1'; \
 } > /usr/local/etc/php/conf.d/99-ecocycle.ini
 
+# Add ServerName to suppress Apache warning
+RUN echo 'ServerName localhost' > /etc/apache2/conf-available/servername.conf && a2enconf servername
+
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://localhost/ || exit 1
 
