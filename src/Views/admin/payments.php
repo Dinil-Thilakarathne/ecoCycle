@@ -88,80 +88,48 @@ function getStatusTag($status)
 
 <div>
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Payment Overview</h2>
-            <p class="page-header__description">Manage customer payouts and company payments</p>
-        </div>
+    <page-header title="Payment Overview" description="Manage customer payouts and company payments">
         <button class="btn btn-primary">
             <i class="fa-solid fa-credit-card"></i>
             Process Payments
         </button>
-    </div>
+    </page-header>
 
-    <!-- Statistics Grid -->
+    <!-- Statistics Grid (feature-card components) -->
+    <?php
+    $paymentStatCards = [
+        [
+            'title' => 'Total Payouts',
+            'value' => '$' . number_format($totalPayouts, 2),
+            'icon' => 'fa-solid fa-arrow-trend-down',
+            'period' => 'To customers',
+        ],
+        [
+            'title' => 'Total Payments',
+            'value' => '$' . number_format($totalPayments, 2),
+            'icon' => 'fa-solid fa-arrow-trend-up',
+            'period' => 'From companies',
+        ],
+        [
+            'title' => 'Pending Transactions',
+            'value' => $pendingCount,
+            'icon' => 'fa-solid fa-dollar-sign',
+            'period' => 'Awaiting processing',
+        ],
+        [
+            'title' => 'Net Revenue',
+            'value' => '$' . number_format($netRevenue, 2),
+            'icon' => 'fa-solid fa-arrow-trend-up',
+            'period' => 'After payouts',
+        ],
+    ];
+    ?>
     <div class="stats-grid">
-        <!-- Total Payouts -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Payouts</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($totalPayouts, 2) ?>
-            </p>
-            <div class="feature-card__footer">
-                <span style="font-size: var(--text-xs); color: var(--neutral-600);">
-                    To customers
-                </span>
-            </div>
-        </div>
-
-        <!-- Total Payments -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Payments</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-arrow-trend-up" style="color: #16a34a;"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($totalPayments, 2) ?>
-            </p>
-            <div class="feature-card__footer">
-                <span style="font-size: var(--text-xs); color: var(--neutral-600);">
-                    From companies
-                </span>
-            </div>
-        </div>
-
-        <!-- Pending Transactions -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Pending Transactions</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-dollar-sign" style="color: #ca8a04;"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= $pendingCount ?>
-            </p>
-        </div>
-
-        <!-- Net Revenue -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Net Revenue</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-arrow-trend-up" style="color: #16a34a;"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($netRevenue, 2) ?>
-            </p>
-        </div>
+        <?php foreach ($paymentStatCards as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>"></feature-card>
+        <?php endforeach; ?>
     </div>
 
     <!-- Recent Transactions Card -->

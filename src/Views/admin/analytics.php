@@ -36,13 +36,9 @@ $categoryColors = [
 ?>
 
 <div>
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Analytics & Reports</h2>
-            <p class="page-header__description">View system analytics and generate reports</p>
-        </div>
-        <div style="display: flex; gap: var(--space-2);">
+    <!-- Page Header (component) -->
+    <page-header title="Analytics &amp; Reports" description="View system analytics and generate reports">
+        <div data-header-action style="display: flex; gap: var(--space-2);">
             <button class="btn btn-outline" onclick="exportReport('CSV')">
                 <i class="fa-solid fa-download"></i>
                 Export CSV
@@ -52,83 +48,51 @@ $categoryColors = [
                 Export PDF
             </button>
         </div>
-    </div>
+    </page-header>
 
-    <!-- Main Statistics Grid -->
+    <!-- Main Statistics Grid (using feature-card component) -->
+    <?php
+    $statCards = [
+        [
+            'title' => 'Total Waste Collected',
+            'value' => number_format($totalWasteCollected) . ' kg',
+            'icon' => 'fa-solid fa-box',
+            'change' => '+12%',
+            'period' => 'from last month',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Total Revenue',
+            'value' => '$' . number_format($totalRevenue),
+            'icon' => 'fa-solid fa-arrow-trend-up',
+            'change' => '+8%',
+            'period' => 'from last month',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Active Areas',
+            'value' => $activeAreas,
+            'icon' => 'fa-solid fa-location-dot',
+            'change' => '',
+            'period' => 'Collection zones',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Avg. Collection/Day',
+            'value' => number_format($avgCollectionPerDay) . ' kg',
+            'icon' => 'fa-solid fa-chart-column',
+            'change' => '',
+            'period' => 'Daily average',
+            'negative' => false,
+        ],
+    ];
+    ?>
     <div class="stats-grid">
-        <!-- Total Waste Collected -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Waste Collected</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-box" style="color: var(--neutral-600);"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= number_format($totalWasteCollected) ?> kg
-            </p>
-            <div class="feature-card__footer">
-                <span class="tag success" style="font-size: var(--text-xs);">+12%</span>
-                <span style="font-size: var(--text-xs); color: var(--neutral-600); margin-left: var(--space-2);">
-                    from last month
-                </span>
-            </div>
-        </div>
-
-        <!-- Total Revenue -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Revenue</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-arrow-trend-up" style="color: var(--neutral-600);"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($totalRevenue) ?>
-            </p>
-            <div class="feature-card__footer">
-                <span class="tag success" style="font-size: var(--text-xs);">+8%</span>
-                <span style="font-size: var(--text-xs); color: var(--neutral-600); margin-left: var(--space-2);">
-                    from last month
-                </span>
-            </div>
-        </div>
-
-        <!-- Active Areas -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Active Areas</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-location-dot" style="color: var(--neutral-600);"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= $activeAreas ?>
-            </p>
-            <div class="feature-card__footer">
-                <span style="font-size: var(--text-xs); color: var(--neutral-600);">
-                    Collection zones
-                </span>
-            </div>
-        </div>
-
-        <!-- Avg Collection Per Day -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Avg. Collection/Day</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-chart-column" style="color: var(--neutral-600);"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= number_format($avgCollectionPerDay) ?> kg
-            </p>
-            <div class="feature-card__footer">
-                <span style="font-size: var(--text-xs); color: var(--neutral-600);">
-                    Daily average
-                </span>
-            </div>
-        </div>
+        <?php foreach ($statCards as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>" <?php if (strlen(trim($card['change']))): ?>change="<?= htmlspecialchars($card['change']) ?>" <?php endif; ?>     <?php if ($card['negative']): ?>change-negative<?php endif; ?>></feature-card>
+        <?php endforeach; ?>
     </div>
 
     <!-- Secondary Stats Grid -->

@@ -39,6 +39,7 @@
 
     <!-- JavaScript Files -->
     <!-- Core JS -->
+    <script type="module" src="/js/components/core.js"></script>
     <script src="/js/app.js"></script>
 
     <!-- Dashboard JS if this is a dashboard page -->

@@ -113,63 +113,41 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         </button>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Statistics Cards (feature-card components) -->
+    <?php
+    $vehicleStats = [
+        [
+            'title' => 'Total Vehicles',
+            'value' => $totalVehicles,
+            'icon' => 'fa-solid fa-truck',
+            'period' => 'Fleet size',
+        ],
+        [
+            'title' => 'Available',
+            'value' => $availableVehicles,
+            'icon' => 'fa-solid fa-truck',
+            'period' => 'Ready for assignment',
+        ],
+        [
+            'title' => 'In Use',
+            'value' => $inUseVehicles,
+            'icon' => 'fa-solid fa-truck-moving',
+            'period' => 'Currently deployed',
+        ],
+        [
+            'title' => 'In Maintenance',
+            'value' => $inMaintenanceVehicles,
+            'icon' => 'fa-solid fa-wrench',
+            'period' => 'Under service',
+        ],
+    ];
+    ?>
     <div class="dashboard-grid feature-cards">
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__info">
-                    <h3 class="feature-card__title">Total Vehicles</h3>
-                </div>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-            </div>
-            <div class="feature-card__content">
-                <div class="metric-value"><?= $totalVehicles ?></div>
-            </div>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__info">
-                    <h3 class="feature-card__title">Available</h3>
-                </div>
-                <div class="feature-card__icon success">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-            </div>
-            <div class="feature-card__content">
-                <div class="metric-value"><?= $availableVehicles ?></div>
-            </div>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__info">
-                    <h3 class="feature-card__title">In Use</h3>
-                </div>
-                <div class="feature-card__icon warning">
-                    <i class="fa-solid fa-truck-moving"></i>
-                </div>
-            </div>
-            <div class="feature-card__content">
-                <div class="metric-value"><?= $inUseVehicles ?></div>
-            </div>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__info">
-                    <h3 class="feature-card__title">In Maintenance</h3>
-                </div>
-                <div class="feature-card__icon danger">
-                    <i class="fa-solid fa-wrench"></i>
-                </div>
-            </div>
-            <div class="feature-card__content">
-                <div class="metric-value"><?= $inMaintenanceVehicles ?></div>
-            </div>
-        </div>
+        <?php foreach ($vehicleStats as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>"></feature-card>
+        <?php endforeach; ?>
     </div>
 
     <!-- Vehicle Fleet Table -->
