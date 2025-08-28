@@ -28,7 +28,7 @@ if (!$notificationsUrl) {
     <aside class="dashboard-sidebar">
         <div class="sidebar-container">
             <div>
-                <img src="/assets/logo-text-black.png" />
+                <img src="/assets/logo-text-black.png" class="desktop-logo"/>
                 <img src="/assets/logo-icon.png" class="mobile-logo" />
             </div>
             <nav class="nav-menu-container">

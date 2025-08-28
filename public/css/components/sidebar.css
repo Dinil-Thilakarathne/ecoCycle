@@ -44,8 +44,29 @@
 }
 
 .mobile-logo {
-  height: 1rem;
-  width: 1rem;
+  width: calc(100% - var(--space-4));
+  aspect-ratio: 1;
+  display: block;
+  padding-left: var(--space-4);
+}
+
+.desktop-logo {
+  display: none;
+}
+
+@media screen and (min-width: 900px) {
+  .mobile-logo {
+    display: none;
+  }
+  .desktop-logo {
+    display: block;
+  }
+
+  .with-collapsed-sidebar {
+    .mobile-logo {
+      display: block;
+    }
+  }
 }
 
 .dashboard-sidebar.is-collapsed::before {
@@ -155,11 +176,11 @@
   }
   /* When desktop collapsed: show rail instead of sliding out */
   .dashboard-layout.with-collapsed-sidebar .dashboard-sidebar {
-    width: 56px;
+    width: 72px;
     padding: var(--space-6) var(--space-2);
     overflow: hidden;
   }
-  .dashboard-layout.with-collapsed-sidebar .dashboard-sidebar img {
+  .dashboard-layout.with-collapsed-sidebar .dashboard-sidebar .desktop-logo {
     display: none;
   }
   .dashboard-layout.with-collapsed-sidebar .dashboard-sidebar .nav-menu__header,
