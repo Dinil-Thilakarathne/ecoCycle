@@ -12,6 +12,14 @@ class ActivityItem extends HTMLElement {
       this._renderSkeleton();
       this._init = true;
     }
+    if (this.hasAttribute("unwrap")) {
+      this._render();
+      const innerRoot = this.firstElementChild; // .activity-item div
+      if (innerRoot) {
+        this.replaceWith(innerRoot);
+      }
+      return; // Stop further lifecycle (no dynamic updates post-unwrap)
+    }
     this._render();
   }
   attributeChangedCallback() {
