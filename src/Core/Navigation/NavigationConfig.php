@@ -69,7 +69,8 @@ class NavigationConfig
                 // Matches: src/Views/company/helpCenter.php -> route: /company/helpCenter
                 ['title' => 'Help & Support', 'url' => '/company/help-center', 'icon' => 'life-ring', 'description' => 'Help center and support'],
                 // Matches: src/Views/company/profile.php -> route: /company/profile
-                ['title' => 'Profile', 'url' => '/company/profile', 'icon' => 'building', 'description' => 'Company profile & settings'],
+                ['title' => 'Profile', 'url' => '/company/profile', 'icon' => 'user', 'description' => 'Company profile & settings'],
+                ['title' => 'Notification', 'url' => '/company/notification', 'icon' => 'bell', 'description' => 'User profile & Details'],
             ],
         ];
     }

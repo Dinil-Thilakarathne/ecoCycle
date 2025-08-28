@@ -119,6 +119,18 @@ class CompanyDashboardController extends DashboardController
         return $this->renderDashboard('profile', $data);
     }
 
+    /**
+     * Notifications page
+     */
+     public function notification(): Response
+    {
+        $data = [
+            'pageTitle' => 'Notifications',
+        ];
+
+        return $this->renderDashboard('notification', $data);
+    }
+
     protected function getNavigationItems(): array
     {
         return NavigationConfig::getNavigation($this->userType);

@@ -2,19 +2,34 @@
 
 // Sample data (replace with database queries in real implementation)
 $availableWaste = [
-  'Plastic' => 2500,
-  'Paper' => 1800,
-  'Metal' => 3200,
-  'Glass' => 1200,
-  'polythene' => 2500,
-  'e-waste' => 1800
+  ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-box'],
+  ['title' => 'Paper', 'value' => '1,800 kg', 'icon' => 'fa-solid fa-paper-plane'],
+  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-recycle'],
+  ['title' => 'Glass', 'value' => '1,200 kg', 'icon' => 'fa-solid fa-wine-bottle'],
+  ['title' => 'Polythene', 'value' => '1500 kg', 'icon' => 'fa-solid fa-bag-shopping'],
+  ['title' => 'E waste', 'value' => '3000 kg', 'icon' => 'fa-solid fa-tv']
+
 ];
 
+$totalWaste = 0;
 
-$notifications = [];
+$bids = [
+    'Plastic' => ['amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
+    'Paper' => ['amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
+    'Metal' => ['amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
+    'Glass' => ['amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+];
+
+$notifications = [
+  "Your bid on Lot #234 was successful!" => "2 minutes ago",
+  "Payment received for Purchase ID #PUR001" => "15 minutes ago",
+  "New waste lot available: Plastic Bottles in District B"=> "1 hour ago",
+  "System maintenance scheduled for 25th Aug, 2 AM - 4 AM" => "Yesterday"
+];
+
+$recentNotifications = array_slice($notifications, 0, 3, true);
 
 ?>
-
 
 <!-- Main Content -->
 <main class="content">
@@ -27,18 +42,35 @@ $notifications = [];
 
   <section class="companyDashboard">
     <!-- Available Waste Amount -->
-    <div class="c-dashboard-card">
-      <h3>Available Waste Amount</h3>
-      <p class="value">
-        <?php echo array_sum($availableWaste); ?> kg
-      </p>
-      <ul class="waste-list">
-        <?php foreach ($availableWaste as $type => $kg): ?>
-          <li><?php echo $type; ?>: <?php echo $kg; ?> kg</li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
+      <?php foreach ($availableWaste as $waste) {
+              $numericValue = (int) filter_var($waste['value'], FILTER_SANITIZE_NUMBER_INT);
+              $totalWaste += $numericValue;
+          }
+      ?>
 
+    <div class="c-dashboard-card"> 
+          <h3>Available Waste Amount</h3>
+          <p class="value">
+              <?= number_format($totalWaste) ?> kg
+          </p>
+          <ul class="waste-list">
+              <?php foreach ($availableWaste as $type): ?>
+                  <div class="feature-card">
+                      <div class="feature-card__header">
+                          <h3 class="feature-card__title">
+                              <?= htmlspecialchars($type['title']) ?>
+                          </h3>
+                          <div class="feature-card__icon">
+                              <i class="<?= htmlspecialchars($type['icon']) ?>"></i>
+                          </div>
+                      </div>
+                      <p class="feature-card__body">
+                          <?= htmlspecialchars($type['value']) ?>
+                      </p>
+                  </div>
+              <?php endforeach; ?>
+          </ul>
+    </div>
 
     <!-- Highest Bids -->
     <div class="c-dashboard-grid">
@@ -46,24 +78,19 @@ $notifications = [];
         <h3>Current Highest Bid for Each Waste Type</h3>
         <ul class="bids">
           <?php
-          $bids = [
-            'Plastic' => ['amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-            'Paper' => ['amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-            'Metal' => ['amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-            'Glass' => ['amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
-          ];
+          
           foreach ($bids as $type => $data) {
             echo "
-                        <div class='bid-item'>
-                            <div class='bid-header'>
-                                <span class='waste-type'>{$type}</span>
-                                <span class='bid-amount'>{$data['bid']}</span>
-                            </div>
-                            <div class='bid-details'>
-                                <span>{$data['amount']}</span>
-                                <span class='status {$data['status']}'>{$data['status']}</span>
-                            </div>
-                        </div>";
+                <div class='bid-item'>
+                    <div class='bid-header'>
+                        <span class='waste-type'>{$type}</span>
+                        <span class='bid-amount'>{$data['bid']}</span>
+                    </div>
+                        <div class='bid-details'>
+                            <span>{$data['amount']}</span>
+                            <span class='status {$data['status']}'>{$data['status']}</span>
+                        </div>
+                </div>";
           }
 
           ?>
@@ -77,11 +104,19 @@ $notifications = [];
           <p><strong>Company Name</strong></p>
           <a href="http://localhost:8000/company/profile">View Profile</a>
         </div>
+
         <ul class="notifications">
-          <?php foreach ($notifications as $note => $time): ?>
-            <li><?php echo $note; ?> <span class="time"><?php echo $time; ?></span></li>
+          <?php foreach ($recentNotifications as $note => $time): ?>
+              <li>
+                  <?php echo $note; ?> 
+                  <span class="time"><?php echo $time; ?></span>
+              </li>
           <?php endforeach; ?>
         </ul>
+
+        <!-- See More link -->
+        <a href="http://localhost:8000/company/notification" class="see-more">See more...</a>
+
         <div class="feedback">
           <input type="text" placeholder="Send Feedback">
           <button>Send</button>
