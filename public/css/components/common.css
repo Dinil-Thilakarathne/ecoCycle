@@ -541,7 +541,7 @@
 }
 
 .main-section {
-  --_section-gap-y: var(--space-16);
+  --_section-gap-y: var(--space-32);
 
   margin-inline: auto;
   padding-block: var(--_section-gap-y);
