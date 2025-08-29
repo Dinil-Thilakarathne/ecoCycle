@@ -1,6 +1,3 @@
-@import url("./components/sidebar.css");
-@import url('./company.css');
-
 .dashboard-layout {
   display: flex;
   flex-direction: row;
