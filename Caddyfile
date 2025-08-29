@@ -1,0 +1,32 @@
+{
+    email {env.EMAIL}
+    # Optional: global ACME CA override for staging
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{env.DOMAIN} {
+    encode gzip zstd
+    header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+    header X-Frame-Options "DENY"
+    header X-Content-Type-Options "nosniff"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+    header Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    @static {
+        path "/css/*" "/js/*" "/images/*" "/assets/*"
+    }
+    handle @static {
+        root * /var/www/html/public
+        file_server
+    }
+
+    handle {
+        reverse_proxy app:80
+    }
+
+    # Health endpoint (optional)
+    @health path "/health"
+    handle @health {
+        respond 200 "OK"
+    }
+}

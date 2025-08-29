@@ -104,12 +104,8 @@ function getAlertStatusTag($status)
 
 <div>
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Notification Manager</h2>
-            <p class="page-header__description">Send notifications and manage system alerts</p>
-        </div>
-    </div>
+    <page-header title="Notification Manager" description="Send notifications and manage system alerts">
+    </page-header>
 
     <!-- Main Content Grid -->
     <div style="display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
