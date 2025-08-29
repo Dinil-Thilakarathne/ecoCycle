@@ -100,57 +100,51 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
 
 <div>
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Bidding Management</h2>
-            <p class="page-header__description">Monitor and manage active bidding rounds</p>
+    <page-header title="Bidding Management" description="Monitor and manage active bidding rounds">
+        <div data-header-action style="display: flex; gap: var(--space-2);">
+            <button class="btn btn-primary" onclick="createNewLot()">
+                <i class="fa-solid fa-box" style="margin-right: 8px;"></i>
+                Create New Lot
+            </button>
         </div>
-        <button class="btn btn-primary" onclick="createNewLot()">
-            <i class="fa-solid fa-box" style="margin-right: 8px;"></i>
-            Create New Lot
-        </button>
-    </div>
+    </page-header>
 
-    <!-- Statistics Cards -->
+
+    <!-- Statistics Cards (data-driven using feature-card component) -->
+    <?php
+    $bidStatCards = [
+        [
+            'title' => 'Active Bidding Rounds',
+            'value' => count($activeRounds),
+            'icon' => 'fa-solid fa-gavel',
+            'change' => '',
+            'period' => 'Currently running',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Total Bid Value',
+            'value' => '$' . number_format($totalBidValue),
+            'icon' => 'fa-solid fa-dollar-sign',
+            'change' => '',
+            'period' => 'Aggregate of highest bids',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Completed Rounds',
+            'value' => count($completedRounds),
+            'icon' => 'fa-solid fa-box',
+            'change' => '',
+            'period' => 'Finished today',
+            'negative' => false,
+        ],
+    ];
+    ?>
     <div class="stats-grid">
-        <!-- Active Bidding Rounds -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Active Bidding Rounds</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-gavel"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= count($activeRounds) ?>
-            </p>
-        </div>
-
-        <!-- Total Bid Value -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Bid Value</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-dollar-sign"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($totalBidValue) ?>
-            </p>
-        </div>
-
-        <!-- Completed Today -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Completed Today</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-box"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= count($completedRounds) ?>
-            </p>
-        </div>
+        <?php foreach ($bidStatCards as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>" <?php if (strlen(trim($card['change']))): ?>change="<?= htmlspecialchars($card['change']) ?>" <?php endif; ?>     <?php if ($card['negative']): ?>change-negative<?php endif; ?>></feature-card>
+        <?php endforeach; ?>
     </div>
 
     <!-- Bidding Rounds Table -->
