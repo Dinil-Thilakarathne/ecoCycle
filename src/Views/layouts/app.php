@@ -29,6 +29,8 @@
     <?= $headContent ?? '' ?>
 
     <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body
@@ -39,6 +41,7 @@
 
     <!-- JavaScript Files -->
     <!-- Core JS -->
+    <script type="module" src="/js/components/core.js"></script>
     <script src="/js/app.js"></script>
 
     <!-- Dashboard JS if this is a dashboard page -->

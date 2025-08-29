@@ -33,7 +33,8 @@ class Environment
         $envFile = $path . '/.env';
 
         if (!file_exists($envFile)) {
-            throw new \Exception("Environment file not found at: {$envFile}");
+            // In production (Railway, etc.), rely on environment variables set by the platform
+            return;
         }
 
         $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
