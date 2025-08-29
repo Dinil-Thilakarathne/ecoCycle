@@ -59,7 +59,7 @@ class NavigationConfig
             ],
             'company' => [
                 // Matches: src/Views/company/dashboard.php -> route: /company (index)
-                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'tachometer-alt', 'description' => 'Company dashboard overview'],
+                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'chart-column', 'description' => 'Company dashboard overview'],
                 // Matches: src/Views/company/activeBids.php -> route: /company/activeBids
                 ['title' => 'Active Bids', 'url' => '/company/activeBids', 'icon' => 'gavel', 'description' => 'View and manage active bids'],
                 // Matches: src/Views/company/purchases.php -> route: /company/purchases
