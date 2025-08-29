@@ -1,4 +1,4 @@
-﻿@layer theme, base, components;
+@layer theme, base, components;
 
 @import url("./base/reset.css") layer(base);
 @import url("./base/theme.css") layer(base);

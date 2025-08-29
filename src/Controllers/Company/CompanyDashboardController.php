@@ -40,49 +40,39 @@ class CompanyDashboardController extends DashboardController
     }
 
     /**
-     * Waste management
+     * Active bids
      */
-    public function wasteManagement(): Response
+    public function activeBids(): Response
     {
         $data = [
-            'pageTitle' => 'Waste Management',
-            'wasteStreams' => $this->getWasteStreams(),
-            'scheduledCollections' => $this->getScheduledCollections(),
-            'specialRequests' => $this->getSpecialRequests()
+            'pageTitle' => 'Active Bids',
         ];
 
-        return $this->renderDashboard('waste-management', $data);
+        return $this->renderDashboard('activeBids', $data);
     }
 
     /**
      * Schedule collections
      */
-    public function scheduleCollection(): Response
+    public function purchases(): Response
     {
         $data = [
             'pageTitle' => 'Schedule Collection',
-            'availableServices' => $this->getAvailableServices(),
-            'companyLocations' => $this->getCompanyLocations(),
-            'collectionTypes' => $this->getCollectionTypes()
         ];
 
-        return $this->renderDashboard('schedule-collection', $data);
+        return $this->renderDashboard('purchases', $data);
     }
 
     /**
      * Analytics and reporting
      */
-    public function analytics(): Response
+    public function reports(): Response
     {
         $data = [
             'pageTitle' => 'Analytics & Reports',
-            'wasteAnalytics' => $this->getWasteAnalytics(),
-            'costAnalysis' => $this->getCostAnalysis(),
-            'environmentalImpact' => $this->getEnvironmentalImpact(),
-            'complianceReports' => $this->getComplianceReports()
         ];
 
-        return $this->renderDashboard('analytics', $data);
+        return $this->renderDashboard('reports', $data);
     }
 
     /**
@@ -104,17 +94,13 @@ class CompanyDashboardController extends DashboardController
     /**
      * Sustainability reports
      */
-    public function sustainability(): Response
+    public function helpCenter(): Response
     {
         $data = [
             'pageTitle' => 'Sustainability Reports',
-            'carbonFootprint' => $this->getCarbonFootprint(),
-            'recyclingRates' => $this->getRecyclingRates(),
-            'sustainabilityGoals' => $this->getSustainabilityGoals(),
-            'certifications' => $this->getCompanyCertifications()
         ];
 
-        return $this->renderDashboard('sustainability', $data);
+        return $this->renderDashboard('helpCenter', $data);
     }
 
     /**
@@ -131,6 +117,18 @@ class CompanyDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('profile', $data);
+    }
+
+    /**
+     * Notifications page
+     */
+     public function notification(): Response
+    {
+        $data = [
+            'pageTitle' => 'Notifications',
+        ];
+
+        return $this->renderDashboard('notification', $data);
     }
 
     protected function getNavigationItems(): array

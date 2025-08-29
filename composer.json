@@ -42,9 +42,20 @@
     "watch": "php watch-files.php",
     "dev": "echo 'Starting development server and file watcher...' && (php -c php-dev.ini -S localhost:8000 -t public > /dev/null 2>&1 &) && php watch-files.php",
     "serve-prod": "php -S localhost:8000 -t public",
-    "sass:build": "sass src/scss/main.scss public/css/main.css --style=compressed",
-    "sass:watch": "sass src/scss/main.scss public/css/main.css --watch --style=expanded",
-    "sass:dev": "sass src/scss/main.scss public/css/main.css --watch --style=expanded --source-map"
+    "docker:up": "docker compose up -d",
+    "docker:up:build": "docker compose up -d --build",
+    "docker:up:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+    "docker:down": "docker compose down",
+    "docker:down:volumes": "docker compose down -v",
+    "docker:logs": "docker compose logs -f app",
+    "docker:logs:all": "docker compose logs -f",
+    "docker:shell": "docker compose exec app bash || docker compose exec app sh",
+    "docker:db:shell": "docker compose exec db sh -c 'mysql -u$DB_USERNAME -p$DB_PASSWORD $DB_DATABASE'",
+    "docker:rebuild": [
+      "@docker:down",
+      "docker compose build --no-cache app",
+      "@docker:up"
+    ]
   },
   "config": {
     "optimize-autoloader": true,
