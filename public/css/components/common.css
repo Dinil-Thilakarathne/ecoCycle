@@ -316,7 +316,7 @@
   background-color: var(--neutral-0);
   table-layout: fixed; /* Fixed table layout prevents column width changes */
 
-  & thead {
+& thead {
     background-color: var(--neutral-50);
 
     & th {
@@ -328,10 +328,10 @@
       border-bottom: 1px solid var(--neutral-200);
       overflow: hidden; /* Prevent content overflow */
       white-space: nowrap; /* Prevent text wrapping that could affect height */
-    }
+   }
   }
 
-  & tbody {
+ & tbody {
     & tr {
       border-bottom: 1px solid var(--neutral-100);
 

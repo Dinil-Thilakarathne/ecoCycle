@@ -5,6 +5,8 @@
 @import url("./components/common.css");
 @import url("./customer.css");
 
+@import url("./Collector.css");
+
 body {
   font-family: var(--font-family-poppins);
 }
