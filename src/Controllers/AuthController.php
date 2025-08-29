@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Http\Request;
 use Core\Http\Response;
+use Models\User;
 
 /**
  * Authentication Controller
@@ -25,60 +26,28 @@ class AuthController extends BaseController
      */
     public function login(Request $request): Response
     {
-        $email = $request->input('email');
-        $password = $request->input('password');
+        $email = trim((string) $request->input('email'));
+        $password = (string) $request->input('password');
 
-        // TODO: Implement actual authentication logic
-        // For now, let's create a demo login system
+        $userModel = new User();
+        $user = $userModel->findByEmail($email);
 
-        $demoUsers = [
-            'admin@ecocycle.com' => [
-                'id' => 1,
-                'name' => 'Admin User',
-                'email' => 'admin@ecocycle.com',
-                'role' => 'admin',
-                'password' => 'admin123'
-            ],
-            'customer@ecocycle.com' => [
-                'id' => 2,
-                'name' => 'John Customer',
-                'email' => 'customer@ecocycle.com',
-                'role' => 'customer',
-                'password' => 'customer123'
-            ],
-            'collector@ecocycle.com' => [
-                'id' => 3,
-                'name' => 'Jane Collector',
-                'email' => 'collector@ecocycle.com',
-                'role' => 'collector',
-                'password' => 'collector123'
-            ],
-            'company@ecocycle.com' => [
-                'id' => 4,
-                'name' => 'ABC Company',
-                'email' => 'company@ecocycle.com',
-                'role' => 'company',
-                'password' => 'company123'
-            ]
-        ];
-
-        if (isset($demoUsers[$email]) && $demoUsers[$email]['password'] === $password) {
-            $user = $demoUsers[$email];
-
-            // Set session data using SessionManager's put method
+        if ($user && $userModel->verifyPassword($user, $password)) {
             session()->put('user_id', $user['id']);
-            session()->put('user_name', $user['name']);
+            session()->put('user_name', $user['username'] ?? $user['email']);
             session()->put('user_email', $user['email']);
-            session()->put('user_role', $user['role']);
-
-            // Redirect to appropriate dashboard
-            return dashboard_redirect($user);
+            session()->put('user_role', $user['role_name']);
+            // Optional: update last_login_at
+            // (new Database())->query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$user['id']]);
+            return dashboard_redirect([
+                'id' => $user['id'],
+                'name' => $user['username'] ?? $user['email'],
+                'email' => $user['email'],
+                'role' => $user['role_name']
+            ]);
         }
 
-        // Login failed
-        return $this->view('auth/login', [
-            'error' => 'Invalid email or password'
-        ]);
+        return $this->view('auth/login', ['error' => 'Invalid email or password']);
     }
 
     /**
