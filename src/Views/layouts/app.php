@@ -23,12 +23,22 @@
     <!-- Dashboard CSS if this is a dashboard page -->
     <?php if (isset($userType)): ?>
         <link rel="stylesheet" href="<?= asset('css/dashboard.css') ?>">
+        <!-- Per-role dashboard styles -->
+        <?php if (isset($userType) && $userType === 'collector'): ?>
+            <link rel="stylesheet" href="<?= asset('css/Collector.css') ?>">
+        <?php elseif (isset($userType) && $userType === 'company'): ?>
+            <link rel="stylesheet" href="<?= asset('css/company.css') ?>">
+        <?php elseif (isset($userType) && $userType === 'customer'): ?>
+            <link rel="stylesheet" href="<?= asset('css/customer.css') ?>">
+        <?php endif; ?>
     <?php endif; ?>
 
     <!-- Additional head content -->
     <?= $headContent ?? '' ?>
 
     <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body
