@@ -213,6 +213,26 @@ $testimonials = [
             </div>
         </div>
     </section>
+
+    <!-- CTA section -->
+    <section class="cta-section main-section">
+        <div class="cta-section__overlay" aria-hidden="true"></div>
+        <div class="container cta-section__inner">
+            <h2 class="cta-section__title">
+                <span>Ready to start</span>
+                <span class="cta-section__title-row">earning?</span>
+            </h2>
+            <p class="cta-section__description">Join thousands of users already earning money while helping the
+                environment.</p>
+            <div class="cta-buttons">
+                <a href="/register/customer" class="btn btn-light-solid"><i class="fa-solid fa-users"></i><span>Sign up
+                        as household</span></a>
+                <a href="/register/company" class="btn btn-ghost-light"><i
+                        class="fa-solid fa-building"></i><span>Register as company</span></a>
+            </div>
+            <p class="cta-section__note">No setup fees • Start earning immediately • Cancel anytime</p>
+        </div>
+    </section>
 </main>
 
 <?php
