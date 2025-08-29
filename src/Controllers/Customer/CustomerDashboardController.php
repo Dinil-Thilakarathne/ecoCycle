@@ -41,44 +41,40 @@ class CustomerDashboardController extends DashboardController
     /**
      * Schedule pickup page
      */
-    public function schedulePickup(): Response
+    public function pickup(): Response
     {
         $data = [
-            'pageTitle' => 'Schedule Pickup',
-            'availableSlots' => $this->getAvailableSlots(),
-            'userAddress' => $this->getUserAddress()
+            'pageTitle' => 'Pickup Request',
         ];
 
-        return $this->renderDashboard('schedule-pickup', $data);
+        return $this->renderDashboard('pickup', $data);
     }
 
     /**
      * Pickup history
      */
-    public function pickupHistory(): Response
+    public function payment(): Response
     {
         $data = [
-            'pageTitle' => 'Pickup History',
-            'pickupHistory' => $this->getPickupHistory(),
-            'totalWeight' => $this->getTotalWeightRecycled()
+            'pageTitle' => 'Payment',
         ];
 
-        return $this->renderDashboard('pickup-history', $data);
+        return $this->renderDashboard('payment', $data);
     }
 
     /**
      * Rewards and points
      */
-    public function rewards(): Response
+    public function notification(): Response
     {
         $data = [
-            'pageTitle' => 'My Rewards',
+            'pageTitle' => 'Notifications',
             'currentPoints' => $this->getRewardPoints(),
             'rewardHistory' => $this->getRewardHistory(),
             'availableRewards' => $this->getAvailableRewards()
         ];
 
-        return $this->renderDashboard('rewards', $data);
+        return $this->renderDashboard('notification', $data);
     }
 
     /**
@@ -98,16 +94,16 @@ class CustomerDashboardController extends DashboardController
     /**
      * Education center
      */
-    public function education(): Response
+    public function report(): Response
     {
         $data = [
-            'pageTitle' => 'Recycling Education',
+            'pageTitle' => 'Report',
             'articles' => $this->getEducationalArticles(),
             'tips' => $this->getRecyclingTips(),
             'videos' => $this->getEducationalVideos()
         ];
 
-        return $this->renderDashboard('education', $data);
+        return $this->renderDashboard('report', $data);
     }
 
     protected function getNavigationItems(): array
