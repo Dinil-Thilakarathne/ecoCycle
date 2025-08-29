@@ -9,7 +9,7 @@
     <div class="top-section">
       <!-- New Bid Form -->
       <form class="bid-form" method="post" action="">
-        <h2>New Bid Submission</h2>
+        <h2 style="font-size: 20px; font-weight: bold;">New Bid Submission</h2>
         <label>Waste Type</label>
         <select name="waste_type" required>
           <option value="">Select waste type…</option>
@@ -30,7 +30,7 @@
 
       <div class ="available-waste">
         <div class="waste-lots">
-          <h3>Available Waste Lots</h3>
+          <h2 style="font-size: 20px; font-weight: bold;">Available Waste Lots</h2>
           <div class="lot-header">
               <span class="waste-type">Plastic Bottles</span>
               <span class="status available">Available</span>

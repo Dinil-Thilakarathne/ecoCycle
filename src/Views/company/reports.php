@@ -33,11 +33,11 @@ $wonBidsPerMonth = [7, 9, 6, 14, 10, 15];
 
         <div class="charts">
             <div class="chart-box">
-                <h3>Bidding Values for Each Waste Type</h3>
+                <h3 style="font-size: 20px; font-weight: bold;">Bidding Values for Each Waste Type</h3>
                 <canvas id="biddingChart"></canvas>
             </div>
             <div class="chart-box">
-                <h3>Monthly Performance</h3>
+                <h3 style="font-size: 20px; font-weight: bold;">Monthly Performance</h3>
                 <canvas id="performanceChart"></canvas>
             </div>
         </div>
@@ -46,7 +46,7 @@ $wonBidsPerMonth = [7, 9, 6, 14, 10, 15];
             <div class="stat blue"><h2><?= $totalBids ?></h2><p>Total Bids Placed</p></div>
             <div class="stat green"><h2><?= $successfulBids ?></h2><p>Successful Bids</p></div>
             <div class="stat purple"><h2><?= $successRate ?>%</h2><p>Success Rate</p></div>
-            <div class="stat orange"><h2>$<?= number_format($totalRevenue) ?></h2><p>Total Revenue</p></div>
+            <div class="stat orange"><h2>Rs.<?= number_format($totalRevenue) ?></h2><p>Total Revenue</p></div>
         </div>
     </main>
 </div>

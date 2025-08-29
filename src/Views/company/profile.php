@@ -5,8 +5,8 @@ $company = [
     "type" => "Waste Management",
     "reg_number" => "REG-2023-001234",
     "description" => "Leading waste management company specializing in recyclable materials collection and processing.",
-    "email" => "contact@ecowaste.com",
-    "phone" => "+1 (555) 123-4567",
+    "email" => "contact@ecocycle.com",
+    "phone" => "011 2256845",
     "website" => "www.ecocycle.com",
     "address" => "123 Green Street, Eco District, Environmental City, EC 12345",
     "verification" => [
@@ -47,7 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     
     <div class=p-info-card>
       <div class="pc-card">
-        <h3>Company Information</h3>
+        <h3 style="font-size: 20px; font-weight: bold;">Company Information</h3>
         <div class="form-group"><label>Name</label>
           <input type="text" value="<?= htmlspecialchars($company['name']) ?>" disabled>
         </div>
@@ -64,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
       <!-- Contact Info -->
       <div class="pc-card">
-        <h3>Contact Information</h3>
+        <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
         <div class="form-group"><label>Email</label>
           <input type="text" value="<?= htmlspecialchars($company['email']) ?>" disabled>
         </div>
@@ -82,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <!-- Verification -->
     <div class="pc-card">
-      <h3>Verification Status</h3>
+      <h3 style="font-size: 20px; font-weight: bold;">Verification Status</h3>
       <ul>
         <?php foreach($company['verification'] as $item => $status): ?>
           <li><?= $item ?>:
@@ -96,7 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <!-- Security -->
     <div class="pc-card">
-      <h3>Security & Privacy</h3>
+      <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
       <p><button class="p-btn">Change Password</button></p>
       <p><button class="p-btn">Two-Factor Authentication</button></p>
       <p><button class="p-btn-delete">Delete Account</button></p>

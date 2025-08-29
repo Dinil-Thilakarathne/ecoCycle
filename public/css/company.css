@@ -281,6 +281,7 @@
   padding: 20px;
   border-radius: 8px;
   width:100%;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
 }
 
 .bid-form h2 {
@@ -298,6 +299,7 @@
   padding: 8px;
   margin-top: 5px;
   border-radius: 2px solid var(--neutral-300);
+  border: 2px solid #ddd;
 }
 
 .bid-form button {
@@ -329,6 +331,7 @@
   box-sizing: border-box;
   scrollbar-color:var(--primary-500) #f1f1f1;
   scrollbar-width: thin;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .waste-lots {
@@ -391,6 +394,7 @@
     max-height: 500px; 
     scrollbar-color: var(--primary-500) #f1f1f1;
     scrollbar-width: thin;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .purchase-box {
@@ -477,6 +481,7 @@
 }
 .filters input, .filters select {
     padding: 8px;
+    border: 2px solid #ddd;
 }
 .filters .filter-btn, .export-btn {
     padding: 8px 12px;
@@ -490,6 +495,7 @@
     display: flex;
     gap: 20px;
     margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .chart-box {
     flex: 1;
@@ -507,6 +513,7 @@
     padding: 15px;
     border-radius: 8px;
     text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .stat.blue h2 { color: var(--info); }
 .stat.green h2 { color: var(--success); }
@@ -530,7 +537,7 @@
 }
 
 .categories .category {
-    background:var(--neutral-0);
+    background:var(--neutral-100);
     padding: 15px;
     border-radius: 8px;
     text-align: center;
@@ -563,6 +570,7 @@
     padding: 10px;
     border-radius: 5px;
     cursor: pointer;
+    color: var(--neutral-800);
 }
 
 .faq summary {

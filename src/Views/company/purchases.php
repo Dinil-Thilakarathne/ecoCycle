@@ -28,7 +28,7 @@ $acceptedPurchases = [
 ];
 
 $purchaseSummary = [
-    "total" => "$3,250",
+    "total" => "Rs.3,250",
     "active_orders" => 8,
     "completed" => 15,
     "recent" => [
@@ -54,7 +54,7 @@ $purchaseHistory = [
         <div class="purchases-grid">
             <!-- Accepted Purchases -->
             <div class="c-purchase-card">
-                <h2>Accepted Purchases</h2>
+                <h2 style="font-size: 20px; font-weight: bold;">Accepted Purchases</h2>
                 <?php foreach($acceptedPurchases as $purchase): ?>
                 <div class="purchase-box">
                     <h3><?= $purchase['type'] ?></h3>
@@ -72,7 +72,7 @@ $purchaseHistory = [
 
             <!-- Purchase Summary -->
             <div class="c-purchase-card">
-                <h3>Purchase Summary</h3>
+                <h2 style="font-size: 20px; font-weight: bold;">Purchase Summary</h2>
                 <div class="total"><?= $purchaseSummary['total'] ?></div>
                 <p>Total Purchases This Month</p>
                 <div class="summary-box">
@@ -93,7 +93,7 @@ $purchaseHistory = [
         <!-- Purchase History -->
         <div class="activity-card">
             <div class="activity-card__header">
-                <h3 class="activity-card__title">Purchase History</h3>
+                <h3 class="activity-card__title" >Purchase History</h3>
             </div>
             <table class="data-table">
                 <thead>

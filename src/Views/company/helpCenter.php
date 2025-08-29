@@ -21,10 +21,10 @@ $filteredFaq = array_filter($faq, function ($item) use ($searchTerm, $selectedTo
 
 // Help categories
 $helpCategories = [
-    ["icon" => "👤", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 3],
+    ["icon" => "👤", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 1],
     ["icon" => "📄", "title" => "Submit Bids", "desc" => "Learn how to place and manage bids", "articles" => 2],
-    ["icon" => "💳", "title" => "Payment", "desc" => "Payment methods and billing information", "articles" => 3],
-    ["icon" => "🔔", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 4]
+    ["icon" => "💳", "title" => "Payment", "desc" => "Payment methods and billing information", "articles" => 1],
+    ["icon" => "🔔", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 3],
 ];
 ?>
 
@@ -55,7 +55,7 @@ $helpCategories = [
         </div>
 
         <!-- FAQ Section -->
-        <h2>📢 Frequently Asked Questions</h2>
+        <h2 style="font-size: 20px; font-weight: bold;">📢 Frequently Asked Questions</h2>
         <div class="faq">
             <?php if (empty($filteredFaq)): ?>
                 <p>No results found.</p>
