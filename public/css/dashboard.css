@@ -44,7 +44,7 @@
         justify-content: center;
         border: 1px solid var(--neutral-900);
         padding: var(--space-4);
-        border-radius: var(--radius-md);
+        border-radius: var(--rounded-md);
       }
     }
   }
