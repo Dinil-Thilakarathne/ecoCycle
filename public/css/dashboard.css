@@ -3,10 +3,22 @@
   flex-direction: row;
   min-height: 100vh;
   width: 100%;
+
+  --_dashboard-sidebar-width: 280px;
+}
+
+.with-collapsed-sidebar .dashboard-layout {
+  --_dashboard-sidebar-width: 72px;
 }
 
 .dashboard-content {
   width: 100%;
+  padding-left: var(--_dashboard-sidebar-width);
+  transition: padding-left 0.3s ease;
+
+  @media screen and (max-width: 768px) {
+    padding-left: 0;
+  }
 
   & > .content-header {
     --_dashboard-header-height: 60px;
@@ -58,4 +70,3 @@
   gap: var(--space-4);
   padding: var(--space-4);
 }
-
