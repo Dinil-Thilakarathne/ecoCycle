@@ -1,10 +1,3 @@
-  <div class="tabs-list">
-    <button class="tabs-trigger active">Profile</button>
-    <button class="tabs-trigger">Assignments</button>
-    <button class="tabs-trigger">Preferences</button>
-    <button class="tabs-trigger">Security</button>
-  </div>
-
   <!-- Profile Card -->
   <div class="feature-card">
     <div>
@@ -38,9 +31,6 @@
         <input type="tel" id="phone" value="+1 (555) 987-6543">
       </div>
       <div>
-        <label for="assigned-area">Assigned Area</label>
-        <input type="text" id="assigned-area" value="Downtown Sector 5">
-      </div>
       <div>
         <label for="daily-target">Daily Collection Target (kg)</label>
         <input type="number" id="daily-target" value="50">
@@ -49,16 +39,8 @@
         <label for="language">Preferred Language</label>
         <select id="language">
           <option selected>English</option>
-          <option>Spanish</option>
-          <option>French</option>
-        </select>
-      </div>
-      <div>
-        <label for="timezone">Timezone</label>
-        <select id="timezone">
-          <option selected>Pacific Standard Time</option>
-          <option>Eastern Standard Time</option>
-          <option>Central European Time</option>
+          <option>Sinhala</option>
+          <option>Tamil</option>
         </select>
       </div>
       <div class="full-width">
