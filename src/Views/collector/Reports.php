@@ -223,8 +223,6 @@ function getFeedbackBadge($status)
                             <th><i class="fa-solid fa-calendar-day"></i> Date</th>
                             <th><i class="fa-solid fa-message"></i> Feedback</th>
                             <th><i class="fa-solid fa-star"></i> Rating</th>
-                            <th><i class="fa-solid fa-flag"></i> Status</th>
-                            <th><i class="fa-solid fa-gear"></i> Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -234,23 +232,6 @@ function getFeedbackBadge($status)
                                 <td><?= htmlspecialchars($fb['date']) ?></td>
                                 <td><?= htmlspecialchars($fb['feedback']) ?></td>
                                 <td><?= renderStars($fb['rating']) ?></td>
-                                <td><?= getFeedbackBadge($fb['status']) ?></td>
-                                <td>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="btn btn-outline btn-sm"
-                                            onclick="viewFeedback('<?= $fb['id'] ?>')">
-                                            <i class="fa-solid fa-eye"></i> View
-                                        </button>
-                                        <button class="btn btn-primary btn-sm outline"
-                                            onclick="approveFeedback('<?= $fb['id'] ?>')">
-                                            <i class="fa-solid fa-check"></i> Approve
-                                        </button>
-                                        <button class="btn btn-outline btn-sm danger"
-                                            onclick="rejectFeedback('<?= $fb['id'] ?>')">
-                                            <i class="fa-solid fa-xmark"></i> Reject
-                                        </button>
-                                    </div>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
 

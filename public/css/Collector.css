@@ -1198,7 +1198,7 @@ form select:focus {
 }
 
 /* Card styling */
-.activity-card {
+/*.activity-card {
   background: #fff;
   border-radius: 12px;
   padding: 20px;
@@ -1220,11 +1220,8 @@ form select:focus {
 }
 
 /* Table */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
 
+/*
 .data-table th,
 .data-table td {
   padding: 12px;
@@ -1245,7 +1242,7 @@ form select:focus {
 .data-table tr:nth-child(even) {
   background: #fafafa;
 }
-
+*/
 /* Stars */
 .fa-star {
   color: #ccc;
@@ -1255,7 +1252,7 @@ form select:focus {
 }
 
 /* Status badges */
-.status {
+/*.status {
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 13px;
@@ -1263,7 +1260,7 @@ form select:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
+}*/
 
 .status.success {
   background: #e6f9ed;
@@ -1283,7 +1280,7 @@ form select:focus {
   border: 1px solid #ccc;
 }
 
-/* Buttons */
+/* Buttons *//*
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1330,3 +1327,4 @@ form select:focus {
 .btn:hover {
   opacity: 0.85;
 }
+*/
