@@ -59,7 +59,7 @@
 .c-dashboard-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   gap: 25px;
   margin-top: 50px;
   height: 350px;
@@ -68,7 +68,7 @@
 /*bidding status*/
 .bids {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(20%, 1fr));
     gap: 15px;
     margin-top: 15px;
 }
@@ -176,7 +176,7 @@
 }
 
 .profile-box p {
-    padding: 20px 20px;
+    padding: 20px 10px;
     cursor: pointer;
     background-color: var(--success-light);
     border-radius: 8px;
@@ -186,7 +186,7 @@
 .profile-box a {
     text-decoration: none;
     background-color: var(--success-light); 
-    padding: 20px 20px;
+    padding: 10px 30px;
     border-radius: 15px;
 }
 
@@ -700,6 +700,7 @@ span.unverified{
   border-radius: 20px; 
   width: 600px; 
   position: relative; 
+  margin-top: 175px;
 }
 
 .close { 

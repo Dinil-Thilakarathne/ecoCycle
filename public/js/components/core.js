@@ -6,6 +6,7 @@ import "./activity-card.js";
 import "./activity-item.js";
 import "./status-item.js";
 import "./page-header.js";
+import "./bid-item.js";
 import "./alert-box.js";
 
 // Example: future components
