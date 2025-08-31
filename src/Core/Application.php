@@ -330,9 +330,9 @@ class Application
     /**
      * Get singleton application instance
      * 
-     * @return static|null
+     * @return self|null
      */
-    public static function getInstance(): ?static
+    public static function getInstance(): ?self
     {
         return static::$instance;
     }
