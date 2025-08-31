@@ -6,7 +6,6 @@
       </div>
       <div class="feature-card__body">8</div>
       <div class="feature-card__footer">
-        <!--<span class="highlight">+2 from yesterday</span>-->
         <span class="desc">assigned tasks</span>
       </div>
     </div>
@@ -18,7 +17,6 @@
       </div>
       <div class="feature-card__body">5</div>
       <div class="feature-card__footer">
-        <!--<span class="highlight">83% success rate</span>-->
         <span class="desc">tasks finished</span>
       </div>
     </div>
@@ -30,7 +28,6 @@
       </div>
       <div class="feature-card__body">3</div>
       <div class="feature-card__footer">
-        <!--<span class="highlight">2 hours remaining</span>-->
         <span class="desc">tasks left</span>
       </div>
     </div>
@@ -42,7 +39,6 @@
       </div>
       <div class="feature-card__body">245kg</div>
       <div class="feature-card__footer">
-        <!--<span class="highlight">+15kg from avg</span>-->
         <span class="desc">collected today</span>
       </div>
     </div>
@@ -54,7 +50,6 @@
       </div>
       <div class="feature-card__body">Rs.5,550.37</div>
       <div class="feature-card__footer">
-       <!-- <span class="highlight">+12% from yesterday</span>-->
         <span class="desc">total earned</span>
       </div>
     </div>
@@ -66,14 +61,13 @@
       </div>
       <div class="feature-card__body">4.8</div>
       <div class="feature-card__footer">
-        <!--<span class="highlight">Top 3 performer</span>-->
         <span class="desc">customer rating</span>
       </div>
     </div>
   </div>
 
   <!-- Bottom Section -->
-  <div class="bottom-container">
+   <div class="bottom-container">
 
     <!-- Recent Tasks -->
     <div class="bottom-card">
@@ -82,8 +76,8 @@
 
       <div class="task">
         <div class="task-info">
-          <span class="task-name">John Smith <span class="status completed">completed</span></span>
-          <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 123 Oak Street · Plastic · 15kg</span>
+          <div class="task-name">John Smith<span class="status completed">completed</span></div>
+          <div class="task-meta"><i class="fa-solid fa-location-dot"></i> 123 Oak Street · Plastic · 15kg</div>
         </div>
         <div class="task-right">
           <span class="amount">Rs.1,000.00</span>
@@ -92,7 +86,7 @@
 
       <div class="task">
         <div class="task-info">
-          <span class="task-name">Mike Wilson <span class="status pending">pending</span></span>
+          <div class="task-name">Mike Wilson <span class="status pending">pending</span></div>
           <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 789 Elm Road · Metal · 8kg</span>
         </div>
         <div class="task-right">
@@ -103,7 +97,7 @@
 
       <div class="task">
         <div class="task-info">
-          <span class="task-name">Emma Davis <span class="status pending">pending</span></span>
+          <div class="task-name">Emma Davis <span class="status pending">pending</span></div>
           <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 321 Maple Street · Glass · 12kg</span>
         </div>
         <div class="task-right">
@@ -114,7 +108,7 @@
     </div>
 
     <!-- Performance Goals -->
-    <div class="bottom-card">
+    <!-- <div class="bottom-card">
       <h3>Performance Goals</h3>
       <p>Track your progress towards targets</p>
 
@@ -149,11 +143,90 @@
           <div class="progress" style="width: 96%;"></div>
         </div>
         <div class="goal-footer">96% complete</div>
-      </div>
+      </div>-->
 
+  <div class="bottom-card">
+    <h3>Material Collection Summary</h3>
+    <p>Breakdown of today's collected materials</p>
+
+
+  <!-- Material Progress Bars -->
+  <div class="goal">
+    <div class="goal-header">
+      <span>Plastic</span>
+      <span class="goal-status">40kg (40%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress" style="width: 40%; background-color: #4caf50;"></div>
     </div>
   </div>
 
+  <div class="goal">
+    <div class="goal-header">
+      <span>Glass</span>
+      <span class="goal-status">25kg (25%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress" style="width: 25%; background-color: #2196f3;"></div>
+    </div>
+  </div>
+
+  <div class="goal">
+    <div class="goal-header">
+      <span>Metal</span>
+      <span class="goal-status">20kg (20%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress" style="width: 20%; background-color: #ff9800;"></div>
+    </div>
+  </div>
+
+  <div class="goal">
+    <div class="goal-header">
+      <span>Paper</span>
+      <span class="goal-status">15kg (15%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress" style="width: 15%; background-color: #9c27b0;"></div>
+    </div>
+</div></div>
+
+  <!-- 🆕 Bidding Section -->
+  <div class="bottom-card">
+    <h3>Bidding Amount Summary</h3>
+    <p>Current highest bids for each material</p>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Plastic</span>
+        <span class="goal-status" style="color: #4caf50;">Rs. 1,200.00</span>
+      </div>
+    </div>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Glass</span>
+        <span class="goal-status" style="color: #2196f3;">Rs. 950.00</span>
+      </div>
+    </div>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Metal</span>
+        <span class="goal-status" style="color: #ff9800;">Rs. 1,400.00</span>
+      </div>
+    </div>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Paper</span>
+        <span class="goal-status" style="color: #9c27b0;">Rs. 750.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+  
   <script>
     lucide.createIcons();
   </script>
