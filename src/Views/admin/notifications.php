@@ -185,29 +185,46 @@ function getAlertStatusTag($status)
             <div class="activity-card__content">
                 <div style="display: flex; flex-direction: column; gap: var(--space-4);">
                     <?php foreach ($recentNotifications as $notification): ?>
-                        <div
-                            style="border: 1px solid var(--neutral-200); border-radius: var(--radius-md); padding: var(--space-4);">
-                            <!-- Header with title and status -->
-                            <div
-                                style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-2);">
-                                <h4 class="font-medium" style="margin: 0;">
-                                    <?= htmlspecialchars($notification['title']) ?>
-                                </h4>
-                                <?= getStatusTag($notification['status']) ?>
-                            </div>
+                        <?php
+                        // Map notification type/status to alert-box type
+                        $type = $notification['type'] ?? 'info';
+                        $status = $notification['status'] ?? '';
+                        if ($status === 'failed') {
+                            $alertType = 'danger';
+                        } else {
+                            switch ($type) {
+                                case 'alert':
+                                    $alertType = 'danger';
+                                    break;
+                                case 'maintenance':
+                                    $alertType = 'warning';
+                                    break;
+                                case 'info':
+                                case 'system':
+                                default:
+                                    $alertType = 'info';
+                            }
+                        }
 
-                            <!-- Message -->
-                            <p style="font-size: var(--text-sm); color: var(--neutral-600); margin-bottom: var(--space-2);">
+                        $statusClass = ($status === 'sent') ? 'success' : (($status === 'pending') ? 'warning' : (($status === 'failed') ? 'danger' : 'secondary'));
+                        ?>
+
+                        <alert-box type="<?= $alertType ?>" title="<?= htmlspecialchars($notification['title']) ?>"
+                            dismissible>
+                            <p style="margin:0; color: var(--neutral-700); font-size: var(--text-sm);">
                                 <?= htmlspecialchars($notification['message']) ?>
                             </p>
 
-                            <!-- Footer with recipient and timestamp -->
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--neutral-500);">
+                            <div style="margin-top: var(--space-2); font-size: var(--text-xs); color: var(--neutral-500);">
                                 <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
+                                &nbsp;&middot;&nbsp;
                                 <span><?= htmlspecialchars($notification['timestamp']) ?></span>
                             </div>
-                        </div>
+
+                            <div class="tag <?= $statusClass ?> alert-action">
+                                <?= ($status === 'sent') ? 'Sent' : (($status === 'pending') ? 'Pending' : (($status === 'failed') ? 'Failed' : htmlspecialchars($status))) ?>
+                            </div>
+                        </alert-box>
                     <?php endforeach; ?>
                 </div>
             </div>
