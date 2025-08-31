@@ -14,10 +14,10 @@ $availableWaste = [
 $totalWaste = 0;
 
 $bids = [
-    ['title' => 'Plastic', 'amount' => '2,500 kg - Rs.1,250', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-    ['title' => 'Paper', 'amount' => '1,800 kg - Rs.900', 'bid' => 'Rs.900', 'status' => 'Active'],
-    ['title' => 'Metal', 'amount' => '3,200 kg - Rs.1,600', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-    ['title' => 'Glass', 'amount' => '1,200 kg - Rs.600', 'bid' => 'Rs.600', 'status' => 'Closed']
+    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
+    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
+    ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
+    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
 ];
 
 $notifications = [
@@ -66,9 +66,15 @@ $recentNotifications = array_slice($notifications, 0, 3, true);
       <div class="c-dashboard-card">
         <h3>Current Highest Bid for Each Waste Type</h3>
         <ul class="bids">
-          <?php foreach ($bids as $bidValue): ?>
-              <feature-card unwrap title="<?= htmlspecialchars($bidValue['title']) ?>"
-                value="<?= htmlspecialchars($bidValue['amount']) ?>" change="<?= htmlspecialchars($bidValue['status']) ?>" icon="<?= htmlspecialchars($bidValue['bid']) ?>"></feature-card>
+          <?php
+          foreach ($bids as $type => $data):
+            $safeType = htmlspecialchars($data['title'], ENT_QUOTES, 'UTF-8');
+            $safeBid = htmlspecialchars($data['bid'], ENT_QUOTES, 'UTF-8');
+            $safeAmount = htmlspecialchars($data['amount'], ENT_QUOTES, 'UTF-8');
+            $safeStatus = htmlspecialchars($data['status'], ENT_QUOTES, 'UTF-8');
+            ?>
+            <bid-item unwrap type="<?= $safeType ?>" bid="<?= $safeBid ?>" amount="<?= $safeAmount ?>"
+              status="<?= $safeStatus ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
       </div>
