@@ -42,14 +42,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['removePhoto'])) {
 
 // Update profile
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveProfile'])) {
-    $profile['firstName'] = $_POST['firstName'];
-    $profile['lastName'] = $_POST['lastName'];
-    $profile['email'] = $_POST['email'];
-    $profile['phone'] = $_POST['phone'];
-    $profile['address'] = $_POST['address'];
-    $profile['postalCode'] = $_POST['postalCode'];
-    $profile['bankAccount'] = $_POST['bankAccount'];
+  $errors = [];
+  $firstName = trim($_POST['firstName']);
+  $lastName = trim($_POST['lastName']);
+  $email = trim($_POST['email']);
+  $phone = trim($_POST['phone']);
+  $address = trim($_POST['address']);
+  $postalCode = trim($_POST['postalCode']);
+  $bankAccount = trim($_POST['bankAccount']);
+
+  // Required fields
+  if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $address === '' || $postalCode === '' || $bankAccount === '') {
+    $errors[] = "All fields are required.";
+  }
+  // Email validation
+  if (strpos($email, '@') === false) {
+    $errors[] = "Email must contain '@'.";
+  }
+  // Phone validation: only digits, length 10
+  if (!preg_match('/^\d{10}$/', $phone)) {
+    $errors[] = "Phone number must be exactly 10 digits.";
+  }
+  // Postal code: only digits
+  if (!ctype_digit($postalCode)) {
+    $errors[] = "Postal code must be numeric.";
+  }
+
+  if (empty($errors)) {
+    $profile['firstName'] = $firstName;
+    $profile['lastName'] = $lastName;
+    $profile['email'] = $email;
+    $profile['phone'] = $phone;
+    $profile['address'] = $address;
+    $profile['postalCode'] = $postalCode;
+    $profile['bankAccount'] = $bankAccount;
     $msg = "✅ Profile updated!";
+  } else {
+    $msg = '<span style="color:red">❌ ' . implode('<br>', $errors) . '</span>';
+  }
 }
 
 // Update password
@@ -85,69 +115,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updatePassword'])) {
 
 
 
-<div class="dashboard-page" style="background: var(--neutral-1  ); border-radius: 1.5rem; padding: 2rem;">
+
+<div class="dashboard-page">
   <?php if (isset($msg)): ?>
     <div class="alert" style="margin-bottom:2rem;"> <?= $msg ?> </div>
   <?php endif; ?>
 
   <div class="page-header">
     <div class="header-content">
-      
-      <p><b>Manage your personal information and account settings</b></p>
+      <h1 class="profile-title">Profile</h1>
+      <p class="subtitle">Manage your personal information and account settings</p>
     </div>
   </div>
 
-  <div class="cards-grid">
+  <div class="cards-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: flex-start;">
     <!-- Profile Photo Card -->
-    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;min-width:280px;">
-      <div style="width:100%;display:flex;flex-direction:column;align-items:center;">
-        <img src="<?= $profile['profile_pic'] ?>" class="avatar" style="box-shadow:0 2px 12px rgba(167, 228, 26, 0.08);margin-bottom:1rem;">
-        <h2 style="margin-bottom:0.5rem;font-size:1.25rem;font-weight:600;color:#1e293b;">Profile Photo</h2>
+    <div class="card" style="display: flex; flex-direction: column; align-items: center; gap: 2rem; padding: 2rem 1.5rem; min-width: 260px; max-width: 340px; box-shadow: 0 2px 12px rgba(167, 228, 26, 0.08);">
+      <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <img src="<?= $profile['profile_pic'] ?>" class="avatar" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; margin-bottom: 1rem; border: 4px solid var(--primary-100, #e0f2fe);">
+        <h2 class="profile-photo-title">Profile Photo</h2>
       </div>
-      <form method="POST" enctype="multipart/form-data" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
-        <input type="file" name="photo" accept="image/*" required style="margin-bottom:0.5rem;">
-        <button class="btn btn-primary" type="submit" name="uploadPhoto" style="width:100%;">Upload</button>
+      <form method="POST" enctype="multipart/form-data" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+        <input type="file" name="photo" accept="image/*" required class="input-file">
+        <button class="btn btn-primary" type="submit" name="uploadPhoto" style="width: 100%;">Upload</button>
       </form>
-      <form method="POST" style="width:100%;display:flex;justify-content:center;">
-        <button class="btn btn-outline" type="submit" name="removePhoto" style="width:100%;">Remove Photo</button>
+      <form method="POST" style="width: 100%; display: flex; justify-content: center;">
+        <button class="btn btn-outline" type="submit" name="removePhoto" style="width: 100%;">Remove Photo</button>
       </form>
     </div>
 
     <!-- Profile Info Card -->
-    <div class="card" style="min-width:320px;">
-      <h2 style="margin-bottom:1.5rem;font-size:1.25rem;font-weight:600;color:#1e293b;">Personal Information</h2>
+    <div class="card" style="padding: 2rem 2.5rem; max-width: 600px; width: 100%;">
       <form method="POST">
-        <div class="form-grid" style="margin-bottom:1.5rem;">
-          <div>
-            <label>First Name</label>
-            <input type="text" name="firstName" value="<?= $profile['firstName'] ?>">
+        <h2 class="section-title" style="margin-bottom: 2rem;">Personal Information</h2>
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; margin-bottom: 2rem;">
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <input type="text" id="firstName" name="firstName" value="<?= $profile['firstName'] ?>" required>
           </div>
-          <div>
-            <label>Last Name</label>
-            <input type="text" name="lastName" value="<?= $profile['lastName'] ?>">
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input type="text" id="lastName" name="lastName" value="<?= $profile['lastName'] ?>" required>
           </div>
-          <div>
-            <label>Email</label>
-            <input type="email" name="email" value="<?= $profile['email'] ?>">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="<?= $profile['email'] ?>" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+">
           </div>
-          <div>
-            <label>Phone</label>
-            <input type="text" name="phone" value="<?= $profile['phone'] ?>">
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="<?= $profile['phone'] ?>" required pattern="\d{10}" maxlength="10" title="Phone number must be exactly 10 digits">
           </div>
-          <div>
-            <label>Address</label>
-            <input type="text" name="address" value="<?= $profile['address'] ?>">
+          <div class="form-group" style="grid-column: span 2;">
+            <label for="address">Address</label>
+            <input type="text" id="address" name="address" value="<?= $profile['address'] ?>" required>
           </div>
-          <div>
-            <label>Postal Code</label>
-            <input type="text" name="postalCode" value="<?= $profile['postalCode'] ?>">
+          <div class="form-group">
+            <label for="postalCode">Postal Code</label>
+            <input type="text" id="postalCode" name="postalCode" value="<?= $profile['postalCode'] ?>" required pattern="\d+" title="Postal code must be numeric">
           </div>
-          <div>
-            <label>Bank Account</label>
-            <input type="text" name="bankAccount" value="<?= $profile['bankAccount'] ?>">
+          <div class="form-group">
+            <label for="bankAccount">Bank Account</label>
+            <input type="text" id="bankAccount" name="bankAccount" value="<?= $profile['bankAccount'] ?>" required>
           </div>
         </div>
-        <div class="action-buttons" style="margin-top:0.5rem;justify-content:flex-end;">
+        <div class="action-buttons" style="display: flex; gap: 1rem; justify-content: flex-end;">
           <button class="btn btn-primary" type="submit" name="saveProfile">Save Changes</button>
           <button type="button" class="btn btn-outline" onclick="openModal()">Change Password</button>
         </div>
@@ -158,25 +189,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updatePassword'])) {
 
 
 
+
 <!-- Password Modal -->
-<div id="password-modal" class="modal" style="display:none;align-items:center;justify-content:center;">
-  <div class="modal-content" style="max-width:400px;width:100%;padding:2rem 2rem 1.5rem 2rem;position:relative;">
-    <span class="close" onclick="closeModal()" style="position:absolute;top:1rem;right:1.5rem;font-size:1.5rem;cursor:pointer;">&times;</span>
-    <h2 style="margin-top:0;margin-bottom:1.5rem;font-size:1.25rem;font-weight:600;color:#1e293b;">Change Password</h2>
-    <form method="POST" style="display:flex;flex-direction:column;gap:1rem;">
-      <div>
-        <label>Current Password</label>
-        <input type="password" name="currentPassword" required>
+<div id="password-modal" class="modal" style="display:none; align-items: center; justify-content: center;">
+  <div class="modal-content" style="max-width: 400px; width: 100%; padding: 2rem 2rem 1.5rem 2rem; position: relative; border-radius: 1rem; box-shadow: 0 8px 32px rgba(0,0,0,0.18);">
+    <span class="close" onclick="closeModal()" style="position: absolute; top: 1rem; right: 1.5rem; font-size: 1.5rem; cursor: pointer;">&times;</span>
+    <h2 class="section-title" style="margin-top: 0; margin-bottom: 1.5rem;">Change Password</h2>
+    <form method="POST" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <div class="form-group">
+        <label for="currentPassword">Current Password</label>
+        <input type="password" id="currentPassword" name="currentPassword" required>
       </div>
-      <div>
-        <label>New Password</label>
-        <input type="password" name="newPassword" required>
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <input type="password" id="newPassword" name="newPassword" required>
       </div>
-      <div>
-        <label>Confirm New Password</label>
-        <input type="password" name="confirmPassword" required>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm New Password</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" required>
       </div>
-      <button class="btn btn-primary" type="submit" name="updatePassword" style="margin-top:0.5rem;">Update Password</button>
+      <button class="btn btn-primary" type="submit" name="updatePassword" style="margin-top: 0.5rem;">Update Password</button>
     </form>
   </div>
 </div>
