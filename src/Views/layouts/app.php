@@ -18,18 +18,18 @@
 
     <!-- CSS Files - Load in order -->
     <!--  Main styles -->
-    <link rel="stylesheet" href="<?= asset('css/main.css') ?>">
+    <link rel="stylesheet" href="/css/main.css">
 
     <!-- Dashboard CSS if this is a dashboard page -->
     <?php if (isset($userType)): ?>
-        <link rel="stylesheet" href="<?= asset('css/dashboard.css') ?>">
+        <link rel="stylesheet" href="/css/dashboard.css">
         <!-- Per-role dashboard styles -->
         <?php if (isset($userType) && $userType === 'collector'): ?>
-            <link rel="stylesheet" href="<?= asset('css/Collector.css') ?>">
+            <link rel="stylesheet" href="/css/Collector.css">
         <?php elseif (isset($userType) && $userType === 'company'): ?>
-            <link rel="stylesheet" href="<?= asset('css/company.css') ?>">
+            <link rel="stylesheet" href="/css/company.css">
         <?php elseif (isset($userType) && $userType === 'customer'): ?>
-            <link rel="stylesheet" href="<?= asset('css/customer.css') ?>">
+            <link rel="stylesheet" href="/css/customer.css">
         <?php endif; ?>
     <?php endif; ?>
 
