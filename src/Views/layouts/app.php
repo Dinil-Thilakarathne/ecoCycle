@@ -18,7 +18,7 @@
 
     <!-- CSS Files - Load in order -->
     <!--  Main styles -->
-    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="<?= asset('css/main.css') ?>">
 
     <!-- Dashboard CSS if this is a dashboard page -->
     <?php if (isset($userType)): ?>
