@@ -47,9 +47,10 @@ $PROJECT_ROOT = __DIR__;
  * paths must be relative to $PROJECT_ROOT var.
  */
 $WATCH = [
-    "public/css",
-    "public/js",
-    "src/Views"
+    // Narrowed for fewer unnecessary reloads
+    "public/css",          // styles
+    "public/js/components",// only component scripts (avoid reloading on every ancillary js change)
+    "src/Views"            // PHP view templates
 ];
 
 /**
@@ -65,7 +66,11 @@ $IGNORE = [
     "node_modules",
     ".git",
     "composer.lock",
-    "*.log"
+    "*.log",
+    "*.map",       // source maps
+    "*.tmp",       // temp files
+    ".DS_Store",   // macOS metadata
+    "public/js/app.js", // main bundle (optional: remove if you want it watched)
 ];
 
 // ---------------------- Dont Edit It ----------------------

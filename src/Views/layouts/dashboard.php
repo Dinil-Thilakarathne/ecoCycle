@@ -22,46 +22,52 @@ if (!$notificationsUrl) {
     $notificationsUrl = '/' . $userType . '/notifications';
 }
 ?>
-<!-- Sidebar Navigation -->
-<aside class="dashboard-sidebar">
-    <div>
-        <img src="/assets/logo-text-black.png" />
-    </div>
-    <nav class="nav-menu-container">
-        <h3 class="nav-menu__header">Dashboards</h3>
-        <ul class="nav-menu">
-            <?php
-            foreach ($navigation as $item):
-                $isActive = NavigationConfig::isActiveUrl($item['url'], $currentUrl) ? 'active' : '';
-                ?>
-                <li class="nav-item <?= $isActive ?>">
-                    <a href="<?= htmlspecialchars($item['url']) ?>" class="nav-link"
-                        title="<?= htmlspecialchars($item['description'] ?? '') ?>">
-                        <i class="fa-solid fa-<?= htmlspecialchars($item['icon']) ?>"></i>
-                        <span><?= htmlspecialchars($item['title']) ?></span>
-                    </a>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    </nav>
-</aside>
-
-<!-- Main Content -->
-<main class="dashboard-content">
-    <div class="content-header">
-        <div class="content-header__title">
-            <i class="fa-solid fa-square-caret-left"></i>
-            <h1><?= $pageTitle ?></h1>
+<div class="dashboard-layout">
+    <div class="sidebar-backdrop"></div>
+    <!-- Sidebar Navigation -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-container">
+            <div>
+                <img src="/assets/logo-text-black.png" class="desktop-logo"/>
+                <img src="/assets/logo-icon.png" class="mobile-logo" />
+            </div>
+            <nav class="nav-menu-container">
+                <h3 class="nav-menu__header">Dashboards</h3>
+                <ul class="nav-menu">
+                    <?php
+                    foreach ($navigation as $item):
+                        $isActive = NavigationConfig::isActiveUrl($item['url'], $currentUrl) ? 'active' : '';
+                        ?>
+                        <li class="nav-item <?= $isActive ?>">
+                            <a href="<?= htmlspecialchars($item['url']) ?>" class="nav-link"
+                                title="<?= htmlspecialchars($item['description'] ?? '') ?>">
+                                <i class="fa-solid fa-<?= htmlspecialchars($item['icon']) ?>"></i>
+                                <span><?= htmlspecialchars($item['title']) ?></span>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </nav>
         </div>
-        <div class="content-header__icons">
-            <a href="<?= htmlspecialchars($notificationsUrl) ?>" class="header-icon-link">
-                <i class="fa-solid fa-bell"></i>
-            </a>
-            <i class="fa-solid fa-gear"></i>
-        </div>
-    </div>
+    </aside>
 
-    <div class="content-body">
-        <?= $content ?>
-    </div>
-</main>
+    <!-- Main Content -->
+    <main class="dashboard-content">
+        <div class="content-header">
+            <div class="content-header__title">
+                <i class="fa-solid fa-square-caret-left"></i>
+                <h1><?= $pageTitle ?></h1>
+            </div>
+            <div class="content-header__icons">
+                <a href="<?= htmlspecialchars($notificationsUrl) ?>" class="header-icon-link">
+                    <i class="fa-solid fa-bell"></i>
+                </a>
+                <i class="fa-solid fa-gear"></i>
+            </div>
+        </div>
+
+        <div class="content-body">
+            <?= $content ?>
+        </div>
+    </main>
+</div>
