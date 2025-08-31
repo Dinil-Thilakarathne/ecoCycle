@@ -226,6 +226,11 @@
       color: var(--neutral-600);
     }
   }
+
+  & .page-header__actions {
+    display: flex;
+    gap: var(--space-4);
+  }
 }
 
 /* Form Controls */
@@ -297,6 +302,7 @@
     background-color: transparent;
     border-color: var(--neutral-300);
     color: var(--neutral-700);
+    border: 1px solid var(--neutral-400);
 
     &:hover {
       background-color: var(--neutral-100);
@@ -333,7 +339,7 @@
   background-color: var(--neutral-0);
   table-layout: fixed; /* Fixed table layout prevents column width changes */
 
-& thead {
+  & thead {
     background-color: var(--neutral-50);
 
     & th {
@@ -345,10 +351,10 @@
       border-bottom: 1px solid var(--neutral-200);
       overflow: hidden; /* Prevent content overflow */
       white-space: nowrap; /* Prevent text wrapping that could affect height */
-   }
+    }
   }
 
- & tbody {
+  & tbody {
     & tr {
       border-bottom: 1px solid var(--neutral-100);
 
@@ -553,4 +559,55 @@
   margin-inline: auto;
   padding-block: var(--_section-gap-y);
   min-height: 100dvh;
+}
+
+/* Alert Box Styles */
+.alert-box {
+  border-radius: var(--rounded-lg);
+  padding: var(--space-4) var(--space-6);
+  border: 1px solid var(--neutral-200);
+  background-color: var(--neutral-0);
+}
+
+.alert-box__inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.alert-box__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.alert-box__title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--neutral-900);
+}
+
+.alert-box__message {
+  color: var(--neutral-700);
+  font-size: var(--text-sm);
+}
+
+.alert-box__actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.alert-box__close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alert-action {
+  /* helper class to mark inline action nodes */
 }
