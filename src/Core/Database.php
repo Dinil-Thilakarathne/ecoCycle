@@ -40,13 +40,13 @@ class Database
 
         $conn = $connections[$connName];
         $this->driver = $conn['driver'] ?? 'mysql';
-    $this->host = $conn['host'] ?? '127.0.0.1';
-    $this->port = (string)($conn['port'] ?? '3306');
+        $this->host = $conn['host'] ?? '127.0.0.1';
+        $this->port = (string) ($conn['port'] ?? '3306');
         $this->db = $conn['database'] ?? '';
         $this->user = $conn['username'] ?? '';
         $this->pass = $conn['password'] ?? '';
         $this->charset = $conn['charset'] ?? $this->charset;
-    $this->socket = $conn['unix_socket'] ?? null;
+        $this->socket = $conn['unix_socket'] ?? null;
     }
 
     private function connect(): void
@@ -100,5 +100,21 @@ class Database
     public function lastInsertId(): string|false
     {
         return $this->pdo()->lastInsertId();
+    }
+
+    /**
+     * Simple connectivity test.
+     * Returns ['ok'=>bool,'error'=>string|null]
+     */
+    public static function ping(?string $connection = null): array
+    {
+        try {
+            $db = new self($connection);
+            // Lightweight query (MySQL specific)
+            $db->query('SELECT 1');
+            return ['ok' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
     }
 }

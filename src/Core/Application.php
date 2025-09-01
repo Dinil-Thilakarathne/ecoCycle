@@ -162,13 +162,21 @@ class Application
     protected function loadConfiguration(): void
     {
         $configPath = $this->basePath . '/config';
-        $configFiles = ['app', 'database', 'session', 'data'];
-
-        foreach ($configFiles as $file) {
-            $filePath = $configPath . '/' . $file . '.php';
-            if (file_exists($filePath)) {
-                Config::load($filePath);
+        foreach (glob($configPath . '/*.php') as $filePath) {
+            if (!is_file($filePath)) {
+                continue;
             }
+            $filename = pathinfo($filePath, PATHINFO_FILENAME);
+            // Skip route definition file (side-effect only)
+            if (in_array($filename, ['routes'])) {
+                continue;
+            }
+            $data = require $filePath;
+            if (is_array($data)) {
+                // Store under filename key
+                Config::set($filename, $data);
+            }
+            // Non-array returns (like side-effect files) are ignored silently
         }
     }
 
@@ -228,35 +236,42 @@ class Application
      */
     protected function executeRoute(array $route, Request $request): Response
     {
-        // Run middleware stack
+        // Build middleware pipeline so each middleware receives a $next that returns a Response.
         $middlewareStack = $route['middleware'] ?? [];
 
-        foreach ($middlewareStack as $middleware) {
-            $middlewareInstance = $this->container->make($middleware);
-            $result = $middlewareInstance->handle($request, function ($req) {
-                return $req;
-            });
+        // Final action that executes the controller or callable and returns a Response
+        $finalAction = function (Request $req) use ($route) {
+            if (is_callable($route['action'])) {
+                $result = call_user_func($route['action'], $req);
+            } else {
+                list($controllerName, $action) = explode('@', $route['action']);
+                $controller = $this->container->make($controllerName);
 
-            if ($result instanceof Response) {
-                return $result;
-            }
-        }
+                if (!method_exists($controller, $action)) {
+                    return new Response('Method not found', 500);
+                }
 
-        // Execute controller action
-        if (is_callable($route['action'])) {
-            $result = call_user_func($route['action'], $request);
-        } else {
-            list($controllerName, $action) = explode('@', $route['action']);
-            $controller = $this->container->make($controllerName);
-
-            if (!method_exists($controller, $action)) {
-                return new Response('Method not found', 500);
+                $result = call_user_func([$controller, $action], $req);
             }
 
-            $result = call_user_func([$controller, $action], $request);
-        }
+            return $result instanceof Response ? $result : new Response($result);
+        };
 
-        return $result instanceof Response ? $result : new Response($result);
+        // Reduce middleware stack into a single callable pipeline
+        $pipeline = array_reduce(
+            array_reverse($middlewareStack),
+            function ($next, $middleware) {
+                return function (Request $req) use ($next, $middleware) {
+                    $instance = $this->container->make($middleware);
+                    return $instance->handle($req, $next);
+                };
+            },
+            $finalAction
+        );
+
+        $response = $pipeline($request);
+
+        return $response instanceof Response ? $response : new Response($response);
     }
 
     /**
