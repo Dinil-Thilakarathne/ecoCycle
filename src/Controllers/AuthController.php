@@ -26,25 +26,58 @@ class AuthController extends BaseController
      */
     public function login(Request $request): Response
     {
-        $email = trim((string) $request->input('email'));
+        $login = trim((string) $request->input('login'));
         $password = (string) $request->input('password');
 
         $userModel = new User();
-        $user = $userModel->findByEmail($email);
+        $user = null;
 
-        if ($user && $userModel->verifyPassword($user, $password)) {
-            session()->put('user_id', $user['id']);
-            session()->put('user_name', $user['username'] ?? $user['email']);
-            session()->put('user_email', $user['email']);
-            session()->put('user_role', $user['role_name']);
-            // Optional: update last_login_at
-            // (new Database())->query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$user['id']]);
-            return dashboard_redirect([
-                'id' => $user['id'],
+        try {
+            // Try as email first
+            $user = filter_var($login, FILTER_VALIDATE_EMAIL) ? $userModel->findByEmail($login) : $userModel->findByUsername($login);
+        } catch (\Throwable $e) {
+            // DB not ready; fall back to demo users
+        }
+
+        // Fallback to in-memory demo users if DB user not found
+        if (!$user) {
+            $demoUsers = config('auth.demo_users', []);
+            foreach ($demoUsers as $demo) {
+                if (strcasecmp($demo['email'], $login) === 0 || strcasecmp($demo['username'] ?? '', $login) === 0) {
+                    $user = $demo; // plain password comparison below
+                    break;
+                }
+            }
+            if ($user) {
+                $valid = hash_equals($user['password_hash'], $password);
+                if (!$valid) {
+                    $user = null; // invalidate if password mismatch
+                }
+            }
+        } else {
+            // Verify password (hashed or plain) for DB user
+            if (!$userModel->verifyPassword($user, $password)) {
+                $user = null;
+            }
+        }
+
+        if ($user) {
+            $userData = [
+                'id' => (int) $user['id'],
                 'name' => $user['username'] ?? $user['email'],
                 'email' => $user['email'],
-                'role' => $user['role_name']
-            ]);
+                'role' => $user['role_name'] ?? ($user['role'] ?? null)
+            ];
+
+            // Use SessionManager::login so userData() returns the role for middlewares
+            session()->login((int) $userData['id'], $userData);
+
+            // Keep individual keys for backward compatibility with helpers
+            session()->put('user_name', $userData['name']);
+            session()->put('user_email', $userData['email']);
+            session()->put('user_role', $userData['role']);
+
+            return dashboard_redirect($userData);
         }
 
         return $this->view('auth/login', ['error' => 'Invalid email or password']);
@@ -67,7 +100,7 @@ class AuthController extends BaseController
         return $this->view('auth/register');
     }
 
-    /**
+    /**phe
      * Handle registration
      */
     public function register(Request $request): Response
