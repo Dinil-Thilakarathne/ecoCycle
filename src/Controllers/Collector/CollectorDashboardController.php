@@ -42,7 +42,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Pickup assignments
      */
-   public function dailytask(): Response
+    public function tasks(): Response
     {
         $data = [
             'pageTitle' => 'Pickup Assignments',
@@ -51,13 +51,13 @@ class CollectorDashboardController extends DashboardController
             'pickupFilters' => $this->getPickupFilters()
         ];
 
-        return $this->renderDashboard('dailytask', $data);
+        return $this->renderDashboard('dailyTask', $data);
     }
 
     /**
      * Route optimization
      */
-   public function history(): Response
+    public function history(): Response
     {
         $data = [
             'pageTitle' => 'Pickup History',
@@ -88,23 +88,23 @@ class CollectorDashboardController extends DashboardController
     /**
      * Collection reporting
      */
-    public function reports(): Response
+    public function analytics(): Response
     {
         $data = [
-            'pageTitle' => 'Collection Reports',
+            'pageTitle' => 'Collection Analytics',
             'collectionStats' => $this->getCollectionStats(),
             'weightReports' => $this->getWeightReports(),
             'materialBreakdown' => $this->getMaterialBreakdown()
         ];
 
-        return $this->renderDashboard('reports', $data);
+        return $this->renderDashboard('analytics', $data);
     }
 
 
 
-    
 
-     public function setting(): Response
+
+    public function setting(): Response
     {
         $data = [
             'pageTitle' => 'Collection Setting',
@@ -113,7 +113,7 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('setting', $data);
     }
 
-    
+
     /**
      * Profile and vehicle info
      */
