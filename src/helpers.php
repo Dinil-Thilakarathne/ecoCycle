@@ -138,7 +138,15 @@ if (!function_exists('base_path')) {
      */
     function base_path(string $path = ''): string
     {
-        $basePath = app()->basePath();
+        // In CLI scripts the Application singleton may not be initialized.
+        $app = Core\Application::getInstance();
+        if ($app) {
+            $basePath = $app->basePath();
+        } else {
+            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
+            $basePath = dirname(__DIR__, 2);
+        }
+
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
     }
 }
@@ -203,7 +211,7 @@ if (!function_exists('redirect')) {
     function redirect(string $url, int $status = 302): Core\Http\Response
     {
         $response = app('response');
-        $response->setStatus($status);
+        $response->setStatusCode($status);
         $response->setHeader('Location', $url);
 
         return $response;
