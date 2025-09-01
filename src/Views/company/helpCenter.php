@@ -21,10 +21,10 @@ $filteredFaq = array_filter($faq, function ($item) use ($searchTerm, $selectedTo
 
 // Help categories
 $helpCategories = [
-    ["icon" => "👤", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 1],
-    ["icon" => "📄", "title" => "Submit Bids", "desc" => "Learn how to place and manage bids", "articles" => 2],
-    ["icon" => "💳", "title" => "Payment", "desc" => "Payment methods and billing information", "articles" => 1],
-    ["icon" => "🔔", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 3],
+    ["icon" => "fa-solid fa-user", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 1],
+    ["icon" => "fa-solid fa-clipboard-list", "title" => "Submit Bids", "desc" => "Learn how to place and manage bids", "articles" => 2],
+    ["icon" => "fa-solid fa-credit-card", "title" => "Payment", "desc" => "Payment methods and billing information", "articles" => 1],
+    ["icon" => "fa-solid fa-bell", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 3],
 ];
 ?>
 
@@ -46,8 +46,8 @@ $helpCategories = [
         <div class="categories">
             <?php foreach($helpCategories as $cat): ?>
             <a href="?topic=<?= urlencode($cat['title']) ?>" class="category">
-                <div class="icon"><?= $cat['icon'] ?></div>
-                <h3><?= $cat['title'] ?></h3>
+                <i class="<?= $cat['icon'] ?>"></i>
+                <h3 style="font-size: 15px; font-weight: bold;"><?= $cat['title'] ?></h3>
                 <p><?= $cat['desc'] ?></p>
                 <span class="article-count"><?= $cat['articles'] ?> articles</span>
             </a>
@@ -55,7 +55,7 @@ $helpCategories = [
         </div>
 
         <!-- FAQ Section -->
-        <h2 style="font-size: 20px; font-weight: bold;">📢 Frequently Asked Questions</h2>
+        <h2 style="font-size: 20px; font-weight: bold;">Frequently Asked Questions...</h2>
         <div class="faq">
             <?php if (empty($filteredFaq)): ?>
                 <p>No results found.</p>
