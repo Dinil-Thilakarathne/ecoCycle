@@ -169,3 +169,9 @@ $router->get('/debug/db/users', function () {
     $resp->setContent($html);
     return $resp;
 });
+
+// Lightweight DB connectivity check (no exception bubbling)
+$router->get('/debug/db/ping.json', function () {
+    $result = \Core\Database::ping();
+    return response()->json($result + ['timestamp' => date('c')]);
+});
