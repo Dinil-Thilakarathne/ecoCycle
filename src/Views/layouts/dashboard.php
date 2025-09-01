@@ -28,7 +28,7 @@ if (!$notificationsUrl) {
     <aside class="dashboard-sidebar">
         <div class="sidebar-container">
             <div>
-                <img src="/assets/logo-text-black.png" class="desktop-logo"/>
+                <img src="/assets/logo-text-black.png" class="desktop-logo" />
                 <img src="/assets/logo-icon.png" class="mobile-logo" />
             </div>
             <nav class="nav-menu-container">
@@ -48,6 +48,13 @@ if (!$notificationsUrl) {
                     <?php endforeach; ?>
                 </ul>
             </nav>
+            <!-- Sidebar footer: simple logout link -->
+            <div class="sidebar-footer">
+                <a href="/login" class="nav-link logout-link" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
         </div>
     </aside>
 

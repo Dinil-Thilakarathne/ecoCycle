@@ -1,4 +1,4 @@
-@layer theme, base, components, page;
+﻿@layer theme, base, components, page;
 
 @import url("./base/reset.css") layer(base);
 @import url("./base/theme.css") layer(base);
@@ -11,9 +11,9 @@
 @import url("./landingpage.css") layer(page);
 
 /* testing */
-@import url("./customer.css");
+/* @import url("./customer.css");
 @import url("./Collector.css");
-@import url("./company.css");
+@import url("./company.css"); */
 
 body {
   font-family: var(--font-family-poppins);
