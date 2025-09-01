@@ -41,6 +41,13 @@
   --info: #3b82f6;
   --info-light: #dbeafe;
 
+  /* Waste stream / material colors */
+  --plastic: #0000ff; /* Plastic */
+  --paper: #008000; /* Paper */
+  --metal: #ffa500; /* Metal */
+  --glass: #ff0000; /* Glass */
+  --organic: #8b5a2b; /* Organic  */
+
   /* Spacing Scale (8px base) */
   --space-1: 0.125rem; /* 2px */
   --space-2: 0.25rem; /* 4px */
