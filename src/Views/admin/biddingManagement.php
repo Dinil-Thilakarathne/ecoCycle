@@ -1,62 +1,7 @@
 <?php
-// Sample bidding data (in a real application, this would come from your database/models)
-$biddingRounds = [
-    [
-        'id' => 'BR001',
-        'lotId' => 'LOT001',
-        'wasteCategory' => 'Plastic Bottles',
-        'quantity' => 500,
-        'unit' => 'kg',
-        'currentHighestBid' => 250,
-        'biddingCompany' => 'GreenTech Co.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 14:30:00',
-    ],
-    [
-        'id' => 'BR002',
-        'lotId' => 'LOT002',
-        'wasteCategory' => 'Cardboard',
-        'quantity' => 1200,
-        'unit' => 'kg',
-        'currentHighestBid' => 180,
-        'biddingCompany' => 'EcoRecycle Ltd.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 16:00:00',
-    ],
-    [
-        'id' => 'BR003',
-        'lotId' => 'LOT003',
-        'wasteCategory' => 'Aluminum Cans',
-        'quantity' => 300,
-        'unit' => 'kg',
-        'currentHighestBid' => 450,
-        'biddingCompany' => 'MetalWorks Inc.',
-        'status' => 'completed',
-        'endTime' => '2024-01-15 12:00:00',
-    ],
-    [
-        'id' => 'BR004',
-        'lotId' => 'LOT004',
-        'wasteCategory' => 'Glass Bottles',
-        'quantity' => 800,
-        'unit' => 'kg',
-        'currentHighestBid' => 320,
-        'biddingCompany' => 'GlassRecyclers Inc.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 18:45:00',
-    ],
-    [
-        'id' => 'BR005',
-        'lotId' => 'LOT005',
-        'wasteCategory' => 'E-Waste',
-        'quantity' => 150,
-        'unit' => 'kg',
-        'currentHighestBid' => 600,
-        'biddingCompany' => 'TechRecycle Solutions',
-        'status' => 'completed',
-        'endTime' => '2024-01-15 10:00:00',
-    ],
-];
+// Centralized dummy data (amounts in Rs)
+$dummy = require base_path('config/dummy.php');
+$biddingRounds = $dummy['bidding_rounds'];
 
 // Helper functions
 function getStatusBadge($status)
@@ -123,7 +68,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
         ],
         [
             'title' => 'Total Bid Value',
-            'value' => '$' . number_format($totalBidValue),
+            'value' => 'Rs ' . number_format($totalBidValue, 2),
             'icon' => 'fa-solid fa-dollar-sign',
             'change' => '',
             'period' => 'Aggregate of highest bids',
@@ -182,7 +127,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-dollar-sign"></i>
-                                        <?= htmlspecialchars($round['currentHighestBid']) ?>
+                                        Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
                                     </div>
                                 </td>
                                 <td><?= htmlspecialchars($round['biddingCompany']) ?></td>

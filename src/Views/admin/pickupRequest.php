@@ -1,59 +1,9 @@
 <?php
-// Sample data (in a real application, this would come from your database/models)
-$pickupRequests = [
-    [
-        'id' => 'PR001',
-        'customerId' => 'C001',
-        'customerName' => 'Alice Johnson',
-        'address' => '123 Green St, Eco City',
-        'wasteCategories' => ['Plastic', 'Paper'],
-        'timeSlot' => '09:00-11:00',
-        'status' => 'pending',
-        'collectorId' => null,
-        'collectorName' => null,
-    ],
-    [
-        'id' => 'PR002',
-        'customerId' => 'C002',
-        'customerName' => 'Bob Smith',
-        'address' => '456 Recycle Ave, Green Town',
-        'wasteCategories' => ['Glass', 'Metal'],
-        'timeSlot' => '11:00-13:00',
-        'status' => 'assigned',
-        'collectorId' => 'COL001',
-        'collectorName' => 'Mike Wilson',
-    ],
-    [
-        'id' => 'PR003',
-        'customerId' => 'C003',
-        'customerName' => 'Carol Davis',
-        'address' => '789 Eco Blvd, Sustainable City',
-        'wasteCategories' => ['Paper', 'Cardboard'],
-        'timeSlot' => '14:00-16:00',
-        'status' => 'pending',
-        'collectorId' => null,
-        'collectorName' => null,
-    ],
-    [
-        'id' => 'PR004',
-        'customerId' => 'C004',
-        'customerName' => 'David Brown',
-        'address' => '321 Sustainability Lane, Green Valley',
-        'wasteCategories' => ['Electronic', 'Plastic'],
-        'timeSlot' => '16:00-18:00',
-        'status' => 'completed',
-        'collectorId' => 'COL002',
-        'collectorName' => 'Sarah Brown',
-    ],
-];
-
-$collectors = [
-    ['id' => 'COL001', 'name' => 'Mike Wilson', 'vehicle' => 'VH001'],
-    ['id' => 'COL002', 'name' => 'Sarah Brown', 'vehicle' => 'VH002'],
-    ['id' => 'COL003', 'name' => 'Tom Garcia', 'vehicle' => 'VH003'],
-];
-
-$timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+// Centralized dummy data
+$dummy = require base_path('config/dummy.php');
+$pickupRequests = $dummy['pickup_requests'];
+$collectors = $dummy['collectors'];
+$timeSlots = $dummy['time_slots'];
 
 // Get selected time slot from URL parameter
 $selectedTimeSlot = $_GET['time_slot'] ?? 'all';
