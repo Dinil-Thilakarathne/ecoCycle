@@ -1,78 +1,84 @@
 <?php
-// Simple login role selection page (no actual auth logic yet)
+/**
+ * Login view
+ * Accepts single 'login' field which can be an email or username, and 'password'.
+ */
+$error = $error ?? null;
 ?>
 
 <section class="main-section auth-login-page">
-    <div class="container" style="padding-inline: var(--space-8);">
-        <div>
-            <header style="text-align:center; margin-bottom: var(--space-16);">
-                <h1 class="gradient-text"
-                    style="font-size: var(--text-6xl); font-weight: var(--font-weight-bold); line-height:1.1;">
-                    Choose Your Portal
-                </h1>
-                <p style="margin-top: var(--space-4); color: var(--neutral-600); font-size: var(--text-lg);">
-                    Select the user type to continue to the login page.
-                </p>
+    <div class="container" style="max-width:480px; margin: 4rem auto;">
+        <div class="card">
+            <header style="text-align:center; margin-bottom: 1.5rem;">
+                <h1>Sign in to EcoCycle</h1>
+                <p class="muted">Use your email or username to sign in.</p>
             </header>
 
-            <div class="login-role-grid">
-                <article class="login-card" data-role="role-select">
-                    <div class="login-card__body">
-                        <h2 class="login-card__title">Select your role</h2>
-                        <p class="login-card__desc">Pick a portal from the dropdown and continue to its login page.</p>
+            <?php if ($error): ?>
+                <div class="alert alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
+            <?php endif; ?>
 
-                        <div class="form-select">
-                            <label for="role-select" class="sr-only">Choose role</label>
-                            <select id="role-select" aria-label="Select user role"
-                                style=" width:100%; max-width:360px;">
-                                <option value="" selected disabled>-- Choose a role --</option>
-                                <option value="/customer">Customer — Track recycling requests & status</option>
-                                <option value="/collector">Collector — Manage pickups & routes</option>
-                                <option value="/company">Company — Operations & analytics</option>
-                                <option value="/admin">Admin — Platform configuration</option>
-                            </select>
-                        </div>
-                    </div>
+            <form method="post" action="/login">
+                <div class="form-group">
+                    <label for="login">Email or Username</label>
+                    <input id="login" name="login" type="text" required maxlength="150"
+                        placeholder="email@example.com or username" value="<?= htmlspecialchars(old('login', '')) ?>" />
+                </div>
 
-                    <div style="margin-top: var(--space-8);">
-                        <a id="role-continue" class="btn btn-gradient login-card__action" href="#" role="button"
-                            aria-disabled="true">Continue</a>
-                    </div>
-                </article>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" required />
+                </div>
+
+                <div style="margin-top:1rem;">
+                    <button class="btn btn-primary" type="submit">Sign in</button>
+                </div>
+            </form>
+
+            <!-- Demo quick-fill: keep existing page, but provide optional email/password inputs
+                 that copy into the main login form when used. This does NOT replace the page. -->
+            <div style="margin-top:1.5rem; border-top:1px solid #eee; padding-top:1rem;">
+                <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">Quick demo login</h3>
+                <p class="muted" style="margin:0 0 0.75rem 0;">Use these fields to auto-fill the main login form.</p>
+
+                <div class="form-group">
+                    <label for="demo_email">Email</label>
+                    <input id="demo_email" type="email" value="admin@ecocycle.com" />
+                </div>
+
+                <div class="form-group">
+                    <label for="demo_password">Password</label>
+                    <input id="demo_password" type="text" value="admin123" />
+                </div>
+
+                <div style="display:flex; gap:.5rem;">
+                    <button id="fillBtn" class="btn" type="button">Fill fields</button>
+                    <button id="fillAndSubmitBtn" class="btn btn-primary" type="button">Fill & Sign in</button>
+                </div>
             </div>
+
+            <script>
+                (function () {
+                    const fillBtn = document.getElementById('fillBtn');
+                    const fillAndSubmitBtn = document.getElementById('fillAndSubmitBtn');
+                    const demoEmail = document.getElementById('demo_email');
+                    const demoPassword = document.getElementById('demo_password');
+                    const mainLogin = document.getElementById('login');
+                    const mainPassword = document.getElementById('password');
+                    const mainForm = document.querySelector('form[action="/login"]');
+
+                    fillBtn.addEventListener('click', function () {
+                        if (mainLogin) mainLogin.value = demoEmail.value;
+                        if (mainPassword) mainPassword.value = demoPassword.value;
+                    });
+
+                    fillAndSubmitBtn.addEventListener('click', function () {
+                        if (mainLogin) mainLogin.value = demoEmail.value;
+                        if (mainPassword) mainPassword.value = demoPassword.value;
+                        if (mainForm) mainForm.submit();
+                    });
+                })();
+            </script>
         </div>
-
-        <script>
-            (function () {
-                var select = document.getElementById('role-select');
-                var btn = document.getElementById('role-continue');
-
-                function updateButton() {
-                    var val = select.value;
-                    if (val) {
-                        btn.removeAttribute('aria-disabled');
-                        btn.classList.remove('disabled');
-                        btn.href = val;
-                    } else {
-                        btn.setAttribute('aria-disabled', 'true');
-                        btn.classList.add('disabled');
-                        btn.href = '#';
-                    }
-                }
-
-                // update on change
-                select.addEventListener('change', updateButton);
-
-                // support keyboard Enter on select: navigate when Enter pressed
-                select.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' && select.value) {
-                        window.location.href = select.value;
-                    }
-                });
-
-                // initialize
-                updateButton();
-            })();
-        </script>
     </div>
 </section>
