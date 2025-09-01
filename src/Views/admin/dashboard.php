@@ -22,75 +22,27 @@ $recentActivity = [
     <!-- Statistics Grid -->
     <div class="stats-grid">
         <?php foreach ($stats as $stat): ?>
-            <div class="feature-card">
-                <div class="feature-card__header">
-                    <h3 class="feature-card__title">
-                        <?= htmlspecialchars($stat['title']) ?>
-                    </h3>
-                    <div class="feature-card__icon">
-                        <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
-                    </div>
-                </div>
-                <p class="feature-card__body">
-                    <?= htmlspecialchars($stat['value']) ?>
-                </p>
-                <div class="feature-card__footer">
-                    <div class="tag success">
-                        <?= htmlspecialchars($stat['change']) ?>
-                    </div>
-                    <span>
-                        from last month
-                    </span>
-                </div>
-            </div>
+            <feature-card unwrap title="<?= htmlspecialchars($stat['title']) ?>"
+                value="<?= htmlspecialchars($stat['value']) ?>" icon="<?= htmlspecialchars($stat['icon']) ?>"
+                change="<?= htmlspecialchars($stat['change']) ?>" period="from last month" <?php if (strpos($stat['change'], '-') === 0): ?>change-negative<?php endif; ?>></feature-card>
         <?php endforeach; ?>
     </div>
 
     <!-- Activity & System Health Cards -->
     <div class="cards-grid">
-        <!-- Recent Activity Card -->
-        <div class="activity-card">
-            <div class="activity-card__header">
-                <h3 class="activity-card__title">Recent Activity</h3>
-                <p class="activity-card__description">Latest system activities and updates</p>
-            </div>
-            <div class="activity-card__content">
-                <?php foreach ($recentActivity as $activity): ?>
-                    <div class="activity-item">
-                        <div class="activity-item__content">
-                            <p class="activity-item__title"><?= htmlspecialchars($activity['action']) ?></p>
-                            <p class="activity-item__subtitle"><?= htmlspecialchars($activity['detail']) ?></p>
-                        </div>
-                        <p class="activity-item__time"><?= htmlspecialchars($activity['time']) ?></p>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
+        <activity-card title="Recent Activity" description="Latest system activities and updates">
+            <?php foreach ($recentActivity as $activity): ?>
+                <activity-item action="<?= htmlspecialchars($activity['action']) ?>"
+                    detail="<?= htmlspecialchars($activity['detail']) ?>"
+                    time="<?= htmlspecialchars($activity['time']) ?>"></activity-item>
+            <?php endforeach; ?>
+        </activity-card>
 
-        <!-- System Health Card -->
-        <div class="activity-card">
-            <div class="activity-card__header">
-                <h3 class="activity-card__title">System Health</h3>
-                <p class="activity-card__description">Current system status and performance</p>
-            </div>
-            <div class="activity-card__content">
-                <div class="status-item">
-                    <span class="status-item__label">Server Status</span>
-                    <div class="tag online">Online</div>
-                </div>
-                <div class="status-item">
-                    <span class="status-item__label">Database</span>
-                    <div class="tag healthy">Healthy</div>
-                </div>
-                <div class="status-item">
-                    <span class="status-item__label">Payment Gateway</span>
-                    <div class="tag connected">Connected</div>
-                </div>
-                <div class="status-item">
-                    <span class="status-item__label">Notification Service</span>
-                    <div class="tag warning">Warning</div>
-                </div>
-            </div>
-        </div>
+        <activity-card title="System Health" description="Current system status and performance">
+            <status-item label="Server Status" state="Online" state-class="online"></status-item>
+            <status-item label="Database" state="Healthy" state-class="healthy"></status-item>
+            <status-item label="Payment Gateway" state="Connected" state-class="connected"></status-item>
+            <status-item label="Notification Service" state="Warning" state-class="warning"></status-item>
+        </activity-card>
     </div>
 </div>

@@ -1,0 +1,22 @@
+# Folders
+vendor/
+node_modules/
+storage/framework/sessions/*
+storage/logs/*
+.git/
+.idea/
+.vscode/
+
+# Files
+.env
+*.log
+*.sql
+*.zip
+*.tar
+*.tar.gz
+Dockerfile*
+docker-compose.override.yml
+
+# OS / Editor
+.DS_Store
+Thumbs.db

@@ -42,7 +42,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Pickup assignments
      */
-    public function pickups(): Response
+    public function tasks(): Response
     {
         $data = [
             'pageTitle' => 'Pickup Assignments',
@@ -51,22 +51,22 @@ class CollectorDashboardController extends DashboardController
             'pickupFilters' => $this->getPickupFilters()
         ];
 
-        return $this->renderDashboard('pickups', $data);
+        return $this->renderDashboard('tasks', $data);
     }
 
     /**
      * Route optimization
      */
-    public function routes(): Response
+    public function history(): Response
     {
         $data = [
-            'pageTitle' => 'Route Planning',
+            'pageTitle' => 'Pickup History',
             'optimizedRoute' => $this->getOptimizedRoute(),
             'routeHistory' => $this->getRouteHistory(),
             'routeStats' => $this->getRouteStats()
         ];
 
-        return $this->renderDashboard('routes', $data);
+        return $this->renderDashboard('history', $data);
     }
 
     /**
@@ -88,17 +88,31 @@ class CollectorDashboardController extends DashboardController
     /**
      * Collection reporting
      */
-    public function reports(): Response
+    public function analytics(): Response
     {
         $data = [
-            'pageTitle' => 'Collection Reports',
+            'pageTitle' => 'Collection Analytics',
             'collectionStats' => $this->getCollectionStats(),
             'weightReports' => $this->getWeightReports(),
             'materialBreakdown' => $this->getMaterialBreakdown()
         ];
 
-        return $this->renderDashboard('reports', $data);
+        return $this->renderDashboard('analytics', $data);
     }
+
+
+
+
+
+    public function setting(): Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Setting',
+        ];
+
+        return $this->renderDashboard('setting', $data);
+    }
+
 
     /**
      * Profile and vehicle info

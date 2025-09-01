@@ -43,28 +43,34 @@ class NavigationConfig
             ],
             'customer' => [
                 ['title' => 'Dashboard', 'url' => '/customer', 'icon' => 'home', 'description' => 'Your dashboard overview'],
-                ['title' => 'Schedule Pickup', 'url' => '/customer/schedule', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
-                ['title' => 'Pickup History', 'url' => '/customer/history', 'icon' => 'history', 'description' => 'View pickup history'],
-                ['title' => 'My Rewards', 'url' => '/customer/rewards', 'icon' => 'gift', 'description' => 'Your rewards and points'],
-                ['title' => 'Education', 'url' => '/customer/education', 'icon' => 'book', 'description' => 'Recycling education'],
+                ['title' => 'Pickup Request', 'url' => '/customer/pickup', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
+                ['title' => 'Payment', 'url' => '/customer/payment', 'icon' => 'history', 'description' => 'do payment'],
+                ['title' => 'notification', 'url' => '/customer/notification', 'icon' => 'gift', 'description' => 'See notifications'],
+                ['title' => 'report', 'url' => '/customer/analytics', 'icon' => 'book', 'description' => 'see progress'],
                 ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'collector' => [
                 ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'tachometer-alt', 'description' => 'Collector dashboard'],
-                ['title' => 'Pickups', 'url' => '/collector/pickups', 'icon' => 'truck', 'description' => 'Manage pickups'],
-                ['title' => 'Routes', 'url' => '/collector/routes', 'icon' => 'map', 'description' => 'Optimize routes'],
+                ['title' => 'Daily Tasks', 'url' => '/collector/tasks', 'icon' => 'truck', 'description' => 'Manage pickups'],
+                ['title' => 'Pickup History', 'url' => '/collector/history', 'icon' => 'history', 'description' => 'View History'],
                 ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],
-                ['title' => 'Reports', 'url' => '/collector/reports', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
+                ['title' => 'Reports', 'url' => '/collector/analytics', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'company' => [
-                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'tachometer-alt', 'description' => 'Company dashboard'],
-                ['title' => 'Waste Management', 'url' => '/company/waste', 'icon' => 'recycle', 'description' => 'Manage waste processing'],
-                ['title' => 'Schedule Collection', 'url' => '/company/schedule', 'icon' => 'calendar', 'description' => 'Schedule collections'],
-                ['title' => 'Analytics', 'url' => '/company/analytics', 'icon' => 'chart-line', 'description' => 'Business analytics'],
-                ['title' => 'Billing', 'url' => '/company/billing', 'icon' => 'file-invoice-dollar', 'description' => 'Billing and invoices'],
-                ['title' => 'Sustainability', 'url' => '/company/sustainability', 'icon' => 'leaf', 'description' => 'Sustainability metrics'],
-                ['title' => 'Profile', 'url' => '/company/profile', 'icon' => 'building', 'description' => 'Company profile'],
+                // Matches: src/Views/company/dashboard.php -> route: /company (index)
+                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'chart-column', 'description' => 'Company dashboard overview'],
+                // Matches: src/Views/company/activeBids.php -> route: /company/activeBids
+                ['title' => 'Active Bids', 'url' => '/company/activeBids', 'icon' => 'gavel', 'description' => 'View and manage active bids'],
+                // Matches: src/Views/company/purchases.php -> route: /company/purchases
+                ['title' => 'Purchases', 'url' => '/company/purchases', 'icon' => 'cart-shopping', 'description' => 'Your purchases and orders'],
+                // Matches: src/Views/company/reports.php -> route: /company/reports
+                ['title' => 'Reports', 'url' => '/company/reports', 'icon' => 'chart-line', 'description' => 'Analytics and reports'],
+                // Matches: src/Views/company/helpCenter.php -> route: /company/helpCenter
+                ['title' => 'Help & Support', 'url' => '/company/help-center', 'icon' => 'life-ring', 'description' => 'Help center and support'],
+                // Matches: src/Views/company/profile.php -> route: /company/profile
+                ['title' => 'Profile', 'url' => '/company/profile', 'icon' => 'user', 'description' => 'Company profile & settings'],
+                ['title' => 'Notification', 'url' => '/company/notification', 'icon' => 'bell', 'description' => 'User profile & Details'],
             ],
         ];
     }

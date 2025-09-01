@@ -1,4 +1,4 @@
-﻿@layer theme, base, components;
+﻿@layer theme, base, components, page;
 
 @import url("./base/reset.css") layer(base);
 @import url("./base/theme.css") layer(base);
@@ -6,8 +6,14 @@
 @import url("./components/atomic.css") layer(components);
 @import url("./components/common.css") layer(components);
 @import url("./dashboard.css") layer(components);
+@import url("./components/sidebar.css") layer(components);
 
-@import url("./landingpage.css");
+@import url("./landingpage.css") layer(page);
+
+/* testing */
+/* @import url("./customer.css");
+@import url("./Collector.css");
+@import url("./company.css"); */
 
 body {
   font-family: var(--font-family-poppins);

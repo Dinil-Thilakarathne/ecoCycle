@@ -1,62 +1,7 @@
 <?php
-// Sample bidding data (in a real application, this would come from your database/models)
-$biddingRounds = [
-    [
-        'id' => 'BR001',
-        'lotId' => 'LOT001',
-        'wasteCategory' => 'Plastic Bottles',
-        'quantity' => 500,
-        'unit' => 'kg',
-        'currentHighestBid' => 250,
-        'biddingCompany' => 'GreenTech Co.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 14:30:00',
-    ],
-    [
-        'id' => 'BR002',
-        'lotId' => 'LOT002',
-        'wasteCategory' => 'Cardboard',
-        'quantity' => 1200,
-        'unit' => 'kg',
-        'currentHighestBid' => 180,
-        'biddingCompany' => 'EcoRecycle Ltd.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 16:00:00',
-    ],
-    [
-        'id' => 'BR003',
-        'lotId' => 'LOT003',
-        'wasteCategory' => 'Aluminum Cans',
-        'quantity' => 300,
-        'unit' => 'kg',
-        'currentHighestBid' => 450,
-        'biddingCompany' => 'MetalWorks Inc.',
-        'status' => 'completed',
-        'endTime' => '2024-01-15 12:00:00',
-    ],
-    [
-        'id' => 'BR004',
-        'lotId' => 'LOT004',
-        'wasteCategory' => 'Glass Bottles',
-        'quantity' => 800,
-        'unit' => 'kg',
-        'currentHighestBid' => 320,
-        'biddingCompany' => 'GlassRecyclers Inc.',
-        'status' => 'active',
-        'endTime' => '2024-01-15 18:45:00',
-    ],
-    [
-        'id' => 'BR005',
-        'lotId' => 'LOT005',
-        'wasteCategory' => 'E-Waste',
-        'quantity' => 150,
-        'unit' => 'kg',
-        'currentHighestBid' => 600,
-        'biddingCompany' => 'TechRecycle Solutions',
-        'status' => 'completed',
-        'endTime' => '2024-01-15 10:00:00',
-    ],
-];
+// Centralized dummy data (amounts in Rs)
+$dummy = require base_path('config/dummy.php');
+$biddingRounds = $dummy['bidding_rounds'];
 
 // Helper functions
 function getStatusBadge($status)
@@ -100,57 +45,51 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
 
 <div>
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Bidding Management</h2>
-            <p class="page-header__description">Monitor and manage active bidding rounds</p>
+    <page-header title="Bidding Management" description="Monitor and manage active bidding rounds">
+        <div data-header-action style="display: flex; gap: var(--space-2);">
+            <button class="btn btn-primary" onclick="createNewLot()">
+                <i class="fa-solid fa-box" style="margin-right: 8px;"></i>
+                Create New Lot
+            </button>
         </div>
-        <button class="btn btn-primary" onclick="createNewLot()">
-            <i class="fa-solid fa-box" style="margin-right: 8px;"></i>
-            Create New Lot
-        </button>
-    </div>
+    </page-header>
 
-    <!-- Statistics Cards -->
+
+    <!-- Statistics Cards (data-driven using feature-card component) -->
+    <?php
+    $bidStatCards = [
+        [
+            'title' => 'Active Bidding Rounds',
+            'value' => count($activeRounds),
+            'icon' => 'fa-solid fa-gavel',
+            'change' => '',
+            'period' => 'Currently running',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Total Bid Value',
+            'value' => 'Rs ' . number_format($totalBidValue, 2),
+            'icon' => 'fa-solid fa-dollar-sign',
+            'change' => '',
+            'period' => 'Aggregate of highest bids',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Completed Rounds',
+            'value' => count($completedRounds),
+            'icon' => 'fa-solid fa-box',
+            'change' => '',
+            'period' => 'Finished today',
+            'negative' => false,
+        ],
+    ];
+    ?>
     <div class="stats-grid">
-        <!-- Active Bidding Rounds -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Active Bidding Rounds</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-gavel"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= count($activeRounds) ?>
-            </p>
-        </div>
-
-        <!-- Total Bid Value -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Bid Value</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-dollar-sign"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                $<?= number_format($totalBidValue) ?>
-            </p>
-        </div>
-
-        <!-- Completed Today -->
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Completed Today</h3>
-                <div class="feature-card__icon">
-                    <i class="fa-solid fa-box"></i>
-                </div>
-            </div>
-            <p class="feature-card__body">
-                <?= count($completedRounds) ?>
-            </p>
-        </div>
+        <?php foreach ($bidStatCards as $card): ?>
+            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
+                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
+                period="<?= htmlspecialchars($card['period']) ?>" <?php if (strlen(trim($card['change']))): ?>change="<?= htmlspecialchars($card['change']) ?>" <?php endif; ?>     <?php if ($card['negative']): ?>change-negative<?php endif; ?>></feature-card>
+        <?php endforeach; ?>
     </div>
 
     <!-- Bidding Rounds Table -->
@@ -188,7 +127,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-dollar-sign"></i>
-                                        <?= htmlspecialchars($round['currentHighestBid']) ?>
+                                        Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
                                     </div>
                                 </td>
                                 <td><?= htmlspecialchars($round['biddingCompany']) ?></td>

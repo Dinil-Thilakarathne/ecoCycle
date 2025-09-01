@@ -162,7 +162,7 @@ class Application
     protected function loadConfiguration(): void
     {
         $configPath = $this->basePath . '/config';
-        $configFiles = ['app', 'database', 'session'];
+        $configFiles = ['app', 'database', 'session', 'data'];
 
         foreach ($configFiles as $file) {
             $filePath = $configPath . '/' . $file . '.php';
@@ -330,9 +330,9 @@ class Application
     /**
      * Get singleton application instance
      * 
-     * @return static|null
+     * @return self|null
      */
-    public static function getInstance(): ?static
+    public static function getInstance(): ?self
     {
         return static::$instance;
     }
