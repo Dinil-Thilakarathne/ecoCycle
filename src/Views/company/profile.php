@@ -80,6 +80,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
     </div>
 
+  
+
     <!-- Verification -->
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Verification Status</h3>

@@ -920,6 +920,41 @@ form select:focus {
   margin-bottom: 20px;
 }
 
+/* Profile Card */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+/* Profile Image */
+.profile-image img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #4CAF50; /* green border */
+}
+
+/* Profile Details */
+.profile-details h2 {
+  font-size: 22px;
+  margin: 0;
+  color: #333;
+}
+
+.profile-details p {
+  margin: 4px 0;
+  font-size: 15px;
+  color: #555;
+}
+
+
 .pc-card h3 {
   margin-top: 0;
   margin-bottom: 15px;
