@@ -51,7 +51,7 @@ class CollectorDashboardController extends DashboardController
             'pickupFilters' => $this->getPickupFilters()
         ];
 
-        return $this->renderDashboard('dailyTask', $data);
+        return $this->renderDashboard('tasks', $data);
     }
 
     /**
