@@ -8,7 +8,7 @@ $oldLogin = old('login', '');
 ?>
 
 <section class="main-section auth-login-page">
-    <div class="login-content" style="padding-inline: var(--space-8);">
+    <div class="login-content">
         <div class="content-top">
             <h1>Welcome Back!</h1>
             <p>Please signin to access your dashboard.</p>
@@ -19,7 +19,7 @@ $oldLogin = old('login', '');
             <!-- server-side error will be shown inline under the submit button; no separate alert box -->
             <div class="form-select">
                 <label for="role-select" class="sr-only">Choose role</label><br>
-                <select id="role-select" aria-label="Select user role" style=" width:100%; max-width:360px;">
+                <select id="role-select" aria-label="Select user role" style=" width:100%;">
                     <option value="" selected disabled>-- Choose a role --</option>
                     <option value="/customer">Customer — Track recycling requests &amp; status</option>
                     <option value="/collector">Collector — Manage pickups &amp; routes</option>
@@ -44,10 +44,10 @@ $oldLogin = old('login', '');
             </noscript>
 
 
-            <div style="display:flex; gap:.5rem; margin-top:var(--space-4); width: 100%; flex-direction:column;">
+            <div style="display:flex; gap:.5rem; margin-top:var(--space-2); width: 100%; flex-direction:column;">
                 <button id="loginSubmit" type="submit" class="btn btn-gradient login-card__action">Sign in</button>
-                <div id="loginError" role="status" aria-live="polite"
-                    style="color:var(--danger-color); margin-top:.5rem; <?= $error ? 'display:block;' : 'display:none;' ?>">
+                <div id="loginError" role="status" aria-live="polite" style="color:var(--danger);"
+                    class=" <?= $error ? "visible" : "" ?>">
                     <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
                 </div>
             </div>

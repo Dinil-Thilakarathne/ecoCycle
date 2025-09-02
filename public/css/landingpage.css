@@ -474,13 +474,19 @@
   flex-direction: column;
   row-gap: var(--space-8);
   background-color: var(--neutral-0);
-  height: 100%;
+  /* height: 100%; */
+  min-height: 50vh;
   border-radius: var(--rounded-2xl);
   align-items: start;
   justify-content: center;
+  padding: var(--space-10) var(--space-40);
 }
 
 .login-content {
+  & > div,
+  form {
+    width: 100%;
+  }
   & .content-top {
     h1 {
       font-size: var(--text-5xl);
@@ -492,6 +498,16 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+
+
+    & #loginError {
+      color: var(--danger);
+      visibility: hidden;
+
+      &.visible {
+        visibility: visible;
+      }
+    }
   }
 }
 
