@@ -266,12 +266,12 @@ const wasteChart = new Chart(ctx, {
             {
                 label: 'Organic',
                 data: [400, 450, 300, 500, 550, 480],
-                backgroundColor: ' #9c27b0'
+                backgroundColor: ' #8b5a2b'
             },
             {
                 label: 'Glass',
                 data: [200, 220, 180, 250, 270, 230],
-                backgroundColor:' #008000'
+                backgroundColor:' #ff0000'
             },
             {
                 label: 'Paper',

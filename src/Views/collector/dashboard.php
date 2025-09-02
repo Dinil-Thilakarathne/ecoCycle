@@ -157,7 +157,7 @@
       <span class="goal-status">40kg (40%)</span>
     </div>
     <div class="progress-bar">
-      <div class="progress" style="width: 40%; background-color: #2357bfff;"></div>
+      <div class="progress" style="width: 40%; background-color: #0000ff;"></div>
     </div>
   </div>
 
@@ -167,7 +167,7 @@
       <span class="goal-status">25kg (25%)</span>
     </div>
     <div class="progress-bar">
-      <div class="progress" style="width: 25%; background-color: #a76d09ff;"></div>
+      <div class="progress" style="width: 25%; background-color: #ff0000;"></div>
     </div>
   </div>
 
@@ -177,7 +177,7 @@
       <span class="goal-status">20kg (20%)</span>
     </div>
     <div class="progress-bar">
-      <div class="progress" style="width: 20%; background-color: #b50421ff;"></div>
+      <div class="progress" style="width: 20%; background-color: #ffa500;"></div>
     </div>
   </div>
 
@@ -187,7 +187,7 @@
       <span class="goal-status">15kg (15%)</span>
     </div>
     <div class="progress-bar">
-      <div class="progress" style="width: 15%; background-color: #148458ff;"></div>
+      <div class="progress" style="width: 15%; background-color: #008000;"></div>
     </div>
 </div>
 
@@ -197,7 +197,7 @@
       <span class="goal-status">40kg (40%)</span>
     </div>
     <div class="progress-bar">
-      <div class="progress" style="width: 40%; background-color: #9c27b0;"></div>
+      <div class="progress" style="width: 40%; background-color: #8b5a2b;"></div>
     </div>
 </div></div>
 
@@ -209,35 +209,35 @@
     <div class="goal">
       <div class="goal-header">
         <span>Plastic</span>
-        <span class="goal-status" style="color: #2357bfff;">Rs. 1,200.00</span>
+        <span class="goal-status" style="color: #0000ff;">Rs. 1,200.00</span>
       </div>
     </div>
 
     <div class="goal">
       <div class="goal-header">
         <span>Glass</span>
-        <span class="goal-status" style="color: #a76d09ff;">Rs. 950.00</span>
+        <span class="goal-status" style="color: #ff0000;">Rs. 950.00</span>
       </div>
     </div>
 
     <div class="goal">
       <div class="goal-header">
         <span>Metal</span>
-        <span class="goal-status" style="color: #b50421ff;">Rs. 1,400.00</span>
+        <span class="goal-status" style="color: #ffa500;">Rs. 1,400.00</span>
       </div>
     </div>
 
     <div class="goal">
       <div class="goal-header">
         <span>Paper</span>
-        <span class="goal-status" style="color: #148458ff;">Rs. 750.00</span>
+        <span class="goal-status" style="color: #008000;">Rs. 750.00</span>
       </div>
     </div>
 
      <div class="goal">
       <div class="goal-header">
         <span>Organic</span>
-        <span class="goal-status" style="color: #9c27b0;">Rs. 750.00</span>
+        <span class="goal-status" style="color: #8b5a2b;">Rs. 750.00</span>
       </div>
     </div>
   </div>
