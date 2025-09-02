@@ -45,17 +45,6 @@
 
     <div class="feature-card">
       <div class="feature-card__header">
-        <div class="feature-card__title">Today's Earnings</div>
-        <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
-      </div>
-      <div class="feature-card__body">Rs.5,550.37</div>
-      <div class="feature-card__footer">
-        <span class="desc">total earned</span>
-      </div>
-    </div>
-
-    <div class="feature-card">
-      <div class="feature-card__header">
         <div class="feature-card__title">Rating</div>
         <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
       </div>
