@@ -1,84 +1,205 @@
 <?php
 /**
- * Login view
- * Accepts single 'login' field which can be an email or username, and 'password'.
+ * Login portal selection view
+ * Recreated to use the requested layout and class names.
  */
-$error = $error ?? null;
+$error = $error ?? (session()->getFlash('error') ?? null);
+$oldLogin = old('login', '');
 ?>
 
 <section class="main-section auth-login-page">
-    <div class="container" style="max-width:480px; margin: 4rem auto;">
-        <div class="card">
-            <header style="text-align:center; margin-bottom: 1.5rem;">
-                <h1>Sign in to EcoCycle</h1>
-                <p class="muted">Use your email or username to sign in.</p>
-            </header>
+    <div class="login-content" style="padding-inline: var(--space-8);">
+        <div class="content-top">
+            <h1>Welcome Back!</h1>
+            <p>Please signin to access your dashboard.</p>
+        </div>
+        <form class="content-body" method="POST" action="/login">
+            <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
 
-            <?php if ($error): ?>
-                <div class="alert alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
+            <!-- server-side error will be shown inline under the submit button; no separate alert box -->
+            <div class="form-select">
+                <label for="role-select" class="sr-only">Choose role</label><br>
+                <select id="role-select" aria-label="Select user role" style=" width:100%; max-width:360px;">
+                    <option value="" selected disabled>-- Choose a role --</option>
+                    <option value="/customer">Customer — Track recycling requests &amp; status</option>
+                    <option value="/collector">Collector — Manage pickups &amp; routes</option>
+                    <option value="/company">Company — Operations &amp; analytics</option>
+                    <option value="/admin">Admin — Platform configuration</option>
+                </select>
+            </div>
+            <!-- login field: uses underlying native input with name="login" so PHP receives it -->
+            <form-input label="Email or Username" name="login" placeholder="email@example.com or username"
+                value="<?= htmlspecialchars($oldLogin) ?>" <?= $error ? '' : '' /* example of adding attributes conditionally */ ?> required></form-input>
 
-            <form method="post" action="/login">
-                <div class="form-group">
-                    <label for="login">Email or Username</label>
-                    <input id="login" name="login" type="text" required maxlength="150"
-                        placeholder="email@example.com or username" value="<?= htmlspecialchars(old('login', '')) ?>" />
+            <!-- password field -->
+            <form-input label="Password" name="password" required type="password"
+                placeholder="Your password"></form-input>
+
+            <!-- Fallback for no-JS / component load failure: include native inputs so POST always contains fields -->
+            <noscript>
+                <div style="display:none;">
+                    <input type="text" name="login" value="<?= htmlspecialchars($oldLogin) ?>" />
+                    <input type="password" name="password" value="" />
                 </div>
+            </noscript>
 
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input id="password" name="password" type="password" required />
-                </div>
 
-                <div style="margin-top:1rem;">
-                    <button class="btn btn-primary" type="submit">Sign in</button>
-                </div>
-            </form>
-
-            <!-- Demo quick-fill: keep existing page, but provide optional email/password inputs
-                 that copy into the main login form when used. This does NOT replace the page. -->
-            <div style="margin-top:1.5rem; border-top:1px solid #eee; padding-top:1rem;">
-                <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">Quick demo login</h3>
-                <p class="muted" style="margin:0 0 0.75rem 0;">Use these fields to auto-fill the main login form.</p>
-
-                <div class="form-group">
-                    <label for="demo_email">Email</label>
-                    <input id="demo_email" type="email" value="admin@ecocycle.com" />
-                </div>
-
-                <div class="form-group">
-                    <label for="demo_password">Password</label>
-                    <input id="demo_password" type="text" value="admin123" />
-                </div>
-
-                <div style="display:flex; gap:.5rem;">
-                    <button id="fillBtn" class="btn" type="button">Fill fields</button>
-                    <button id="fillAndSubmitBtn" class="btn btn-primary" type="button">Fill & Sign in</button>
+            <div style="display:flex; gap:.5rem; margin-top:var(--space-4); width: 100%; flex-direction:column;">
+                <button id="loginSubmit" type="submit" class="btn btn-gradient login-card__action">Sign in</button>
+                <div id="loginError" role="status" aria-live="polite"
+                    style="color:var(--danger-color); margin-top:.5rem; <?= $error ? 'display:block;' : 'display:none;' ?>">
+                    <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
                 </div>
             </div>
+        </form>
 
-            <script>
-                (function () {
-                    const fillBtn = document.getElementById('fillBtn');
-                    const fillAndSubmitBtn = document.getElementById('fillAndSubmitBtn');
-                    const demoEmail = document.getElementById('demo_email');
-                    const demoPassword = document.getElementById('demo_password');
-                    const mainLogin = document.getElementById('login');
-                    const mainPassword = document.getElementById('password');
-                    const mainForm = document.querySelector('form[action="/login"]');
+        <script>
+            (function () {
+                // Ensure core elements exist before operating on them to avoid runtime errors
+                var form = document.querySelector('form.content-body');
+                var loginError = document.getElementById('loginError');
 
-                    fillBtn.addEventListener('click', function () {
-                        if (mainLogin) mainLogin.value = demoEmail.value;
-                        if (mainPassword) mainPassword.value = demoPassword.value;
+                // Attach AJAX submit handler first so it's always in place even if other code fails
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        try {
+                            e.preventDefault();
+
+                            var btnEl = document.getElementById('loginSubmit');
+                            if (btnEl) btnEl.disabled = true;
+                            if (loginError) loginError.style.display = 'none';
+
+                            var formData = new FormData(form);
+
+                            fetch(form.action || '/login', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                body: formData,
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            }).then(function (resp) {
+                                return resp.json().catch(function () {
+                                    return { success: false, message: 'Invalid server response' };
+                                });
+                            }).then(function (data) {
+                                if (data && data.success) {
+                                    window.location.href = data.redirect || '/';
+                                    return;
+                                }
+
+                                var msg = (data && data.message) ? data.message : 'Invalid email or password';
+                                if (loginError) {
+                                    loginError.textContent = msg;
+                                    loginError.style.display = 'block';
+                                } else {
+                                    alert(msg);
+                                }
+                            }).catch(function (err) {
+                                if (loginError) {
+                                    loginError.textContent = 'Network error. Please try again.';
+                                    loginError.style.display = 'block';
+                                }
+                            }).finally(function () {
+                                if (btnEl) btnEl.disabled = false;
+                            });
+                        } catch (ex) {
+                            // In case of any unexpected error, fall back to default submit
+                            console.error('Login submit handler error', ex);
+                        }
+                    });
+                }
+
+                // Role-select button wiring (optional) — guarded to avoid exceptions if the element doesn't exist
+                var select = document.getElementById('role-select');
+                var roleBtn = document.getElementById('role-continue');
+
+                if (select) {
+                    function updateButton() {
+                        if (!roleBtn) return;
+                        var val = select.value;
+                        if (val) {
+                            roleBtn.removeAttribute('aria-disabled');
+                            roleBtn.classList.remove('disabled');
+                            roleBtn.href = val;
+                        } else {
+                            roleBtn.setAttribute('aria-disabled', 'true');
+                            roleBtn.classList.add('disabled');
+                            roleBtn.href = '#';
+                        }
+                    }
+
+                    select.addEventListener('change', updateButton);
+                    select.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' && select.value) {
+                            window.location.href = select.value;
+                        }
                     });
 
-                    fillAndSubmitBtn.addEventListener('click', function () {
-                        if (mainLogin) mainLogin.value = demoEmail.value;
-                        if (mainPassword) mainPassword.value = demoPassword.value;
-                        if (mainForm) mainForm.submit();
+                    // initialize safely
+                    try { updateButton(); } catch (e) { /* ignore */ }
+                }
+
+                // Wire up inline form demo fill button
+                var fillDemo = document.getElementById('fillDemo');
+                if (fillDemo) {
+                    fillDemo.addEventListener('click', function () {
+                        var inlineLogin = document.getElementById('inline_login');
+                        var inlinePassword = document.getElementById('inline_password');
+                        if (inlineLogin) inlineLogin.value = 'admin@ecocycle.com';
+                        if (inlinePassword) inlinePassword.value = 'admin123';
                     });
-                })();
-            </script>
-        </div>
+                }
+
+                // AJAX submit: prevents full page reload on invalid credentials
+                var form = document.querySelector('form.content-body');
+                var loginError = document.getElementById('loginError');
+                // If server-side error was flashed, show it inline
+                <?php if ($error): ?>
+                    if (loginError) {
+                        loginError.textContent = <?= json_encode($error) ?>;
+                        loginError.style.display = 'block';
+                    }
+                <?php endif; ?>
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        e.preventDefault();
+
+                        var btn = document.getElementById('loginSubmit');
+                        btn.disabled = true;
+                        loginError.style.display = 'none';
+
+                        var formData = new FormData(form);
+
+                        // Send via fetch
+                        fetch(form.action || '/login', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        }).then(function (resp) {
+                            return resp.json().catch(function () { return { success: false, message: 'Invalid server response' }; });
+                        }).then(function (data) {
+                            if (data && data.success) {
+                                // Redirect to provided URL or reload
+                                window.location.href = data.redirect || '/';
+                                return;
+                            }
+
+                            var msg = (data && data.message) ? data.message : 'Invalid email or password';
+                            loginError.textContent = msg;
+                            loginError.style.display = 'block';
+                        }).catch(function (err) {
+                            loginError.textContent = 'Network error. Please try again.';
+                            loginError.style.display = 'block';
+                        }).finally(function () {
+                            btn.disabled = false;
+                        });
+                    });
+                }
+            })();
+        </script>
     </div>
 </section>

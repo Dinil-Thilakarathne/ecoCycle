@@ -77,10 +77,31 @@ class AuthController extends BaseController
             session()->put('user_email', $userData['email']);
             session()->put('user_role', $userData['role']);
 
+            // Determine dashboard URL for JSON response if requested
+            $dashboards = config('auth.dashboards', []);
+            $redirectUrl = $dashboards[$userData['role']] ?? '/dashboard';
+
+            if ($request->expectsJson() || $request->isAjax()) {
+                return \Core\Http\Response::json([
+                    'success' => true,
+                    'message' => 'Authenticated',
+                    'redirect' => $redirectUrl
+                ]);
+            }
+
             return dashboard_redirect($userData);
         }
 
-        return $this->view('auth/login', ['error' => 'Invalid email or password']);
+        // On failure: preserve the submitted login value and show an error message.
+        // Use session flash so old() helper works and message survives the redirect for non-AJAX.
+        session()->flash('old', ['login' => $login]);
+        session()->flash('error', 'Invalid email or password');
+
+        if ($request->expectsJson() || $request->isAjax()) {
+            return \Core\Http\Response::errorJson('Invalid email or password', 422);
+        }
+
+        return redirect('/login');
     }
 
     /**
