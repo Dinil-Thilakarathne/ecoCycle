@@ -455,26 +455,44 @@
    ============================================ */
 .auth-login-page {
   --_role-grid-max-width: 90rem;
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
+  background-color: var(--color-teal-500);
+  padding: var(--space-12) var(--space-16);
 }
 
-.auth-login-page .container {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-@media screen and (min-width: 900px) {
-  .auth-login-page .container {
-    grid-template-columns: 1fr 1fr 1fr;
+@media screen and (min-width: 1024px) {
+  .auth-login-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-.auth-login-page .login-role-grid {
-  display: grid;
-  gap: var(--space-8);
-  grid-template-columns: 1fr;
+.auth-login-page .login-content {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--space-8);
+  background-color: var(--neutral-0);
+  height: 100%;
+  border-radius: var(--rounded-2xl);
+  align-items: start;
+  justify-content: center;
+}
+
+.login-content {
+  & .content-top {
+    h1 {
+      font-size: var(--text-5xl);
+      font-weight: var(--font-weight-semibold);
+    }
+  }
+
+  & .content-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
 }
 
 .auth-login-page .login-card {
