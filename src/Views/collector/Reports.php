@@ -266,27 +266,27 @@ const wasteChart = new Chart(ctx, {
             {
                 label: 'Organic',
                 data: [400, 450, 300, 500, 550, 480],
-                backgroundColor: 'rgba(76, 175, 80, 0.7)'
+                backgroundColor: ' #9c27b0'
             },
             {
                 label: 'Glass',
                 data: [200, 220, 180, 250, 270, 230],
-                backgroundColor: 'rgba(33, 150, 243, 0.7)'
+                backgroundColor:' #008000'
             },
             {
                 label: 'Paper',
                 data: [300, 350, 280, 400, 420, 390],
-                backgroundColor: 'rgba(255, 193, 7, 0.7)'
+                backgroundColor: '#008000'
             },
             {
                 label: 'Metal',
                 data: [150, 180, 120, 200, 210, 170],
-                backgroundColor: 'rgba(158, 158, 158, 0.7)'
+                backgroundColor: '#ffa500'
             },
             {
                 label: 'Plastic',
                 data: [250, 300, 220, 350, 370, 310],
-                backgroundColor: 'rgba(244, 67, 54, 0.7)'
+                backgroundColor: '#0000ff'
             }
         ]
     },
