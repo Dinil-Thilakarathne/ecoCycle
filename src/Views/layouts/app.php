@@ -36,7 +36,11 @@
     <!-- Additional head content -->
     <?= $headContent ?? '' ?>
 
-    <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
+    <?php // Avoid calling methods on url() object; instead check the error status when available
+    if (!isset($status) || (int) $status !== 404): ?>
+        <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 </head>
