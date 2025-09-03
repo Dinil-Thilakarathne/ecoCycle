@@ -5,9 +5,17 @@
         <div class="dashboard-page">
             <!-- Page Header -->
             <div class="page-header">
-                <div class="header-content">
-                   
-                    <h1>Welcome back, John!</h1>
+                <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
+                    <?php
+                    if (isset($_SESSION['profile']['profile_pic'])) {
+                        $profilePic = $_SESSION['profile']['profile_pic'];
+                    } else {
+                        $profilePic = 'default.png';
+                    }
+                    $firstName = isset($_SESSION['profile']['firstName']) ? $_SESSION['profile']['firstName'] : 'Customer';
+                    ?>
+                    <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
+                    <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
                 </div>
             </div>
 
