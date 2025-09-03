@@ -221,7 +221,16 @@ class Application
         $route = $this->router->match($request->getPath(), $request->getMethod());
 
         if (!$route) {
-            return new Response('Not Found', 404);
+            // Render the custom 404 error view so users see the friendly page
+            try {
+                // Render using the main app layout so the error page includes site chrome
+                $resp = view('errors/404', ['message' => 'The requested page was not found.'], 'layouts/app');
+                $resp->setStatusCode(404);
+                return $resp;
+            } catch (\Exception $e) {
+                // Fallback to plain response if view rendering fails
+                return new Response('Not Found', 404);
+            }
         }
 
         return $this->executeRoute($route, $request);

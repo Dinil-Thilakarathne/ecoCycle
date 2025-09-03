@@ -267,16 +267,17 @@ if (!function_exists('view')) {
      * 
      * @param string $view
      * @param array $data
+     * @param string|null $layout Optional layout path under src/Views (e.g. 'layouts/app')
      * @return Core\Http\Response
      */
-    function view(string $view, array $data = []): Core\Http\Response
+    function view(string $view, array $data = [], ?string $layout = null): Core\Http\Response
     {
         $response = app('response');
 
         // Extract data for view
         extract($data);
 
-        // Start output buffering
+        // Start output buffering for the view content
         ob_start();
 
         // Include the view file
@@ -291,8 +292,24 @@ if (!function_exists('view')) {
         // Get the rendered content
         $content = ob_get_clean();
 
-        // Set the response content
-        $response->setContent($content);
+        // If a layout is requested, render the layout with $content available
+        if ($layout) {
+            ob_start();
+            $layoutPath = app()->basePath() . "/src/Views/{$layout}.php";
+            if (file_exists($layoutPath)) {
+                // $content is in scope for the layout file
+                include $layoutPath;
+                $final = ob_get_clean();
+            } else {
+                // Layout missing — fall back to raw content
+                $final = $content;
+            }
+
+            $response->setContent($final);
+        } else {
+            $response->setContent($content);
+        }
+
         $response->setHeader('Content-Type', 'text/html');
 
         return $response;
