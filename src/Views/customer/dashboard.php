@@ -36,8 +36,8 @@
                 ],
                 [
                     'title' => 'Total Earnings',
-                    'value' => '$127.50',
-                    'icon' => 'fa-solid fa-dollar-sign',
+                    'value' => 'Rs 127.50',
+                    'icon' => 'fa-solid fa-money-bill-wave',
                     'subtitle' => 'This month',
                 ],
                 [
@@ -116,7 +116,7 @@
                                 <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Mike Johnson</td>
                                 <td class="earnings-cell" style="text-align:right;">
-                                    <span class="earnings-amount">$45.50</span>
+                                    <span class="earnings-amount">Rs 45.50</span>
                                 </td>
                                 <td style="text-align:center;">
                                     <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
@@ -147,7 +147,7 @@
                                 <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Sarah Wilson</td>
                                 <td class="earnings-cell" style="text-align:right;">
-                                    <span class="earnings-amount">$82.00</span>
+                                    <span class="earnings-amount">Rs 82.00</span>
                                 </td>
                                 <td style="text-align:center;">
                                     <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>

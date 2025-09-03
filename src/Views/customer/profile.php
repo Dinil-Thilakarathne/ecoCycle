@@ -60,12 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveProfile'])) {
     $errors[] = "Email must contain '@'.";
   }
   // Phone validation: only digits, length 10
-  if (!preg_match('/^\d{10}$/', $phone)) {
-    $errors[] = "Phone number must be exactly 10 digits.";
+  // Phone validation: must start with 0, only digits, length 10
+  if (!preg_match('/^0\d{9}$/', $phone)) {
+    $errors[] = "Phone number must start with 0 and be exactly 10 digits.";
   }
-  // Postal code: only digits
-  if (!ctype_digit($postalCode)) {
-    $errors[] = "Postal code must be numeric.";
+  // Postal code: only digits, max 5 digits
+  if (!preg_match('/^\d{1,5}$/', $postalCode)) {
+    $errors[] = "Postal code must be numeric and up to 5 digits.";
   }
 
   if (empty($errors)) {
@@ -146,43 +147,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updatePassword'])) {
 
     <!-- Profile Info Card -->
     <div class="card" style="padding: 2rem 2.5rem; max-width: 600px; width: 100%;">
-      <form method="POST">
+      <form method="POST" id="profileForm">
         <h2 class="section-title" style="margin-bottom: 2rem;">Personal Information</h2>
         <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; margin-bottom: 2rem;">
           <div class="form-group">
             <label for="firstName">First Name</label>
-            <input type="text" id="firstName" name="firstName" value="<?= $profile['firstName'] ?>" required>
+            <input type="text" id="firstName" name="firstName" value="<?= $profile['firstName'] ?>" required disabled>
           </div>
           <div class="form-group">
             <label for="lastName">Last Name</label>
-            <input type="text" id="lastName" name="lastName" value="<?= $profile['lastName'] ?>" required>
+            <input type="text" id="lastName" name="lastName" value="<?= $profile['lastName'] ?>" required disabled>
           </div>
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" value="<?= $profile['email'] ?>" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+">
+            <input type="email" id="email" name="email" value="<?= $profile['email'] ?>" required pattern="[^@\s]+@[^@\s]+\.[^@\s]+" disabled>
           </div>
           <div class="form-group">
             <label for="phone">Phone</label>
-            <input type="text" id="phone" name="phone" value="<?= $profile['phone'] ?>" required pattern="\d{10}" maxlength="10" title="Phone number must be exactly 10 digits">
+            <input type="text" id="phone" name="phone" value="<?= $profile['phone'] ?>" required pattern="0\d{9}" maxlength="10" title="Phone number must start with 0 and be exactly 10 digits" disabled>
           </div>
           <div class="form-group" style="grid-column: span 2;">
             <label for="address">Address</label>
-            <input type="text" id="address" name="address" value="<?= $profile['address'] ?>" required>
+            <input type="text" id="address" name="address" value="<?= $profile['address'] ?>" required disabled>
           </div>
           <div class="form-group">
             <label for="postalCode">Postal Code</label>
-            <input type="text" id="postalCode" name="postalCode" value="<?= $profile['postalCode'] ?>" required pattern="\d+" title="Postal code must be numeric">
+            <input type="text" id="postalCode" name="postalCode" value="<?= $profile['postalCode'] ?>" required pattern="\d{1,5}" maxlength="5" title="Postal code must be numeric and up to 5 digits" disabled>
           </div>
           <div class="form-group">
             <label for="bankAccount">Bank Account</label>
-            <input type="text" id="bankAccount" name="bankAccount" value="<?= $profile['bankAccount'] ?>" required>
+            <input type="text" id="bankAccount" name="bankAccount" value="<?= $profile['bankAccount'] ?>" required disabled>
           </div>
         </div>
         <div class="action-buttons" style="display: flex; gap: 1rem; justify-content: flex-end;">
-          <button class="btn btn-primary" type="submit" name="saveProfile">Save Changes</button>
+          <button class="btn btn-primary" type="button" id="editBtn">Edit</button>
+          <button class="btn btn-primary" type="submit" name="saveProfile" id="saveBtn" style="display:none;">Save Changes</button>
           <button type="button" class="btn btn-outline" onclick="openModal()">Change Password</button>
         </div>
       </form>
+      <script>
+        const editBtn = document.getElementById('editBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const form = document.getElementById('profileForm');
+        const inputs = form.querySelectorAll('input');
+        editBtn.addEventListener('click', function() {
+          inputs.forEach(input => input.disabled = false);
+          editBtn.style.display = 'none';
+          saveBtn.style.display = 'inline-block';
+        });
+        form.addEventListener('submit', function() {
+          // Do not disable fields before submit, let PHP handle update
+          // After submit, page reloads and disables fields again
+        });
+      </script>
     </div>
   </div>
 </div>

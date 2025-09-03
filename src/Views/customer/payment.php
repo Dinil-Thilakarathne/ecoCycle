@@ -82,7 +82,7 @@ function formatDate($date) {
 }
 
 function formatCurrency($amount) {
-    return '$' . number_format($amount, 2);
+    return 'Rs ' . number_format($amount, 2);
 }
 ?>
 
@@ -106,7 +106,7 @@ function formatCurrency($amount) {
                 <div class="feature-card">
                     <div class="feature-card__header">
                         <h3 class="feature-card__title">Total Paid</h3>
-                        <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
+                        <div class="feature-card__icon"><i class="fa-solid fa-money-bill-wave"></i></div>
                     </div>
                     <p class="feature-card__body">
                         <?= formatCurrency(array_sum(array_column($invoice_history, 'amount'))) ?>
@@ -178,7 +178,7 @@ function formatCurrency($amount) {
                         <input type="radio" name="plan" value="basic" id="basic">
                         <label for="basic" class="plan-label">
                             <h3>Basic Plan</h3>
-                            <p class="plan-price">$19.99/month</p>
+                            <p class="plan-price">Rs 1,999/month</p>
                             <p>Essential waste management features</p>
                         </label>
                     </div>
@@ -186,7 +186,7 @@ function formatCurrency($amount) {
                         <input type="radio" name="plan" value="premium" id="premium" checked>
                         <label for="premium" class="plan-label">
                             <h3>Premium Plan</h3>
-                            <p class="plan-price">$29.99/month</p>
+                            <p class="plan-price">Rs 2,999/month</p>
                             <p>All features + priority support</p>
                         </label>
                     </div>
