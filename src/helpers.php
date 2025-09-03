@@ -557,3 +557,68 @@ if (!function_exists('dummy_data')) {
         return $data[$key] ?? null;
     }
 }
+
+// logout the user -> need to redirect to the login page with removing all cache data
+if (!function_exists('logout')) {
+    /**
+     * Logout the current user
+     * 
+     * @return Core\Http\Response
+     */
+    function logout(): Core\Http\Response
+    {
+        $session = session();
+
+        // Best-effort server-side session cleanup. The session manager in this app
+        // may implement clear(), destroy(), regenerateToken(). Call whichever
+        // exist to avoid fatal errors on different session implementations.
+        if (is_object($session)) {
+            if (method_exists($session, 'clear')) {
+                $session->clear();
+            }
+
+            if (method_exists($session, 'destroy')) {
+                // Some session managers provide a destroy method
+                $session->destroy();
+            }
+
+            if (method_exists($session, 'regenerateToken')) {
+                $session->regenerateToken();
+            }
+        }
+
+        // Also attempt native PHP session cleanup in case session manager wraps PHP
+        if (PHP_SAPI !== 'cli') {
+            // If PHP session is active, clear and destroy it
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                // Clear $_SESSION array
+                $_SESSION = [];
+
+                // Destroy session data on server
+                @session_destroy();
+
+                // Remove session cookie from client
+                $sessionName = session_name();
+                if (!empty($sessionName) && ini_get('session.use_cookies')) {
+                    $params = session_get_cookie_params();
+                    setcookie(
+                        $sessionName,
+                        '',
+                        time() - 42000,
+                        $params['path'] ?? '/',
+                        $params['domain'] ?? '',
+                        $params['secure'] ?? false,
+                        $params['httponly'] ?? true
+                    );
+                }
+            }
+        }
+
+        // Prevent caching of authenticated pages
+        $response = redirect('/login');
+        $response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->setHeader('Pragma', 'no-cache');
+
+        return $response;
+    }
+}

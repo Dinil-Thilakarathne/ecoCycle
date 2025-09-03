@@ -109,8 +109,8 @@ class AuthController extends BaseController
      */
     public function logout(): Response
     {
-        session()->destroy();
-        return redirect('/login');
+        // Use the global helper which performs a full session cleanup and redirect
+        return \logout();
     }
 
     /**
