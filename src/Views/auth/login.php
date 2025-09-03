@@ -35,6 +35,11 @@ $oldLogin = old('login', '');
             <form-input label="Password" name="password" required type="password"
                 placeholder="Your password"></form-input>
 
+            <p id="loginError" role="status" aria-live="polite" style="color:var(--danger);"
+                class=" <?= $error ? "visible" : "" ?>">
+                <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
+            </p>
+
             <!-- Fallback for no-JS / component load failure: include native inputs so POST always contains fields -->
             <noscript>
                 <div style="display:none;">
@@ -46,12 +51,15 @@ $oldLogin = old('login', '');
 
             <div style="display:flex; gap:.5rem; margin-top:var(--space-2); width: 100%; flex-direction:column;">
                 <button id="loginSubmit" type="submit" class="btn btn-gradient login-card__action">Sign in</button>
-                <div id="loginError" role="status" aria-live="polite" style="color:var(--danger);"
-                    class=" <?= $error ? "visible" : "" ?>">
-                    <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
+                <div class="forget-password">
+                    <a href="/forgot-password">Forgot your password?</a>
                 </div>
             </div>
         </form>
+
+        <div class="content-footer">
+            <a href="/register" class="btn btn-outline signup-btn">Sign up</a>
+        </div>
 
         <script>
             (function () {
