@@ -4,14 +4,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--neutral-50), var(--neutral-100));
+  background: linear-gradient(135deg, var(--neutral-100), var(--neutral-200));
   padding: 4rem 1.5rem;
   color: var(--neutral-900);
 }
 
 .page-404__card {
   border-radius: var(--rounded-3xl, 1.5rem);
-  /* box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.18); */
   padding: 3.5rem 2.5rem;
   max-width: 70rem;
   width: 100%;
@@ -23,6 +22,10 @@
   line-height: 1.02;
   margin: 0 0 1rem;
   color: var(--neutral-900);
+
+  @media screen and (min-width: 1024px) {
+    font-size: calc(var(--text-9xl) * 1.5);
+  }
 }
 
 .page-404__message {
@@ -44,17 +47,6 @@
   border-radius: var(--rounded-2xl);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
-}
-
-.btn-outline {
-  border: 1px solid var(--neutral-300);
-  background: transparent;
-  color: var(--neutral-900);
-}
-
-.btn-gradient {
-  background: linear-gradient(135deg, var(--primary), var(--color-teal-500));
-  color: var(--neutral-0);
 }
 
 @media (min-width: 768px) {
