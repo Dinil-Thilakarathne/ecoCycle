@@ -83,7 +83,7 @@ function getStatusBadge($status)
                                         <td><?= htmlspecialchars($customer['email']) ?></td>
                                         <td><?= htmlspecialchars($customer['phone']) ?></td>
                                         <td><?= htmlspecialchars($customer['totalPickups']) ?></td>
-                                        <td>$<?= number_format($customer['totalEarnings'], 2) ?></td>
+                                        <td>Rs <?= number_format($customer['totalEarnings'], 2) ?></td>
                                         <td><?= getStatusBadge($customer['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
