@@ -45,8 +45,8 @@ class NavigationConfig
                 ['title' => 'Dashboard', 'url' => '/customer', 'icon' => 'home', 'description' => 'Your dashboard overview'],
                 ['title' => 'Pickup Request', 'url' => '/customer/pickup', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
                 ['title' => 'Payment', 'url' => '/customer/payment', 'icon' => 'history', 'description' => 'do payment'],
-                ['title' => 'notification', 'url' => '/customer/notification', 'icon' => 'gift', 'description' => 'See notifications'],
-                ['title' => 'report', 'url' => '/customer/analytics', 'icon' => 'book', 'description' => 'see progress'],
+                ['title' => 'notification', 'url' => '/customer/notification', 'icon' => 'bell', 'description' => 'See notifications'],
+                ['title' => 'report', 'url' => '/customer/report', 'icon' => 'book', 'description' => 'see progress'],
                 ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'collector' => [
