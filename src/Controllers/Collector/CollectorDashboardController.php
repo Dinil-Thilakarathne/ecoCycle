@@ -42,7 +42,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Pickup assignments
      */
-   public function dailytask(): Response
+    public function tasks(): Response
     {
         $data = [
             'pageTitle' => 'Pickup Assignments',
@@ -51,56 +51,57 @@ class CollectorDashboardController extends DashboardController
             'pickupFilters' => $this->getPickupFilters()
         ];
 
-        return $this->renderDashboard('dailytask', $data);
+        return $this->renderDashboard('tasks', $data);
     }
 
     /**
      * Route optimization
      */
- /*  public function history(): Response
-    {
-        $data = [
-            'pageTitle' => 'Pickup History',
-            'optimizedRoute' => $this->getOptimizedRoute(),
-            'routeHistory' => $this->getRouteHistory(),
-            'routeStats' => $this->getRouteStats()
-        ];
+    /*  public function history(): Response
+       public function history(): Response
+       {
+           $data = [
+               'pageTitle' => 'Pickup History',
+               'optimizedRoute' => $this->getOptimizedRoute(),
+               'routeHistory' => $this->getRouteHistory(),
+               'routeStats' => $this->getRouteStats()
+           ];
 
-        return $this->renderDashboard('history', $data);
-    }*/
+           return $this->renderDashboard('history', $data);
+       }*/
 
     /**
      * Earnings and payments
      */
-   /* public function earnings(): Response
-    {
-        $data = [
-            'pageTitle' => 'Earnings & Payments',
-            'dailyEarnings' => $this->getDailyEarnings(),
-            'monthlyEarnings' => $this->getMonthlyEarnings(),
-            'paymentHistory' => $this->getPaymentHistory(),
-            'pendingPayments' => $this->getPendingPayments()
-        ];
+    /* public function earnings(): Response
+     {
+         $data = [
+             'pageTitle' => 'Earnings & Payments',
+             'dailyEarnings' => $this->getDailyEarnings(),
+             'monthlyEarnings' => $this->getMonthlyEarnings(),
+             'paymentHistory' => $this->getPaymentHistory(),
+             'pendingPayments' => $this->getPendingPayments()
+         ];
 
-        return $this->renderDashboard('earnings', $data);
-    }
-*/
+         return $this->renderDashboard('earnings', $data);
+     }
+ */
     /**
      * Collection reporting
      */
-    public function reports(): Response
+    public function analytics(): Response
     {
         $data = [
-            'pageTitle' => 'Collection Reports',
+            'pageTitle' => 'Collection Analytics',
             'collectionStats' => $this->getCollectionStats(),
             'weightReports' => $this->getWeightReports(),
             'materialBreakdown' => $this->getMaterialBreakdown()
         ];
 
-        return $this->renderDashboard('reports', $data);
+        return $this->renderDashboard('analytics', $data);
     }
 
-     public function notification(): Response
+    public function notification(): Response
     {
         $data = [
             'pageTitle' => 'Notifications',
@@ -114,9 +115,9 @@ class CollectorDashboardController extends DashboardController
 
 
 
-    
 
-     public function setting(): Response
+
+    public function setting(): Response
     {
         $data = [
             'pageTitle' => 'Collection Setting',
@@ -125,7 +126,7 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('setting', $data);
     }
 
-    
+
     /**
      * Profile and vehicle info
      */

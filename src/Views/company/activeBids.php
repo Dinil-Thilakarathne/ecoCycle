@@ -20,10 +20,10 @@
         </select>
 
         <label>Bid for 1kg of waste</label>
-        <input type="number" name="bid_amount" step="0.01" required placeholder="Enter bid amount">
+        <input type="number" name="bid_amount" step="100" required placeholder="Enter bid amount" min="1000">
 
         <label>Waste Amount (kg)</label>
-        <input type="number" name="waste_amount" required placeholder="Enter waste amount">
+        <input type="number" name="waste_amount" step="1" required placeholder="Enter waste amount" min="1">
 
         <button type="submit">Place Bid</button>
       </form>

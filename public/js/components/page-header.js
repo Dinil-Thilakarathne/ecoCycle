@@ -58,9 +58,8 @@ class PageHeader extends HTMLElement {
       this._els.desc.textContent = descAttr;
       this._els.desc.style.display = "";
     } else {
-      // Hide description if not provided
-      this._els.desc.textContent = "";
-      this._els.desc.style.display = "none";
+      // remove description if not provided
+      this._els.desc.remove();
     }
   }
 }

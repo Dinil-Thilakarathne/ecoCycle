@@ -460,19 +460,21 @@
   justify-content: center;
 }
 
-.auth-login-page .min-container {
-  max-width: var(--_role-grid-max-width);
+.auth-login-page .container {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media screen and (min-width: 900px) {
+  .auth-login-page .container {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 .auth-login-page .login-role-grid {
   display: grid;
   gap: var(--space-8);
   grid-template-columns: 1fr;
-}
-@media (min-width: 640px) {
-  .auth-login-page .login-role-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 .auth-login-page .login-card {
