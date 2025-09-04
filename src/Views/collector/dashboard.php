@@ -43,16 +43,6 @@
     </div>
   </div>
 
-  <div class="feature-card">
-    <div class="feature-card__header">
-      <div class="feature-card__title">Today's Earnings</div>
-      <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
-    </div>
-    <div class="feature-card__body">Rs.5,550.37</div>
-    <div class="feature-card__footer">
-      <span class="desc">total earned</span>
-    </div>
-  </div>
 
   <div class="feature-card">
     <div class="feature-card__header">
@@ -192,7 +182,6 @@
     </div>
   </div>
 
->>>>>>> f9651922a0d93533dc00c856362b1e0c05de9926
 <!-- 🆕 Bidding Section -->
 <div class="bottom-card">
   <h3>Bidding Amount Summary</h3>
