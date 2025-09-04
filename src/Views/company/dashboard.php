@@ -2,12 +2,11 @@
 
 // Sample data (replace with database queries in real implementation)
 $availableWaste = [
-  ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-box'],
+  ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-bottle-water'],
   ['title' => 'Paper', 'value' => '1,800 kg', 'icon' => 'fa-solid fa-paper-plane'],
-  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-recycle'],
+  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-box'],
   ['title' => 'Glass', 'value' => '1,200 kg', 'icon' => 'fa-solid fa-wine-bottle'],
-  ['title' => 'Polythene', 'value' => '1500 kg', 'icon' => 'fa-solid fa-bag-shopping'],
-  ['title' => 'E waste', 'value' => '3000 kg', 'icon' => 'fa-solid fa-tv']
+  ['title' => 'Organic', 'value' => '1500 kg', 'icon' => 'fa-solid fa-leaf'],
 
 ];
 
@@ -19,15 +18,6 @@ $bids = [
     ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
     ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
 ];
-
-$notifications = [
-  "Your bid on Lot #234 was successful!" => "2 minutes ago",
-  "Payment received for Purchase ID #PUR001" => "15 minutes ago",
-  "New waste lot available: Plastic Bottles in District B"=> "1 hour ago",
-  "System maintenance scheduled for 25th Aug, 2 AM - 4 AM" => "Yesterday"
-];
-
-$recentNotifications = array_slice($notifications, 0, 3, true);
 
 ?>
 
@@ -77,32 +67,6 @@ $recentNotifications = array_slice($notifications, 0, 3, true);
               status="<?= $safeStatus ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
-      </div>
-
-      <!-- Notifications -->
-      <div class="c-dashboard-card">
-        <h3>Profile & Notifications</h3>
-        <div class="profile-box">
-          <p><strong>EcoWaste Company</strong></p>
-          <a href="http://localhost:8000/company/profile">View Profile</a>
-        </div>
-
-        <ul class="notifications">
-          <?php foreach ($recentNotifications as $note => $time): ?>
-              <li>
-                  <?php echo $note; ?> 
-                  <span class="time"><?php echo $time; ?></span>
-              </li>
-          <?php endforeach; ?>
-        </ul>
-
-        <!-- See More link -->
-        <a href="http://localhost:8000/company/notification" class="see-more">See more...</a>
-
-        <div class="feedback">
-          <input type="text" placeholder="Send Feedback">
-          <button>Send</button>
-        </div>
       </div>
     </div>
   </section>
