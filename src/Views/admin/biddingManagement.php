@@ -126,8 +126,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 </td>
                                 <td>
                                     <div class="cell-with-icon">
-                                        <i class="fa-solid fa-dollar-sign"></i>
-                                        Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
+                                         Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
                                     </div>
                                 </td>
                                 <td><?= htmlspecialchars($round['biddingCompany']) ?></td>

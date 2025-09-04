@@ -59,10 +59,6 @@ $router->get('/routes/validate', function () {
 $router->get('/legacy', 'HomeController@index');
 $router->get('/legacy/about', 'HomeController@about');
 
-$router->get('/example', 'ExampleController@index');
-$router->post('/example', 'ExampleController@store');
-$router->get('/example/{id}', 'ExampleController@show');
-
 
 // New page routes with correct paths
 
