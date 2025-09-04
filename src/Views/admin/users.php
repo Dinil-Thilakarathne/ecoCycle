@@ -1,125 +1,9 @@
 <?php
-// Sample user data (in a real application, this would come from your database/models)
-$customers = [
-    [
-        'id' => 'C001',
-        'name' => 'Alice Johnson',
-        'email' => 'alice@email.com',
-        'phone' => '+1234567890',
-        'address' => '123 Green St, Eco City',
-        'status' => 'active',
-        'totalPickups' => 15,
-        'totalEarnings' => 125.50,
-    ],
-    [
-        'id' => 'C002',
-        'name' => 'Bob Smith',
-        'email' => 'bob@email.com',
-        'phone' => '+1234567891',
-        'address' => '456 Recycle Ave, Green Town',
-        'status' => 'active',
-        'totalPickups' => 8,
-        'totalEarnings' => 67.25,
-    ],
-    [
-        'id' => 'C003',
-        'name' => 'Carol Davis',
-        'email' => 'carol@email.com',
-        'phone' => '+1234567892',
-        'address' => '789 Eco Blvd, Sustainable City',
-        'status' => 'suspended',
-        'totalPickups' => 22,
-        'totalEarnings' => 180.75,
-    ],
-    [
-        'id' => 'C004',
-        'name' => 'David Wilson',
-        'email' => 'david@email.com',
-        'phone' => '+1234567893',
-        'address' => '321 Green Ave, Eco Valley',
-        'status' => 'pending',
-        'totalPickups' => 0,
-        'totalEarnings' => 0.00,
-    ],
-];
-
-$companies = [
-    [
-        'id' => 'CO001',
-        'name' => 'GreenTech Co.',
-        'email' => 'contact@greentech.com',
-        'phone' => '+1234567892',
-        'status' => 'active',
-        'totalBids' => 45,
-        'totalPurchases' => 32,
-    ],
-    [
-        'id' => 'CO002',
-        'name' => 'EcoRecycle Ltd.',
-        'email' => 'info@ecorecycle.com',
-        'phone' => '+1234567893',
-        'status' => 'pending',
-        'totalBids' => 12,
-        'totalPurchases' => 0,
-    ],
-    [
-        'id' => 'CO003',
-        'name' => 'WasteWorks Inc.',
-        'email' => 'admin@wasteworks.com',
-        'phone' => '+1234567894',
-        'status' => 'active',
-        'totalBids' => 28,
-        'totalPurchases' => 19,
-    ],
-    [
-        'id' => 'CO004',
-        'name' => 'RecyclePro Solutions',
-        'email' => 'hello@recyclepro.com',
-        'phone' => '+1234567895',
-        'status' => 'suspended',
-        'totalBids' => 15,
-        'totalPurchases' => 8,
-    ],
-];
-
-$collectors = [
-    [
-        'id' => 'COL001',
-        'name' => 'Mike Wilson',
-        'email' => 'mike@company.com',
-        'phone' => '+1234567894',
-        'vehicleId' => 'VH001',
-        'status' => 'active',
-        'todayPickups' => 6,
-    ],
-    [
-        'id' => 'COL002',
-        'name' => 'Sarah Brown',
-        'email' => 'sarah@company.com',
-        'phone' => '+1234567895',
-        'vehicleId' => 'VH002',
-        'status' => 'offline',
-        'todayPickups' => 0,
-    ],
-    [
-        'id' => 'COL003',
-        'name' => 'Tom Garcia',
-        'email' => 'tom@company.com',
-        'phone' => '+1234567896',
-        'vehicleId' => 'VH003',
-        'status' => 'active',
-        'todayPickups' => 4,
-    ],
-    [
-        'id' => 'COL004',
-        'name' => 'Lisa Martinez',
-        'email' => 'lisa@company.com',
-        'phone' => '+1234567897',
-        'vehicleId' => 'VH004',
-        'status' => 'pending',
-        'todayPickups' => 0,
-    ],
-];
+// Centralized dummy data
+$dummy = require base_path('config/dummy.php');
+$customers = $dummy['customers'];
+$companies = $dummy['companies'];
+$collectors = $dummy['collectors'];
 
 // Helper function for status badges
 function getStatusBadge($status)
@@ -266,7 +150,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                         <td><?= htmlspecialchars($customer['email']) ?></td>
                                         <td><?= htmlspecialchars($customer['phone']) ?></td>
                                         <td><?= htmlspecialchars($customer['totalPickups']) ?></td>
-                                        <td>$<?= number_format($customer['totalEarnings'], 2) ?></td>
+                                        <td>Rs <?= number_format($customer['totalEarnings'], 2) ?></td>
                                         <td><?= getStatusBadge($customer['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">

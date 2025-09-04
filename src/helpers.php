@@ -24,6 +24,47 @@ if (!function_exists('dd')) {
     }
 }
 
+if (!function_exists('material_min_bid')) {
+    /**
+     * Get minimum bid for a material/category
+     *
+     * @param string $type Material key (plastic, paper, metal, glass, organic)
+     * @param mixed $default Default value if not set
+     * @return float
+     */
+    function material_min_bid(string $type, $default = 0): float
+    {
+        return (float) \Core\Config::get("data.minimum_bids.{$type}", $default);
+    }
+}
+
+if (!function_exists('material_color')) {
+    /**
+     * Get hex color for a material/category
+     *
+     * @param string $type Material key
+     * @param string $default Default hex color
+     * @return string
+     */
+    function material_color(string $type, string $default = '#000000'): string
+    {
+        return (string) \Core\Config::get("data.material_colors.{$type}", $default);
+    }
+}
+
+if (!function_exists('format_rs')) {
+    /**
+     * Format a number as Rupees currency string
+     *
+     * @param float|int $amount
+     * @return string
+     */
+    function format_rs($amount): string
+    {
+        return 'Rs. ' . number_format((float) $amount, 2);
+    }
+}
+
 if (!function_exists('dump')) {
     /**
      * Dump variable - for debugging
@@ -60,15 +101,15 @@ if (!function_exists('app')) {
 
 if (!function_exists('config')) {
     /**
-     * Get configuration value
-     * 
+     * Get configuration value (static access to avoid container recursion)
+     *
      * @param string $key
      * @param mixed $default
      * @return mixed
      */
     function config(string $key, $default = null)
     {
-        return app('config')->get($key, $default);
+        return \Core\Config::get($key, $default);
     }
 }
 
@@ -86,43 +127,7 @@ if (!function_exists('env')) {
     }
 }
 
-if (!function_exists('response')) {
-    /**
-     * Create a response instance (Next.js style)
-     * 
-     * @return \Core\Http\Response
-     */
-    function response()
-    {
-        return new class {
-            public function json($data, $status = 200)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Content-Type', 'application/json');
-                $response->setContent(json_encode($data, JSON_PRETTY_PRINT));
-                return $response;
-            }
-
-            public function html($content, $status = 200)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Content-Type', 'text/html');
-                $response->setContent($content);
-                return $response;
-            }
-
-            public function redirect($url, $status = 302)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Location', $url);
-                return $response;
-            }
-        };
-    }
-}
+// ...existing code... (removed duplicate anonymous response() helper)
 
 if (!function_exists('base_path')) {
     /**
@@ -176,8 +181,8 @@ if (!function_exists('response')) {
     function response(string $content = '', int $status = 200, array $headers = []): Core\Http\Response
     {
         $response = app('response');
-        $response->setBody($content);
-        $response->setStatus($status);
+        $response->setContent($content);
+        $response->setStatusCode($status);
 
         foreach ($headers as $key => $value) {
             $response->setHeader($key, $value);
@@ -278,8 +283,8 @@ if (!function_exists('view')) {
         // Get the rendered content
         $content = ob_get_clean();
 
-        // Set the response body
-        $response->setBody($content);
+        // Set the response content
+        $response->setContent($content);
         $response->setHeader('Content-Type', 'text/html');
 
         return $response;
@@ -380,11 +385,11 @@ if (!function_exists('abort')) {
     function abort(int $code = 404, string $message = ''): void
     {
         $response = app('response');
-        $response->setStatus($code);
-        $response->setBody($message ?: "Error $code");
+        $response->setStatusCode($code);
+        $response->setContent($message ?: "Error $code");
 
         // Send response and exit
-        echo $response->getBody();
+        echo $response->getContent();
         exit($code);
     }
 }
@@ -506,5 +511,41 @@ if (!function_exists('listRoutes')) {
     function listRoutes(): array
     {
         return \EcoCycle\Core\Navigation\RouteConfig::getAllDashboardRoutes();
+    }
+}
+
+if (!function_exists('getWasteCategories')) {
+    /**
+     * Get waste categories
+     * 
+     * @return array
+     */
+    function getWasteCategories(): array
+    {
+        return \Core\Config::get('data.wasteCategories', []);
+    }
+}
+
+// Dummy data accessors (centralized)
+if (!function_exists('dummy_data')) {
+    /**
+     * Retrieve a segment of dummy data (development only)
+     * @param string|null $key
+     * @return mixed
+     */
+    function dummy_data(?string $key = null)
+    {
+        static $data = null;
+        if ($data === null) {
+            $path = base_path('config/dummy.php');
+            if (file_exists($path)) {
+                $data = require $path;
+            } else {
+                $data = [];
+            }
+        }
+        if ($key === null)
+            return $data;
+        return $data[$key] ?? null;
     }
 }

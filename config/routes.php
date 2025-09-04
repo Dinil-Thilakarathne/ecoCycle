@@ -59,10 +59,6 @@ $router->get('/routes/validate', function () {
 $router->get('/legacy', 'HomeController@index');
 $router->get('/legacy/about', 'HomeController@about');
 
-$router->get('/example', 'ExampleController@index');
-$router->post('/example', 'ExampleController@store');
-$router->get('/example/{id}', 'ExampleController@show');
-
 
 // New page routes with correct paths
 
@@ -117,3 +113,33 @@ $router->get('/diagnostic', function () {
 
     return response()->setContent($content)->setHeader('Content-Type', 'text/html');
 });
+
+// Simple development test routes (GET + POST)
+$testHandler = function () {
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    $body = file_get_contents('php://input');
+    $parsedBody = null;
+
+    if (!empty($body)) {
+        $json = json_decode($body, true);
+        $parsedBody = json_last_error() === JSON_ERROR_NONE ? $json : $body;
+    }
+
+    return response()->json([
+        'status' => 'ok',
+        'route' => '/dev/test',
+        'method' => $method,
+        'query' => $_GET,
+        'body' => $parsedBody
+    ]);
+};
+
+$router->get('/dev/test', function () {
+    ob_start();
+    include base_path('public/dev_test.php');
+    $content = ob_get_clean();
+
+    return response()->setContent($content)->setHeader('Content-Type', 'text/html');
+});
+
+$router->post('/dev/test', $testHandler);
