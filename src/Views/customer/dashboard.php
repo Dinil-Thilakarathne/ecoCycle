@@ -5,9 +5,17 @@
         <div class="dashboard-page">
             <!-- Page Header -->
             <div class="page-header">
-                <div class="header-content">
-                   
-                    <h1>Welcome back, John!</h1>
+                <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
+                    <?php
+                    if (isset($_SESSION['profile']['profile_pic'])) {
+                        $profilePic = $_SESSION['profile']['profile_pic'];
+                    } else {
+                        $profilePic = 'default.png';
+                    }
+                    $firstName = isset($_SESSION['profile']['firstName']) ? $_SESSION['profile']['firstName'] : 'Customer';
+                    ?>
+                    <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
+                    <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
                 </div>
             </div>
 
@@ -28,8 +36,8 @@
                 ],
                 [
                     'title' => 'Total Earnings',
-                    'value' => '$127.50',
-                    'icon' => 'fa-solid fa-dollar-sign',
+                    'value' => 'Rs 127.50',
+                    'icon' => 'fa-solid fa-money-bill-wave',
                     'subtitle' => 'This month',
                 ],
                 [
@@ -108,7 +116,7 @@
                                 <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Mike Johnson</td>
                                 <td class="earnings-cell" style="text-align:right;">
-                                    <span class="earnings-amount">$45.50</span>
+                                    <span class="earnings-amount">Rs 45.50</span>
                                 </td>
                                 <td style="text-align:center;">
                                     <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
@@ -139,7 +147,7 @@
                                 <td style="text-align:center;"><span class="status-badge completed">Completed</span></td>
                                 <td>Sarah Wilson</td>
                                 <td class="earnings-cell" style="text-align:right;">
-                                    <span class="earnings-amount">$82.00</span>
+                                    <span class="earnings-amount">Rs 82.00</span>
                                 </td>
                                 <td style="text-align:center;">
                                     <button class="btn btn-outline btn-sm" style="min-width:110px;">View Details</button>
