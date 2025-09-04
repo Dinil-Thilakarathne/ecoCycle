@@ -330,16 +330,16 @@ const wasteChart = new Chart(ctx, {
         <div class="activity-card__header">
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-comments" style="margin-right: 8px;"></i>
-                Collector Feedback Reports
+                Collector Feedback Report
             </h3>
-            <p class="activity-card__description">Recent reports and feedback on collectors</p>
+            <p class="activity-card__description">Recent reports and feedbacks</p>
         </div>
         <div class="activity-card__content">
             <div style="overflow-x: auto;">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th><i class="fa-solid fa-user"></i> Collector</th>
+                            <th><i class="fa-solid fa-user"></i> Costomer</th>
                             <th><i class="fa-solid fa-calendar-day"></i> Date</th>
                             <th><i class="fa-solid fa-message"></i> Feedback</th>
                             <th><i class="fa-solid fa-star"></i> Rating</th>

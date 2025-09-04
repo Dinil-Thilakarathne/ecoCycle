@@ -70,7 +70,6 @@
         <div class="task-meta"><i class="fa-solid fa-location-dot"></i> 123 Oak Street · Plastic · 15kg</div>
       </div>
       <div class="task-right">
-        <span class="amount">Rs.1,000.00</span>
       </div>
     </div>
 
@@ -80,7 +79,6 @@
         <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 789 Elm Road · Metal · 8kg</span>
       </div>
       <div class="task-right">
-        <span class="amount">Rs.800.00</span>
         <span>Start</span>
       </div>
     </div>
@@ -91,7 +89,6 @@
         <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 321 Maple Street · Glass · 12kg</span>
       </div>
       <div class="task-right">
-        <span class="amount">Rs.650.00</span>
         <span>Start</span>
       </div>
     </div>
@@ -180,6 +177,16 @@
         <div class="progress" style="width: 15%; background-color: <?php echo material_color('paper'); ?>;"></div>
       </div>
     </div>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Organic</span>
+        <span class="goal-status">60kg (60%)</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress" style="width: 60%; background-color: <?php echo material_color('organic'); ?>;"></div>
+      </div>
+    </div>
   </div>
 
 <!-- 🆕 Bidding Section -->
@@ -216,6 +223,14 @@
         <span>Paper</span>
         <span class="goal-status" style="color: <?php echo material_color('paper'); ?>;">
           <?php echo format_rs(material_min_bid('paper')); ?></span>
+      </div>
+    </div>
+
+    <div class="goal">
+      <div class="goal-header">
+        <span>Organic</span>
+        <span class="goal-status" style="color: <?php echo material_color('organic'); ?>;">
+          <?php echo format_rs(material_min_bid('organic')); ?></span>
       </div>
     </div>
   </div>
