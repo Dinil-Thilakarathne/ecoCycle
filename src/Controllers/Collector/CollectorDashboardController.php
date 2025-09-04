@@ -57,7 +57,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Earnings and payments
      */
-    public function earnings(): Response
+   /* public function earnings(): Response
     {
         $data = [
             'pageTitle' => 'Earnings & Payments',
@@ -68,7 +68,7 @@ class CollectorDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('earnings', $data);
-    }
+    }*/
 
     /**
      * Collection reporting

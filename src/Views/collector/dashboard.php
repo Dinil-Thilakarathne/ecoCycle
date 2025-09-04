@@ -184,8 +184,8 @@
 
 <!-- 🆕 Bidding Section -->
 <div class="bottom-card">
-  <h3>Bidding Amount Summary</h3>
-  <p>Current highest bids for each material</p>
+  <h3>Bidding Amount Summary </h3>
+  <p>Current highest bids for each material for 1 kg</p>
 
     <div class="goal">
       <div class="goal-header">

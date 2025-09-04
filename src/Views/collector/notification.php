@@ -100,33 +100,33 @@
 // Recent notifications data (in a real application, this would come from your database/models)
 $recentNotifications = [
     [
-        'id' => 'NOT001',
+       'id' => 'NOT001',
         'type' => 'system',
-        'title' => 'System Maintenance Scheduled',
-        'message' => 'Scheduled maintenance on Jan 20, 2024 from 2:00 AM to 4:00 AM',
+        'title' => 'Salary Credited',
+        'message' => 'Salary Credited! Your salary of Rs.25,000 has been deposited.',
         'timestamp' => '2024-01-15 10:30:00',
-        'status' => 'sent',
+       'status' => 'sent',
         'recipients' => 'All Users'
     ],
-    [
-        'id' => 'NOT002',
+   [
+      'id' => 'NOT002',
         'type' => 'alert',
-        'title' => 'High Bid Activity',
-        'message' => 'Unusual bidding activity detected for Lot #1234',
+        'title' => 'Payment Update',
+        'message' => 'Your monthly salary has been successfully credited to your account.',
         'timestamp' => '2024-01-15 09:15:00',
-        'status' => 'sent',
+       'status' => 'sent',
         'recipients' => 'Administrators'
     ],
     [
-        'id' => 'NOT003',
+      'id' => 'NOT003',
         'type' => 'info',
-        'title' => 'New Company Registration',
-        'message' => 'EcoRecycle Ltd. has registered and is pending approval',
+        'title' => 'Reminder!',
+        'message' => 'Your journey has commenced. Proceed to your assigned route.',
         'timestamp' => '2024-01-15 08:45:00',
-        'status' => 'sent',
+      'status' => 'sent',
         'recipients' => 'Administrators'
     ],
-    [
+/*    [
         'id' => 'NOT004',
         'type' => 'maintenance',
         'title' => 'Vehicle Maintenance Due',
@@ -143,7 +143,7 @@ $recentNotifications = [
         'timestamp' => '2024-01-15 07:30:00',
         'status' => 'failed',
         'recipients' => 'Finance Team'
-    ]
+    ]*/
 ];
 ?>
 <!-- Recent Notifications Card -->
@@ -166,7 +166,7 @@ $recentNotifications = [
                         <h4 class="font-medium" style="margin: 0;">
                             <?= htmlspecialchars($notification['title']) ?>
                         </h4>
-                        <?= getStatusTag($notification['status']) ?>
+                      <!--  <?= getStatusTag($notification['status']) ?>-->
                     </div>
 
                     <!-- Message -->
@@ -177,7 +177,7 @@ $recentNotifications = [
                     <!-- Footer with recipient and timestamp -->
                     <div
                         style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--neutral-500);">
-                        <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
+                       <!-- <span>To: <?= htmlspecialchars($notification['recipients']) ?></span> -->
                         <span><?= htmlspecialchars($notification['timestamp']) ?></span>
                     </div>
                 </div>
