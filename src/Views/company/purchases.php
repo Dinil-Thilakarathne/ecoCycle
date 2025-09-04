@@ -30,11 +30,7 @@ $acceptedPurchases = [
 $purchaseSummary = [
     "total" => "Rs.3,250",
     "active_orders" => 8,
-    "completed" => 15,
-    "recent" => [
-        ["msg" => "Payment processed", "detail" => "Metal Cans - Rs.600"],
-        ["msg" => "Pickup scheduled", "detail" => "Plastic Bottles - Jan 20"]
-    ]
+    "completed" => 15
 ];
 
 $purchaseHistory = [
@@ -78,14 +74,6 @@ $purchaseHistory = [
                 <div class="summary-box">
                     <div class="box blue"><?= $purchaseSummary['active_orders'] ?> <span>Active Orders</span></div>
                     <div class="box purple"><?= $purchaseSummary['completed'] ?> <span>Completed</span></div>
-                </div>
-                <div>
-                <h3>Recent Activity</h3>
-                <ul class = "activity-list">
-                    <?php foreach($purchaseSummary['recent'] as $act): ?>
-                        <li><?= $act['msg'] ?> - <?= $act['detail'] ?></li>
-                    <?php endforeach; ?>
-                </ul>
                 </div>
             </div>
         </div>

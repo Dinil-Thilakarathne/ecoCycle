@@ -1,3 +1,36 @@
+<?php
+$biddingHistory = [
+                            [
+                                'id' => 'BID003',
+                                'type' => 'Plastic',
+                                'quantity' => '2,500 kg',
+                                'location' => 'District A',
+                                'amount' => 'Rs.1,250',
+                                'status' => 'Active',
+                                'date' => '2025-07-15'
+                            ],
+                            [
+                                'id' => 'BID002',
+                                'type' => 'Paper',
+                                'quantity' => '1,800 kg',
+                                'location' => 'District B',
+                                'amount' => 'Rs.900',
+                                'status' => 'Won',
+                                'date' => '2025-07-12'
+                            ],
+                            [
+                                'id' => 'BID001',
+                                'type' => 'Organic',
+                                'quantity' => '1,200 kg',
+                                'location' => 'District C',
+                                'amount' => 'Rs.600',
+                                'status' => 'Rejected',
+                                'date' => '2025-07-10'
+                            ],
+
+                        ];
+?>
+
 <main class="content">
     <header class="page-header">
         <div class="page-header__content">
@@ -13,47 +46,21 @@
         <label>Waste Type</label>
         <select name="waste_type" required>
           <option value="">Select waste type…</option>
-          <option value="Plastic Bottles">Plastic Bottles</option>
-          <option value="Paper & Cardboard">Paper & Cardboard</option>
+          <option value="Plastic">Plastic</option>
+          <option value="Paper">Paper</option>
           <option value="metal">Metal</option>
           <option value="glass">Glass</option>
+          <option value="Organic">Organic</option>
         </select>
 
         <label>Bid for 1kg of waste</label>
-        <input type="number" name="bid_amount" step="100" required placeholder="Enter bid amount" min="1000">
+        <input type="number" name="bid_amount" step="10" required placeholder="Enter bid amount" min="500" max="5000" required>
 
         <label>Waste Amount (kg)</label>
-        <input type="number" name="waste_amount" step="1" required placeholder="Enter waste amount" min="1">
+        <input type="number" name="waste_amount" step="1" required placeholder="Enter waste amount" min="10" max="10000" required>
 
         <button type="submit">Place Bid</button>
       </form>
-
-      <div class ="available-waste">
-        <div class="waste-lots">
-          <h2 style="font-size: 20px; font-weight: bold;">Available Waste Lots</h2>
-          <div class="lot-header">
-              <span class="waste-type">Plastic Bottles</span>
-              <span class="status available">Available</span>
-          </div>
-          <div class="lot-details">
-              <p><strong>Location:</strong>District B</p>
-              <p><strong>Quantity:</strong> 2,500 kg</p>
-              <p><strong>Current Bid:</strong>Rs.125/kg</p>
-          </div>
-        </div>
-
-        <div class="waste-lots">
-              <div class="lot-header">
-                  <span class="waste-type">Paper & Cardboard</span>
-                  <span class="status available">Available</span>
-              </div>
-              <div class="lot-details">
-                  <p><strong>Location:</strong> District A</p>
-                  <p><strong>Quantity:</strong> 1,800 kg</p>
-                  <p><strong>Current Bid:</strong> Rs.50/kg</p>
-              </div>
-        </div>
-      </div>  
     </div>
     
     <!-- Bidding History -->
@@ -75,27 +82,6 @@
                     </thead>
                     <tbody>
                         <?php
-                        // Sample PHP data fro database
-                        $biddingHistory = [
-                            [
-                                'id' => 'BID001',
-                                'type' => 'Plastic Bottles',
-                                'quantity' => '2,500 kg',
-                                'location' => 'District A',
-                                'amount' => 'Rs.1,250',
-                                'status' => 'Active',
-                                'date' => '2024-01-15'
-                            ],
-                            [
-                                'id' => 'BID002',
-                                'type' => 'Paper & Cardboard',
-                                'quantity' => '1,800 kg',
-                                'location' => 'District B',
-                                'amount' => 'Rs.900',
-                                'status' => 'Won',
-                                'date' => '2024-01-12'
-                            ]
-                        ];
                         
                         foreach ($biddingHistory as $bid) {
                             echo "<tr>

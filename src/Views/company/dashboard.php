@@ -25,7 +25,7 @@ $bids = [
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
-            <h2 class="page-header__title">Welcome back!</h2>
+            <h2 class="page-header__title">Welcome back, EcoWaste!</h2>
             <p class="page-header__description">Here is your latest update on your Dashboard</p>
     </div>
   </header>
@@ -67,6 +67,13 @@ $bids = [
               status="<?= $safeStatus ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
+      </div>
+      <div class="c-dashboard-card">
+        <h3>Send Feedback</h3>
+        <div class="feedback">
+          <input type="text" placeholder="Send Feedback">
+          <button>Send</button>
+        </div>
       </div>
     </div>
   </section>
