@@ -1,3 +1,18 @@
+<?php function getStatusTag($status)
+{
+    switch ($status) {
+        case 'completed':
+            return '<div class="tag completed">Completed</div>';
+        case 'pending':
+            return '<div class="tag pending">Pending</div>';
+        case 'failed':
+            return '<div class="tag danger">Failed</div>';
+        default:
+            return '<div class="tag secondary">' . htmlspecialchars($status) . '</div>';
+    }
+}
+?>
+
 <h2>Notifications <span style="color:#777; font-size:14px;">3</span></h2>
 <p class="subtitle">Stay updated with your tasks and alerts</p>
 
@@ -131,42 +146,42 @@ $recentNotifications = [
     ]
 ];
 ?>
- <!-- Recent Notifications Card -->
-        <div class="activity-card">
-            <div class="activity-card__header">
-                <h3 class="activity-card__title">
-                    <i class="fa-solid fa-bell" style="margin-right: var(--space-2);"></i>
-                    Recent Notifications
-                </h3>
-                <p class="activity-card__description">Recently sent notifications and their status</p>
-            </div>
-            <div class="activity-card__content">
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <?php foreach ($recentNotifications as $notification): ?>
-                        <div
-                            style="border: 1px solid var(--neutral-200); border-radius: var(--radius-md); padding: var(--space-4);">
-                            <!-- Header with title and status -->
-                            <div
-                                style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-2);">
-                                <h4 class="font-medium" style="margin: 0;">
-                                    <?= htmlspecialchars($notification['title']) ?>
-                                </h4>
-                                <?= getStatusTag($notification['status']) ?>
-                            </div>
-
-                            <!-- Message -->
-                            <p style="font-size: var(--text-sm); color: var(--neutral-600); margin-bottom: var(--space-2);">
-                                <?= htmlspecialchars($notification['message']) ?>
-                            </p>
-
-                            <!-- Footer with recipient and timestamp -->
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--neutral-500);">
-                                <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
-                                <span><?= htmlspecialchars($notification['timestamp']) ?></span>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+<!-- Recent Notifications Card -->
+<div class="activity-card">
+    <div class="activity-card__header">
+        <h3 class="activity-card__title">
+            <i class="fa-solid fa-bell" style="margin-right: var(--space-2);"></i>
+            Recent Notifications
+        </h3>
+        <p class="activity-card__description">Recently sent notifications and their status</p>
+    </div>
+    <div class="activity-card__content">
+        <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+            <?php foreach ($recentNotifications as $notification): ?>
+                <div
+                    style="border: 1px solid var(--neutral-200); border-radius: var(--radius-md); padding: var(--space-4);">
+                    <!-- Header with title and status -->
+                    <div
+                        style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-2);">
+                        <h4 class="font-medium" style="margin: 0;">
+                            <?= htmlspecialchars($notification['title']) ?>
+                        </h4>
+                        <?= getStatusTag($notification['status']) ?>
                     </div>
+
+                    <!-- Message -->
+                    <p style="font-size: var(--text-sm); color: var(--neutral-600); margin-bottom: var(--space-2);">
+                        <?= htmlspecialchars($notification['message']) ?>
+                    </p>
+
+                    <!-- Footer with recipient and timestamp -->
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--neutral-500);">
+                        <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
+                        <span><?= htmlspecialchars($notification['timestamp']) ?></span>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
