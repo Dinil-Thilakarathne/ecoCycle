@@ -94,16 +94,16 @@ class CustomerDashboardController extends DashboardController
     /**
      * Education center
      */
-    public function report(): Response
+    public function analytics(): Response
     {
         $data = [
-            'pageTitle' => 'Report',
+            'pageTitle' => 'Analytics',
             'articles' => $this->getEducationalArticles(),
             'tips' => $this->getRecyclingTips(),
             'videos' => $this->getEducationalVideos()
         ];
 
-        return $this->renderDashboard('report', $data);
+        return $this->renderDashboard('analytics', $data);
     }
 
     protected function getNavigationItems(): array
