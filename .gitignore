@@ -55,3 +55,5 @@ vendor
 .reload-signal
 
 /docs
+
+dev_test.php

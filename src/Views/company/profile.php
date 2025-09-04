@@ -1,14 +1,14 @@
 <?php
 // Example: Profile data (usually from DB)
 $company = [
-    "name" => "EcoCycle Company",
+    "name" => "EcoWaste Company",
     "type" => "Waste Management",
     "reg_number" => "REG-2023-001234",
     "description" => "Leading waste management company specializing in recyclable materials collection and processing.",
-    "email" => "contact@ecocycle.com",
+    "email" => "contact@ecowaste.com",
     "phone" => "011 2256845",
-    "website" => "www.ecocycle.com",
-    "address" => "123 Green Street, Eco District, Environmental City, EC 12345",
+    "website" => "www.ecowaste.com",
+    "address" => "123 Green Street, ABC District, XY City",
     "verification" => [
         "Email Verified" => true,
         "Phone Verified" => true,
@@ -66,10 +66,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       <div class="pc-card">
         <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
         <div class="form-group"><label>Email</label>
-          <input type="text" value="<?= htmlspecialchars($company['email']) ?>" disabled>
+          <input type="email" value="<?= htmlspecialchars($company['email']) ?>" disabled>
         </div>
         <div class="form-group"><label>Phone</label>
-          <input type="text" value="<?= htmlspecialchars($company['phone']) ?>" disabled>
+          <input type="tel" value="<?= htmlspecialchars($company['phone']) ?>" disabled>
         </div>
         <div class="form-group"><label>Website</label>
           <input type="text" value="<?= htmlspecialchars($company['website']) ?>" disabled>
@@ -108,7 +108,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
-    <h2>Edit Profile</h2>
+    <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
     <form method="POST">
       <div class="form-group"><label class="form-lable">Name</label>
         <input type="text" name="name" value="<?= htmlspecialchars($company['name']) ?>"></div>
@@ -118,10 +118,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <input type="text" name="reg_number" value="<?= htmlspecialchars($company['reg_number']) ?>"></div>
       <div class="form-group"><label class="form-lable">Description</label>
         <textarea name="description"><?= htmlspecialchars($company['description']) ?></textarea></div>
-      <div class="form-group"><label class="form-lable">Email</label>
+      <div class="form-group"><label for="email" class="form-lable">Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($company['email']) ?>"></div>
-      <div class="form-group"><label class="form-lable">Phone</label>
-        <input type="text" name="phone" value="<?= htmlspecialchars($company['phone']) ?>"></div>
+      <div class="form-group"><label for="phone" class="form-lable">Phone</label>
+        <input type="tel" pattern="[0-9]{10}" maxlength="10" name="phone" value="<?= htmlspecialchars($company['phone']) ?>"></div>
       <div class="form-group"><label class="form-lable">Website</label>
         <input type="text" name="website" value="<?= htmlspecialchars($company['website']) ?>"></div>
       <div class="form-group"><label class="form-lable">Address</label>

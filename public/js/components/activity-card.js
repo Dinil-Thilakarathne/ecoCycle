@@ -11,6 +11,15 @@ class ActivityCard extends HTMLElement {
     if (!this._init) {
       this._renderSkeleton();
       this._init = true;
+      // If 'unwrap' attribute present, render once then replace this custom element with inner markup
+      if (this.hasAttribute("unwrap")) {
+        this._render();
+        const innerRoot = this.firstElementChild; // .feature-card div
+        if (innerRoot) {
+          this.replaceWith(innerRoot);
+        }
+        return; // Stop further lifecycle (no dynamic updates post-unwrap)
+      }
     }
     this._render();
   }
@@ -39,9 +48,44 @@ class ActivityCard extends HTMLElement {
     // Re-append preserved children into the items container
     preservedChildren.forEach((node) => this._els.items.appendChild(node));
   }
+  // ...existing code...
   _render() {
-    this._els.title.textContent = this.getAttribute("title") || "";
-    this._els.desc.textContent = this.getAttribute("description") || "";
+    const titleAttr = (this.getAttribute("title") || "").trim();
+    const descAttr = (this.getAttribute("description") || "").trim();
+
+    // Current element refs from skeleton (may become null after removal)
+    let titleEl = this._els.title;
+    let descEl = this._els.desc;
+    const headerEl = this.querySelector(".activity-card__header");
+
+    // Update / remove title
+    if (titleAttr) {
+      if (titleEl) titleEl.textContent = titleAttr;
+    } else if (titleEl) {
+      titleEl.remove();
+      this._els.title = null;
+      titleEl = null;
+    }
+
+    // Update / remove description
+    if (descAttr) {
+      if (descEl) descEl.textContent = descAttr;
+    } else if (descEl) {
+      descEl.remove();
+      this._els.desc = null;
+      descEl = null;
+    }
+
+    // Remove header if both absent
+    if (headerEl && !titleAttr && !descAttr) {
+      headerEl.remove();
+    }
+
+    // Optionally remove empty items container (kept from your previous logic)
+    if (this._els.items && this._els.items.childNodes.length === 0) {
+      this._els.items.remove();
+      this._els.items = null;
+    }
   }
 }
 if (!customElements.get("activity-card"))

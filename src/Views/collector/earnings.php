@@ -37,9 +37,9 @@
   </div>
 
   <!-- Bottom Section -->
-  <div class="bottom-container">
+  <div class="bottom-container.wide-card" >
     <!-- Collection Details -->
-    <div class="bottom-card">
+    <div class="bottom-card" >
       <h3>Collection Details</h3>
       <p>Latest pickups and earnings</p>
       <table>
@@ -81,8 +81,10 @@
         </tbody>
       </table>
     </div>
+</div>
 
     <!-- Goals -->
+     <div class="bottom-container">
     <div class="bottom-card">
       <h3>Goals</h3>
       <p>Track your earnings and weight targets</p>
@@ -107,10 +109,9 @@
         <div class="goal-footer">190kg of 245kg collected</div>
       </div>
     </div>
-  </div>
 
   <!-- Reports Section -->
-  <div class="reports-card">
+   <div class="bottom-card">
     <h3>Reports</h3>
     <p>View your performance over time</p>
     <div class="tabs">
@@ -118,20 +119,8 @@
       <div class="tab">Weekly</div>
       <div class="tab">Monthly</div>
     </div>
-    <div class="report-summary">
-      <div class="report-item">
-        <h4>Rs. 12,500</h4>
-        <span>Earnings</span>
-      </div>
-      <div class="report-item">
-        <h4>245 kg</h4>
-        <span>Total Weight</span>
-      </div>
-      <div class="report-item">
-        <h4>15</h4>
-        <span>Collections</span>
-      </div>
     </div>
   </div>
+</div>
 </body>
 </html>

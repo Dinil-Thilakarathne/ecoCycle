@@ -46,20 +46,20 @@ class NavigationConfig
                 ['title' => 'Pickup Request', 'url' => '/customer/pickup', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
                 ['title' => 'Payment', 'url' => '/customer/payment', 'icon' => 'history', 'description' => 'do payment'],
                 ['title' => 'notification', 'url' => '/customer/notification', 'icon' => 'gift', 'description' => 'See notifications'],
-                ['title' => 'report', 'url' => '/customer/report', 'icon' => 'book', 'description' => 'see progress'],
+                ['title' => 'report', 'url' => '/customer/analytics', 'icon' => 'book', 'description' => 'see progress'],
                 ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'collector' => [
                 ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'tachometer-alt', 'description' => 'Collector dashboard'],
-                ['title' => 'Daily Tasks', 'url' => '/collector/dailytask' , 'icon'=> 'truck', 'description' => 'Manage pickups'],
+                ['title' => 'Daily Tasks', 'url' => '/collector/tasks', 'icon' => 'truck', 'description' => 'Manage pickups'],
                 ['title' => 'Pickup History', 'url' => '/collector/history', 'icon' => 'history', 'description' => 'View History'],
                 ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],
-                ['title' => 'Reports', 'url' => '/collector/reports', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
+                ['title' => 'Reports', 'url' => '/collector/analytics', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
             'company' => [
                 // Matches: src/Views/company/dashboard.php -> route: /company (index)
-                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'tachometer-alt', 'description' => 'Company dashboard overview'],
+                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'chart-column', 'description' => 'Company dashboard overview'],
                 // Matches: src/Views/company/activeBids.php -> route: /company/activeBids
                 ['title' => 'Active Bids', 'url' => '/company/activeBids', 'icon' => 'gavel', 'description' => 'View and manage active bids'],
                 // Matches: src/Views/company/purchases.php -> route: /company/purchases
