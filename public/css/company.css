@@ -595,6 +595,19 @@ span.verified{
 span.unverified{
   color: var(--warning);
 }
+
+.profile-picture {
+    margin-bottom: 15px;
+}
+
+.profile-picture img {
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+}
+
 /* Modal */
 .form-modal { 
   display: none;

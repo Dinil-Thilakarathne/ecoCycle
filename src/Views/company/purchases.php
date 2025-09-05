@@ -29,8 +29,8 @@ $acceptedPurchases = [
 
 $purchaseSummary = [
     "total" => "Rs.3,250",
-    "active_orders" => 8,
-    "completed" => 15
+    "active_orders" => 2,
+    "completed" => 1
 ];
 
 $purchaseHistory = [

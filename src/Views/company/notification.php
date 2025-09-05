@@ -1,8 +1,8 @@
 <?php
 // Example: notifications with read/unread status
 $notifications = [
-    ["id" => 1, "text" => "Your bid on Lot #234 was successful!", "time" => "2 minutes ago", "status" => "unread"],
-    ["id" => 2, "text" => "Payment received for Purchase ID #PUR001", "time" => "15 minutes ago", "status" => "unread"],
+    ["id" => 1, "text" => "Your bid on Lot metal 1000kg was successful!", "time" => "2 minutes ago", "status" => "unread"],
+    ["id" => 2, "text" => "Payment received for Purchase ID PUR001", "time" => "15 minutes ago", "status" => "unread"],
     ["id" => 3, "text" => "New waste lot available: Plastic Bottles in District B", "time" => "1 hour ago", "status" => "read"],
     ["id" => 4, "text" => "System maintenance scheduled for 25th Aug, 2 AM - 4 AM", "time" => "Yesterday", "status" => "read"],
     ["id" => 5, "text" => "Your company profile was verified successfully.", "time" => "2 days ago", "status" => "read"]
@@ -12,7 +12,7 @@ $notifications = [
 $moreNotifications = [
     ["id" => 6, "text" => "Reminder: Pickup scheduled for tomorrow.", "time" => "3 days ago", "status" => "unread"],
     ["id" => 7, "text" => "Collector completed pickup #PK789.", "time" => "4 days ago", "status" => "read"],
-    ["id" => 8, "text" => "Bid placed on Lot #300.", "time" => "5 days ago", "status" => "read"]
+    ["id" => 8, "text" => "Bid placed on Lot glass 500kg.", "time" => "5 days ago", "status" => "read"]
 ];
 ?>
 

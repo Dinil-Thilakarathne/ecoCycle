@@ -1,34 +1,20 @@
 <?php
 $biddingHistory = [
-                            [
-                                'id' => 'BID003',
-                                'type' => 'Plastic',
-                                'quantity' => '2,500 kg',
-                                'location' => 'District A',
-                                'amount' => 'Rs.1,250',
-                                'status' => 'Active',
-                                'date' => '2025-07-15'
-                            ],
-                            [
-                                'id' => 'BID002',
-                                'type' => 'Paper',
-                                'quantity' => '1,800 kg',
-                                'location' => 'District B',
-                                'amount' => 'Rs.900',
-                                'status' => 'Won',
-                                'date' => '2025-07-12'
-                            ],
-                            [
-                                'id' => 'BID001',
-                                'type' => 'Organic',
-                                'quantity' => '1,200 kg',
-                                'location' => 'District C',
-                                'amount' => 'Rs.600',
-                                'status' => 'Rejected',
-                                'date' => '2025-07-10'
-                            ],
+                            ['id' => 'BID001', 'type' => 'Plastic', 'quantity' => '2,500 kg', 'location' => 'District A',
+                            'amount' => 'Rs.1,250', 'status' => 'Active', 'date' => '2025-07-15'],
+                            ['id' => 'BID002', 'type' => 'Paper', 'quantity' => '1,800 kg', 'location' => 'District B',
+                                'amount' => 'Rs.900', 'status' => 'Won', 'date' => '2025-07-12'],
+                            ['id' => 'BID001', 'type' => 'Organic', 'quantity' => '1,200 kg', 'location' => 'District C',
+                                'amount' => 'Rs.600', 'status' => 'Rejected', 'date' => '2025-07-10'],
 
                         ];
+
+$wasteLots = [
+    ["type" => "Plastic", "status" => "Available", "quantity" => "2,500 kg", "current_bid" => "Rs.125/kg"],
+    ["type" => "Paper", "status" => "Available", "quantity" => "1,800 kg", "current_bid" => "Rs.50/kg"],
+    ["type" => "Organic", "status" => "Available", "quantity" => "1,200 kg", "current_bid" => "Rs.100/kg"]
+];
+
 ?>
 
 <main class="content">
@@ -61,6 +47,26 @@ $biddingHistory = [
 
         <button type="submit">Place Bid</button>
       </form>
+    
+
+        <div class="available-waste">
+        <h2 style="font-size: 20px; font-weight: bold;">Available Waste Lots</h2>
+
+        <?php foreach ($wasteLots as $lot): ?>
+            <div class="waste-lots">
+                <div class="lot-header">
+                    <span class="waste-type"><?= htmlspecialchars($lot['type']) ?></span>
+                    <span class="status <?= strtolower($lot['status']) ?>">
+                        <?= htmlspecialchars($lot['status']) ?>
+                    </span>
+                </div>
+                <div class="lot-details">
+                    <p><strong>Quantity:</strong> <?= htmlspecialchars($lot['quantity']) ?></p>
+                    <p><strong>Current Bid:</strong> <?= htmlspecialchars($lot['current_bid']) ?></p>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        </div>
     </div>
     
     <!-- Bidding History -->

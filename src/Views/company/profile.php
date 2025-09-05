@@ -9,6 +9,8 @@ $company = [
     "phone" => "011 2256845",
     "website" => "www.ecowaste.com",
     "address" => "123 Green Street, ABC District, XY City",
+    "profile_picture" => "uploads/default.png", // image
+    "waste_types" => ["Plastic", "Paper", "Metal"],
     "verification" => [
         "Email Verified" => true,
         "Phone Verified" => true,
@@ -28,6 +30,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $company["phone"] = $_POST["phone"];
     $company["website"] = $_POST["website"];
     $company["address"] = $_POST["address"];
+    // Handle profile picture upload
+    if (!empty($_FILES["profile_picture"]["name"])) {
+        $targetDir = "uploads/";
+        if (!is_dir($targetDir)) mkdir($targetDir);
+        $targetFile = $targetDir . basename($_FILES["profile_picture"]["name"]);
+        move_uploaded_file($_FILES["profile_picture"]["tmp_name"], $targetFile);
+        $company["profile_picture"] = $targetFile;
+    }
+
+    // Handle waste types
+    if (isset($_POST["waste_types"])) {
+        $company["waste_types"] = array_filter(array_map("trim", explode(",", $_POST["waste_types"])));
+    }
     $showToast = true;
 }
 ?>
@@ -48,6 +63,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <div class=p-info-card>
       <div class="pc-card">
         <h3 style="font-size: 20px; font-weight: bold;">Company Information</h3>
+        <div class="profile-picture">
+                <img src="<?= htmlspecialchars($company['profile_picture']) ?>" alt="Profile Picture" width="100">
+        </div>
         <div class="form-group"><label>Name</label>
           <input type="text" value="<?= htmlspecialchars($company['name']) ?>" disabled>
         </div>
@@ -80,6 +98,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
     </div>
 
+    <!-- Waste Types -->
+    <div class="pc-card">
+        <h3>Waste Types Collected</h3>
+        <ul>
+            <?php foreach ($company['waste_types'] as $w): ?>
+                <li><?= htmlspecialchars($w) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
     <!-- Security -->
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
@@ -95,7 +123,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group"><label>Profile Picture</label>
+        <input type="file" name="profile_picture" accept="image/*">
+      </div>
       <div class="form-group"><label class="form-lable">Name</label>
         <input type="text" name="name" value="<?= htmlspecialchars($company['name']) ?>"></div>
       <div class="form-group"><label class="form-lable">Type</label>
@@ -112,6 +143,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <input type="text" name="website" value="<?= htmlspecialchars($company['website']) ?>"></div>
       <div class="form-group"><label class="form-lable">Address</label>
         <textarea name="address"><?= htmlspecialchars($company['address']) ?></textarea></div>
+      <div class="form-group"><label>Waste Types (comma-separated)</label>
+        <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(", ", $company['waste_types'])) ?>"></div>
       <button type="submit" class="p-submit">Save Changes</button>
     </form>
   </div>
