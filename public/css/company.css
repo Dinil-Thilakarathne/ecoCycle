@@ -496,6 +496,18 @@
     font-weight: bold;
 }
 
+.contact-support {
+    margin-top: 30px;
+    padding: 15px;
+    border-radius: 8px;
+    background: var(--neutral-100);
+    border: 1px ;
+}
+
+.contact-support h2 {
+    margin-bottom: 8px;
+}
+
 /*PROFILE*/
 
 .p-info-card{
@@ -608,6 +620,23 @@ span.unverified{
     object-fit: cover;
 }
 
+.waste-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.wastetag {
+    background: var(--neutral-100);
+    color: var(--neutral-800);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-block;
+}
+
 /* Modal */
 .form-modal { 
   display: none;
@@ -670,6 +699,19 @@ textarea {
   resize: vertical; 
 }
 
+.error-box {
+    background: var(--danger-light);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+.error-box ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
 /* Toast */
 .toast {
   position: fixed;
@@ -687,103 +729,102 @@ textarea {
   100% { opacity: 0; display: none; }
 }
 
-/* Layout */
+/* Notification*/
 
 .mark-read-btn {
-    background: var(--info-light);
-    color: var(--info);
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-
-/* Notifications */
-.notifications-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.notification-card {
-    background: var(--neutral-0);
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid var(--neutral-200);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-}
-
-.notification-card.unread {
-    background: var(--info-light);
-    border-left: 5px solid var(--info);
-    font-weight: bold;
-}
-
-.notification-card.read {
-    background: var(--neutral-0);
-    color: var(--neutral-800);
-}
-
-.note-text {
-    font-size: 14px;
-    margin: 0;
-}
-
-.note-time {
-    font-size: 12px;
-    color: var(--neutral-700);
-}
-
-/* Unread dot */
-.unread-dot {
-    width: 10px;
-    height: 10px;
-    background: var(--info);
-    border-radius: 50%;
-    display: inline-block;
-}
-
-/* Load More Button */
-.load-btn {
-    margin-top: 15px;
     background: var(--success-light);
     color: var(--success);
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-color: var(--success);
+    border-width: 1px;
+    border-radius: 12px;
     cursor: pointer;
+}
+
+.c-nf-filters {
+  margin-bottom: 15px;
+}
+
+.c-nf-filters .nf-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  margin-right: 5px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #333;
+  background: #fff;
+}
+
+.c-nf-filters .nf-btn.active {
+  background: var(--success);
+  color: var(--neutral-0);
+  border-color: var(--success);
+}
+
+.data-table tr.unread {
+  background: rgb(246, 252, 246);
+  font-weight: bold;
+}
+
+.btn-n-mark, .btn-n-view, .btn-n-delete {
+  padding: 5px 10px;
+  border-radius: 15px;
+  cursor: pointer;
+  margin-right: 5px;
+  text-decoration: none;
+  border-width: 1px;
+}
+
+.btn-n-mark {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.btn-n-view {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #111827;
+}
+
+.btn-n-delete {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color:var(--danger);
 }
 
 /* Modal */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.4);
+.n-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.modal-content {
-    background: var(--neutral-0);
-    margin: 10% auto;
-    padding: 20px;
-    border-radius: 8px;
-    width: 400px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+.n-modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
 }
 
-.close-btn {
-    float: right;
-    font-size: 20px;
-    cursor: pointer;
+.n-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.close-btn:hover {
-    color: var(--danger);
+
+.n-modal-close {
+  text-decoration: none;
+  font-size: 20px;
+  color: #555;
+}
+
+.n-modal-body p {
+  margin: 8px 0;
 }

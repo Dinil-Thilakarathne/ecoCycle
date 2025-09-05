@@ -2,40 +2,43 @@
 // Simulating database data
 $acceptedPurchases = [
     [
-        "type" => "Plastic Bottles",
-        "id" => "PUR001",
-        "amount" => "2,500 kg",
-        "price" => "Rs.1,250",
-        "pickup_date" => "2024-01-20",
+        "type" => "Plastic",
+        "id" => "PUR008",
+        "amount" => "500 kg",
+        "price" => "Rs.60,000",
+        "pickup_date" => "2025-08-20",
         "status" => "Confirmed"
     ],
     [
-        "type" => "Paper & Cardboard",
-        "id" => "PUR002",
+        "type" => "Paper",
+        "id" => "PUR007",
         "amount" => "1,800 kg",
-        "price" => "Rs.900",
-        "pickup_date" => "2024-01-18",
+        "price" => "Rs.20,000",
+        "pickup_date" => "2025-08-18",
         "status" => "In-Transit"
     ],
     [
-        "type" => "Metal Cans",
-        "id" => "PUR003",
+        "type" => "Metal",
+        "id" => "PUR006",
         "amount" => "1,200 kg",
-        "price" => "Rs.600",
-        "pickup_date" => "2024-01-15",
+        "price" => "Rs.15,000",
+        "pickup_date" => "2025-08-12",
         "status" => "Delivered"
     ]
 ];
 
 $purchaseSummary = [
-    "total" => "Rs.3,250",
+    "total" => "Rs.85,000",
     "active_orders" => 2,
-    "completed" => 1
+    "completed" => 6
 ];
 
 $purchaseHistory = [
-    ["id" => "PUR004", "type" => "Glass Bottles", "amount" => "800 kg", "price" => "Rs.400", "delivery_status" => "Completed", "date" => "2024-01-10"],
-    ["id" => "PUR005", "type" => "Mixed Recyclables", "amount" => "3,000 kg", "price" => "Rs.1,500", "delivery_status" => "Completed", "date" => "2024-01-05"]
+    ["id" => "PUR005", "type" => "Glass", "amount" => "1,200 kg", "price" => "Rs.20,000", "delivery_status" => "Completed", "date" => "2025-08-10"],
+    ["id" => "PUR004", "type" => "Paper", "amount" => "3,000 kg", "price" => "Rs.18,500", "delivery_status" => "Completed", "date" => "2025-08-05"],
+    ["id" => "PUR003", "type" => "Matal", "amount" => "1,000 kg", "price" => "Rs.15,000", "delivery_status" => "Completed", "date" => "2025-07-25"],
+    ["id" => "PUR002", "type" => "Organic", "amount" => "2,000 kg", "price" => "Rs.1,5000", "delivery_status" => "Completed", "date" => "2025-07-15"],
+    ["id" => "PUR001", "type" => "Glass", "amount" => "800 kg", "price" => "Rs.14,000", "delivery_status" => "Completed", "date" => "2025-07-10"]
 ];
 ?>
 
@@ -70,7 +73,7 @@ $purchaseHistory = [
             <div class="c-purchase-card">
                 <h2 style="font-size: 20px; font-weight: bold;">Purchase Summary</h2>
                 <div class="total"><?= $purchaseSummary['total'] ?></div>
-                <p>Total Purchases This Month</p>
+                <h2 style="font-size: 20px; font-weight: bold;">Total purchases</h2>
                 <div class="summary-box">
                     <div class="box blue"><?= $purchaseSummary['active_orders'] ?> <span>Active Orders</span></div>
                     <div class="box purple"><?= $purchaseSummary['completed'] ?> <span>Completed</span></div>

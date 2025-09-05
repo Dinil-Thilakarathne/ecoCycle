@@ -4,21 +4,20 @@
 $availableWaste = [
   ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-bottle-water'],
   ['title' => 'Paper', 'value' => '1,800 kg', 'icon' => 'fa-solid fa-paper-plane'],
-  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-box'],
+  ['title' => 'Metal', 'value' => '900 kg', 'icon' => 'fa-solid fa-box'],
   ['title' => 'Glass', 'value' => '1,200 kg', 'icon' => 'fa-solid fa-wine-bottle'],
-  ['title' => 'Organic', 'value' => '1500 kg', 'icon' => 'fa-solid fa-leaf'],
+  ['title' => 'Organic', 'value' => '700 kg', 'icon' => 'fa-solid fa-leaf'],
 
 ];
 
 $totalWaste = 0;
 
 $bids = [
-    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-    ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250/kg', 'status' => 'Active'],
+    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.1000/kg', 'status' => 'Active'],
+    ['title' => 'Metal', 'amount' => '900 kg', 'bid' => 'Rs.1,600/kg', 'status' => 'Pending'],
+    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.800/kg', 'status' => 'Closed']
 ];
-
 ?>
 
 <!-- Main Content -->
