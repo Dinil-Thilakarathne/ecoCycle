@@ -118,7 +118,7 @@ function getStatusBadge($status)
                                     <?php if ($request['status'] === 'pending'): ?>
                                         <div class="form-select">
                                             <select onchange="assignCollector('<?= $request['id'] ?>', this.value)"
-                                                style="width: 140px;">
+                                                style="width: 140px;" id="collector-select-<?= $request['id'] ?>">
                                                 <option value="">Assign Collector</option>
                                                 <?php foreach ($collectors as $collector): ?>
                                                     <option value="<?= htmlspecialchars($collector['id']) ?>">
@@ -128,7 +128,9 @@ function getStatusBadge($status)
                                             </select>
                                         </div>
                                     <?php else: ?>
-                                        <button class="btn btn-outline btn-sm" onclick="viewDetails('<?= $request['id'] ?>')">
+                                        <button class="btn btn-outline btn-sm"
+                                            style="border-radius: var(--rounded-md); padding: var(--space-2) var(--space-4); font-weight: var(--font-weight-normal);"
+                                            onclick="viewDetails('<?= $request['id'] ?>')">
                                             View Details
                                         </button>
                                     <?php endif; ?>
