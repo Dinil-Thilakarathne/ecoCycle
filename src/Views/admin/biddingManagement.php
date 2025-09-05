@@ -126,7 +126,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 </td>
                                 <td>
                                     <div class="cell-with-icon">
-                                         Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
+                                        Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
                                     </div>
                                 </td>
                                 <td><?= htmlspecialchars($round['biddingCompany']) ?></td>
@@ -140,16 +140,14 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 <td>
                                     <div style="display: flex; gap: 8px;">
                                         <?php if ($round['status'] === 'completed'): ?>
-                                            <button class="btn btn-primary btn-sm outline"
-                                                onclick="approveWinner('<?= $round['id'] ?>')">
+                                            <button class="tag online" onclick="approveWinner('<?= $round['id'] ?>')">
                                                 Approve
                                             </button>
-                                            <button class="btn btn-outline btn-sm" onclick="rejectBid('<?= $round['id'] ?>')">
+                                            <button class="tag danger" onclick="rejectBid('<?= $round['id'] ?>')">
                                                 Reject
                                             </button>
                                         <?php else: ?>
-                                            <button class="btn btn-outline btn-sm"
-                                                onclick="viewBiddingDetails('<?= $round['id'] ?>')">
+                                            <button class="tag" onclick="viewBiddingDetails('<?= $round['id'] ?>')">
                                                 View Details
                                             </button>
                                         <?php endif; ?>
