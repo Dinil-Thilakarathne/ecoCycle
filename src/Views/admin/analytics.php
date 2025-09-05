@@ -86,22 +86,67 @@ $avgCollectionPerDay = $totalWasteCollected > 0 ? round($totalWasteCollected / 3
             </div>
             <div class="activity-card__content">
                 <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <?php foreach ($wasteCategories as $item): ?>
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: var(--space-3);">
-                                <div
-                                    style="width: 12px; height: 12px; border-radius: 50%; background-color: <?= htmlspecialchars(material_color(lcfirst($item['category']))) ?>;">
+                    <!-- Chart: Waste Volume by Category -->
+                    <div class="pc-card" style="padding:0;">
+                        <canvas id="wasteVolumeChart" style="width:100%; max-height:360px;"></canvas>
+                    </div>
+
+                    <!-- Fallback textual list (kept for accessibility) -->
+                    <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                        <?php foreach ($wasteCategories as $item): ?>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: var(--space-3);">
+                                    <div
+                                        style="width: 12px; height: 12px; border-radius: 50%; background-color: <?= htmlspecialchars(material_color(lcfirst($item['category']))) ?>;">
+                                    </div>
+                                    <span class="font-medium"><?= htmlspecialchars($item['category']) ?></span>
                                 </div>
-                                <span class="font-medium"><?= htmlspecialchars($item['category']) ?></span>
+                                <div style="display: flex; align-items: center; gap: var(--space-2);">
+                                    <span style="font-size: var(--text-sm); color: var(--neutral-600);">
+                                        <?= number_format($item['volume']) ?> kg
+                                    </span>
+                                    <div class="tag secondary"><?= htmlspecialchars($item['percentage']) ?>%</div>
+                                </div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: var(--space-2);">
-                                <span style="font-size: var(--text-sm); color: var(--neutral-600);">
-                                    <?= number_format($item['volume']) ?> kg
-                                </span>
-                                <div class="tag secondary"><?= htmlspecialchars($item['percentage']) ?>%</div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="activity-card">
+            <div class="activity-card__header">
+                <h3 class="activity-card__title">
+                    <i class="fa-solid fa-box" style="margin-right: var(--space-2);"></i>
+                    Waste Volume by Category
+                </h3>
+                <p class="activity-card__description">Breakdown of collected waste by material type</p>
+            </div>
+            <div class="activity-card__content">
+                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <!-- Chart: Waste Volume by Category -->
+                    <div class="pc-card" style="padding:0;">
+                        <canvas id="wasteVolumeChart" style="width:100%; max-height:360px;"></canvas>
+                    </div>
+
+                    <!-- Fallback textual list (kept for accessibility) -->
+                    <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                        <?php foreach ($wasteCategories as $item): ?>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: var(--space-3);">
+                                    <div
+                                        style="width: 12px; height: 12px; border-radius: 50%; background-color: <?= htmlspecialchars(material_color(lcfirst($item['category']))) ?>;">
+                                    </div>
+                                    <span class="font-medium"><?= htmlspecialchars($item['category']) ?></span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: var(--space-2);">
+                                    <span style="font-size: var(--text-sm); color: var(--neutral-600);">
+                                        <?= number_format($item['volume']) ?> kg
+                                    </span>
+                                    <div class="tag secondary"><?= htmlspecialchars($item['percentage']) ?>%</div>
+                                </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -150,4 +195,48 @@ $avgCollectionPerDay = $totalWasteCollected > 0 ? round($totalWasteCollected / 3
         console.log('Exporting report in ' + format + ' format');
         alert('Export functionality would be implemented here for ' + format + ' format');
     }
+</script>
+
+<!-- Waste Volume Chart script -->
+<script>
+    // Prepare data from PHP
+    const wasteLabels = <?php echo json_encode(array_map(fn($i) => $i['category'], $wasteCategories)); ?>;
+    const wasteData = <?php echo json_encode(array_map(fn($i) => $i['volume'], $wasteCategories)); ?>;
+    const wasteColors = <?php echo json_encode(array_map(fn($i) => material_color(lcfirst($i['category'])), $wasteCategories)); ?>;
+
+    // Render Chart.js bar chart
+    (function renderWasteVolumeChart() {
+        const el = document.getElementById('wasteVolumeChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: wasteLabels,
+                datasets: [{
+                    label: 'Waste Volume (kg)',
+                    data: wasteData,
+                    backgroundColor: wasteColors,
+                    borderRadius: 6,
+                    barThickness: 'flex'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Kilograms (kg)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Material Type' }
+                    }
+                }
+            }
+        });
+    })();
 </script>
