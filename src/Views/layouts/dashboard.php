@@ -65,12 +65,6 @@ if (!$notificationsUrl) {
                 <i class="fa-solid fa-square-caret-left"></i>
                 <h1><?= $pageTitle ?></h1>
             </div>
-            <div class="content-header__icons">
-                <a href="<?= htmlspecialchars($notificationsUrl) ?>" class="header-icon-link">
-                    <i class="fa-solid fa-bell"></i>
-                </a>
-                <i class="fa-solid fa-gear"></i>
-            </div>
         </div>
 
         <div class="content-body">

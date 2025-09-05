@@ -107,7 +107,7 @@ $testimonials = [
                         <p>Tons recycled</p>
                     </div>
                     <div class="hero-content__bottom-card">
-                        <h3>$50K+</h3>
+                        <h3>Rs 50K+</h3>
                         <p>Paid to users</p>
                     </div>
                 </div>
@@ -225,10 +225,10 @@ $testimonials = [
             <p class="cta-section__description">Join thousands of users already earning money while helping the
                 environment.</p>
             <div class="cta-buttons">
-                <a href="/register/customer" class="btn btn-light-solid"><i class="fa-solid fa-users"></i><span>Sign up
+                <a href="/register" class="btn btn-light-solid"><i class="fa-solid fa-users"></i><span>Sign up
                         as household</span></a>
-                <a href="/register/company" class="btn btn-ghost-light"><i
-                        class="fa-solid fa-building"></i><span>Register as company</span></a>
+                <a href="/register" class="btn btn-ghost-light"><i class="fa-solid fa-building"></i><span>Register as
+                        company</span></a>
             </div>
             <p class="cta-section__note">No setup fees • Start earning immediately • Cancel anytime</p>
         </div>

@@ -1,55 +1,7 @@
 <?php
-// Payment data (in a real application, this would come from your database/models)
-$payments = [
-    [
-        'id' => 'PAY001',
-        'type' => 'payout',
-        'amount' => 125.50,
-        'recipient' => 'Alice Johnson',
-        'status' => 'completed',
-        'date' => '2024-01-15'
-    ],
-    [
-        'id' => 'PAY002',
-        'type' => 'payment',
-        'amount' => 450.00,
-        'recipient' => 'GreenTech Co.',
-        'status' => 'pending',
-        'date' => '2024-01-15'
-    ],
-    [
-        'id' => 'PAY003',
-        'type' => 'payout',
-        'amount' => 67.25,
-        'recipient' => 'Bob Smith',
-        'status' => 'completed',
-        'date' => '2024-01-14'
-    ],
-    [
-        'id' => 'PAY004',
-        'type' => 'payment',
-        'amount' => 320.00,
-        'recipient' => 'EcoWaste Solutions',
-        'status' => 'completed',
-        'date' => '2024-01-14'
-    ],
-    [
-        'id' => 'PAY005',
-        'type' => 'payment',
-        'amount' => 275.75,
-        'recipient' => 'RecycleCorp Ltd.',
-        'status' => 'completed',
-        'date' => '2024-01-13'
-    ],
-    [
-        'id' => 'PAY006',
-        'type' => 'payout',
-        'amount' => 89.30,
-        'recipient' => 'Charlie Davis',
-        'status' => 'pending',
-        'date' => '2024-01-13'
-    ],
-];
+// Centralized dummy data
+$dummy = require base_path('config/dummy.php');
+$payments = $dummy['payments'];
 
 // Calculate totals
 $totalPayouts = 0;
@@ -100,13 +52,13 @@ function getStatusTag($status)
     $paymentStatCards = [
         [
             'title' => 'Total Payouts',
-            'value' => '$' . number_format($totalPayouts, 2),
+            'value' => 'Rs ' . number_format($totalPayouts, 2),
             'icon' => 'fa-solid fa-arrow-trend-down',
             'period' => 'To customers',
         ],
         [
-            'title' => 'Total Payments',
-            'value' => '$' . number_format($totalPayments, 2),
+            'title' => 'Total Income',
+            'value' => 'Rs ' . number_format($totalPayments, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
             'period' => 'From companies',
         ],
@@ -118,7 +70,7 @@ function getStatusTag($status)
         ],
         [
             'title' => 'Net Revenue',
-            'value' => '$' . number_format($netRevenue, 2),
+            'value' => 'Rs ' . number_format($netRevenue, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
             'period' => 'After payouts',
         ],
@@ -169,7 +121,7 @@ function getStatusTag($status)
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td>$<?= number_format($payment['amount'], 2) ?></td>
+                            <td>Rs <?= number_format($payment['amount'], 2) ?></td>
                             <td><?= htmlspecialchars($payment['recipient']) ?></td>
                             <td><?= htmlspecialchars($payment['date']) ?></td>
                             <td>

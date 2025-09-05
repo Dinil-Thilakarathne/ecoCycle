@@ -158,6 +158,7 @@ function getFeedbackBadge($status)
     }
 }
 ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div>
     <!-- Page Header -->
@@ -204,6 +205,125 @@ function getFeedbackBadge($status)
       </div>
     </div>
   </div>
+
+  <!-- Waste Collection Chart -->
+<!--<script>
+const ctx = document.getElementById('wasteChart').getContext('2d');
+const wasteChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June'],
+        datasets: [{
+            label: 'Total Waste Collected (kg)',
+            data: [1200, 1500, 900, 1800, 2000, 1700], // sample data
+            backgroundColor: 'rgba(76, 175, 80, 0.6)',
+            borderColor: 'rgba(76, 175, 80, 1)',
+            borderWidth: 1,
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 500
+                },
+                title: {
+                    display: true,
+                    text: 'Kilograms (kg)',
+                    font: { size: 14 }
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Months',
+                    font: { size: 14 }
+                }
+            }
+        }
+    }
+});
+</script>-->
+
+<!-- Waste Collection Chart -->
+<div class="pc-card">
+  <h3 style="font-size: 20px; font-weight: bold;">Monthly Waste Collection by Type (kg)</h3>
+  <canvas id="wasteChart" style="max-height: 380px;"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('wasteChart').getContext('2d');
+
+const wasteChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June'], // Months
+        datasets: [
+            {
+                label: 'Organic',
+                data: [400, 450, 300, 500, 550, 480],
+                backgroundColor: ' #8b5a2b'
+            },
+            {
+                label: 'Glass',
+                data: [200, 220, 180, 250, 270, 230],
+                backgroundColor:' #ff0000'
+            },
+            {
+                label: 'Paper',
+                data: [300, 350, 280, 400, 420, 390],
+                backgroundColor: '#008000'
+            },
+            {
+                label: 'Metal',
+                data: [150, 180, 120, 200, 210, 170],
+                backgroundColor: '#ffa500'
+            },
+            {
+                label: 'Plastic',
+                data: [250, 300, 220, 350, 370, 310],
+                backgroundColor: '#0000ff'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { font: { size: 13 } }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Kilograms (kg)',
+                    font: { size: 14 }
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Months',
+                    font: { size: 14 }
+                }
+            }
+        }
+    }
+});
+</script>
+
+
   
     <!-- Feedback Table -->
     <div class="activity-card">

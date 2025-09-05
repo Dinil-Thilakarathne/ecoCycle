@@ -21,7 +21,7 @@ $notifications = [
         'id' => 'N002',
         'type' => 'pickup_completed',
         'title' => 'Pickup Completed',
-        'message' => 'Your pickup PR002 has been completed successfully. You earned $62.00 from this collection.',
+    'message' => 'Your pickup PR002 has been completed successfully. You earned Rs 62.00 from this collection.',
         'timestamp' => '2024-01-08 16:45:00',
         'isRead' => false,
         'priority' => 'normal',
@@ -32,7 +32,7 @@ $notifications = [
         'id' => 'N003',
         'type' => 'payment_processed',
         'title' => 'Payment Processed',
-        'message' => 'Your payment of $127.50 has been processed and will be transferred to your account within 2-3 business days.',
+    'message' => 'Your payment of Rs 127.50 has been processed and will be transferred to your account within 2-3 business days.',
         'timestamp' => '2024-01-07 10:15:00',
         'isRead' => true,
         'priority' => 'normal',
@@ -107,19 +107,16 @@ if ($action === 'delete' && $notificationId) {
 }
 
 // Filter notifications based on selected filter
-$filteredNotifications = $notifications;
+$filteredNotifications = array_filter($notifications, fn($n) => $n['category'] !== 'system');
 switch ($filter) {
     case 'unread':
-        $filteredNotifications = array_filter($notifications, fn($n) => !$n['isRead']);
+        $filteredNotifications = array_filter($filteredNotifications, fn($n) => !$n['isRead']);
         break;
     case 'pickup':
-        $filteredNotifications = array_filter($notifications, fn($n) => $n['category'] === 'pickup');
+        $filteredNotifications = array_filter($filteredNotifications, fn($n) => $n['category'] === 'pickup');
         break;
     case 'payment':
-        $filteredNotifications = array_filter($notifications, fn($n) => $n['category'] === 'payment');
-        break;
-    case 'system':
-        $filteredNotifications = array_filter($notifications, fn($n) => $n['category'] === 'system');
+        $filteredNotifications = array_filter($filteredNotifications, fn($n) => $n['category'] === 'payment');
         break;
 }
 
@@ -179,10 +176,7 @@ $showSettings = ($action === 'settings');
     <div class="dashboard-page">
         <!-- Header -->
         <div class="header">
-            <div class="header-actions action-buttons">
-                <a href="?action=mark_all_read" class="btn btn-outline">Mark All Read</a>
-                <a href="?action=settings" class="btn btn-primary">⚙️ Settings</a>
-            </div>
+            <!-- header-actions removed -->
         </div>
 
         <!-- Stats Feature Cards -->
@@ -199,12 +193,6 @@ $showSettings = ($action === 'settings');
                 'value' => $unreadNotifications,
                 'icon' => 'fa-solid fa-envelope-open',
                 'subtitle' => 'Need attention',
-            ],
-            [
-                'title' => 'High Priority',
-                'value' => $highPriorityNotifications,
-                'icon' => 'fa-solid fa-exclamation-circle',
-                'subtitle' => 'Critical alerts',
             ],
             [
                 'title' => 'Today',
@@ -250,8 +238,7 @@ $showSettings = ($action === 'settings');
                     <tr>
                         <th>Notification</th>
                         <th>Type</th>
-                        <th>Priority</th>
-                        <th>Time</th>
+                        <th>Date</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -259,7 +246,7 @@ $showSettings = ($action === 'settings');
                 <tbody>
                     <?php if (empty($filteredNotifications)): ?>
                         <tr>
-                            <td colspan="6" class="empty-state">
+                            <td colspan="5" class="empty-state">
                                 <div class="empty-content">
                                     <div class="empty-icon">📭</div>
                                     <h3>No notifications found</h3>
@@ -279,11 +266,6 @@ $showSettings = ($action === 'settings');
                                 <td>
                                     <span class="type-badge <?php echo $notification['category']; ?>">
                                         <?php echo ucfirst($notification['category']); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="priority-badge <?php echo $notification['priority']; ?>">
-                                        <?php echo ucfirst($notification['priority']); ?>
                                     </span>
                                 </td>
                                 <td class="time-cell">

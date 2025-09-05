@@ -41,75 +41,147 @@ $wasteTypeData = [
         <div class="stats-grid" style="margin-bottom:2.5rem;">
             <div class="feature-card">
                 <div class="feature-card__header">
-                    <h3 class="feature-card__title">Total Waste This Month</h3>
+                    <h3 class="feature-card__title">Total Weight</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-dumpster"></i></div>
                 </div>
                 <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
                     <?= $totalWasteThisMonth ?> kg
                 </p>
                 <div class="feature-card__footer">
-                    <span class="tag success">+<?= $wasteIncrease ?>% from last month</span>
+                    <span class="tag success">Total waste you have given</span>
                 </div>
             </div>
             <div class="feature-card">
                 <div class="feature-card__header">
-                    <h3 class="feature-card__title">Recycling Rate</h3>
-                    <div class="feature-card__icon"><i class="fa-solid fa-recycle"></i></div>
+                    <h3 class="feature-card__title">Income</h3>
                 </div>
                 <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                    <?= $recyclingRate ?>%
+                    <!-- Example income, replace with real value if available -->
+                    $0.00
                 </p>
                 <div class="feature-card__footer">
-                    <span class="tag success">Success rate of collections</span>
+                    <span class="tag success">Total income this month</span>
                 </div>
             </div>
             <div class="feature-card">
                 <div class="feature-card__header">
-                    <h3 class="feature-card__title">CO₂ Saved</h3>
-                    <div class="feature-card__icon"><i class="fa-solid fa-leaf"></i></div>
+                    <h3 class="feature-card__title">Progress</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
                 </div>
+                <?php $customerRating = 82; // Example rating percent ?>
                 <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                    <?= $co2SavedThisMonth ?> kg
+                    <?= $customerRating ?>%
                 </p>
-                <div class="feature-card__footer">
-                    <span class="tag success">Environmental impact</span>
+                <div style="width:100%;background:#f1f5f9;border-radius:8px;height:12px;margin-bottom:0.5rem;">
+                  <div style="width:<?= $customerRating ?>%;background:#22c55e;height:100%;border-radius:8px;"></div>
                 </div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-card__header">
-                    <h3 class="feature-card__title">Energy Saved</h3>
-                    <div class="feature-card__icon"><i class="fa-solid fa-bolt"></i></div>
-                </div>
-                <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                    <?= $energySavedThisMonth ?> kWh
-                </p>
                 <div class="feature-card__footer">
-                    <span class="tag success">Through recycling efforts</span>
+                    <span class="tag success">Your customer rating progress</span>
                 </div>
             </div>
         </div>
 
         <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:2.5rem;">
+            <!-- Multi-bar graph for waste types per month (last 3 months) -->
             <div class="card">
                 <div class="section-header" style="margin-bottom:1rem;">
-                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;">Monthly Waste Trends</h2>
+                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;text-align:center;margin-left:2.5rem;">Weight of Waste Types</h2>
                 </div>
                 <div style="height:320px;width:100%;">
-                    <canvas id="wasteTrendChart" style="width:100%;height:100%;"></canvas>
+                    <canvas id="wasteTypeBarChart" style="width:100%;height:100%;"></canvas>
                 </div>
             </div>
+            <!-- Bar graph for income per month -->
             <div class="card">
                 <div class="section-header" style="margin-bottom:1rem;">
-                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;">Waste Type Breakdown</h2>
+                    <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;text-align:center;margin-left:2.5rem;">Monthly Income</h2>
                 </div>
                 <div style="height:320px;width:100%;">
-                    <canvas id="wasteBreakdownChart" style="width:100%;height:100%;"></canvas>
+                    <canvas id="incomeBarChart" style="width:100%;height:100%;"></canvas>
                 </div>
             </div>
         </div>
 </div>
 
 <!-- Include Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Example data for last 3 months
+const months = ['Apr', 'May', 'Jun'];
+const wasteTypeChartData = {
+    'Plastic': [22, 16, 20],
+    'Glass': [9, 7, 10],
+    'Paper': [14, 11, 13],
+    'Organic': [25, 21, 28]
+};
+const wasteTypeColors = {
+    'Plastic': '#3b82f6', // blue
+    'Glass': '#f59e0b',   // yellow
+    'Paper': '#10b981',   // green
+    'Organic': '#8b5cf6'  // purple
+};
+
+const wasteTypeDatasets = Object.keys(wasteTypeChartData).map(type => ({
+    label: type,
+    data: wasteTypeChartData[type],
+    backgroundColor: wasteTypeColors[type],
+    borderRadius: 6,
+    maxBarThickness: 40
+}));
+
+const ctxWaste = document.getElementById('wasteTypeBarChart').getContext('2d');
+new Chart(ctxWaste, {
+    type: 'bar',
+    data: {
+        labels: months,
+        datasets: wasteTypeDatasets
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: true, position: 'top', labels: { color: '#1e293b', font: { weight: 'bold' } } },
+            title: { display: false }
+        },
+        scales: {
+            x: { stacked: false, grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold' } } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } }
+        }
+    }
+});
+
+// Example income data for last 5 months (in Rs)
+const incomeMonths = ['Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const incomeData = [9500, 11200, 12000, 13500, 14200];
+const ctxIncome = document.getElementById('incomeBarChart').getContext('2d');
+new Chart(ctxIncome, {
+    type: 'bar',
+    data: {
+        labels: incomeMonths,
+        datasets: [{
+            label: 'Income (Rs)',
+            data: incomeData,
+            backgroundColor: '#22c55e',
+            borderRadius: 6,
+            maxBarThickness: 28,
+            barPercentage: 0.6,
+            categoryPercentage: 0.6
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            title: { display: false }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold' } } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b',
+                callback: function(value) { return 'Rs ' + value.toLocaleString(); }
+            } }
+        }
+    }
+});
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 
 <script>

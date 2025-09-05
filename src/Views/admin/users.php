@@ -1,125 +1,9 @@
 <?php
-// Sample user data (in a real application, this would come from your database/models)
-$customers = [
-    [
-        'id' => 'C001',
-        'name' => 'Alice Johnson',
-        'email' => 'alice@email.com',
-        'phone' => '+1234567890',
-        'address' => '123 Green St, Eco City',
-        'status' => 'active',
-        'totalPickups' => 15,
-        'totalEarnings' => 125.50,
-    ],
-    [
-        'id' => 'C002',
-        'name' => 'Bob Smith',
-        'email' => 'bob@email.com',
-        'phone' => '+1234567891',
-        'address' => '456 Recycle Ave, Green Town',
-        'status' => 'active',
-        'totalPickups' => 8,
-        'totalEarnings' => 67.25,
-    ],
-    [
-        'id' => 'C003',
-        'name' => 'Carol Davis',
-        'email' => 'carol@email.com',
-        'phone' => '+1234567892',
-        'address' => '789 Eco Blvd, Sustainable City',
-        'status' => 'suspended',
-        'totalPickups' => 22,
-        'totalEarnings' => 180.75,
-    ],
-    [
-        'id' => 'C004',
-        'name' => 'David Wilson',
-        'email' => 'david@email.com',
-        'phone' => '+1234567893',
-        'address' => '321 Green Ave, Eco Valley',
-        'status' => 'pending',
-        'totalPickups' => 0,
-        'totalEarnings' => 0.00,
-    ],
-];
-
-$companies = [
-    [
-        'id' => 'CO001',
-        'name' => 'GreenTech Co.',
-        'email' => 'contact@greentech.com',
-        'phone' => '+1234567892',
-        'status' => 'active',
-        'totalBids' => 45,
-        'totalPurchases' => 32,
-    ],
-    [
-        'id' => 'CO002',
-        'name' => 'EcoRecycle Ltd.',
-        'email' => 'info@ecorecycle.com',
-        'phone' => '+1234567893',
-        'status' => 'pending',
-        'totalBids' => 12,
-        'totalPurchases' => 0,
-    ],
-    [
-        'id' => 'CO003',
-        'name' => 'WasteWorks Inc.',
-        'email' => 'admin@wasteworks.com',
-        'phone' => '+1234567894',
-        'status' => 'active',
-        'totalBids' => 28,
-        'totalPurchases' => 19,
-    ],
-    [
-        'id' => 'CO004',
-        'name' => 'RecyclePro Solutions',
-        'email' => 'hello@recyclepro.com',
-        'phone' => '+1234567895',
-        'status' => 'suspended',
-        'totalBids' => 15,
-        'totalPurchases' => 8,
-    ],
-];
-
-$collectors = [
-    [
-        'id' => 'COL001',
-        'name' => 'Mike Wilson',
-        'email' => 'mike@company.com',
-        'phone' => '+1234567894',
-        'vehicleId' => 'VH001',
-        'status' => 'active',
-        'todayPickups' => 6,
-    ],
-    [
-        'id' => 'COL002',
-        'name' => 'Sarah Brown',
-        'email' => 'sarah@company.com',
-        'phone' => '+1234567895',
-        'vehicleId' => 'VH002',
-        'status' => 'offline',
-        'todayPickups' => 0,
-    ],
-    [
-        'id' => 'COL003',
-        'name' => 'Tom Garcia',
-        'email' => 'tom@company.com',
-        'phone' => '+1234567896',
-        'vehicleId' => 'VH003',
-        'status' => 'active',
-        'todayPickups' => 4,
-    ],
-    [
-        'id' => 'COL004',
-        'name' => 'Lisa Martinez',
-        'email' => 'lisa@company.com',
-        'phone' => '+1234567897',
-        'vehicleId' => 'VH004',
-        'status' => 'pending',
-        'todayPickups' => 0,
-    ],
-];
+// Centralized dummy data
+$dummy = require base_path('config/dummy.php');
+$customers = $dummy['customers'];
+$companies = $dummy['companies'];
+$collectors = $dummy['collectors'];
 
 // Helper function for status badges
 function getStatusBadge($status)
@@ -136,6 +20,67 @@ function getStatusBadge($status)
         default:
             return '<div class="tag">' . htmlspecialchars($status) . '</div>';
     }
+}
+
+// Server-side utility: find user from sample arrays by type and id
+function findUserById(string $type, string $id)
+{
+    global $customers, $companies, $collectors;
+
+    // normalize and accept singular or plural forms
+    $t = strtolower(trim((string) $type));
+    if (in_array($t, ['customers', 'customer'], true))
+        $t = 'customer';
+    elseif (in_array($t, ['companies', 'company'], true))
+        $t = 'company';
+    elseif (in_array($t, ['collectors', 'collector'], true))
+        $t = 'collector';
+    else
+        return null;
+
+    // pick source and ensure it's an array (avoid null)
+    switch ($t) {
+        case 'customers':
+            $source = $customers ?? [];
+            break;
+        case 'company':
+            $source = $companies ?? [];
+            break;
+        case 'collector':
+            $source = $collectors ?? [];
+            break;
+        default:
+            $source = [];
+    }
+
+    foreach ((array) $source as $u) {
+        if (isset($u['id']) && $u['id'] === $id)
+            return $u;
+    }
+
+    return null;
+}
+
+// If URL requests a particular user (server-side render), prepare $modalUser
+$modalUser = null;
+$modalUserType = null;
+if (!empty($_GET['view']) && !empty($_GET['id'])) {
+    $t = $_GET['view'];
+    $i = $_GET['id'];
+    $found = findUserById($t, $i);
+    if ($found) {
+        $modalUser = $found;
+        $modalUserType = $t;
+    }
+    // If params were provided but no user was found, output a small console warning to aid debugging
+    if (empty($modalUser)) {
+        $v = htmlspecialchars($_GET['view']);
+        $ii = htmlspecialchars($_GET['id']);
+        echo "<script>console.warn('users.php: no user found for view=' + " . json_encode($v) . " + ' id=' + " . json_encode($ii) . ");</script>";
+    }
+
+    // Expose minimal debug info in an HTML comment so you can view page source to confirm what the server saw
+    echo "<!-- users.php debug: view=" . htmlspecialchars($_GET['view'] ?? '') . " id=" . htmlspecialchars($_GET['id'] ?? '') . " modalUser=" . json_encode($modalUser, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . " -->";
 }
 ?>
 
@@ -192,29 +137,34 @@ function getStatusBadge($status)
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($customers as $customer): ?>
-                                    <tr data-user-type="customer" data-name="<?= strtolower($customer['name']) ?>"
-                                        data-email="<?= strtolower($customer['email']) ?>">
+                                <?php foreach ((array) ($customers ?? []) as $customer): ?>
+                                    <tr data-user-type="customer" data-id="<?= $customer['id'] ?>"
+                                        data-name="<?= strtolower($customer['name']) ?>"
+                                        data-email="<?= strtolower($customer['email']) ?>"
+                                        data-phone="<?= htmlspecialchars($customer['phone']) ?>"
+                                        data-address="<?= htmlspecialchars($customer['address']) ?>"
+                                        data-status="<?= htmlspecialchars($customer['status']) ?>"
+                                        data-totalpickups="<?= htmlspecialchars($customer['totalPickups']) ?>"
+                                        data-totalearnings="<?= htmlspecialchars($customer['totalEarnings']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($customer['name']) ?></td>
                                         <td><?= htmlspecialchars($customer['email']) ?></td>
                                         <td><?= htmlspecialchars($customer['phone']) ?></td>
                                         <td><?= htmlspecialchars($customer['totalPickups']) ?></td>
-                                        <td>$<?= number_format($customer['totalEarnings'], 2) ?></td>
+                                        <td>Rs <?= number_format($customer['totalEarnings'], 2) ?></td>
                                         <td><?= getStatusBadge($customer['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button"
-                                                    onclick="viewUser('<?= $customer['id'] ?>', 'customer')"
+                                                <button class="icon-button" onclick="viewUser(this, 'customers')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
                                                 <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customer')"
+                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customers')"
                                                     title="Approve User">
                                                     <i class="fa-solid fa-user-check"></i>
                                                 </button>
                                                 <button class="icon-button suspend"
-                                                    onclick="suspendUser('<?= $customer['id'] ?>', 'customer')"
+                                                    onclick="suspendUser('<?= $customer['id'] ?>', 'customers')"
                                                     title="Suspend User">
                                                     <i class="fa-solid fa-user-times"></i>
                                                 </button>
@@ -251,9 +201,14 @@ function getStatusBadge($status)
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($companies as $company): ?>
-                                    <tr data-user-type="company" data-name="<?= strtolower($company['name']) ?>"
-                                        data-email="<?= strtolower($company['email']) ?>">
+                                <?php foreach ((array) ($companies ?? []) as $company): ?>
+                                    <tr data-user-type="company" data-id="<?= $company['id'] ?>"
+                                        data-name="<?= strtolower($company['name']) ?>"
+                                        data-email="<?= strtolower($company['email']) ?>"
+                                        data-phone="<?= htmlspecialchars($company['phone']) ?>"
+                                        data-status="<?= htmlspecialchars($company['status']) ?>"
+                                        data-totalbids="<?= htmlspecialchars($company['totalBids']) ?>"
+                                        data-totalpurchases="<?= htmlspecialchars($company['totalPurchases']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($company['name']) ?></td>
                                         <td><?= htmlspecialchars($company['email']) ?></td>
                                         <td><?= htmlspecialchars($company['phone']) ?></td>
@@ -262,8 +217,7 @@ function getStatusBadge($status)
                                         <td><?= getStatusBadge($company['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button"
-                                                    onclick="viewUser('<?= $company['id'] ?>', 'company')"
+                                                <button class="icon-button" onclick="viewUser(this, 'company')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
@@ -310,9 +264,14 @@ function getStatusBadge($status)
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($collectors as $collector): ?>
-                                    <tr data-user-type="collector" data-name="<?= strtolower($collector['name']) ?>"
-                                        data-email="<?= strtolower($collector['email']) ?>">
+                                <?php foreach ((array) ($collectors ?? []) as $collector): ?>
+                                    <tr data-user-type="collector" data-id="<?= $collector['id'] ?>"
+                                        data-name="<?= strtolower($collector['name']) ?>"
+                                        data-email="<?= strtolower($collector['email']) ?>"
+                                        data-phone="<?= htmlspecialchars($collector['phone']) ?>"
+                                        data-vehicleid="<?= htmlspecialchars($collector['vehicleId']) ?>"
+                                        data-todaypickups="<?= htmlspecialchars($collector['todayPickups']) ?>"
+                                        data-status="<?= htmlspecialchars($collector['status']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($collector['name']) ?></td>
                                         <td><?= htmlspecialchars($collector['email']) ?></td>
                                         <td><?= htmlspecialchars($collector['phone']) ?></td>
@@ -321,8 +280,7 @@ function getStatusBadge($status)
                                         <td><?= getStatusBadge($collector['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button"
-                                                    onclick="viewUser('<?= $collector['id'] ?>', 'collector')"
+                                                <button class="icon-button" onclick="viewUser(this, 'collector')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
@@ -351,7 +309,9 @@ function getStatusBadge($status)
 
 <script>
     // Tab functionality
-    function showTab(tabName) {
+    function showTab(tabName, updateUrl = true) {
+        if (!tabName) return;
+
         // Hide all tab contents
         const contents = document.querySelectorAll('.tabs-content');
         contents.forEach(content => content.classList.remove('active'));
@@ -360,9 +320,24 @@ function getStatusBadge($status)
         const triggers = document.querySelectorAll('.tabs-trigger');
         triggers.forEach(trigger => trigger.classList.remove('active'));
 
-        // Show selected tab content
-        document.getElementById(tabName + '-content').classList.add('active');
-        document.getElementById(tabName + '-tab').classList.add('active');
+        // Show selected tab content (guard elements exist)
+        const contentEl = document.getElementById(tabName + '-content');
+        const triggerEl = document.getElementById(tabName + '-tab');
+        if (contentEl) contentEl.classList.add('active');
+        if (triggerEl) triggerEl.classList.add('active');
+
+        // Update the URL query parameter so the tab state persists on refresh
+        if (updateUrl && window.history && window.location) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', tabName);
+                // Use replaceState to avoid polluting history with each click
+                window.history.replaceState(null, '', url.toString());
+            } catch (e) {
+                // Fallback: set hash if URL API isn't available
+                window.location.hash = '#tab=' + encodeURIComponent(tabName);
+            }
+        }
     }
 
     // Search functionality
@@ -385,12 +360,25 @@ function getStatusBadge($status)
     }
 
     // User management functions
-    function viewUser(userId, userType) {
-        console.log(`Viewing ${userType} ${userId}`);
-        alert(`Viewing details for ${userType} ${userId}. In a real application, this would show detailed user information, account history, and activity logs.`);
+    function viewUser(el, userType) {
+        // Redirect to same page with view and id params so the server renders only that user's modal
+        if (!el || !el.closest) return;
+        const row = el.closest('tr');
+        if (!row) return;
+        const id = row.getAttribute('data-id');
+        if (!id) return;
 
-        // You could redirect to a user details page:
-        // window.location.href = `/admin/users/${userType}/${userId}`;
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('view', userType);
+            url.searchParams.set('id', id);
+            // navigate to the URL so server-side rendering will pre-populate the modal
+            window.location.href = url.toString();
+        } catch (e) {
+            // fallback: append query string
+            const qs = `?view=${encodeURIComponent(userType)}&id=${encodeURIComponent(id)}`;
+            window.location.href = window.location.pathname + qs;
+        }
     }
 
     function approveUser(userId, userType) {
@@ -445,10 +433,183 @@ function getStatusBadge($status)
         }
     }
 
-    // Initialize search functionality on page load
+    // Initialize search functionality and restore tab from URL on page load
     document.addEventListener('DOMContentLoaded', function () {
         // Add event listener to search input for real-time filtering
         const searchInput = document.getElementById('searchInput');
-        searchInput.addEventListener('input', filterUsers);
+        if (searchInput) searchInput.addEventListener('input', filterUsers);
+
+        // Restore active tab from URL (?tab=...) or from hash (#tab=...)
+        let tabFromUrl = null;
+        try {
+            const params = new URL(window.location.href).searchParams;
+            tabFromUrl = params.get('tab');
+        } catch (e) {
+            // ignore
+        }
+
+        if (!tabFromUrl && window.location.hash) {
+            const m = window.location.hash.match(/tab=([^&]+)/);
+            if (m && m[1]) tabFromUrl = decodeURIComponent(m[1]);
+        }
+
+        // Default to 'customers' if nothing provided
+        const initialTab = tabFromUrl || 'customers';
+        showTab(initialTab, /* updateUrl= */ false);
+    });
+
+    // Capitalize helper
+    function capitalize(s) {
+        if (!s) return '';
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    // Modal close handlers
+    document.addEventListener('click', function (e) {
+        const modal = document.getElementById('user-detail-modal');
+        if (!modal) return;
+
+        if (e.target.matches('#user-detail-modal .close') || e.target.matches('#user-detail-modal')) {
+            modal.classList.remove('open');
+
+            // Remove view/id from URL without reloading
+            try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.has('view') || url.searchParams.has('id')) {
+                    url.searchParams.delete('view');
+                    url.searchParams.delete('id');
+                    window.history.replaceState(null, '', url.toString());
+                }
+            } catch (err) {
+                // ignore
+            }
+        }
     });
 </script>
+
+<!-- User Detail Modal Component -->
+<?php if (!empty($modalUser)): ?>
+    <?php
+    $mu = $modalUser;
+    $muId = $mu['id'] ?? '';
+    $muName = $mu['name'] ?? '';
+    $muEmail = $mu['email'] ?? '';
+    $muPhone = $mu['phone'] ?? '';
+    $muAddress = $mu['address'] ?? '';
+    $muStatus = $mu['status'] ?? '';
+    $muVehicle = $mu['vehicleId'] ?? '';
+    $muTotalPickups = $mu['totalPickups'] ?? ($mu['todayPickups'] ?? '0');
+    $muTotalEarnings = $mu['totalEarnings'] ?? '0';
+    $muTotalBids = $mu['totalBids'] ?? '0';
+    $muTotalPurchases = $mu['totalPurchases'] ?? '0';
+    ?>
+    <div id="user-detail-modal" class="user-modal open" role="dialog" aria-modal="true" aria-hidden="false">
+        <div class="user-modal__dialog">
+            <button class="close" aria-label="Close">&times;</button>
+            <h3>User Details</h3>
+            <div class="user-modal__grid">
+                <div><strong>ID</strong></div>
+                <div class="ud-id"><?= htmlspecialchars($muId) ?></div>
+                <div><strong>Name</strong></div>
+                <div class="ud-name"><?= htmlspecialchars($muName) ?></div>
+                <div><strong>Email</strong></div>
+                <div class="ud-email"><?= htmlspecialchars($muEmail) ?></div>
+                <div><strong>Phone</strong></div>
+                <div class="ud-phone"><?= htmlspecialchars($muPhone) ?></div>
+                <div><strong>Address</strong></div>
+                <div class="ud-address"><?= htmlspecialchars($muAddress ?: '-') ?></div>
+                <div><strong>Status</strong></div>
+                <div class="ud-status"><?= htmlspecialchars(ucfirst($muStatus ?: '-')) ?></div>
+                <div><strong>Vehicle ID</strong></div>
+                <div class="ud-vehicle"><?= htmlspecialchars($muVehicle ?: '-') ?></div>
+                <div><strong>Total Pickups</strong></div>
+                <div class="ud-totalpickups"><?= htmlspecialchars($muTotalPickups) ?></div>
+                <div><strong>Total Earnings</strong></div>
+                <div class="ud-totalearnings"><?= '$' . number_format((float) $muTotalEarnings, 2) ?></div>
+                <div><strong>Total Bids</strong></div>
+                <div class="ud-totalbids"><?= htmlspecialchars($muTotalBids) ?></div>
+                <div><strong>Total Purchases</strong></div>
+                <div class="ud-totalpurchases"><?= htmlspecialchars($muTotalPurchases) ?></div>
+            </div>
+        </div>
+    </div>
+<?php else: ?>
+    <div id="user-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="user-modal__dialog">
+            <button class="close" aria-label="Close">&times;</button>
+            <h3>User Details</h3>
+            <div class="user-modal__grid">
+                <div><strong>ID</strong></div>
+                <div class="ud-id"></div>
+                <div><strong>Name</strong></div>
+                <div class="ud-name"></div>
+                <div><strong>Email</strong></div>
+                <div class="ud-email"></div>
+                <div><strong>Phone</strong></div>
+                <div class="ud-phone"></div>
+                <div><strong>Address</strong></div>
+                <div class="ud-address"></div>
+                <div><strong>Status</strong></div>
+                <div class="ud-status"></div>
+                <div><strong>Vehicle ID</strong></div>
+                <div class="ud-vehicle"></div>
+                <div><strong>Total Pickups</strong></div>
+                <div class="ud-totalpickups"></div>
+                <div><strong>Total Earnings</strong></div>
+                <div class="ud-totalearnings"></div>
+                <div><strong>Total Bids</strong></div>
+                <div class="ud-totalbids"></div>
+                <div><strong>Total Purchases</strong></div>
+                <div class="ud-totalpurchases"></div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<style>
+    /* Minimal modal styles - keep scoped and simple */
+    .user-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000
+    }
+
+    .user-modal.open {
+        display: flex
+    }
+
+    .user-modal__dialog {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        min-width: 320px;
+        max-width: 720px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+        position: relative
+    }
+
+    .user-modal__dialog .close {
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        border: none;
+        background: transparent;
+        font-size: 22px;
+        cursor: pointer
+    }
+
+    .user-modal__grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 8px 16px;
+        margin-top: 12px
+    }
+
+    .user-modal__grid div {
+        padding: 4px 0
+    }
+</style>
