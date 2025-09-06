@@ -77,7 +77,7 @@ $helpCategories = [
         <!-- Contact Section -->
         <div class="contact-support">
             <h2 style="font-size: 20px; font-weight: bold;">Still need help...?</h2>
-            <p style="font-size: 18px;"><i>If you can’t find help, contact our support team:</i></p><br>
+            <p style="font-size: 17px;"><i>If you can’t find help, contact our support team:</i></p><br>
             <ul>
                 <li><b>Email:</b> <a href="mailto:support@ecocycle.com">support@ecocycle.com</a></li>
                 <li><b>Phone:</b> 011 2345 678 /  011 2345 114 (Everyday 8am - 10pm)</li>

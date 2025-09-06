@@ -99,7 +99,7 @@
   font-weight: var(--font-weight-medium);
 
 /*dashboard*/
-    &.Active,
+    &.active,
     &.completed,
     &.available { 
         background-color: var(--success-light);
@@ -114,13 +114,13 @@
     }
 
     &.Closed,
-    &.Rejected { 
+    &.rejected { 
         background-color: var(--danger-light);
         color:var(--danger); 
         border: 2px solid var(--danger);
     }
 
-    &.Won {
+    &.won {
         background-color: var(--info-light);
         color:var(--info); 
         border: 2px solid var(--info); 

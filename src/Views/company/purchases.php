@@ -56,7 +56,7 @@ $purchaseHistory = [
                 <h2 style="font-size: 20px; font-weight: bold;">Accepted Purchases</h2>
                 <?php foreach($acceptedPurchases as $purchase): ?>
                 <div class="purchase-box">
-                    <h3><?= $purchase['type'] ?></h3>
+                    <h3 style="font-size: 18px; font-weight: bold;"><?= $purchase['type'] ?></h3>
                     <p>ID: <?= $purchase['id'] ?></p>
                     <p>Amount: <strong><?= $purchase['amount'] ?></strong></p>
                     <p>Price: <span class="price"><?= $purchase['price'] ?></span></p>
