@@ -3,6 +3,13 @@
 $dummy = require base_path('config/dummy.php');
 $biddingRounds = $dummy['bidding_rounds'];
 
+// Expose client-side bidding data for modal lookups
+?>
+<script>
+    window.__BIDDING_DATA = <?php echo json_encode($biddingRounds, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+<?php
+
 // Helper functions
 function getStatusBadge($status)
 {
@@ -118,7 +125,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                     </thead>
                     <tbody>
                         <?php foreach ($biddingRounds as $round): ?>
-                            <tr>
+                            <tr data-id="<?= htmlspecialchars($round['id']) ?>">
                                 <td class="font-medium"><?= htmlspecialchars($round['lotId']) ?></td>
                                 <td><?= htmlspecialchars($round['wasteCategory']) ?></td>
                                 <td>
@@ -140,15 +147,18 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                                 <td>
                                     <div style="display: flex; gap: 8px;">
                                         <?php if ($round['status'] === 'completed'): ?>
-                                            <button class="tag online" onclick="approveWinner('<?= $round['id'] ?>')">
-                                                Approve
+                                            <button class="icon-button approve" onclick="approveWinner('<?= $round['id'] ?>')"
+                                                title="Approve">
+                                                <i class="fa-solid fa-user-check"></i>
                                             </button>
-                                            <button class="tag danger" onclick="rejectBid('<?= $round['id'] ?>')">
-                                                Reject
+                                            <button class="icon-button suspend" onclick="rejectBid('<?= $round['id'] ?>')"
+                                                title="Reject">
+                                                <i class="fa-solid fa-user-times"></i>
                                             </button>
                                         <?php else: ?>
-                                            <button class="tag" onclick="viewBiddingDetails('<?= $round['id'] ?>')">
-                                                View Details
+                                            <button class="icon-button"
+                                                onclick="viewBiddingDetails(this, '<?= $round['id'] ?>')" title="View Details">
+                                                <i class="fa-solid fa-eye"></i>
                                             </button>
                                         <?php endif; ?>
                                     </div>
@@ -230,11 +240,20 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
     }
 
     function viewBiddingDetails(biddingId) {
-        console.log(`Viewing details for bidding round ${biddingId}`);
-        alert(`Viewing bidding details for ${biddingId}. In a real application, this would show detailed bidding information, bid history, and participating companies.`);
+        // legacy signature: viewBiddingDetails(biddingId)
+        if (arguments.length === 1) {
+            biddingId = arguments[0];
+            // try to find a row element
+            const row = document.querySelector(`tr[data-id="${biddingId}"]`);
+            openBiddingModal(row, biddingId);
+            return;
+        }
 
-        // You could redirect to a details page:
-        // window.location.href = `/admin/bidding/${biddingId}`;
+        // new signature: viewBiddingDetails(el, biddingId)
+        const el = arguments[0];
+        biddingId = arguments[1];
+        const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${biddingId}"]`);
+        openBiddingModal(row, biddingId);
     }
 
     // Auto-refresh the page every 30 seconds to update time remaining
@@ -246,4 +265,103 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
             location.reload();
         }
     }, 30000);
+</script>
+
+<!-- Bidding Details Modal -->
+<div id="bidding-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="user-modal__dialog">
+        <button class="close" aria-label="Close">&times;</button>
+        <h3>Bidding Round Details</h3>
+        <div class="user-modal__grid" id="bidding-detail-grid">
+            <div><strong>Lot ID</strong></div>
+            <div class="bd-lotid"></div>
+            <div><strong>Waste Category</strong></div>
+            <div class="bd-category"></div>
+            <div><strong>Quantity</strong></div>
+            <div class="bd-quantity"></div>
+            <div><strong>Current Highest Bid</strong></div>
+            <div class="bd-currentbid"></div>
+            <div><strong>Leading Company</strong></div>
+            <div class="bd-company"></div>
+            <div><strong>Time Remaining</strong></div>
+            <div class="bd-timer"></div>
+            <div><strong>Status</strong></div>
+            <div class="bd-status"></div>
+            <div><strong>Notes</strong></div>
+            <div class="bd-notes"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openBiddingModal(row, biddingId) {
+        // lookup in-memory first
+        let record = null;
+        try {
+            if (window.__BIDDING_DATA && Array.isArray(window.__BIDDING_DATA)) {
+                record = window.__BIDDING_DATA.find(r => (r.id || '').toString() === (biddingId || '').toString()) || null;
+            }
+        } catch (e) {
+            console.warn('bidding lookup failed', e);
+            record = null;
+        }
+
+        // fallback to reading table cells
+        if (!record && row) {
+            const cells = row.querySelectorAll('td');
+            record = {
+                id: biddingId,
+                lotId: (cells[0] && cells[0].textContent.trim()) || '',
+                wasteCategory: (cells[1] && cells[1].textContent.trim()) || '',
+                quantity: (cells[2] && cells[2].textContent.trim()) || '',
+                currentHighestBid: (cells[3] && cells[3].textContent.trim()) || '',
+                biddingCompany: (cells[4] && cells[4].textContent.trim()) || '',
+                timeRemaining: (cells[5] && cells[5].textContent.trim()) || '',
+                status: (cells[6] && cells[6].textContent.trim()) || ''
+            };
+        }
+
+        const modal = document.getElementById('bidding-detail-modal');
+        if (!modal) return;
+
+        // Do not open if we couldn't resolve a record or row
+        if (!record) return;
+
+        const setText = (sel, txt) => {
+            const el = modal.querySelector(sel);
+            if (!el) return;
+            if (!txt || String(txt).trim() === '') {
+                const lbl = el.previousElementSibling;
+                if (lbl) lbl.style.display = 'none';
+                el.style.display = 'none';
+            } else {
+                const lbl = el.previousElementSibling;
+                if (lbl) lbl.style.display = '';
+                el.style.display = '';
+                el.textContent = String(txt).trim();
+            }
+        };
+
+        setText('.bd-lotid', record.lotId || record.lotId === 0 ? record.lotId : '');
+        setText('.bd-category', record.wasteCategory || '');
+        setText('.bd-quantity', record.quantity || '');
+        setText('.bd-currentbid', record.currentHighestBid ? ('Rs ' + parseFloat(record.currentHighestBid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '');
+        setText('.bd-company', record.biddingCompany || '');
+        setText('.bd-timer', record.timeRemaining || '');
+        setText('.bd-status', record.status || '');
+        setText('.bd-notes', record.notes || '');
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    // Close modal (reuse existing delegated handler pattern from users.php if present)
+    document.addEventListener('click', function (e) {
+        const modal = document.getElementById('bidding-detail-modal');
+        if (!modal) return;
+        if (e.target.matches('#bidding-detail-modal .close') || e.target.matches('#bidding-detail-modal')) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    });
 </script>

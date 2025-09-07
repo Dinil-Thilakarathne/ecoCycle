@@ -283,7 +283,7 @@
   gap: var(--space-2);
   padding: var(--space-4) var(--space-8);
   border-radius: var(--rounded-xl);
-  /* font-size: var(--text-sm); */
+  font-size: var(--text-sm);
   /* font-weight: var(--font-weight-medium); */
   text-decoration: none;
   cursor: pointer;
@@ -608,4 +608,51 @@
 
 .alert-action {
   /* helper class to mark inline action nodes */
+}
+
+/* Minimal modal styles - keep scoped and simple */
+.user-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+
+  &.open {
+    display: flex;
+  }
+
+  .user-modal__dialog {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 320px;
+    max-width: 720px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    position: relative;
+  }
+
+  .user-modal__dialog .close {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .user-modal__grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    align-items: center;
+    gap: 8px 16px;
+    margin-top: 12px;
+  }
+
+  .user-modal__grid div {
+    padding: 4px 0;
+  }
 }

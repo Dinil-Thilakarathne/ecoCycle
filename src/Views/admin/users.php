@@ -5,6 +5,15 @@ $customers = $dummy['customers'];
 $companies = $dummy['companies'];
 $collectors = $dummy['collectors'];
 
+consoleLog('customers:', $customers);
+?>
+
+<script>
+    // Expose a client-side copy of server user data to simplify modal population.
+    window.__USER_DATA = <?php echo json_encode(['customers' => $customers, 'companies' => $companies, 'collectors' => $collectors], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+<?php
+
 // Helper function for status badges
 function getStatusBadge($status)
 {
@@ -40,7 +49,7 @@ function findUserById(string $type, string $id)
 
     // pick source and ensure it's an array (avoid null)
     switch ($t) {
-        case 'customers':
+        case 'customer':
             $source = $customers ?? [];
             break;
         case 'company':
@@ -53,9 +62,22 @@ function findUserById(string $type, string $id)
             $source = [];
     }
 
+    consoleLog('source:', $source);
+
     foreach ((array) $source as $u) {
-        if (isset($u['id']) && $u['id'] === $id)
-            return $u;
+        consoleLog('Checking user:', $u);
+        if (isset($u['id'])) {
+            // Debug hex representation to detect invisible/extra bytes
+            $uIdStr = (string) $u['id'];
+            $lookupIdStr = (string) $id;
+            $uHex = bin2hex($uIdStr);
+            $lookupHex = bin2hex($lookupIdStr);
+            consoleLog('id-compare', ['u_id' => $uIdStr, 'u_hex' => $uHex, 'lookup_id' => $lookupIdStr, 'lookup_hex' => $lookupHex]);
+
+            if (strcasecmp($uIdStr, $lookupIdStr) === 0) {
+                return $u;
+            }
+        }
     }
 
     return null;
@@ -66,7 +88,13 @@ $modalUser = null;
 $modalUserType = null;
 if (!empty($_GET['view']) && !empty($_GET['id'])) {
     $t = $_GET['view'];
-    $i = $_GET['id'];
+    $iRaw = $_GET['id'];
+    // Normalize incoming id: strip any appended suffixes (e.g. C001:128) and trim
+    $i = preg_replace('/[:#].*/', '', trim((string) $iRaw));
+
+    // Debug: show what the server will lookup
+    consoleLog('users.php lookup', ['view_raw' => $t, 'id_raw' => $iRaw, 'id_normalized' => $i]);
+
     $found = findUserById($t, $i);
     if ($found) {
         $modalUser = $found;
@@ -138,14 +166,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                             </thead>
                             <tbody>
                                 <?php foreach ((array) ($customers ?? []) as $customer): ?>
-                                    <tr data-user-type="customer" data-id="<?= $customer['id'] ?>"
-                                        data-name="<?= strtolower($customer['name']) ?>"
-                                        data-email="<?= strtolower($customer['email']) ?>"
-                                        data-phone="<?= htmlspecialchars($customer['phone']) ?>"
-                                        data-address="<?= htmlspecialchars($customer['address']) ?>"
-                                        data-status="<?= htmlspecialchars($customer['status']) ?>"
-                                        data-totalpickups="<?= htmlspecialchars($customer['totalPickups']) ?>"
-                                        data-totalearnings="<?= htmlspecialchars($customer['totalEarnings']) ?>">
+                                    <tr data-user-type="customer" data-id="<?= $customer['id'] ?>">
                                         <td class="font-medium"><?= htmlspecialchars($customer['name']) ?></td>
                                         <td><?= htmlspecialchars($customer['email']) ?></td>
                                         <td><?= htmlspecialchars($customer['phone']) ?></td>
@@ -154,17 +175,17 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                         <td><?= getStatusBadge($customer['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button" onclick="viewUser(this, 'customers')"
+                                                <button class="icon-button" onclick="viewUser(this, 'customer')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
                                                 <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customers')"
+                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customer')"
                                                     title="Approve User">
                                                     <i class="fa-solid fa-user-check"></i>
                                                 </button>
                                                 <button class="icon-button suspend"
-                                                    onclick="suspendUser('<?= $customer['id'] ?>', 'customers')"
+                                                    onclick="suspendUser('<?= $customer['id'] ?>', 'customer')"
                                                     title="Suspend User">
                                                     <i class="fa-solid fa-user-times"></i>
                                                 </button>
@@ -202,13 +223,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                             </thead>
                             <tbody>
                                 <?php foreach ((array) ($companies ?? []) as $company): ?>
-                                    <tr data-user-type="company" data-id="<?= $company['id'] ?>"
-                                        data-name="<?= strtolower($company['name']) ?>"
-                                        data-email="<?= strtolower($company['email']) ?>"
-                                        data-phone="<?= htmlspecialchars($company['phone']) ?>"
-                                        data-status="<?= htmlspecialchars($company['status']) ?>"
-                                        data-totalbids="<?= htmlspecialchars($company['totalBids']) ?>"
-                                        data-totalpurchases="<?= htmlspecialchars($company['totalPurchases']) ?>">
+                                    <tr data-user-type="company" data-id="<?= $company['id'] ?>">
                                         <td class="font-medium"><?= htmlspecialchars($company['name']) ?></td>
                                         <td><?= htmlspecialchars($company['email']) ?></td>
                                         <td><?= htmlspecialchars($company['phone']) ?></td>
@@ -265,13 +280,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                             </thead>
                             <tbody>
                                 <?php foreach ((array) ($collectors ?? []) as $collector): ?>
-                                    <tr data-user-type="collector" data-id="<?= $collector['id'] ?>"
-                                        data-name="<?= strtolower($collector['name']) ?>"
-                                        data-email="<?= strtolower($collector['email']) ?>"
-                                        data-phone="<?= htmlspecialchars($collector['phone']) ?>"
-                                        data-vehicleid="<?= htmlspecialchars($collector['vehicleId']) ?>"
-                                        data-todaypickups="<?= htmlspecialchars($collector['todayPickups']) ?>"
-                                        data-status="<?= htmlspecialchars($collector['status']) ?>">
+                                    <tr data-user-type="collector" data-id="<?= $collector['id'] ?>">
                                         <td class="font-medium"><?= htmlspecialchars($collector['name']) ?></td>
                                         <td><?= htmlspecialchars($collector['email']) ?></td>
                                         <td><?= htmlspecialchars($collector['phone']) ?></td>
@@ -340,16 +349,19 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         }
     }
 
-    // Search functionality
+    // Search functionality (use visible table cells instead of removed data-* attributes)
     function filterUsers() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
         const activeTab = document.querySelector('.tabs-content.active');
+        if (!activeTab) return;
         const table = activeTab.querySelector('table');
+        if (!table) return;
         const rows = table.querySelectorAll('tbody tr');
 
         rows.forEach(row => {
-            const name = row.getAttribute('data-name') || '';
-            const email = row.getAttribute('data-email') || '';
+            const cells = row.querySelectorAll('td');
+            const name = (cells[0] && cells[0].textContent || '').toLowerCase();
+            const email = (cells[1] && cells[1].textContent || '').toLowerCase();
 
             if (name.includes(searchTerm) || email.includes(searchTerm)) {
                 row.style.display = '';
@@ -361,24 +373,114 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
 
     // User management functions
     function viewUser(el, userType) {
-        // Redirect to same page with view and id params so the server renders only that user's modal
+        // Populate and open the modal by looking up the full record in window.__USER_DATA
+        // Falls back to reading visible table cells when the store doesn't have the record.
         if (!el || !el.closest) return;
         const row = el.closest('tr');
         if (!row) return;
-        const id = row.getAttribute('data-id');
-        if (!id) return;
 
+        const id = row.getAttribute('data-id') || '';
+        const rowType = (userType && String(userType).toLowerCase()) || (row.getAttribute('data-user-type') || '').toLowerCase();
+
+        // Map singular type -> store key
+        const lookupMap = { customer: 'customers', company: 'companies', collector: 'collectors' };
+        const storeKey = lookupMap[rowType] || null;
+
+        let user = null;
         try {
-            const url = new URL(window.location.href);
-            url.searchParams.set('view', userType);
-            url.searchParams.set('id', id);
-            // navigate to the URL so server-side rendering will pre-populate the modal
-            window.location.href = url.toString();
-        } catch (e) {
-            // fallback: append query string
-            const qs = `?view=${encodeURIComponent(userType)}&id=${encodeURIComponent(id)}`;
-            window.location.href = window.location.pathname + qs;
+            if (window.__USER_DATA && storeKey && Array.isArray(window.__USER_DATA[storeKey])) {
+                const pool = window.__USER_DATA[storeKey];
+                user = pool.find(u => (u.id || '').toString().toLowerCase() === id.toString().toLowerCase()) || null;
+            }
+        } catch (err) {
+            console.warn('user lookup failed', err);
+            user = null;
         }
+
+        // Fallback: read visible table cells (name/email/phone etc.)
+        const cells = row.querySelectorAll('td');
+        const fallback = {
+            id: id,
+            name: (cells[0] && cells[0].textContent.trim()) || '',
+            email: (cells[1] && cells[1].textContent.trim()) || '',
+            phone: (cells[2] && cells[2].textContent.trim()) || '',
+            // attempt to parse commonly present numeric columns where applicable
+            totalPickups: (cells[3] && cells[3].textContent.trim()) || '',
+            totalEarnings: (cells[4] && cells[4].textContent.replace(/[^0-9.\-]/g, '').trim()) || '0',
+            status: (cells[5] && cells[5].textContent.trim()) || ''
+        };
+
+        const src = user || fallback;
+
+        // Fill modal fields
+        const modal = document.getElementById('user-detail-modal');
+        if (!modal) return;
+        const setOrHide = (selector, text, opts = {}) => {
+            const elm = modal.querySelector(selector);
+            if (!elm) return;
+            const label = elm.previousElementSibling; // should be the <div><strong>Label</strong></div>
+
+            // Normalize text
+            const value = (text === null || text === undefined) ? '' : String(text).trim();
+
+            // Decide visibility: hide when value is empty or a single dash
+            const hide = (value === '' || value === '-');
+
+            if (hide) {
+                if (label) label.style.display = 'none';
+                elm.style.display = 'none';
+            } else {
+                if (label) label.style.display = '';
+                elm.style.display = '';
+                elm.textContent = value;
+            }
+        };
+        // Define all possible selectors and field groups per user type
+        const allSelectors = ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-vehicle', '.ud-totalpickups', '.ud-totalearnings', '.ud-totalbids', '.ud-totalpurchases'];
+
+        const allowedByType = {
+            customer: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-totalpickups', '.ud-totalearnings'],
+            company: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-totalbids', '.ud-totalpurchases'],
+            collector: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-vehicle', '.ud-totalpickups']
+        };
+
+        // Hide everything first
+        allSelectors.forEach(sel => {
+            const e = modal.querySelector(sel);
+            if (e) {
+                const lbl = e.previousElementSibling;
+                if (lbl) lbl.style.display = 'none';
+                e.style.display = 'none';
+            }
+        });
+        // Populate and show only allowed selectors for this user type
+        const allowed = allowedByType[rowType] || [];
+        if (allowed.includes('.ud-id')) setOrHide('.ud-id', src.id || '');
+        if (allowed.includes('.ud-name')) setOrHide('.ud-name', src.name || '');
+        if (allowed.includes('.ud-email')) setOrHide('.ud-email', src.email || '');
+        if (allowed.includes('.ud-phone')) setOrHide('.ud-phone', src.phone || '');
+        if (allowed.includes('.ud-address')) setOrHide('.ud-address', src.address || '');
+        if (allowed.includes('.ud-status')) setOrHide('.ud-status', src.status ? (src.status.charAt(0).toUpperCase() + src.status.slice(1)) : '');
+        if (allowed.includes('.ud-vehicle')) setOrHide('.ud-vehicle', src.vehicleId || src.vehicle || '');
+        if (allowed.includes('.ud-totalpickups')) setOrHide('.ud-totalpickups', src.totalPickups || src.todayPickups || src.totalPickups);
+
+        // Earnings formatted
+        const earningsRaw = src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : (src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : src.totalEarnings || src.totalEarnings);
+        const earningsVal = parseFloat(earningsRaw || fallback.totalEarnings || 0);
+        if (allowed.includes('.ud-totalearnings')) {
+            if (!isNaN(earningsVal)) {
+                setOrHide('.ud-totalearnings', 'Rs ' + earningsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            } else {
+                setOrHide('.ud-totalearnings', fallback.totalEarnings || '0');
+            }
+        }
+
+        if (allowed.includes('.ud-totalbids')) setOrHide('.ud-totalbids', src.totalBids || '0');
+        if (allowed.includes('.ud-totalpurchases')) setOrHide('.ud-totalpurchases', src.totalPurchases || '0');
+
+        // Open modal
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
     }
 
     function approveUser(userId, userType) {
@@ -566,50 +668,3 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
     </div>
 <?php endif; ?>
 
-<style>
-    /* Minimal modal styles - keep scoped and simple */
-    .user-modal {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 2000
-    }
-
-    .user-modal.open {
-        display: flex
-    }
-
-    .user-modal__dialog {
-        background: #fff;
-        border-radius: 8px;
-        padding: 20px;
-        min-width: 320px;
-        max-width: 720px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
-        position: relative
-    }
-
-    .user-modal__dialog .close {
-        position: absolute;
-        right: 10px;
-        top: 8px;
-        border: none;
-        background: transparent;
-        font-size: 22px;
-        cursor: pointer
-    }
-
-    .user-modal__grid {
-        display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 8px 16px;
-        margin-top: 12px
-    }
-
-    .user-modal__grid div {
-        padding: 4px 0
-    }
-</style>
