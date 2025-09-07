@@ -138,7 +138,15 @@ if (!function_exists('base_path')) {
      */
     function base_path(string $path = ''): string
     {
-        $basePath = app()->basePath();
+        // In CLI scripts the Application singleton may not be initialized.
+        $app = Core\Application::getInstance();
+        if ($app) {
+            $basePath = $app->basePath();
+        } else {
+            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
+            $basePath = dirname(__DIR__, 2);
+        }
+
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
     }
 }
@@ -203,7 +211,7 @@ if (!function_exists('redirect')) {
     function redirect(string $url, int $status = 302): Core\Http\Response
     {
         $response = app('response');
-        $response->setStatus($status);
+        $response->setStatusCode($status);
         $response->setHeader('Location', $url);
 
         return $response;
@@ -259,16 +267,17 @@ if (!function_exists('view')) {
      * 
      * @param string $view
      * @param array $data
+     * @param string|null $layout Optional layout path under src/Views (e.g. 'layouts/app')
      * @return Core\Http\Response
      */
-    function view(string $view, array $data = []): Core\Http\Response
+    function view(string $view, array $data = [], ?string $layout = null): Core\Http\Response
     {
         $response = app('response');
 
         // Extract data for view
         extract($data);
 
-        // Start output buffering
+        // Start output buffering for the view content
         ob_start();
 
         // Include the view file
@@ -283,8 +292,24 @@ if (!function_exists('view')) {
         // Get the rendered content
         $content = ob_get_clean();
 
-        // Set the response content
-        $response->setContent($content);
+        // If a layout is requested, render the layout with $content available
+        if ($layout) {
+            ob_start();
+            $layoutPath = app()->basePath() . "/src/Views/{$layout}.php";
+            if (file_exists($layoutPath)) {
+                // $content is in scope for the layout file
+                include $layoutPath;
+                $final = ob_get_clean();
+            } else {
+                // Layout missing — fall back to raw content
+                $final = $content;
+            }
+
+            $response->setContent($final);
+        } else {
+            $response->setContent($content);
+        }
+
         $response->setHeader('Content-Type', 'text/html');
 
         return $response;
@@ -547,5 +572,70 @@ if (!function_exists('dummy_data')) {
         if ($key === null)
             return $data;
         return $data[$key] ?? null;
+    }
+}
+
+// logout the user -> need to redirect to the login page with removing all cache data
+if (!function_exists('logout')) {
+    /**
+     * Logout the current user
+     * 
+     * @return Core\Http\Response
+     */
+    function logout(): Core\Http\Response
+    {
+        $session = session();
+
+        // Best-effort server-side session cleanup. The session manager in this app
+        // may implement clear(), destroy(), regenerateToken(). Call whichever
+        // exist to avoid fatal errors on different session implementations.
+        if (is_object($session)) {
+            if (method_exists($session, 'clear')) {
+                $session->clear();
+            }
+
+            if (method_exists($session, 'destroy')) {
+                // Some session managers provide a destroy method
+                $session->destroy();
+            }
+
+            if (method_exists($session, 'regenerateToken')) {
+                $session->regenerateToken();
+            }
+        }
+
+        // Also attempt native PHP session cleanup in case session manager wraps PHP
+        if (PHP_SAPI !== 'cli') {
+            // If PHP session is active, clear and destroy it
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                // Clear $_SESSION array
+                $_SESSION = [];
+
+                // Destroy session data on server
+                @session_destroy();
+
+                // Remove session cookie from client
+                $sessionName = session_name();
+                if (!empty($sessionName) && ini_get('session.use_cookies')) {
+                    $params = session_get_cookie_params();
+                    setcookie(
+                        $sessionName,
+                        '',
+                        time() - 42000,
+                        $params['path'] ?? '/',
+                        $params['domain'] ?? '',
+                        $params['secure'] ?? false,
+                        $params['httponly'] ?? true
+                    );
+                }
+            }
+        }
+
+        // Prevent caching of authenticated pages
+        $response = redirect('/login');
+        $response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->setHeader('Pragma', 'no-cache');
+
+        return $response;
     }
 }

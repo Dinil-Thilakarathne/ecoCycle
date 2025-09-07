@@ -1,5 +1,5 @@
 .landing-page {
-  --_header-height: 70px;
+--_header-height: 70px;
   --_min-height-small: 70vh;
 
   .top-nav {
@@ -455,26 +455,89 @@
    ============================================ */
 .auth-login-page {
   --_role-grid-max-width: 90rem;
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
-}
+  background-color: var(--color-teal-500);
+  padding: var(--space-8) var(--space-8);
 
-.auth-login-page .container {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-@media screen and (min-width: 900px) {
-  .auth-login-page .container {
-    grid-template-columns: 1fr 1fr 1fr;
+  @media screen and (min-width: 1024px) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: var(--space-12) var(--space-16);
   }
 }
 
-.auth-login-page .login-role-grid {
-  display: grid;
-  gap: var(--space-8);
-  grid-template-columns: 1fr;
+.auth-login-page .login-content {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--space-8);
+  background-color: var(--neutral-0);
+  min-height: 50vh;
+  border-radius: var(--rounded-2xl);
+  align-items: start;
+  justify-content: center;
+  padding: var(--space-10) var(--space-8);
+
+  @media screen and (min-width: 768px) {
+    padding: var(--space-24) var(--space-40);
+  }
+}
+
+.login-content {
+  & > div,
+  form {
+    width: 100%;
+  }
+  & .content-top {
+    h1 {
+      font-size: var(--text-4xl);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    @media screen and (min-width: 1280px) {
+      h1 {
+        font-size: var(--text-5xl);
+      }
+    }
+  }
+
+  & .content-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+
+    & #loginError {
+      color: var(--danger);
+      visibility: hidden;
+
+      &.visible {
+        visibility: visible;
+      }
+    }
+
+    & .forget-password {
+      width: 100%;
+      display: flex;
+      justify-content: end;
+
+      a {
+        font-size: var(--text-sm);
+        text-decoration: none;
+        transition: color var(--transition-fast);
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  & .content-footer {
+    width: 100%;
+    border-top: 1px solid var(--neutral-400);
+    padding-top: var(--space-8);
+  }
 }
 
 .auth-login-page .login-card {
@@ -529,7 +592,8 @@
   color: var(--neutral-600);
   margin: 0 0 var(--space-12);
 }
-.auth-login-page .login-card__action {
+.auth-login-page .login-card__action,
+.auth-login-page .signup-btn {
   width: 100%;
 }
 

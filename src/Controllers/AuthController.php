@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Http\Request;
 use Core\Http\Response;
+use Models\User;
 
 /**
  * Authentication Controller
@@ -25,60 +26,82 @@ class AuthController extends BaseController
      */
     public function login(Request $request): Response
     {
-        $email = $request->input('email');
-        $password = $request->input('password');
+        $login = trim((string) $request->input('login'));
+        $password = (string) $request->input('password');
 
-        // TODO: Implement actual authentication logic
-        // For now, let's create a demo login system
+        $userModel = new User();
+        $user = null;
 
-        $demoUsers = [
-            'admin@ecocycle.com' => [
-                'id' => 1,
-                'name' => 'Admin User',
-                'email' => 'admin@ecocycle.com',
-                'role' => 'admin',
-                'password' => 'admin123'
-            ],
-            'customer@ecocycle.com' => [
-                'id' => 2,
-                'name' => 'John Customer',
-                'email' => 'customer@ecocycle.com',
-                'role' => 'customer',
-                'password' => 'customer123'
-            ],
-            'collector@ecocycle.com' => [
-                'id' => 3,
-                'name' => 'Jane Collector',
-                'email' => 'collector@ecocycle.com',
-                'role' => 'collector',
-                'password' => 'collector123'
-            ],
-            'company@ecocycle.com' => [
-                'id' => 4,
-                'name' => 'ABC Company',
-                'email' => 'company@ecocycle.com',
-                'role' => 'company',
-                'password' => 'company123'
-            ]
-        ];
-
-        if (isset($demoUsers[$email]) && $demoUsers[$email]['password'] === $password) {
-            $user = $demoUsers[$email];
-
-            // Set session data using SessionManager's put method
-            session()->put('user_id', $user['id']);
-            session()->put('user_name', $user['name']);
-            session()->put('user_email', $user['email']);
-            session()->put('user_role', $user['role']);
-
-            // Redirect to appropriate dashboard
-            return dashboard_redirect($user);
+        try {
+            // Try as email first
+            $user = filter_var($login, FILTER_VALIDATE_EMAIL) ? $userModel->findByEmail($login) : $userModel->findByUsername($login);
+        } catch (\Throwable $e) {
+            // DB not ready; fall back to demo users
         }
 
-        // Login failed
-        return $this->view('auth/login', [
-            'error' => 'Invalid email or password'
-        ]);
+        // Fallback to in-memory demo users if DB user not found
+        if (!$user) {
+            $demoUsers = config('auth.demo_users', []);
+            foreach ($demoUsers as $demo) {
+                if (strcasecmp($demo['email'], $login) === 0 || strcasecmp($demo['username'] ?? '', $login) === 0) {
+                    $user = $demo; // plain password comparison below
+                    break;
+                }
+            }
+            if ($user) {
+                $valid = hash_equals($user['password_hash'], $password);
+                if (!$valid) {
+                    $user = null; // invalidate if password mismatch
+                }
+            }
+        } else {
+            // Verify password (hashed or plain) for DB user
+            if (!$userModel->verifyPassword($user, $password)) {
+                $user = null;
+            }
+        }
+
+        if ($user) {
+            $userData = [
+                'id' => (int) $user['id'],
+                'name' => $user['username'] ?? $user['email'],
+                'email' => $user['email'],
+                'role' => $user['role_name'] ?? ($user['role'] ?? null)
+            ];
+
+            // Use SessionManager::login so userData() returns the role for middlewares
+            session()->login((int) $userData['id'], $userData);
+
+            // Keep individual keys for backward compatibility with helpers
+            session()->put('user_name', $userData['name']);
+            session()->put('user_email', $userData['email']);
+            session()->put('user_role', $userData['role']);
+
+            // Determine dashboard URL for JSON response if requested
+            $dashboards = config('auth.dashboards', []);
+            $redirectUrl = $dashboards[$userData['role']] ?? '/dashboard';
+
+            if ($request->expectsJson() || $request->isAjax()) {
+                return \Core\Http\Response::json([
+                    'success' => true,
+                    'message' => 'Authenticated',
+                    'redirect' => $redirectUrl
+                ]);
+            }
+
+            return dashboard_redirect($userData);
+        }
+
+        // On failure: preserve the submitted login value and show an error message.
+        // Use session flash so old() helper works and message survives the redirect for non-AJAX.
+        session()->flash('old', ['login' => $login]);
+        session()->flash('error', 'Invalid email or password');
+
+        if ($request->expectsJson() || $request->isAjax()) {
+            return \Core\Http\Response::errorJson('Invalid email or password', 422);
+        }
+
+        return redirect('/login');
     }
 
     /**
@@ -86,8 +109,8 @@ class AuthController extends BaseController
      */
     public function logout(): Response
     {
-        session()->destroy();
-        return redirect('/login');
+        // Use the global helper which performs a full session cleanup and redirect
+        return \logout();
     }
 
     /**
@@ -98,7 +121,7 @@ class AuthController extends BaseController
         return $this->view('auth/register');
     }
 
-    /**
+    /**phe
      * Handle registration
      */
     public function register(Request $request): Response
