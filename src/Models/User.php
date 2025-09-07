@@ -18,13 +18,30 @@ class User
     {
         $sql = "CREATE TABLE IF NOT EXISTS `users` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `email` VARCHAR(150) NOT NULL UNIQUE,
+            `type` ENUM('customer','company','collector','admin') NOT NULL DEFAULT 'customer',
+            `name` VARCHAR(255) DEFAULT NULL,
             `username` VARCHAR(100) DEFAULT NULL,
+            `email` VARCHAR(150) DEFAULT NULL,
+            `phone` VARCHAR(50) DEFAULT NULL,
+            `address` TEXT DEFAULT NULL,
             `password_hash` VARCHAR(255) DEFAULT NULL,
             `role_id` INT DEFAULT NULL,
-            `status` VARCHAR(30) DEFAULT 'active',
+            `vehicle_id` INT DEFAULT NULL,
+            `status` VARCHAR(32) DEFAULT 'active',
+            `total_pickups` INT DEFAULT 0,
+            `total_earnings` DECIMAL(12,2) DEFAULT 0.00,
+            `total_bids` INT DEFAULT 0,
+            `total_purchases` INT DEFAULT 0,
+            `metadata` JSON DEFAULT NULL,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL
+            `updated_at` TIMESTAMP NULL DEFAULT NULL,
+            UNIQUE KEY `users_email_unique` (`email`),
+            INDEX `idx_users_type` (`type`),
+            INDEX `idx_users_status` (`status`),
+            INDEX `idx_users_role` (`role_id`),
+            INDEX `idx_users_vehicle` (`vehicle_id`),
+            FOREIGN KEY (`role_id`) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+            FOREIGN KEY (`vehicle_id`) REFERENCES vehicles(id) ON DELETE SET NULL ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
 
         return $this->db->query($sql);
