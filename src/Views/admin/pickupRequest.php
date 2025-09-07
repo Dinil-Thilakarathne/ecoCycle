@@ -69,7 +69,7 @@ if ($selectedTimeSlot !== 'all') {
 </script>
 
 <!-- Edit Pickup Modal -->
-<div id="pickup-edit-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
+<div id="pickup-edit-modal" class="user-modal" role="dialog" aria-modal="true">
     <div class="user-modal__dialog">
         <button class="close" aria-label="Close">&times;</button>
         <h3>Edit Pickup Request</h3>
@@ -152,31 +152,85 @@ if ($selectedTimeSlot !== 'all') {
         const pickupId = modal.getAttribute('data-editing-id');
         const sel = document.getElementById('pe-collector-select');
         const collectorId = sel.value || '';
-
         // Update in-memory store
         const idx = (window.__PICKUP_DATA || []).findIndex(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase());
+        let newStatus = '';
         if (idx !== -1) {
+            // update collector info
             window.__PICKUP_DATA[idx].collectorId = collectorId;
             window.__PICKUP_DATA[idx].collectorName = collectorId ? ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name : '';
+
+            // Decide status: if previously completed, keep completed; otherwise assigned <-> pending
+            const prev = (window.__PICKUP_DATA[idx].status || '').toString().toLowerCase();
+            if (prev === 'completed') {
+                newStatus = 'completed';
+            } else {
+                newStatus = collectorId ? 'assigned' : 'pending';
+                window.__PICKUP_DATA[idx].status = newStatus;
+            }
         }
 
-        // Update the table row DOM
+        // Update the table row DOM (collector and status)
         const row = document.querySelector(`tr[data-id="${pickupId}"]`);
         if (row) {
+            // Collector cell (index 6)
             const collectorCell = row.querySelectorAll('td')[6];
-            if (collectorId) {
-                const name = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
-                collectorCell.textContent = name;
-            } else {
-                collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
+            if (collectorCell) {
+                if (collectorId) {
+                    const name = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
+                    collectorCell.textContent = name;
+                } else {
+                    collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
+                }
+            }
+
+            // Status cell (index 5)
+            const statusCell = row.querySelectorAll('td')[5];
+            if (statusCell && newStatus) {
+                const makeBadge = (st) => {
+                    switch ((st || '').toString().toLowerCase()) {
+                        case 'pending': return '<div class="tag pending">Pending</div>';
+                        case 'assigned': return '<div class="tag assigned">Assigned</div>';
+                        case 'completed': return '<div class="tag completed">Completed</div>';
+                        default: return '<div class="tag">' + String(st) + '</div>';
+                    }
+                };
+                statusCell.innerHTML = makeBadge(newStatus);
+            }
+        }
+
+        // If detail modal is open, update its fields too
+        const detailModal = document.getElementById('pickup-detail-modal');
+        if (detailModal && detailModal.classList.contains('open')) {
+            const pdCollector = detailModal.querySelector('.pd-collector');
+            const pdStatus = detailModal.querySelector('.pd-status');
+            if (pdCollector) {
+                if (collectorId) {
+                    pdCollector.textContent = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
+                    pdCollector.style.display = '';
+                    const lbl = pdCollector.previousElementSibling;
+                    if (lbl) lbl.style.display = '';
+                } else {
+                    pdCollector.textContent = '';
+                    pdCollector.style.display = 'none';
+                    const lbl = pdCollector.previousElementSibling;
+                    if (lbl) lbl.style.display = 'none';
+                }
+            }
+            if (pdStatus && newStatus) {
+                // plain text is fine in the detail modal
+                pdStatus.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                pdStatus.style.display = '';
+                const lbl = pdStatus.previousElementSibling;
+                if (lbl) lbl.style.display = '';
             }
         }
 
         // Close modal
         closeEditModal();
 
-        // UX: show a toast or console note
-        console.log(`Pickup ${pickupId} assigned to collector ${collectorId}`);
+        // UX: console note
+        console.log(`Pickup ${pickupId} collector set to '${collectorId}' and status set to '${newStatus}'`);
     }
 
     // Close edit modal when clicking backdrop or close button
