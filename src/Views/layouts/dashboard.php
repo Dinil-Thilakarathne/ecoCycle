@@ -50,7 +50,7 @@ if (!$notificationsUrl) {
             </nav>
             <!-- Sidebar footer: logout form (POST) to properly clear session -->
             <div class="sidebar-footer">
-                <form id="logout-form" action="<?= url('/logout') ?>" method="post" style="display:inline">
+                <form id="logout-form" action="/logout" method="post" style="display:inline">
                     <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
                     <button type="submit" class="nav-link logout-link" title="Logout"
                         style="background:none;border:0;padding:0;cursor:pointer">
