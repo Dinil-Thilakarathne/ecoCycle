@@ -105,7 +105,7 @@ if (isset($_POST["new_password"])) {
 
     <!-- Company Info -->
   
-    <a href="#editModal" class="edit-btn">✏️ Edit Profile</a>
+    <a href="#editModal" class="btn btn-outline" style="position: absolute; right: 6%; top: 15%; ">✏️ Edit Profile</a>
     
     <div class=p-info-card>
       <div class="pc-card">
@@ -158,8 +158,8 @@ if (isset($_POST["new_password"])) {
     <!-- Security -->
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-      <p><a href="#passwordModal" class="p-btn">Change Password</a></p>
-      <p><button class="p-btn">Two-Factor Authentication</button></p>
+      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
+      <p><button class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button></p>
       <p><button class="p-btn-delete">Delete Account</button></p>
     </div>
 </main>
@@ -201,7 +201,7 @@ if (isset($_POST["new_password"])) {
         <textarea name="address"><?= htmlspecialchars($company['address']) ?></textarea></div>
       <div class="form-group"><label>Waste Types (comma-separated)</label>
         <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(", ", $company['waste_types'])) ?>"></div>
-      <button type="submit" class="p-submit">Save Changes</button>
+      <button type="submit" class="btn btn-primary outline" style="width:100%;">Save Changes</button>
     </form>
   </div>
 </div>
@@ -230,7 +230,7 @@ if (isset($_POST["new_password"])) {
       <div class="form-group"><label>Confirm New Password</label>
         <input type="password" name="confirm_password" required>
       </div>
-      <button type="submit" class="p-submit">Update Password</button>
+      <button type="submit" class="btn btn-primary outline" style="width:100%;">Update Password</button>
     </form>
   </div>
 </div>

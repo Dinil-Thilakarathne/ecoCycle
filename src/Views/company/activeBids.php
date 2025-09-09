@@ -80,7 +80,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <label>Waste Amount (kg)</label>
         <input type="number" name="waste_amount" step="1" required placeholder="Enter waste amount" min="10" max="10000">
 
-        <button type="submit">Place Bid</button>
+        <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Place Bid</button>
       </form>
     
 

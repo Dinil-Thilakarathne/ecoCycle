@@ -63,7 +63,7 @@ $purchaseHistory = [
                     <p>Pickup Date: <?= $purchase['pickup_date'] ?></p>
                     <span class="status <?= strtolower(str_replace(' ', '-', $purchase['status'])) ?>"><?= strtoupper($purchase['status']) ?> </span>
                     <?php if($purchase['status'] == "Confirmed"): ?>
-                        <button class="pay-btn">Make Payment</button>
+                        <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Make Payment</button>
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>

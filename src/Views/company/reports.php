@@ -27,8 +27,8 @@ $wonBidsPerMonth = [7, 9, 6, 14, 10, 15];
             <input type="text" placeholder="Search reports...">
             <select><option>Report type</option></select>
             <select><option>Date range</option></select>
-            <button class="filter-btn">Filter</button>
-            <button class="export-btn">Export</button>
+            <button class="btn btn-outline">Filter</button>
+            <button class="btn btn-primary">Export</button>
         </div>
 
         <div class="charts">

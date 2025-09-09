@@ -82,7 +82,7 @@ $filtered = array_filter($notifications, function ($n) use ($filter) {
 
   <!-- Mark All as Read -->
   <div style="margin: 10px 0;">
-      <a href="?action=mark_all&filter=<?= $filter ?>" class="mark-read-btn">Mark All as Read</a>
+      <a href="?action=mark_all&filter=<?= $filter ?>" class="btn btn-primary outline">Mark All as Read</a>
   </div>
 
   <!-- Notifications Table -->
@@ -108,10 +108,10 @@ $filtered = array_filter($notifications, function ($n) use ($filter) {
             <td><?= ucfirst($n['status']) ?></td>
             <td>
             <?php if ($n['status']==="unread"): ?>
-                <a href="?action=mark_read&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn-n-mark">Mark Read</a>
+                <a href="?action=mark_read&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-primary outline">Mark Read</a>
             <?php endif; ?>
-            <a href="?action=view&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn-n-view">View</a>
-            <a href="?action=delete&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn-n-delete" onclick="return confirm('Delete this notification?')">Delete</a>
+            <a href="?action=view&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-outline">View</a>
+            <a href="?action=delete&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="p-btn-delete" onclick="return confirm('Delete this notification?')">Delete</a>
             </td>
         </tr>
         <?php endforeach; ?>
@@ -137,7 +137,7 @@ $filtered = array_filter($notifications, function ($n) use ($filter) {
       <?php if ($viewNotification['status']==="unread"): ?>
         <a href="?action=mark_read&id=<?= $viewNotification['id'] ?>&filter=<?= $filter ?>" class="btn-n-mark">Mark as Read</a>
       <?php endif; ?>
-      <a href="?filter=<?= $filter ?>" class="btn-n-view">Close</a>
+      <a href="?filter=<?= $filter ?>" class="btn btn-outline">Close</a>
     </div>
   </div>
 </div>

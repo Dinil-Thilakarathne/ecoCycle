@@ -71,7 +71,7 @@ $bids = [
         <h3>Send Feedback</h3>
         <div class="feedback">
           <input type="text" placeholder="Send Feedback">
-          <button>Send</button>
+          <button class="btn btn-primary" style="flex: 1;" type="submit">Send</button>
         </div>
       </div>
     </div>
