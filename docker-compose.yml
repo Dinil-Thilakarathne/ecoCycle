@@ -22,10 +22,10 @@ services:
     image: mariadb:11
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-ecocycle}
-      MYSQL_USER: ${DB_USERNAME:-ecocycle}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeRootStrong}
+      MYSQL_DATABASE: ${DB_DATABASE:-eco_cycle}
+      MYSQL_USER: ${DB_USERNAME:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-}
     volumes:
       - db_data:/var/lib/mysql
     networks:
