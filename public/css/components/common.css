@@ -86,13 +86,13 @@
   &.completed {
     border: 1px solid var(--success);
     background-color: var(--success-light);
-    color: #047857;
+    color: var(--success);
   }
 
   &.danger {
-    border: 1px solid #dc2626;
-    background-color: #fef2f2;
-    color: #dc2626;
+    border: 1px solid var(--danger);
+    background-color: var(--danger-light);
+    color: var(--danger);
   }
 
   &.secondary {
@@ -233,6 +233,47 @@
   }
 }
 
+/* Form Controls */
+.form-select {
+  position: relative;
+  display: inline-block;
+
+  & select {
+    appearance: none;
+    background-color: var(--neutral-0);
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--rounded-md);
+    padding: var(--space-2) var(--space-16) var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--neutral-900);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(28, 227, 106, 0.1);
+    }
+  }
+
+  &::after {
+    content: "▼";
+    position: absolute;
+    top: 50%;
+    right: var(--space-4);
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: var(--text-xs);
+    color: var(--neutral-500);
+  }
+}
+
+.data-table {
+  & select,
+  & .form-select::after {
+    font-size: var(--text-xs);
+  }
+}
 /* Button Styles */
 .btn {
   display: inline-flex;
@@ -242,7 +283,7 @@
   padding: var(--space-4) var(--space-8);
   border-radius: var(--rounded-xl);
   font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
+  /* font-weight: var(--font-weight-medium); */
   text-decoration: none;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -258,9 +299,8 @@
 
   &.btn-outline {
     background-color: transparent;
-    border-color: var(--neutral-300);
     color: var(--neutral-700);
-    border: 1px solid var(--neutral-400);
+    border: 1px solid var(--neutral-300);
 
     &:hover {
       background-color: var(--neutral-100);
@@ -278,7 +318,6 @@
   }
 
   &.btn-sm {
-    padding: var(--space-1) var(--space-3);
     font-size: var(--text-xs);
   }
 
@@ -642,5 +681,52 @@
         color: var(--neutral-500);
       }
     }
+  }
+}
+
+/* Minimal modal styles - keep scoped and simple */
+.user-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+
+  &.open {
+    display: flex;
+  }
+
+  .user-modal__dialog {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 320px;
+    max-width: 720px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    position: relative;
+  }
+
+  .user-modal__dialog .close {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .user-modal__grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    align-items: center;
+    gap: 8px 16px;
+    margin-top: 12px;
+  }
+
+  .user-modal__grid div {
+    padding: 4px 0;
   }
 }

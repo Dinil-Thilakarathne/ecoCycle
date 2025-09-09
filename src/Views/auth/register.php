@@ -74,6 +74,7 @@ $old = function ($k, $d = '') {
             <a href="/" class="btn btn-outline signup-btn">Back to home</a>
         </div>
 
+        <script src="/js/toast.js"></script>
         <script>
             (function () {
                 // Keep client-side validations. If validation passes, redirect to /login.
@@ -116,12 +117,19 @@ $old = function ($k, $d = '') {
                         return;
                     }
 
-                    // All validations passed — redirect to login (UI-only)
+                    // All validations passed — submit the form to server
                     if (btn) btn.textContent = 'Creating account...';
-                    setTimeout(function () {
-                        window.location.href = '/login';
-                    }, 300);
+                    // Allow normal POST submission
+                    form.submit();
                 });
+
+                // If server-side success was flashed (redirect from POST), show toast
+                <?php if ($success): ?>
+                    try {
+                        if (typeof __createToast === 'function') __createToast(<?= json_encode($success) ?>, 'success', 4000);
+                        else document.addEventListener('DOMContentLoaded', function () { if (typeof __createToast === 'function') __createToast(<?= json_encode($success) ?>, 'success', 4000); });
+                    } catch (e) { /* ignore */ }
+                <?php endif; ?>
             })();
         </script>
     </div>
