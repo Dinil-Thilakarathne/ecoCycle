@@ -19,7 +19,7 @@ $oldLogin = old('login', '');
             <!-- server-side error will be shown inline under the submit button; no separate alert box -->
             <div class="form-select">
                 <label for="role-select" class="sr-only">Choose role</label><br>
-                <select id="role-select" aria-label="Select user role" style=" width:100%;">
+                <select id="role-select" aria-label="Select user role" style=" width:100%;" required>
                     <option value="" selected disabled>-- Choose a role --</option>
                     <option value="/customer">Customer — Track recycling requests &amp; status</option>
                     <option value="/collector">Collector — Manage pickups &amp; routes</option>
@@ -36,7 +36,7 @@ $oldLogin = old('login', '');
                 placeholder="Your password"></form-input>
 
             <p id="loginError" role="status" aria-live="polite" style="color:var(--danger);"
-                class=" <?= $error ? "visible" : "" ?>">
+                class=" <?= $error ? "" : "visible" ?>">
                 <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
             </p>
 
@@ -75,7 +75,7 @@ $oldLogin = old('login', '');
 
                             var btnEl = document.getElementById('loginSubmit');
                             if (btnEl) btnEl.disabled = true;
-                            if (loginError) loginError.style.display = 'none';
+                            // if (loginError) loginError.style.display = 'none';
 
                             var formData = new FormData(form);
 
@@ -169,44 +169,6 @@ $oldLogin = old('login', '');
                         loginError.style.display = 'block';
                     }
                 <?php endif; ?>
-                if (form) {
-                    form.addEventListener('submit', function (e) {
-                        e.preventDefault();
-
-                        var btn = document.getElementById('loginSubmit');
-                        btn.disabled = true;
-                        loginError.style.display = 'none';
-
-                        var formData = new FormData(form);
-
-                        // Send via fetch
-                        fetch(form.action || '/login', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        }).then(function (resp) {
-                            return resp.json().catch(function () { return { success: false, message: 'Invalid server response' }; });
-                        }).then(function (data) {
-                            if (data && data.success) {
-                                // Redirect to provided URL or reload
-                                window.location.href = data.redirect || '/';
-                                return;
-                            }
-
-                            var msg = (data && data.message) ? data.message : 'Invalid email or password';
-                            loginError.textContent = msg;
-                            loginError.style.display = 'block';
-                        }).catch(function (err) {
-                            loginError.textContent = 'Network error. Please try again.';
-                            loginError.style.display = 'block';
-                        }).finally(function () {
-                            btn.disabled = false;
-                        });
-                    });
-                }
             })();
         </script>
     </div>
