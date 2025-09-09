@@ -620,9 +620,15 @@
 }
 
 /* Form Controls */
+.form-select__wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
 .form-select {
   position: relative;
   display: inline-block;
+  width: 100%;
 
   & select {
     appearance: none;

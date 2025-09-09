@@ -18,15 +18,17 @@ $success = $success ?? (session()->getFlash('success') ?? null);
             <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
 
             <!-- server-side error will be shown inline under the submit button; no separate alert box -->
-            <div class="form-select">
+            <div class="form-select__wrapper">
                 <label for="role-select" class="sr-only">Choose role</label><br>
-                <select id="role-select" aria-label="Select user role" style=" width:100%;" required>
-                    <option value="" selected disabled>-- Choose a role --</option>
-                    <option value="/customer">Customer — Track recycling requests &amp; status</option>
-                    <option value="/collector">Collector — Manage pickups &amp; routes</option>
-                    <option value="/company">Company — Operations &amp; analytics</option>
-                    <option value="/admin">Admin — Platform configuration</option>
-                </select>
+                <div class="form-select">
+                    <select id="role-select" aria-label="Select user role" style=" width:100%;" required>
+                        <option value="" selected disabled>-- Choose a role --</option>
+                        <option value="/customer">Customer — Track recycling requests &amp; status</option>
+                        <option value="/collector">Collector — Manage pickups &amp; routes</option>
+                        <option value="/company">Company — Operations &amp; analytics</option>
+                        <option value="/admin">Admin — Platform configuration</option>
+                    </select>
+                </div>
             </div>
             <!-- login field: uses underlying native input with name="login" so PHP receives it -->
             <form-input label="Email or Username" name="login" placeholder="email@example.com or username"
