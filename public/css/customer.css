@@ -16,59 +16,8 @@
 .analytics-container {
   max-width: 1200px;
   margin-left: auto;
-  margin-right: auto;
-  padding-left: 2rem;
-  padding-right: 2rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Stats Grid - Same as your dashboard */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #cbd5e1;
-}
-
-.stat-icon {
-  font-size: 2rem;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f0f9ff;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
+  justify-content: center;}
 /* button variants removed - refer to components/common.css */
-
-/* removed duplicate unified button styles; keep component-specific button rules elsewhere in this file */
-
-.tab-btn:hover {
-  color: #475569;
-  background: rgba(255, 255, 255, 0.5);
-}
 
 .tab-btn.active {
   background: white;
@@ -289,30 +238,6 @@
   accent-color: #22c55e;
 }
 
-.form-label {
-  display: block;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.form-select {
-  width: 100%;
-  padding: 0.75rem;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  color: #1e293b;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-}
-
-.form-select:focus {
-  outline: none;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -926,21 +851,6 @@
 .section-subtitle {
   font-size: var(--text-sm);
   color: var(--neutral-600);
-}
-
-/* Table container and data-table styles removed - use components/common.css */
-/* Cell with Icon */
-.cell-with-icon {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.cell-with-icon i {
-  color: var(--neutral-500);
-  font-size: var(--text-sm);
-  width: 16px;
-  flex-shrink: 0;
 }
 
 /* DateTime Info */

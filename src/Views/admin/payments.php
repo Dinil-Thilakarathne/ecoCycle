@@ -57,7 +57,7 @@ function getStatusTag($status)
             'period' => 'To customers',
         ],
         [
-            'title' => 'Total Payments',
+            'title' => 'Total Income',
             'value' => 'Rs ' . number_format($totalPayments, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
             'period' => 'From companies',
@@ -121,7 +121,7 @@ function getStatusTag($status)
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td>$<?= number_format($payment['amount'], 2) ?></td>
+                            <td>Rs <?= number_format($payment['amount'], 2) ?></td>
                             <td><?= htmlspecialchars($payment['recipient']) ?></td>
                             <td><?= htmlspecialchars($payment['date']) ?></td>
                             <td>

@@ -80,20 +80,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
     </div>
 
-    <!-- Verification -->
-    <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Verification Status</h3>
-      <ul>
-        <?php foreach($company['verification'] as $item => $status): ?>
-          <li><?= $item ?>:
-            <span class="<?= $status ? 'verified' : 'not-verified' ?>">
-              <?= $status ? 'Verified' : 'Not Verified' ?>
-            </span>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-
     <!-- Security -->
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>

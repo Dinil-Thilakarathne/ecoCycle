@@ -64,6 +64,12 @@ $collector = [
     "address" => "45 Green Street, Colombo, Sri Lanka",
     "daily_target" => 50,
     "language" => "English",
+     "bank" => [
+        "bank_name" => "Commercial Bank",
+        "account_number" => "1234567890",
+        "branch" => "Colombo Main",
+        "ifsc_code" => "COMB12345"
+    ],
     "verification" => [
         "Email Verified" => true,
         "Phone Verified" => true,
@@ -83,6 +89,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $collector["address"] = $_POST["address"];
     $collector["daily_target"] = $_POST["daily_target"];
     $collector["language"] = $_POST["language"];
+
+    $collector["bank"]["bank_name"] = $_POST["bank_name"];
+    $collector["bank"]["account_number"] = $_POST["account_number"];
+    $collector["bank"]["branch"] = $_POST["branch"];
+    $collector["bank"]["ifsc_code"] = $_POST["ifsc_code"];
+
     $showToast = true;
 }
 ?>
@@ -102,6 +114,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <!-- Edit Button 
     <a href="#editModal" class="edit-btn">✏️ Edit Profile</a>-->
     
+    <!-- Profile Image Section -->
+<div class="profile-card">
+  <div class="profile-image">
+    <img src="collector.jpg" alt="Collector Profile">
+  </div>
+  <div class="profile-details">
+    <h2><?= htmlspecialchars($collector['first_name'] . " " . $collector['last_name']) ?></h2>
+    <p><?= htmlspecialchars($collector['email']) ?></p>
+    <p><?= htmlspecialchars($collector['phone']) ?></p>
+  </div>
+</div>
+
     <div class="p-info-card">
       <!-- Personal Info -->
       <div class="pc-card">
@@ -132,15 +156,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
     </div>
 
-    <!-- Work Info -->
+     <!-- Bank Details -->
+<div class="pc-card">
+  <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
+  <div class="form-group"><label>Bank Name</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['bank_name']) ?>" disabled>
+  </div>
+  <div class="form-group"><label>Account Number</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['account_number']) ?>" disabled>
+  </div>
+  <div class="form-group"><label>Branch</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['branch']) ?>" disabled>
+  </div>
+  <div class="form-group"><label>IFSC Code</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['ifsc_code']) ?>" disabled>
+  </div>
+</div>
+
+<div class="form-group"><label>Confirm Password</label>
+  <input type="password" name="confirm_password" required>
+</div>
+<?php 
+  $maskedAcc = str_repeat("X", strlen($collector['bank']['account_number']) - 4) 
+               . substr($collector['bank']['account_number'], -4);
+?>
+<input type="text" value="<?= htmlspecialchars($maskedAcc) ?>" disabled>
+
+
+
+    <!-- Work Info 
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Work Information</h3>
       <div class="form-group"><label>Daily Collection Target (kg)</label>
-        <input type="text" value="<?= htmlspecialchars($collector['daily_target']) ?>" disabled>
+       <input type="text" value="<?= htmlspecialchars($collector['daily_target']) ?>" disabled>
       </div>
-    </div>
+    </div>-->
 
-    <!-- Verification -->
+    <!-- Verification 
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Verification Status</h3>
       <ul>
@@ -152,16 +204,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
           </li>
         <?php endforeach; ?>
       </ul>
-    </div>
+    </div>-->
 
     <!-- Security -->
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
       <p><button class="p-btn">Change Password</button></p>
-      <p><button class="p-btn">Two-Factor Authentication</button></p>
+      <!--<p><button class="p-btn">Two-Factor Authentication</button></p>-->
       <p><button class="p-btn-delete">Delete Account</button></p>
     </div>
 </main>
+
 
 
 <!-- Edit Modal -->

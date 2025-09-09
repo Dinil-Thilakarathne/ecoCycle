@@ -82,7 +82,7 @@ function formatDate($date) {
 }
 
 function formatCurrency($amount) {
-    return '$' . number_format($amount, 2);
+    return 'Rs ' . number_format($amount, 2);
 }
 ?>
 
@@ -102,22 +102,11 @@ function formatCurrency($amount) {
         <div class="billing-content" style="background: var(--neutral-1); padding: 2rem; border-radius: 1.5rem;">
             <!-- Feature Cards (Stats) -->
             <div class="stats-grid" style="margin-bottom:2.5rem;">
-                <div class="feature-card">
-                    <div class="feature-card__header">
-                        <h3 class="feature-card__title">Next Payment</h3>
-                        <div class="feature-card__icon"><i class="fa-solid fa-calendar-day"></i></div>
-                    </div>
-                    <p class="feature-card__body">
-                        <?= isset($invoice_history[0]) ? formatDate($invoice_history[0]['date']) : '-' ?>
-                    </p>
-                    <div class="feature-card__footer">
-                        <span class="tag success">Due soon</span>
-                    </div>
-                </div>
+                <!-- Next Payment card removed -->
                 <div class="feature-card">
                     <div class="feature-card__header">
                         <h3 class="feature-card__title">Total Paid</h3>
-                        <div class="feature-card__icon"><i class="fa-solid fa-dollar-sign"></i></div>
+                        <div class="feature-card__icon"><i class="fa-solid fa-money-bill-wave"></i></div>
                     </div>
                     <p class="feature-card__body">
                         <?= formatCurrency(array_sum(array_column($invoice_history, 'amount'))) ?>
@@ -126,18 +115,7 @@ function formatCurrency($amount) {
                         <span class="tag success">All time</span>
                     </div>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-card__header">
-                        <h3 class="feature-card__title">Active Methods</h3>
-                        <div class="feature-card__icon"><i class="fa-solid fa-credit-card"></i></div>
-                    </div>
-                    <p class="feature-card__body">
-                        <?= count($payment_methods) ?>
-                    </p>
-                    <div class="feature-card__footer">
-                        <span class="tag success">Payment options</span>
-                    </div>
-                </div>
+                <!-- Subscription Status card removed -->
                 <div class="feature-card">
                     <div class="feature-card__header">
                         <h3 class="feature-card__title">Invoices</h3>
@@ -152,69 +130,33 @@ function formatCurrency($amount) {
                 </div>
             </div>
 
-            <!-- Payment Methods Section -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>Payment Methods</h2>
-                    <button class="btn btn-primary" onclick="showAddPaymentModal()">Add</button>
-                </div>
-                <div class="payment-methods">
-                    <?php foreach ($payment_methods as $method): ?>
-                        <div class="payment-method-card">
-                            <?php if ($method['type'] === 'card'): ?>
-                                <div class="payment-icon">💳</div>
-                                <div class="payment-info">
-                                    <p class="payment-title">•••• •••• •••• <?php echo $method['last_four']; ?></p>
-                                    <p class="payment-details">Expires on <?php echo $method['expiry']; ?></p>
-                                </div>
-                            <?php else: ?>
-                                <div class="payment-icon">💰</div>
-                                <div class="payment-info">
-                                    <p class="payment-title">PayPal Payment Method</p>
-                                    <p class="payment-details">Email: <?php echo $method['email']; ?></p>
-                                </div>
-                            <?php endif; ?>
-                            <div class="payment-actions">
-                                <?php if ($method['is_default']): ?>
-                                    <span class="default-badge">Default</span>
-                                <?php endif; ?>
-                                <button class="btn btn-outline btn-sm" onclick="editPaymentMethod(<?php echo $method['id']; ?>)">Edit</button>
-                                <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fecaca;" onclick="removePaymentMethod(<?php echo $method['id']; ?>)">Remove</button>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+
+            <!-- Payment Methods Section Removed -->
 
             <!-- Invoice History Section -->
             <div class="section">
                 <div class="section-header">
-                    <h2>Invoice History</h2>
+                    <h2 class="section-title">Invoice History</h2>
+                    <p class="section-subtitle">All your past payments and invoices</p>
                 </div>
-                <div class="invoice-table">
-                    <div class="table-header">
-                        <div class="col">Invoice</div>
-                        <div class="col">Date</div>
-                        <div class="col">Amount</div>
-                        <div class="col">Status</div>
-                        <div class="col">Actions</div>
-                    </div>
+                <div class="invoice-grid" style="display: grid; grid-template-columns: 1.2fr 0.9fr 0.7fr 0.6fr; gap: 0.15rem; background: #fff; border-radius: 1rem; box-shadow: 0 2px 12px rgba(34,197,94,0.08); padding: 1.2rem; margin-top: 1rem;">
+                    <div class="invoice-header" style="font-weight:600;color:#1e293b;">Invoice</div>
+                    <div class="invoice-header" style="font-weight:600;color:#1e293b;">Date</div>
+                    <div class="invoice-header" style="font-weight:600;color:#1e293b;">Amount</div>
+                    <div class="invoice-header" style="font-weight:600;color:#1e293b;text-align:center;">Actions</div>
                     <?php foreach ($invoice_history as $invoice): ?>
-                        <div class="table-row">
-                            <div class="col">
-                                <strong><?php echo htmlspecialchars($invoice['id']); ?></strong>
-                                <p class="invoice-desc"><?php echo htmlspecialchars($invoice['description']); ?></p>
-                            </div>
-                            <div class="col"><?php echo formatDate($invoice['date']); ?></div>
-                            <div class="col"><?php echo formatCurrency($invoice['amount']); ?></div>
-                            <div class="col">
-                                <span class="status-badge <?php echo $invoice['status']; ?>">
-                                    <?php echo ucfirst($invoice['status']); ?>
-                                </span>
-                            </div>
-                            <div class="col">
-                                <button class="btn btn-outline btn-sm" onclick="downloadInvoice('<?php echo $invoice['id']; ?>')">Download</button>
-                            </div>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9;">
+                            <strong><?php echo htmlspecialchars($invoice['id']); ?></strong>
+                            <div class="invoice-desc" style="color:#64748b;font-size:0.95em;"> <?php echo htmlspecialchars($invoice['description']); ?> </div>
+                        </div>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#475569;">
+                            <?php echo formatDate($invoice['date']); ?>
+                        </div>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#22c55e;font-weight:500;">
+                            <?php echo formatCurrency($invoice['amount']); ?>
+                        </div>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; text-align:center;">
+                            <button class="btn btn-outline btn-sm" style="min-width:90px;" onclick="downloadInvoice('<?php echo $invoice['id']; ?>')">Download</button>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -236,7 +178,7 @@ function formatCurrency($amount) {
                         <input type="radio" name="plan" value="basic" id="basic">
                         <label for="basic" class="plan-label">
                             <h3>Basic Plan</h3>
-                            <p class="plan-price">$19.99/month</p>
+                            <p class="plan-price">Rs 1,999/month</p>
                             <p>Essential waste management features</p>
                         </label>
                     </div>
@@ -244,7 +186,7 @@ function formatCurrency($amount) {
                         <input type="radio" name="plan" value="premium" id="premium" checked>
                         <label for="premium" class="plan-label">
                             <h3>Premium Plan</h3>
-                            <p class="plan-price">$29.99/month</p>
+                            <p class="plan-price">Rs 2,999/month</p>
                             <p>All features + priority support</p>
                         </label>
                     </div>

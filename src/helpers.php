@@ -80,6 +80,37 @@ if (!function_exists('dump')) {
     }
 }
 
+if (!function_exists('consoleLog')) {
+    /**
+     * Write values to the browser console from PHP.
+     *
+     * Usage: consoleLog('label', $var, $arr);
+     *
+     * @param mixed ...$args
+     * @return void
+     */
+    function consoleLog(...$args): void
+    {
+        // Prepare JS-safe JSON fragments for each argument
+        $parts = [];
+        foreach ($args as $a) {
+            $json = @json_encode($a, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                // Fallback to string representation
+                $json = json_encode((string) $a);
+            }
+            // Prevent closing the script tag if the data contains it
+            $json = str_replace('</script>', '<\/script>', $json);
+            $parts[] = $json;
+        }
+
+        $js = 'console.log(' . implode(', ', $parts) . ');';
+
+        // Echo script tag to log in browser console
+        echo "<script>" . $js . "</script>";
+    }
+}
+
 if (!function_exists('app')) {
     /**
      * Get application instance or resolve from container

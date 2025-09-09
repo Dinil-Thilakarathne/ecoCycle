@@ -51,3 +51,7 @@
   text-wrap: balance;
   max-width: var(--breakpoint-md);
 }
+
+.rounded {
+  border-radius: var(--rounded-full);
+}

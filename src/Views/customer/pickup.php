@@ -252,38 +252,28 @@ function formatDate($date) {
             </div>
             <form method="POST" class="request-form">
                 <input type="hidden" name="action" value="new_request">
-                <div class="form-group">
-                    <label for="pickup_type">Pickup Type</label>
-                    <select name="pickup_type" id="pickup_type" required>
-                        <option value="">Select pickup type</option>
-                        <option value="Bulk Pickup">Bulk Pickup</option>
-                        <option value="Special Pickup">Special Pickup</option>
-                        <option value="Missed Pickup">Missed Pickup</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea name="description" id="description" rows="3" required placeholder="Describe the items for pickup"></textarea>
-                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="waste_type">Waste Type</label>
                         <select name="waste_type" id="waste_type" required>
-                            <option value="">Select type</option>
-                            <option value="Electronics">Electronics</option>
-                            <option value="Hazardous">Hazardous</option>
-                            <option value="Regular">Regular</option>
-                            <option value="Recyclable">Recyclable</option>
+                            <option value="plastic">Plastic</option>
+                            <option value="glass">Glass</option>
+                            <option value="paper">Paper</option>
+                            <option value="organic">Organic</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="weight">Estimated Weight</label>
-                        <input type="text" name="weight" id="weight" placeholder="e.g., 10kg">
+                        <input type="text" name="weight" id="weight" placeholder="e.g., 10kg" required>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="preferred_date">Preferred Date</label>
                     <input type="date" name="preferred_date" id="preferred_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea name="description" id="description" rows="3" placeholder="Describe the items for pickup"></textarea>
                 </div>
                 <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
                     <button type="button" onclick="hideNewRequestForm()" class="btn btn-outline">Cancel</button>
