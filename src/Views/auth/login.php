@@ -5,6 +5,7 @@
  */
 $error = $error ?? (session()->getFlash('error') ?? null);
 $oldLogin = old('login', '');
+$success = $success ?? (session()->getFlash('success') ?? null);
 ?>
 
 <section class="main-section auth-login-page">
@@ -62,114 +63,134 @@ $oldLogin = old('login', '');
         </div>
 
         <script>
-            (function () {
-                // Ensure core elements exist before operating on them to avoid runtime errors
-                var form = document.querySelector('form.content-body');
-                var loginError = document.getElementById('loginError');
+            // Ensure toast library is available for showing notifications
+        </script>
+        <script src="/js/toast.js"></script>
+        (function () {
+        // Ensure core elements exist before operating on them to avoid runtime errors
+        var form = document.querySelector('form.content-body');
+        var loginError = document.getElementById('loginError');
 
-                // Attach AJAX submit handler first so it's always in place even if other code fails
-                if (form) {
-                    form.addEventListener('submit', function (e) {
-                        try {
-                            e.preventDefault();
+        // Attach AJAX submit handler first so it's always in place even if other code fails
+        if (form) {
+        form.addEventListener('submit', function (e) {
+        try {
+        e.preventDefault();
 
-                            var btnEl = document.getElementById('loginSubmit');
-                            if (btnEl) btnEl.disabled = true;
-                            // if (loginError) loginError.style.display = 'none';
+        var btnEl = document.getElementById('loginSubmit');
+        if (btnEl) btnEl.disabled = true;
+        // if (loginError) loginError.style.display = 'none';
 
-                            var formData = new FormData(form);
+        var formData = new FormData(form);
 
-                            fetch(form.action || '/login', {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                body: formData,
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            }).then(function (resp) {
-                                return resp.json().catch(function () {
-                                    return { success: false, message: 'Invalid server response' };
-                                });
-                            }).then(function (data) {
-                                if (data && data.success) {
-                                    window.location.href = data.redirect || '/';
-                                    return;
-                                }
+        fetch(form.action || '/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+        headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+        }
+        }).then(function (resp) {
+        return resp.json().catch(function () {
+        return { success: false, message: 'Invalid server response' };
+        });
+        }).then(function (data) {
+        if (data && data.success) {
+        // show toast, then redirect shortly so the user sees confirmation
+        try {
+        if (typeof __createToast === 'function') {
+        __createToast((data.message && data.message.length) ? data.message : 'Signed in successfully', 'success', 1200);
+        }
+        } catch (e) {
+        // ignore
+        }
+        setTimeout(function () { window.location.href = data.redirect || '/'; }, 700);
+        return;
+        }
 
-                                var msg = (data && data.message) ? data.message : 'Invalid email or password';
-                                if (loginError) {
-                                    loginError.textContent = msg;
-                                    loginError.style.display = 'block';
-                                } else {
-                                    alert(msg);
-                                }
-                            }).catch(function (err) {
-                                if (loginError) {
-                                    loginError.textContent = 'Network error. Please try again.';
-                                    loginError.style.display = 'block';
-                                }
-                            }).finally(function () {
-                                if (btnEl) btnEl.disabled = false;
-                            });
-                        } catch (ex) {
-                            // In case of any unexpected error, fall back to default submit
-                            console.error('Login submit handler error', ex);
-                        }
-                    });
-                }
+        var msg = (data && data.message) ? data.message : 'Invalid email or password';
+        if (loginError) {
+        loginError.textContent = msg;
+        loginError.style.display = 'block';
+        } else {
+        alert(msg);
+        }
+        }).catch(function (err) {
+        if (loginError) {
+        loginError.textContent = 'Network error. Please try again.';
+        loginError.style.display = 'block';
+        }
+        }).finally(function () {
+        if (btnEl) btnEl.disabled = false;
+        });
+        } catch (ex) {
+        // In case of any unexpected error, fall back to default submit
+        console.error('Login submit handler error', ex);
+        }
+        });
+        }
 
-                // Role-select button wiring (optional) — guarded to avoid exceptions if the element doesn't exist
-                var select = document.getElementById('role-select');
-                var roleBtn = document.getElementById('role-continue');
+        // Role-select button wiring (optional) — guarded to avoid exceptions if the element doesn't exist
+        var select = document.getElementById('role-select');
+        var roleBtn = document.getElementById('role-continue');
 
-                if (select) {
-                    function updateButton() {
-                        if (!roleBtn) return;
-                        var val = select.value;
-                        if (val) {
-                            roleBtn.removeAttribute('aria-disabled');
-                            roleBtn.classList.remove('disabled');
-                            roleBtn.href = val;
-                        } else {
-                            roleBtn.setAttribute('aria-disabled', 'true');
-                            roleBtn.classList.add('disabled');
-                            roleBtn.href = '#';
-                        }
-                    }
+        if (select) {
+        function updateButton() {
+        if (!roleBtn) return;
+        var val = select.value;
+        if (val) {
+        roleBtn.removeAttribute('aria-disabled');
+        roleBtn.classList.remove('disabled');
+        roleBtn.href = val;
+        } else {
+        roleBtn.setAttribute('aria-disabled', 'true');
+        roleBtn.classList.add('disabled');
+        roleBtn.href = '#';
+        }
+        }
 
-                    select.addEventListener('change', updateButton);
-                    select.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter' && select.value) {
-                            window.location.href = select.value;
-                        }
-                    });
+        select.addEventListener('change', updateButton);
+        select.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && select.value) {
+        window.location.href = select.value;
+        }
+        });
 
-                    // initialize safely
-                    try { updateButton(); } catch (e) { /* ignore */ }
-                }
+        // initialize safely
+        try { updateButton(); } catch (e) { /* ignore */ }
+        }
 
-                // Wire up inline form demo fill button
-                var fillDemo = document.getElementById('fillDemo');
-                if (fillDemo) {
-                    fillDemo.addEventListener('click', function () {
-                        var inlineLogin = document.getElementById('inline_login');
-                        var inlinePassword = document.getElementById('inline_password');
-                        if (inlineLogin) inlineLogin.value = 'admin@ecocycle.com';
-                        if (inlinePassword) inlinePassword.value = 'admin123';
-                    });
-                }
+        // Wire up inline form demo fill button
+        var fillDemo = document.getElementById('fillDemo');
+        if (fillDemo) {
+        fillDemo.addEventListener('click', function () {
+        var inlineLogin = document.getElementById('inline_login');
+        var inlinePassword = document.getElementById('inline_password');
+        if (inlineLogin) inlineLogin.value = 'admin@ecocycle.com';
+        if (inlinePassword) inlinePassword.value = 'admin123';
+        });
+        }
 
-                // AJAX submit: prevents full page reload on invalid credentials
-                var form = document.querySelector('form.content-body');
-                var loginError = document.getElementById('loginError');
-                // If server-side error was flashed, show it inline
-                <?php if ($error): ?>
-                    if (loginError) {
-                        loginError.textContent = <?= json_encode($error) ?>;
-                        loginError.style.display = 'block';
-                    }
-                <?php endif; ?>
-            })();
+        // AJAX submit: prevents full page reload on invalid credentials
+        var form = document.querySelector('form.content-body');
+        var loginError = document.getElementById('loginError');
+        // If server-side error was flashed, show it inline
+        <?php if ($error): ?>
+            if (loginError) {
+            loginError.textContent = <?= json_encode($error) ?>;
+            loginError.style.display = 'block';
+            }
+        <?php endif; ?>
+
+        // If a success message was flashed (for example after registration), show toast
+        <?php if ($success): ?>
+            try {
+            if (typeof __createToast === 'function') __createToast(<?= json_encode($success) ?>, 'success', 4000);
+            else document.addEventListener('DOMContentLoaded', function () { if (typeof __createToast === 'function')
+            __createToast(<?= json_encode($success) ?>, 'success', 4000); });
+            } catch (e) { /* ignore */ }
+        <?php endif; ?>
+        })();
         </script>
     </div>
 </section>
