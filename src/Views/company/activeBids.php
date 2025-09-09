@@ -91,7 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <div class="waste-lots">
                 <div class="lot-header">
                     <span class="waste-type"><?= htmlspecialchars($lot['type']) ?></span>
-                    <span class="status <?= strtolower($lot['status']) ?>">
+                    <span class="tag <?= strtolower($lot['status']) ?>">
                         <?= htmlspecialchars($lot['status']) ?>
                     </span>
                 </div>
@@ -127,7 +127,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 <td><?= htmlspecialchars($bid['type']) ?></td>
                                 <td><?= htmlspecialchars($bid['quantity']) ?></td>
                                 <td><?= htmlspecialchars($bid['amount']) ?></td>
-                                <td><span class="status <?= strtolower($bid['status']) ?>"><?= htmlspecialchars($bid['status']) ?></span></td>
+                                <td><span class="tag <?= strtolower($bid['status']) ?>"><?= htmlspecialchars($bid['status']) ?></span></td>
                                 <td><?= htmlspecialchars($bid['date']) ?></td>
                             </tr>
                         <?php endforeach; ?>

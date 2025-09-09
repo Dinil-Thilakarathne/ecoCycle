@@ -61,7 +61,7 @@ $purchaseHistory = [
                     <p>Amount: <strong><?= $purchase['amount'] ?></strong></p>
                     <p>Price: <span class="price"><?= $purchase['price'] ?></span></p>
                     <p>Pickup Date: <?= $purchase['pickup_date'] ?></p>
-                    <span class="status <?= strtolower(str_replace(' ', '-', $purchase['status'])) ?>"><?= strtoupper($purchase['status']) ?> </span>
+                    <span class="tag <?= strtolower(str_replace(' ', '-', $purchase['status'])) ?>" style="position: absolute; top: 15px; right: 20px;"><?= strtoupper($purchase['status']) ?> </span>
                     <?php if($purchase['status'] == "Confirmed"): ?>
                         <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Make Payment</button>
                     <?php endif; ?>
@@ -104,7 +104,7 @@ $purchaseHistory = [
                         <td><?= $history['type'] ?></td>
                         <td><?= $history['amount'] ?></td>
                         <td class="price"><?= $history['price'] ?></td>
-                        <td><span class="status completed"><?= $history['delivery_status'] ?></span></td>
+                        <td><span class="tag completed"><?= $history['delivery_status'] ?></span></td>
                         <td><?= $history['date'] ?></td>
                     </tr>
                     <?php endforeach; ?>
