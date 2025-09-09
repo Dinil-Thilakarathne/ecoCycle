@@ -116,11 +116,10 @@ $old = function ($k, $d = '') {
                         return;
                     }
 
-                    // All validations passed — redirect to login (UI-only)
+                    // All validations passed — submit the form to server
                     if (btn) btn.textContent = 'Creating account...';
-                    setTimeout(function () {
-                        window.location.href = '/login';
-                    }, 300);
+                    // Allow normal POST submission
+                    form.submit();
                 });
             })();
         </script>
