@@ -108,10 +108,10 @@ $filtered = array_filter($notifications, function ($n) use ($filter) {
             <td><?= ucfirst($n['status']) ?></td>
             <td>
             <?php if ($n['status']==="unread"): ?>
-                <a href="?action=mark_read&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-primary outline">Mark Read</a>
+                <a href="?action=mark_read&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-primary outline" style="padding: var(--space-2) var(--space-5); font-size=var(--text-xs);">Mark Read</a>
             <?php endif; ?>
-            <a href="?action=view&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-outline">View</a>
-            <a href="?action=delete&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="p-btn-delete" onclick="return confirm('Delete this notification?')">Delete</a>
+            <a href="?action=view&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="btn btn-outline" style="padding: var(--space-2) var(--space-5); font-size=var(--text-xs);">View</a>
+            <a href="?action=delete&id=<?= $n['id'] ?>&filter=<?= $filter ?>" class="p-btn-delete" style="padding: var(--space-2) var(--space-5); font-size=var(--text-xs);" onclick="return confirm('Delete this notification?')">Delete</a>
             </td>
         </tr>
         <?php endforeach; ?>
