@@ -133,7 +133,7 @@ function renderNotifications($list, $filter = 'all') {
         </div>
     </div>
 
-    <!-- Show message -->
+   
     <?php if ($msg): ?>
         <div class="alert alert-success" style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
             <?= htmlspecialchars($msg) ?>
@@ -194,3 +194,4 @@ function showTab(tab) {
     document.getElementById(tab + '-tab').classList.add('active');
 }
 </script>
+
