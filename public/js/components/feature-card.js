@@ -47,36 +47,95 @@ class FeatureCard extends HTMLElement {
       title: this.querySelector(".feature-card__title"),
       icon: this.querySelector(".feature-card__icon i"),
       value: this.querySelector(".feature-card__body"),
-      changeWrap: this.querySelector(".feature-card__footer .tag"),
+      changeWrap: this.querySelector(".feature-card__footer"),
+      changeWrapTag: this.querySelector(".feature-card__footer .tag"),
       changeVal: this.querySelector(".change-val"),
       period: this.querySelector(".feature-card__period"),
     };
   }
 
   _render() {
-    const title = this.getAttribute("title") || "";
-    const value = this.getAttribute("value") || "";
-    const icon = this.getAttribute("icon") || "";
-    const change = this.getAttribute("change") || "";
-    const period = this.getAttribute("period") || "from last month";
+    const titleAttr = (this.getAttribute("title") || "").trim();
+    const valueAttr = (this.getAttribute("value") || "").trim();
+    const iconAttr = (this.getAttribute("icon") || "").trim();
+    const changeAttr = (this.getAttribute("change") || "").trim();
+    const periodAttr = (this.getAttribute("period") || "").trim();
 
-    this._els.title.textContent = title;
-    this._els.value.textContent = value;
-    this._els.icon.className = icon;
-    this._els.changeVal.textContent = change;
-    this._els.period.textContent = period;
+    // Header related elements
+    const headerEl = this.querySelector(".feature-card__header");
+    const iconWrapper = headerEl
+      ? headerEl.querySelector(".feature-card__icon")
+      : null;
 
-    const trimmedChange = change.trim();
-    if (!trimmedChange) {
-      // Hide the change tag entirely if no change value provided
-      this._els.changeWrap.style.display = "none";
-    } else {
-      this._els.changeWrap.style.display = "";
-      // Apply positive/negative styling if your CSS uses .success / .danger
-      const negative =
-        this.hasAttribute("change-negative") || /^-/.test(trimmedChange);
-      this._els.changeWrap.className =
-        "tag " + (negative ? "danger" : "success");
+    // Update / remove title
+    if (titleAttr) {
+      if (this._els.title) this._els.title.textContent = titleAttr;
+    } else if (this._els.title) {
+      this._els.title.remove();
+      this._els.title = null;
+    }
+
+    // Update / remove icon (remove entire wrapper if empty)
+    if (iconAttr) {
+      if (this._els.icon) this._els.icon.className = iconAttr;
+    } else if (iconWrapper) {
+      iconWrapper.remove();
+      this._els.icon = null;
+    }
+
+    // If both title and icon wrapper gone, remove header
+    if (
+      headerEl &&
+      !this._els.title &&
+      !headerEl.querySelector(".feature-card__icon")
+    ) {
+      headerEl.remove();
+    }
+
+    // Update / remove value body
+    if (valueAttr) {
+      if (this._els.value) this._els.value.textContent = valueAttr;
+    } else if (this._els.value) {
+      this._els.value.remove();
+      this._els.value = null;
+    }
+
+    // Footer & change/period
+    const footerEl = this.querySelector(".feature-card__footer");
+    const periodEl = this._els.period; // span
+    const tagWrapper = this._els.changeWrapTag; // .tag
+
+    // Change value handling
+    if (changeAttr) {
+      if (this._els.changeVal) this._els.changeVal.textContent = changeAttr;
+      if (tagWrapper) {
+        const negative =
+          this.hasAttribute("change-negative") || /^-/.test(changeAttr);
+        tagWrapper.className = "tag " + (negative ? "danger" : "success");
+        tagWrapper.style.display = "";
+      }
+    } else if (tagWrapper) {
+      // remove the change tag if no change provided
+      tagWrapper.remove();
+      this._els.changeVal = null;
+    }
+
+    // Period handling (remove if empty AND attribute explicitly empty)
+    if (periodAttr) {
+      if (periodEl) periodEl.textContent = periodAttr;
+    } else if (this.hasAttribute("period") && periodEl) {
+      // attribute set but empty
+      periodEl.remove();
+      this._els.period = null;
+    }
+
+    // Remove footer if neither change tag nor period remains
+    if (
+      footerEl &&
+      !footerEl.querySelector(".tag") &&
+      !footerEl.querySelector(".feature-card__period")
+    ) {
+      footerEl.remove();
     }
   }
 }

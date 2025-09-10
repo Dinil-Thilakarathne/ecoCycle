@@ -1,52 +1,7 @@
 <?php
-// Sample vehicle data (in a real application, this would come from your database/models)
-$vehicles = [
-    [
-        'id' => 'VH001',
-        'plateNumber' => 'ABC-1234',
-        'type' => 'Pickup Truck',
-        'capacity' => 2000,
-        'status' => 'available',
-        'lastMaintenance' => '2024-01-01',
-        'nextMaintenance' => '2024-04-01',
-    ],
-    [
-        'id' => 'VH002',
-        'plateNumber' => 'XYZ-5678',
-        'type' => 'Van',
-        'capacity' => 1500,
-        'status' => 'in-use',
-        'lastMaintenance' => '2023-12-15',
-        'nextMaintenance' => '2024-03-15',
-    ],
-    [
-        'id' => 'VH003',
-        'plateNumber' => 'DEF-9012',
-        'type' => 'Pickup Truck',
-        'capacity' => 2000,
-        'status' => 'maintenance',
-        'lastMaintenance' => '2024-01-10',
-        'nextMaintenance' => '2024-04-10',
-    ],
-    [
-        'id' => 'VH004',
-        'plateNumber' => 'GHI-3456',
-        'type' => 'Small Truck',
-        'capacity' => 3000,
-        'status' => 'available',
-        'lastMaintenance' => '2023-11-20',
-        'nextMaintenance' => '2024-02-20',
-    ],
-    [
-        'id' => 'VH005',
-        'plateNumber' => 'JKL-7890',
-        'type' => 'Van',
-        'capacity' => 1200,
-        'status' => 'in-use',
-        'lastMaintenance' => '2024-01-05',
-        'nextMaintenance' => '2024-04-05',
-    ],
-];
+// Centralized dummy data
+$dummy = require base_path('config/dummy.php');
+$vehicles = $dummy['vehicles'];
 
 // Vehicle plate number validation function
 function validatePlateNumber($plateNumber)

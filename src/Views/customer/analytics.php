@@ -108,7 +108,7 @@ $wasteTypeData = [
 <script>
 // Example data for last 3 months
 const months = ['Apr', 'May', 'Jun'];
-const wasteTypeData = {
+const wasteTypeChartData = {
     'Plastic': [22, 16, 20],
     'Glass': [9, 7, 10],
     'Paper': [14, 11, 13],
@@ -123,9 +123,9 @@ const wasteTypeColors = {
     'Organic': '#8b5cf6'  // purple
 };
 
-const wasteTypeDatasets = Object.keys(wasteTypeData).map(type => ({
+const wasteTypeDatasets = Object.keys(wasteTypeChartData).map(type => ({
     label: type,
-    data: wasteTypeData[type],
+    data: wasteTypeChartData[type],
     backgroundColor: wasteTypeColors[type],
     borderRadius: 6,
     maxBarThickness: 40

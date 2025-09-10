@@ -91,6 +91,15 @@ class Config
      */
     public static function get(string $key, $default = null)
     {
+        // Backwards compatibility: allow top-level keys like 'minimum_bids.x'
+        // by mapping them to 'data.minimum_bids.x' when appropriate.
+        if (strpos($key, '.') !== false) {
+            $top = explode('.', $key, 2)[0];
+            if (!isset(self::$settings[$top]) && isset(self::$settings['data']) && isset(self::$settings['data'][$top])) {
+                $key = 'data.' . $key;
+            }
+        }
+
         $keys = explode('.', $key);
         $value = self::$settings;
 

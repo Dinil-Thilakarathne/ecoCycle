@@ -14,10 +14,10 @@ $availableWaste = [
 $totalWaste = 0;
 
 $bids = [
-    'Plastic' => ['amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-    'Paper' => ['amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-    'Metal' => ['amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-    'Glass' => ['amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
+    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
+    ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
+    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
 ];
 
 $notifications = [
@@ -55,19 +55,8 @@ $recentNotifications = array_slice($notifications, 0, 3, true);
           </p>
           <ul class="waste-list">
               <?php foreach ($availableWaste as $type): ?>
-                  <div class="feature-card">
-                      <div class="feature-card__header">
-                          <h3 class="feature-card__title">
-                              <?= htmlspecialchars($type['title']) ?>
-                          </h3>
-                          <div class="feature-card__icon">
-                              <i class="<?= htmlspecialchars($type['icon']) ?>"></i>
-                          </div>
-                      </div>
-                      <p class="feature-card__body">
-                          <?= htmlspecialchars($type['value']) ?>
-                      </p>
-                  </div>
+              <feature-card unwrap title="<?= htmlspecialchars($type['title']) ?>"
+                value="<?= htmlspecialchars($type['value']) ?>" icon="<?= htmlspecialchars($type['icon']) ?>"></feature-card>
               <?php endforeach; ?>
           </ul>
     </div>
@@ -78,22 +67,15 @@ $recentNotifications = array_slice($notifications, 0, 3, true);
         <h3>Current Highest Bid for Each Waste Type</h3>
         <ul class="bids">
           <?php
-          
-          foreach ($bids as $type => $data) {
-            echo "
-                <div class='bid-item'>
-                    <div class='bid-header'>
-                        <span class='waste-type'>{$type}</span>
-                        <span class='bid-amount'>{$data['bid']}</span>
-                    </div>
-                        <div class='bid-details'>
-                            <span>{$data['amount']}</span>
-                            <span class='status {$data['status']}'>{$data['status']}</span>
-                        </div>
-                </div>";
-          }
-
-          ?>
+          foreach ($bids as $type => $data):
+            $safeType = htmlspecialchars($data['title'], ENT_QUOTES, 'UTF-8');
+            $safeBid = htmlspecialchars($data['bid'], ENT_QUOTES, 'UTF-8');
+            $safeAmount = htmlspecialchars($data['amount'], ENT_QUOTES, 'UTF-8');
+            $safeStatus = htmlspecialchars($data['status'], ENT_QUOTES, 'UTF-8');
+            ?>
+            <bid-item unwrap type="<?= $safeType ?>" bid="<?= $safeBid ?>" amount="<?= $safeAmount ?>"
+              status="<?= $safeStatus ?>"></bid-item>
+          <?php endforeach; ?>
         </ul>
       </div>
 
@@ -101,7 +83,7 @@ $recentNotifications = array_slice($notifications, 0, 3, true);
       <div class="c-dashboard-card">
         <h3>Profile & Notifications</h3>
         <div class="profile-box">
-          <p><strong>Company Name</strong></p>
+          <p><strong>EcoWaste Company</strong></p>
           <a href="http://localhost:8000/company/profile">View Profile</a>
         </div>
 

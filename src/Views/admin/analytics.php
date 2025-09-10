@@ -1,38 +1,23 @@
 <?php
-// Analytics data (in a real application, this would come from your database/models)
-$wasteCategories = [
-    ['category' => 'Plastic', 'volume' => 2500, 'percentage' => 35],
-    ['category' => 'Paper', 'volume' => 1800, 'percentage' => 25],
-    ['category' => 'Glass', 'volume' => 1200, 'percentage' => 17],
-    ['category' => 'Metal', 'volume' => 900, 'percentage' => 13],
-    ['category' => 'Cardboard', 'volume' => 700, 'percentage' => 10],
-];
+// Centralized dummy data usage
+$dummy = require base_path('config/dummy.php');
+$wasteCategories = getWasteCategories();
+$payments = $dummy['payments'];
 
-$areaStats = [
-    ['area' => 'Downtown', 'collections' => 145, 'revenue' => 2850],
-    ['area' => 'Suburbs', 'collections' => 89, 'revenue' => 1780],
-    ['area' => 'Industrial', 'collections' => 67, 'revenue' => 3400],
-    ['area' => 'Residential', 'collections' => 234, 'revenue' => 4680],
-];
-
-// Calculate totals
-$totalWasteCollected = array_sum(array_column($wasteCategories, 'volume'));
-$totalRevenue = array_sum(array_column($areaStats, 'revenue'));
-$activeAreas = count($areaStats);
-$avgCollectionPerDay = round($totalWasteCollected / 30); // Assuming 30 days
-
-// Financial summary
-$customerPayouts = 3240;
+// Compute revenue (completed company payments) and payouts (completed customer payouts)
+$totalRevenue = 0; // Rs
+$customerPayouts = 0; // Rs
+foreach ($payments as $p) {
+    if ($p['type'] === 'payment' && $p['status'] === 'completed') {
+        $totalRevenue += $p['amount'];
+    } elseif ($p['type'] === 'payout' && $p['status'] === 'completed') {
+        $customerPayouts += $p['amount'];
+    }
+}
 $netProfit = $totalRevenue - $customerPayouts;
 
-// Color mapping for waste categories
-$categoryColors = [
-    'Plastic' => '#3b82f6',    // Blue
-    'Paper' => '#10b981',      // Emerald
-    'Glass' => '#8b5cf6',      // Violet
-    'Metal' => '#f59e0b',      // Amber
-    'Cardboard' => '#ef4444',  // Red
-];
+$totalWasteCollected = array_sum(array_column($wasteCategories, 'volume'));
+$avgCollectionPerDay = $totalWasteCollected > 0 ? round($totalWasteCollected / 30) : 0;
 ?>
 
 <div>
@@ -63,18 +48,10 @@ $categoryColors = [
         ],
         [
             'title' => 'Total Revenue',
-            'value' => '$' . number_format($totalRevenue),
+            'value' => 'Rs ' . number_format($totalRevenue, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
             'change' => '+8%',
             'period' => 'from last month',
-            'negative' => false,
-        ],
-        [
-            'title' => 'Active Areas',
-            'value' => $activeAreas,
-            'icon' => 'fa-solid fa-location-dot',
-            'change' => '',
-            'period' => 'Collection zones',
             'negative' => false,
         ],
         [
@@ -113,7 +90,7 @@ $categoryColors = [
                         <div style="display: flex; align-items: center; justify-content: space-between;">
                             <div style="display: flex; align-items: center; gap: var(--space-3);">
                                 <div
-                                    style="width: 12px; height: 12px; border-radius: 50%; background-color: <?= $categoryColors[$item['category']] ?>;">
+                                    style="width: 12px; height: 12px; border-radius: 50%; background-color: <?= htmlspecialchars(material_color(lcfirst($item['category']))) ?>;">
                                 </div>
                                 <span class="font-medium"><?= htmlspecialchars($item['category']) ?></span>
                             </div>
@@ -121,7 +98,7 @@ $categoryColors = [
                                 <span style="font-size: var(--text-sm); color: var(--neutral-600);">
                                     <?= number_format($item['volume']) ?> kg
                                 </span>
-                                <div class="tag secondary"><?= $item['percentage'] ?>%</div>
+                                <div class="tag secondary"><?= htmlspecialchars($item['percentage']) ?>%</div>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -129,34 +106,7 @@ $categoryColors = [
             </div>
         </div>
 
-        <!-- Area-wise Collection Stats -->
-        <div class="activity-card">
-            <div class="activity-card__header">
-                <h3 class="activity-card__title">
-                    <i class="fa-solid fa-location-dot" style="margin-right: var(--space-2);"></i>
-                    Area-wise Collection Stats
-                </h3>
-                <p class="activity-card__description">Collection performance by geographic area</p>
-            </div>
-            <div class="activity-card__content">
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <?php foreach ($areaStats as $area): ?>
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div>
-                                <p class="font-medium"><?= htmlspecialchars($area['area']) ?></p>
-                                <p style="font-size: var(--text-sm); color: var(--neutral-600);">
-                                    <?= number_format($area['collections']) ?> collections
-                                </p>
-                            </div>
-                            <div style="text-align: right;">
-                                <p class="font-medium">$<?= number_format($area['revenue']) ?></p>
-                                <p style="font-size: var(--text-sm); color: var(--neutral-600);">Revenue</p>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
+        <!-- Area-wise Collection Stats removed per request -->
     </div>
 
     <!-- Financial Summary -->
@@ -173,19 +123,19 @@ $categoryColors = [
                 style="display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
                 <div style="text-align: center;">
                     <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #16a34a;">
-                        $<?= number_format($totalRevenue) ?>
+                        Rs <?= number_format($totalRevenue, 2) ?>
                     </p>
                     <p style="font-size: var(--text-sm); color: var(--neutral-600);">Total Revenue</p>
                 </div>
                 <div style="text-align: center;">
                     <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #dc2626;">
-                        $<?= number_format($customerPayouts) ?>
+                        Rs <?= number_format($customerPayouts, 2) ?>
                     </p>
                     <p style="font-size: var(--text-sm); color: var(--neutral-600);">Customer Payouts</p>
                 </div>
                 <div style="text-align: center;">
                     <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #2563eb;">
-                        $<?= number_format($netProfit) ?>
+                        Rs <?= number_format($netProfit, 2) ?>
                     </p>
                     <p style="font-size: var(--text-sm); color: var(--neutral-600);">Net Profit</p>
                 </div>
