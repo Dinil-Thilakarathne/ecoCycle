@@ -5,33 +5,30 @@
 $pickup_requests = [
     [
         'id' => 1,
-        'type' => 'Bulk Pickup',
-        'status' => 'pending',
-        'description' => 'Old TV and computer monitor',
-        'requested_date' => '2024-01-10',
-        'scheduled_date' => '2024-01-16',
-        'waste_type' => 'Electronics',
-        'weight' => '25kg'
+    'status' => 'pending',
+    'description' => 'Old pipes and metal scraps',
+    'requested_date' => '2024-01-10',
+    'scheduled_date' => '2024-01-16',
+    'waste_type' => 'Metal',
+    'weight' => '25kg'
     ],
     [
         'id' => 2,
-        'type' => 'Special Pickup',
-        'status' => 'confirmed',
-        'description' => 'Paint cans and batteries',
-        'requested_date' => '2024-01-08',
-        'scheduled_date' => '2024-01-15',
-        'waste_type' => 'Hazardous',
-        'weight' => '5kg'
+    'status' => 'confirmed',
+    'description' => 'Broken glass bottles',
+    'requested_date' => '2024-01-08',
+    'scheduled_date' => '2024-01-15',
+    'waste_type' => 'Glass',
+    'weight' => '5kg'
     ],
     [
         'id' => 3,
-        'type' => 'Missed Pickup',
-        'status' => 'completed',
-        'description' => 'Regular pickup was missed on Jan 8',
-        'requested_date' => '2024-01-09',
-        'scheduled_date' => '2024-01-12',
-        'waste_type' => 'Regular',
-        'weight' => '15kg'
+    'status' => 'completed',
+    'description' => 'Old newspapers and magazines',
+    'requested_date' => '2024-01-09',
+    'scheduled_date' => '2024-01-12',
+    'waste_type' => 'Paper',
+    'weight' => '15kg'
     ]
 ];
 
@@ -115,10 +112,53 @@ function formatDate($date) {
         <div class="page-header" style="margin-bottom:2rem;">
             <div class="header-content">
                 
-                <p><b>Manage special, bulk, and missed pickup requests</b></p>
+                <p><b>Manage pickup requests</b></p>
             </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="showNewRequestForm()">+ New Request</button>
+            </div>
+        </div>
+        
+        <!-- Feedback Modal -->
+        <div id="feedbackModal" class="modal">
+            <div class="modal-content" style="max-width:480px;">
+                <div class="modal-header">
+                    <h2>Give Feedback</h2>
+                    <span class="close" onclick="hideFeedbackForm()">&times;</span>
+                </div>
+                <form method="POST" class="request-form">
+                    <div class="form-group">
+                        <label for="fb_name">Your Name</label>
+                        <input type="text" name="fb_name" id="fb_name" value="<?php echo isset($customer['name']) ? htmlspecialchars($customer['name']) : ''; ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fb_address">Your Address</label>
+                        <input type="text" name="fb_address" id="fb_address" value="<?php echo isset($customer['address']) ? htmlspecialchars($customer['address']) : ''; ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fb_collector">Collector Name</label>
+                        <input type="text" name="fb_collector" id="fb_collector" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fb_description">Description</label>
+                        <textarea name="fb_description" id="fb_description" rows="3" placeholder="Describe your experience"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="fb_rating">Rating</label>
+                        <select name="fb_rating" id="fb_rating" required>
+                            <option value="">Select rating</option>
+                            <option value="5">5 - Excellent</option>
+                            <option value="4">4 - Good</option>
+                            <option value="3">3 - Average</option>
+                            <option value="2">2 - Poor</option>
+                            <option value="1">1 - Very Poor</option>
+                        </select>
+                    </div>
+                    <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+                        <button type="button" onclick="hideFeedbackForm()" class="btn btn-outline">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -189,8 +229,7 @@ function formatDate($date) {
             <table class="data-table" style="min-width:900px;">
                 <thead>
                     <tr>
-                        <th style="width:60px;">#</th>
-                        <th>Type</th>
+                        <th style="width:60px;">No</th>
                         <th>Description</th>
                         <th>Requested</th>
                         <th>Scheduled</th>
@@ -214,8 +253,7 @@ function formatDate($date) {
                     <?php else: ?>
                         <?php foreach ($filtered_requests as $request): ?>
                             <tr>
-                                <td>#<?php echo $request['id']; ?></td>
-                                <td><?php echo htmlspecialchars($request['type']); ?></td>
+                                <td><?php echo $request['id']; ?></td>
                                 <td><?php echo htmlspecialchars($request['description']); ?></td>
                                 <td><?php echo formatDate($request['requested_date']); ?></td>
                                 <td><?php echo formatDate($request['scheduled_date']); ?></td>
@@ -240,6 +278,10 @@ function formatDate($date) {
                 </tbody>
             </table>
         </div>
+                <!-- Feedback Button -->
+        <div style="display:flex;justify-content:center;margin:2.5rem 0 0 0;">
+            <button class="btn btn-primary" style="width:100%;max-width:420px;font-size:1.15rem;padding:1rem 0;" onclick="showFeedbackForm()">Give Feedback</button>
+        </div>
     </div>
 
     <!-- New Request Modal -->
@@ -260,6 +302,7 @@ function formatDate($date) {
                             <option value="glass">Glass</option>
                             <option value="paper">Paper</option>
                             <option value="organic">Organic</option>
+                            <option value="metal">Metal</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -302,10 +345,11 @@ function formatDate($date) {
                     <div class="form-group">
                         <label for="edit_waste_type">Waste Type</label>
                         <select name="waste_type" id="edit_waste_type" required>
-                            <option value="Electronics">Electronics</option>
-                            <option value="Hazardous">Hazardous</option>
-                            <option value="Regular">Regular</option>
-                            <option value="Recyclable">Recyclable</option>
+                            <option value="Plastic">Plastic</option>
+                            <option value="Glass">Glass</option>
+                            <option value="Paper">Paper</option>
+                            <option value="Organic">Organic</option>
+                            <option value="Metal">Metal</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -359,6 +403,12 @@ function formatDate($date) {
             }
         }
 
+        function showFeedbackForm() {
+            document.getElementById('feedbackModal').style.display = 'block';
+        }
+        function hideFeedbackForm() {
+            document.getElementById('feedbackModal').style.display = 'none';
+        }
         // Close modals when clicking outside
         window.onclick = function(event) {
             const modals = document.querySelectorAll('.modal');

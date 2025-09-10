@@ -104,7 +104,7 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Plastic</div>
-                                        <div class="tag">Paper</div>
+                                        <div class="tag">Glass</div>
                                     </div>
                                 </td>
                                 <td>
@@ -135,7 +135,8 @@
                                 </td>
                                 <td>
                                     <div class="badge-group">
-                                        <div class="tag">Electronics</div>
+                                        <div class="tag">Metal</div>
+                                        <div class="tag">Paper</div>
                                     </div>
                                 </td>
                                 <td>
@@ -167,7 +168,6 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Glass</div>
-                                        <div class="tag">Metal</div>
                                     </div>
                                 </td>
                                 <td>
@@ -199,6 +199,7 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Organic</div>
+                                        <div class="tag">Plastic</div>
                                     </div>
                                 </td>
                                 <td>
