@@ -1,5 +1,3 @@
-
-
 <?php
 // Get parameters
 $collectorId = $_GET['collector'] ?? 'COL001';

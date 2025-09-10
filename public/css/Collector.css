@@ -4,6 +4,57 @@
   gap: var(--space-6); /* or just 20px if not using CSS variables */
 }
 
+/* Profile Section Layout */
+.profile-card {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #fff;
+  margin-bottom: 20px;
+}
+
+.profile-image img {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-details h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.profile-details p {
+  margin: 5px 0;
+  color: #555;
+}
+
+/* Bank Details (hidden by default) */
+#bank-details {
+  display: none;
+  margin-top: 20px;
+}
+
+.bank-toggle {
+  background: #007BFF;
+  color: #fff;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.bank-toggle:hover {
+  background: #0056b3;
+}
+
+
 /*& > .feature-card__footer .highlight {
       color: var(--primary);
       font-weight: 500;
@@ -251,7 +302,7 @@
     }
 
     /* Profile photo */
-.profile-card {
+/*.profile-card {
   background: #fff;
   border: 1px solid #eee;
   border-radius: 12px;
@@ -307,7 +358,7 @@
 .photo-buttons button:hover {
   background: #f3f4f6;
 }
-
+*/
 form {
   display: grid;
   grid-template-columns: 1fr 1fr;

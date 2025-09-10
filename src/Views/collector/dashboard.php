@@ -94,43 +94,6 @@
     </div>
   </div>
 
-  <!-- Performance Goals -->
-  <!-- <div class="bottom-card">
-      <h3>Performance Goals</h3>
-      <p>Track your progress towards targets</p>
-
-      <div class="goal">
-        <div class="goal-header">
-          <span>Daily Goal</span>
-          <span class="goal-status in-progress">In Progress</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress" style="width: 62.5%;"></div>
-        </div>
-        <div class="goal-footer">62.5% complete</div>
-      </div>
-
-      <div class="goal">
-        <div class="goal-header">
-          <span>Weekly Target</span>
-          <span class="goal-status on-track">On Track</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress" style="width: 78%;"></div>
-        </div>
-        <div class="goal-footer">78% complete</div>
-      </div>
-
-      <div class="goal">
-        <div class="goal-header">
-          <span>Customer Rating</span>
-          <span class="goal-status excellent">Excellent</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress" style="width: 96%;"></div>
-        </div>
-        <div class="goal-footer">96% complete</div>
-      </div>-->
 
   <div class="bottom-card">
     <h3>Material Collection Summary</h3>

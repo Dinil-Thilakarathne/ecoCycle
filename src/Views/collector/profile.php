@@ -111,11 +111,49 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     </header>
 
+    <!-- Profile Card -->
+<div class="profile-card">
+  <!-- Left: Profile Image -->
+  <div class="profile-image">
+    <img src="collector.jpg" alt="Collector Profile">
+  </div>
+
+  <!-- Right: Collector Information -->
+  <div class="profile-details">
+    <h2><?= htmlspecialchars($collector['first_name'] . " " . $collector['last_name']) ?></h2>
+    <p><?= htmlspecialchars($collector['email']) ?></p>
+    <p><?= htmlspecialchars($collector['phone']) ?></p>
+    <p><?= htmlspecialchars($collector['address']) ?></p>
+    <p>Preferred Language: <?= htmlspecialchars($collector['language']) ?></p>
+
+    <!-- Bank Details Toggle -->
+    <button class="bank-toggle" onclick="toggleBankDetails()">Show Bank Details</button>
+  </div>
+</div>
+
+<!-- Bank Details (Initially Hidden) -->
+<div id="bank-details" class="pc-card">
+  <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
+  <div class="form-group"><label>Bank Name</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['bank_name']) ?>" disabled>
+  </div>
+  <div class="form-group"><label>Account Number</label>
+    <input type="text" value="<?= htmlspecialchars($maskedAcc) ?>" disabled>
+  </div>
+  <div class="form-group"><label>Branch</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['branch']) ?>" disabled>
+  </div>
+  <div class="form-group"><label>IFSC Code</label>
+    <input type="text" value="<?= htmlspecialchars($collector['bank']['ifsc_code']) ?>" disabled>
+  </div>
+</div>
+
+
     <!-- Edit Button 
     <a href="#editModal" class="edit-btn">✏️ Edit Profile</a>-->
     
     <!-- Profile Image Section -->
-<div class="profile-card">
+<!--<div class="profile-card">
   <div class="profile-image">
     <img src="collector.jpg" alt="Collector Profile">
   </div>
@@ -127,7 +165,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </div>
 
     <div class="p-info-card">
-      <!-- Personal Info -->
+      <!-- Personal Info 
       <div class="pc-card">
         <h3 style="font-size: 20px; font-weight: bold;">Personal Information</h3>
         <div class="form-group"><label>First Name</label>
@@ -141,7 +179,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         </div>
       </div>
 
-      <!-- Contact Info -->
+      <!-- Contact Info 
       <div class="pc-card">
         <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
         <div class="form-group"><label>Email</label>
@@ -156,7 +194,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
     </div>
 
-     <!-- Bank Details -->
+     <!-- Bank Details 
 <div class="pc-card">
   <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
   <div class="form-group"><label>Bank Name</label>
@@ -180,9 +218,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   $maskedAcc = str_repeat("X", strlen($collector['bank']['account_number']) - 4) 
                . substr($collector['bank']['account_number'], -4);
 ?>
-<input type="text" value="<?= htmlspecialchars($maskedAcc) ?>" disabled>
-
-
+<input type="text" value="<?= htmlspecialchars($maskedAcc) ?>" disabled>-->
 
     <!-- Work Info 
     <div class="pc-card">
@@ -253,3 +289,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
 
+<script>
+function toggleBankDetails() {
+  const bankDiv = document.getElementById("bank-details");
+  const toggleBtn = document.querySelector(".bank-toggle");
+
+  if (bankDiv.style.display === "none" || bankDiv.style.display === "") {
+    bankDiv.style.display = "block";
+    toggleBtn.textContent = "Hide Bank Details";
+  } else {
+    bankDiv.style.display = "none";
+    toggleBtn.textContent = "Show Bank Details";
+  }
+}
+</script>
