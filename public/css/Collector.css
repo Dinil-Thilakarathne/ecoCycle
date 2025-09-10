@@ -941,7 +941,7 @@ form select:focus {
 .edit-btn {
   display: inline-block;
   /*margin-bottom: 20px;*/
-  background: #22c55e;
+  background: #1afd6d;
   color: #fff;
   padding: 8px 14px;
   border-radius: 8px;
@@ -951,7 +951,7 @@ form select:focus {
   transition: background 0.2s;
 }
 .edit-btn:hover {
-  background: #16a34a;
+  background: #045d25;
 }
 
 /* Info Cards */
