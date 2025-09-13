@@ -1,14 +1,16 @@
-﻿@layer theme, base, components, page;
+﻿@layer theme, base, components, utilities, page;
 
 @import url("./base/reset.css") layer(base);
 @import url("./base/theme.css") layer(base);
 
-@import url("./components/atomic.css") layer(components);
 @import url("./components/common.css") layer(components);
 @import url("./dashboard.css") layer(components);
 @import url("./components/sidebar.css") layer(components);
 
+@import url("./components/atomic.css") layer(utilities);
+
 @import url("./landingpage.css") layer(page);
+@import url("./404.css") layer(page);
 
 /* testing */
 /* @import url("./customer.css");

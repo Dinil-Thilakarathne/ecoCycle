@@ -31,25 +31,25 @@ $howItWorksSteps = [
         'step' => '01',
         'title' => 'Schedule pickup',
         'description' => 'Choose your waste categories and preferred time slot through our intuitive platform.',
-        'image' => '/assets'
+        'image' => '/assets/how_it_works_1.jpeg'
     ],
     [
         'step' => '02',
         'title' => 'We collect',
         'description' => 'Our trained collectors arrive at your scheduled time to collect your recyclable materials.',
-        'image' => ''
+        'image' => '/assets/how_it_works_2.jpeg'
     ],
     [
         'step' => '03',
         'title' => 'Companies bid',
         'description' => 'Recycling companies bid on your materials in real-time competitive auctions.',
-        'image' => ''
+        'image' => '/assets/how_it_works_3.jpeg'
     ],
     [
         'step' => '04',
         'title' => 'Get paid',
         'description' => 'Receive your earnings directly to your account after successful sales.',
-        'image' => ''
+        'image' => '/assets/how_it_works_4.jpeg'
     ],
 ];
 
@@ -113,6 +113,9 @@ $testimonials = [
                 </div>
             </div>
         </div>
+        <div>
+            <img src="/assets/hero2.png" alt="hero image" />
+        </div>
     </section>
 
     <section class="about-section main-section container">
@@ -123,6 +126,9 @@ $testimonials = [
             </h2>
             <p class="section-description">Our platform connects households with recycling companies through smart
                 technology and sustainable practices.</p>
+        </div>
+        <div>
+            <img src="/assets/hero.png" alt="about section image">
         </div>
     </section>
 
@@ -148,6 +154,9 @@ $testimonials = [
                         </div>
                     </div>
                 <?php endforeach; ?>
+            </div>
+            <div>
+                <img src="/assets/why_ecocycle.png" alt="">
             </div>
         </div>
     </section>
