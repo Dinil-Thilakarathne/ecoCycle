@@ -188,12 +188,13 @@
     .how-step__media {
       position: relative;
       width: 100%;
+      padding: var(--space-8);
     }
 
     .how-step__image {
       width: 100%;
-      height: 14rem;
-      object-fit: cover;
+      height: 20rem;
+      /* object-fit: cover; */
       border-radius: var(--rounded-2xl);
       box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.15);
       background: linear-gradient(
