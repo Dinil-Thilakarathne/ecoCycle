@@ -24,6 +24,7 @@ class User
             `email` VARCHAR(150) DEFAULT NULL,
             `phone` VARCHAR(50) DEFAULT NULL,
             `address` TEXT DEFAULT NULL,
+            `profile_image_path` VARCHAR(255) DEFAULT NULL,
             `password_hash` VARCHAR(255) DEFAULT NULL,
             `role_id` INT DEFAULT NULL,
             `vehicle_id` INT DEFAULT NULL,
@@ -55,11 +56,79 @@ class User
             unset($data['password']);
         }
 
+        if (isset($data['metadata']) && is_array($data['metadata'])) {
+            $data['metadata'] = json_encode($data['metadata'], JSON_UNESCAPED_UNICODE);
+        }
+
         $cols = array_keys($data);
         $placeholders = array_fill(0, count($cols), '?');
         $sql = 'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeholders) . ')';
         $ok = $this->db->query($sql, array_values($data));
         return $ok ? $this->db->lastInsertId() : false;
+    }
+
+    public function findById(int $id): ?array
+    {
+        $row = $this->db->fetch(
+            "SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1",
+            [$id]
+        );
+
+        if (!$row) {
+            return null;
+        }
+
+        if (array_key_exists('metadata', $row) && is_string($row['metadata'])) {
+            $decoded = json_decode($row['metadata'], true);
+            $row['metadata'] = is_array($decoded) ? $decoded : [];
+        }
+
+        return $row;
+    }
+
+    public function updateUser(int $id, array $data): bool
+    {
+        if (empty($data)) {
+            return true;
+        }
+
+        if (isset($data['metadata']) && is_array($data['metadata'])) {
+            $data['metadata'] = json_encode($data['metadata'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $setParts = [];
+        $params = [];
+
+        foreach ($data as $column => $value) {
+            $setParts[] = "`{$column}` = ?";
+            $params[] = $value;
+        }
+
+        $params[] = $id;
+        $sql = 'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1';
+
+        return $this->db->query($sql, $params);
+    }
+
+    public function updateProfileImagePath(int $id, ?string $path): bool
+    {
+        return $this->updateUser($id, ['profile_image_path' => $path]);
+    }
+
+    public function emailExists(string $email, ?int $excludeId = null): bool
+    {
+        $sql = 'SELECT id FROM users WHERE email = ?';
+        $params = [$email];
+
+        if ($excludeId !== null) {
+            $sql .= ' AND id != ?';
+            $params[] = $excludeId;
+        }
+
+        $sql .= ' LIMIT 1';
+
+        $row = $this->db->fetch($sql, $params);
+        return (bool) $row;
     }
 
     public function findByEmail(string $email): array|null
