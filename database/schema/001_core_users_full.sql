@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(190) NOT NULL UNIQUE,
   username VARCHAR(100) NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  profile_image_path VARCHAR(255) NULL,
   status ENUM('active','pending','suspended') DEFAULT 'active',
   email_verified_at TIMESTAMP NULL,
   last_login_at TIMESTAMP NULL,

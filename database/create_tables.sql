@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` VARCHAR(150) DEFAULT NULL,
   `phone` VARCHAR(50) DEFAULT NULL,
   `address` TEXT DEFAULT NULL,
+  `profile_image_path` VARCHAR(255) DEFAULT NULL,
   `password_hash` VARCHAR(255) DEFAULT NULL,
   `role_id` INT DEFAULT NULL,
   `vehicle_id` INT DEFAULT NULL,
