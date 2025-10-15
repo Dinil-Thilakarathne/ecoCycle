@@ -6,6 +6,7 @@
 @import url("./components/common.css") layer(components);
 @import url("./dashboard.css") layer(components);
 @import url("./components/sidebar.css") layer(components);
+@import url("./components/footer.css") layer(components);
 
 @import url("./components/atomic.css") layer(utilities);
 
