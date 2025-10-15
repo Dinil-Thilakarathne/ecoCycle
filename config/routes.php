@@ -67,6 +67,13 @@ $router->get('/legacy/about', 'HomeController@about');
 // User profile route (example with parameters)
 $router->get('/user/{username}', 'PageController@userProfile');
 
+// Customer profile management
+$router->post('/customer/profile', 'Controllers\Customer\ProfileController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
