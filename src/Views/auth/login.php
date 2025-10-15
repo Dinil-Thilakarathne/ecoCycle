@@ -6,6 +6,8 @@
 $error = $error ?? (session()->getFlash('error') ?? null);
 $oldLogin = old('login', '');
 $success = $success ?? (session()->getFlash('success') ?? null);
+
+$headContent = '<link rel="stylesheet" href="/css/page/login.css">';
 ?>
 
 <section class="main-section auth-login-page">
@@ -195,5 +197,8 @@ $success = $success ?? (session()->getFlash('success') ?? null);
                 <?php endif; ?>
             })();
         </script>
+    </div>
+    <div class="page_image">
+        <img src="/assets/login_page.png" alt="login page Image" />
     </div>
 </section>
