@@ -11,12 +11,15 @@ class FormInput extends HTMLElement {
       "error",
       "disabled",
       "class",
+      "unwrap",
     ];
   }
 
   constructor() {
     super();
     this._initialized = false;
+    this._didUnwrap = false;
+    this._inputHandler = null;
   }
 
   connectedCallback() {
@@ -24,11 +27,26 @@ class FormInput extends HTMLElement {
       this._renderSkeleton();
       this._initialized = true;
     }
+
+    if (this._didUnwrap) {
+      return;
+    }
+
     this._render();
+
+    if (this._attemptUnwrapAfterRender()) {
+      return;
+    }
   }
 
-  attributeChangedCallback() {
-    if (this._initialized) this._render();
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (!this._initialized || this._didUnwrap) return;
+
+    this._render();
+
+    if (name === "unwrap" && newValue !== null) {
+      this._attemptUnwrapAfterRender();
+    }
   }
 
   _renderSkeleton() {
@@ -53,14 +71,36 @@ class FormInput extends HTMLElement {
     };
 
     // propagate native input events as custom events
-    this._els.input.addEventListener("input", (e) => {
+    this._inputHandler = (e) => {
       this.dispatchEvent(
         new CustomEvent("value-changed", {
           detail: { value: e.target.value },
           bubbles: true,
         })
       );
-    });
+    };
+
+    this._els.input.addEventListener("input", this._inputHandler);
+  }
+
+  _attemptUnwrapAfterRender() {
+    if (!this.hasAttribute("unwrap") || this._didUnwrap) {
+      return false;
+    }
+
+    const innerRoot = this.firstElementChild;
+    if (!innerRoot) {
+      return false;
+    }
+
+    if (this._inputHandler && this._els && this._els.input) {
+      this._els.input.removeEventListener("input", this._inputHandler);
+      this._inputHandler = null;
+    }
+
+    this._didUnwrap = true;
+    this.replaceWith(innerRoot);
+    return true;
   }
 
   _render() {
