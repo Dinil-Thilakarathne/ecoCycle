@@ -58,3 +58,4 @@ vendor
 
 dev_test.php
 Api/
+public/uploads/
