@@ -8,10 +8,15 @@ services:
     image: ecocycle-app:latest
     restart: unless-stopped
     # No source bind mount in prod; code baked into image
-    volumes: []
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
+      # DB connection (point app to the compose db service)
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-eco_cycle}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
     depends_on:
       - db
     networks:
@@ -22,12 +27,20 @@ services:
     image: mariadb:11
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-ecocycle}
-      MYSQL_USER: ${DB_USERNAME:-ecocycle}
+      MYSQL_DATABASE: ${DB_DATABASE:-eco_cycle}
+      MYSQL_USER: ${DB_USERNAME:-root}
       MYSQL_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeRootStrong}
     volumes:
       - db_data:/var/lib/mysql
+      # Ensure first-run schema + seed are executed by the MariaDB image when the DB volume is empty
+      - ./database/create_tables.sql:/docker-entrypoint-initdb.d/001_create_tables.sql:ro
+      - ./database/seeds/seed_dummy_data.sql:/docker-entrypoint-initdb.d/002_seed_dummy_data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - internal
 

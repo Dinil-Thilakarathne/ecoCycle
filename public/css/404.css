@@ -1,0 +1,56 @@
+.page-404 {
+  --container-max: 90rem;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--neutral-100), var(--neutral-200));
+  padding: 4rem 1.5rem;
+  color: var(--neutral-900);
+}
+
+.page-404__card {
+  border-radius: var(--rounded-3xl, 1.5rem);
+  padding: 3.5rem 2.5rem;
+  max-width: 70rem;
+  width: 100%;
+  text-align: center;
+}
+
+.page-404__headline {
+  font-size: var(--text-4xl);
+  line-height: 1.02;
+  margin: 0 0 1rem;
+  color: var(--neutral-900);
+
+  @media screen and (min-width: 1024px) {
+    font-size: calc(var(--text-9xl) * 1.5);
+  }
+}
+
+.page-404__message {
+  color: var(--neutral-600);
+  font-size: var(--text-lg);
+  max-width: 60ch;
+  margin: 0 auto 1.5rem;
+}
+
+.page-404__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.page-404 .btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--rounded-2xl);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+@media (min-width: 768px) {
+  .page-404__card {
+    padding: 4.5rem 3.5rem;
+  }
+}

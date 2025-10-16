@@ -28,10 +28,31 @@ class RouteConfig
                 $method = self::getMethodForRoute($url);
 
                 if ($controller && $method) {
-                    $router->get($url, "{$controller}@{$method}");
+                    // Attach authentication + role middleware
+                    $router->get($url, "{$controller}@{$method}", [
+                        'Middleware\\AuthMiddleware',
+                        // Provide role restriction via a closure wrapper returning configured RoleMiddleware instance
+                        // We can't pass constructor params via router directly; create a small factory string token
+                        // Simpler approach: dedicated per-role middleware classes (generated separately)
+                        self::roleMiddlewareClass($userType)
+                    ]);
                 }
             }
         }
+    }
+
+    /**
+     * Map userType to specific role middleware class name.
+     */
+    private static function roleMiddlewareClass(string $userType): string
+    {
+        $map = [
+            'admin' => 'Middleware\\Roles\\AdminOnly',
+            'customer' => 'Middleware\\Roles\\CustomerOnly',
+            'collector' => 'Middleware\\Roles\\CollectorOnly',
+            'company' => 'Middleware\\Roles\\CompanyOnly'
+        ];
+        return $map[$userType] ?? 'Middleware\\RoleMiddleware';
     }
 
     /**
