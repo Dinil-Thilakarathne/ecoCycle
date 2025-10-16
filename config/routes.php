@@ -182,9 +182,13 @@ $router->get('/debug/db/ping.json', function () {
 // ---------------------------------------------
 // Development bypass routes (local dev only)
 // ---------------------------------------------
-$router->get('/dev/login/{role}', function ($role) {
+$router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
+    $path = trim($request->getPath(), '/');
+    $parts = explode('/', $path);
+    $role = $parts[2] ?? null;
+
     $validRoles = ['admin', 'customer', 'collector', 'company'];
-    if (!in_array($role, $validRoles)) {
+    if (!$role || !in_array($role, $validRoles)) {
         return response("Invalid role: {$role}", 400);
     }
 
@@ -201,9 +205,6 @@ $router->get('/dev/login/{role}', function ($role) {
     session()->put('user_email', $userData['email']);
     session()->put('user_role', $userData['role']);
 
-    return response()->json([
-        'status' => 'success',
-        'message' => "Logged in as {$role}",
-        'redirect' => "/{$role}"
-    ]);
+    // Redirect to dashboard
+    return redirect("/{$role}");
 });
