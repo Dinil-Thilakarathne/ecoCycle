@@ -9,6 +9,8 @@
 
 use Core\PageRouter;
 use EcoCycle\Core\Navigation\RouteConfig;
+use Core\Database;
+use Core\Http\Response;
 
 $router = app('router');
 
@@ -65,6 +67,13 @@ $router->get('/legacy/about', 'HomeController@about');
 // User profile route (example with parameters)
 $router->get('/user/{username}', 'PageController@userProfile');
 
+// Customer profile management
+$router->post('/customer/profile', 'Controllers\Customer\ProfileController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
@@ -114,32 +123,88 @@ $router->get('/diagnostic', function () {
     return response()->setContent($content)->setHeader('Content-Type', 'text/html');
 });
 
-// Simple development test routes (GET + POST)
-$testHandler = function () {
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    $body = file_get_contents('php://input');
-    $parsedBody = null;
-
-    if (!empty($body)) {
-        $json = json_decode($body, true);
-        $parsedBody = json_last_error() === JSON_ERROR_NONE ? $json : $body;
-    }
-
+// ---------------------------------------------
+// Database debug routes (non-production helpers)
+// ---------------------------------------------
+$router->get('/debug/db/users.json', function () {
+    $db = new Database();
+    $users = $db->fetchAll("SELECT u.id, u.email, u.username, r.name AS role, u.status, u.created_at FROM users u INNER JOIN roles r ON r.id = u.role_id ORDER BY u.id DESC LIMIT 100");
     return response()->json([
-        'status' => 'ok',
-        'route' => '/dev/test',
-        'method' => $method,
-        'query' => $_GET,
-        'body' => $parsedBody
+        'count' => count($users),
+        'data' => $users,
     ]);
-};
-
-$router->get('/dev/test', function () {
-    ob_start();
-    include base_path('public/dev_test.php');
-    $content = ob_get_clean();
-
-    return response()->setContent($content)->setHeader('Content-Type', 'text/html');
 });
 
-$router->post('/dev/test', $testHandler);
+$router->get('/debug/db/roles.json', function () {
+    $db = new Database();
+    $roles = $db->fetchAll("SELECT * FROM roles ORDER BY id");
+    return response()->json($roles);
+});
+
+$router->get('/debug/db/users', function () {
+    $db = new Database();
+    $users = $db->fetchAll("SELECT u.id, u.email, u.username, r.name AS role, u.status, u.created_at FROM users u INNER JOIN roles r ON r.id = u.role_id ORDER BY u.id DESC LIMIT 100");
+    ob_start();
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Users Debug</title></head><body>';
+    echo '<h1>Users (latest 100)</h1>';
+    echo '<p><a href="/debug/db/users.json">JSON</a> | <a href="/debug/db/roles.json">Roles JSON</a></p>';
+    if (!$users) {
+        echo '<p>No users found.</p>';
+    } else {
+        echo '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:14px;">';
+        echo '<tr><th>ID</th><th>Email</th><th>Username</th><th>Role</th><th>Status</th><th>Created</th></tr>';
+        foreach ($users as $u) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($u['id']) . '</td>';
+            echo '<td>' . htmlspecialchars($u['email']) . '</td>';
+            echo '<td>' . htmlspecialchars($u['username']) . '</td>';
+            echo '<td>' . htmlspecialchars($u['role']) . '</td>';
+            echo '<td>' . htmlspecialchars($u['status']) . '</td>';
+            echo '<td>' . htmlspecialchars($u['created_at']) . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+    }
+    echo '</body></html>';
+    $html = ob_get_clean();
+    $resp = new Response();
+    $resp->setHeader('Content-Type', 'text/html');
+    $resp->setContent($html);
+    return $resp;
+});
+
+// Lightweight DB connectivity check (no exception bubbling)
+$router->get('/debug/db/ping.json', function () {
+    $result = \Core\Database::ping();
+    return response()->json($result + ['timestamp' => date('c')]);
+});
+
+// ---------------------------------------------
+// Development bypass routes (local dev only)
+// ---------------------------------------------
+$router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
+    $path = trim($request->getPath(), '/');
+    $parts = explode('/', $path);
+    $role = $parts[2] ?? null;
+
+    $validRoles = ['admin', 'customer', 'collector', 'company'];
+    if (!$role || !in_array($role, $validRoles)) {
+        return response("Invalid role: {$role}", 400);
+    }
+
+    // Set fake session for dev
+    $userData = [
+        'id' => 999,
+        'name' => "Dev {$role}",
+        'email' => "dev@{$role}.com",
+        'role' => $role
+    ];
+
+    session()->login(999, $userData);
+    session()->put('user_name', $userData['name']);
+    session()->put('user_email', $userData['email']);
+    session()->put('user_role', $userData['role']);
+
+    // Redirect to dashboard
+    return redirect("/{$role}");
+});

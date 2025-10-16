@@ -25,7 +25,7 @@ $contactInfo = [
         <div class="site-footer__grid">
             <div class="site-footer__brand">
                 <div class="brand-logo">
-                    <img src="/assets/logo-text-black.png" alt="Ecocycle Logo" />
+                    <img src="/assets/logo-text-white.png" alt="Ecocycle Logo" />
                  </div>
                 <p class="site-footer__tagline">Transforming waste management through technology and sustainable
                     practices.</p>

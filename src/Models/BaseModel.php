@@ -1,35 +1,45 @@
 <?php
 
-namespace App\Models;
+namespace Models;
 
-use App\Core\Database;
+use Core\Database;
 
+/**
+ * Basic BaseModel utility for simple table operations and seeding
+ */
 class BaseModel
 {
-    protected $db;
+    protected Database $db;
+    protected string $table = '';
 
-    public function __construct()
+    public function __construct(?Database $db = null)
     {
-        $this->db = new Database();
+        $this->db = $db ?: new Database();
     }
 
-    public function find($id)
+    protected function tableExists(?string $table = null): bool
     {
-        // Implementation for finding a record by ID
+        $table = $table ?: $this->table;
+        $sql = "SHOW TABLES LIKE ?";
+        try {
+            $res = $this->db->fetchAll($sql, [$table]);
+            return !empty($res);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
-    public function all()
+    protected function createTable(string $sql): bool
     {
-        // Implementation for retrieving all records
+        return $this->db->query($sql);
     }
 
-    public function save(array $data)
+    protected function insert(string $table, array $data): int|false
     {
-        // Implementation for saving a record
-    }
-
-    public function delete($id)
-    {
-        // Implementation for deleting a record by ID
+        $cols = array_keys($data);
+        $placeholders = array_fill(0, count($cols), '?');
+        $sql = 'INSERT INTO ' . $table . ' (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeholders) . ')';
+        $ok = $this->db->query($sql, array_values($data));
+        return $ok ? $this->db->lastInsertId() : false;
     }
 }

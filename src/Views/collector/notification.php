@@ -1,187 +1,197 @@
-<?php function getStatusTag($status)
-{
-    switch ($status) {
-        case 'completed':
-            return '<div class="tag completed">Completed</div>';
-        case 'pending':
-            return '<div class="tag pending">Pending</div>';
-        case 'failed':
-            return '<div class="tag danger">Failed</div>';
-        default:
-            return '<div class="tag secondary">' . htmlspecialchars($status) . '</div>';
+<?php
+// Get parameters
+$collectorId = $_GET['collector'] ?? 'COL001';
+$action = $_GET['action'] ?? null;
+$notificationId = $_GET['id'] ?? null;
+$msg = $_GET['msg'] ?? null; // message parameter
+
+// Example notifications
+$notifications = [
+    [
+        'id' => 'N001',
+        'collector_id' => 'COL001',
+        'title' => 'Pickup Request Confirmed',
+        'message' => 'Your pickup request PR001 has been confirmed.',
+        'timestamp' => '2024-01-10',
+        'isRead' => false,
+        'isArchived' => false,
+        'priority' => 'high',
+    ],
+    [
+        'id' => 'N002',
+        'collector_id' => 'COL001',
+        'title' => 'Pickup Completed',
+        'message' => 'Your pickup PR002 has been completed successfully.',
+        'timestamp' => '2024-01-08',
+        'isRead' => false,
+        'isArchived' => false,
+        'priority' => 'normal',
+    ],
+    [
+        'id' => 'N003',
+        'collector_id' => 'COL001',
+        'title' => 'Payment Processed',
+        'message' => 'Your payment of Rs 127.50 has been processed.',
+        'timestamp' => '2024-01-07',
+        'isRead' => true,
+        'isArchived' => false,
+        'priority' => 'normal',
+    ],
+    [
+        'id' => 'N004',
+        'collector_id' => 'COL001',
+        'title' => 'Pickup Reminder',
+        'message' => 'Reminder: Your scheduled pickup is tomorrow.',
+        'timestamp' => '2024-01-14',
+        'isRead' => true,
+        'isArchived' => false,
+        'priority' => 'low',
+    ],
+    [
+        'id' => 'N005',
+        'collector_id' => 'COL001',
+        'title' => 'Pickup Cancelled',
+        'message' => 'Your pickup request PR005 has been cancelled.',
+        'timestamp' => '2024-01-03',
+        'isRead' => true,
+        'isArchived' => true,
+        'priority' => 'high',
+    ],
+];
+
+// Handle actions
+if ($action === 'mark_read' && $notificationId) {
+    foreach ($notifications as &$notification) {
+        if ($notification['id'] === $notificationId) {
+            $notification['isRead'] = true;
+            break;
+        }
+    }
+    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+marked+as+read");
+    exit;
+}
+
+if ($action === 'mark_all_read') {
+    foreach ($notifications as &$notification) {
+        $notification['isRead'] = true;
+    }
+    header("Location: notifications-page.php?collector=$collectorId&msg=All+notifications+marked+as+read");
+    exit;
+}
+
+if ($action === 'delete' && $notificationId) {
+    $notifications = array_filter($notifications, fn($n) => $n['id'] !== $notificationId);
+    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+deleted");
+    exit;
+}
+
+// Filter only this collector's notifications
+$collectorNotifications = array_filter($notifications, fn($n) => $n['collector_id'] === $collectorId);
+
+// Categorize
+$total = $collectorNotifications;
+$unread = array_filter($collectorNotifications, fn($n) => !$n['isRead'] && !$n['isArchived']);
+$read = array_filter($collectorNotifications, fn($n) => $n['isRead'] && !$n['isArchived']);
+$archived = array_filter($collectorNotifications, fn($n) => $n['isArchived']);
+
+// Functions
+function renderNotifications($list, $filter = 'all') {
+    if (empty($list)) {
+        echo "<tr><td colspan='5' style='text-align:center;'>No notifications found</td></tr>";
+        return;
+    }
+
+    foreach ($list as $n) {
+        echo "<tr>
+            <td><strong>{$n['title']}</strong><br><small>{$n['message']}</small></td>
+            <td>" . date('M j, Y', strtotime($n['timestamp'])) . "</td>
+            <td>" . ($n['isRead'] ? 'Read' : 'Unread') . "</td>
+            <td>";
+
+        if (!$n['isRead']) {
+            echo "<a href='?action=mark_read&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
+                    class='btn btn-sm btn-info'>Mark Read</a> ";
+        }
+
+        echo "<a href='?action=view&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
+                class='btn btn-sm btn-secondary'>View</a> ";
+
+        echo "<a href='?action=delete&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
+                class='btn btn-sm btn-danger' 
+                onclick=\"return confirm('Are you sure you want to delete this notification?')\">Delete</a>";
+
+        echo "</td></tr>";
     }
 }
 ?>
 
-<h2>Notifications <span style="color:#777; font-size:14px;">3</span></h2>
-<p class="subtitle">Stay updated with your tasks and alerts</p>
-
-<div class="header-right">
-    <button class="mark-all">Mark all read</button>
-</div>
-
-<!-- Tabs -->
-<div class="tabs">
-    <div class="tab active">All (5)</div>
-    <div class="tab">Unread (3)</div>
-    <div class="tab">Urgent (1)</div>
-</div>
-
-<!-- Notification List -->
-<!--<div class="notification-card urgent">
-    <div class="notification-text">
-        <div class="notification-title">
-            Route Change Alert <span>urgent</span>
+<div>
+    <div class="page-header">
+        <div class="page-header__content">
+            <h2 class="page-header__title"><i class="fa-solid fa-bell"></i> Notifications for <?= htmlspecialchars($collectorId) ?></h2>
+            <p class="page-header__description">View and manage your notifications</p>
         </div>
-        <div class="notification-message">Your pickup route for today has been updated. Check task WP003 for new location details.</div>
-        <div class="notification-time">5 minutes ago</div>
     </div>
-    <div class="notification-actions">
-        <div class="mark-read">Mark read</div>
-        <button class="delete-btn">🗑</button>
-    </div>
-</div>
 
-<div class="notification-card info">
-    <div class="notification-text">
-        <div class="notification-title">
-            New Task Assigned <span>info</span>
+   
+    <?php if ($msg): ?>
+        <div class="alert alert-success" style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
+            <?= htmlspecialchars($msg) ?>
         </div>
-        <div class="notification-message">A new pickup task has been assigned to you for tomorrow at 2:00 PM.</div>
-        <div class="notification-time">1 hour ago</div>
-    </div>
-    <div class="notification-actions">
-        <div class="mark-read">Mark read</div>
-        <button class="delete-btn">🗑</button>
-    </div>
-</div>
+    <?php endif; ?>
 
-<div class="notification-card success">
-    <div class="notification-text">
-        <div class="notification-title">
-            Task Completed <span>success</span>
+    <div class="tabs">
+        <div class="tabs-list">
+            <button class="tabs-trigger active" onclick="showTab('total')" id="total-tab">Total (<?= count($total) ?>)</button>
+            <button class="tabs-trigger" onclick="showTab('unread')" id="unread-tab">Unread (<?= count($unread) ?>)</button>
+            <button class="tabs-trigger" onclick="showTab('read')" id="read-tab">Read (<?= count($read) ?>)</button>
+            <button class="tabs-trigger" onclick="showTab('archived')" id="archived-tab">Archived (<?= count($archived) ?>)</button>
         </div>
-        <div class="notification-message">Great job! You've successfully completed pickup WP001. Customer rating: 5 stars.</div>
-        <div class="notification-time">2 hours ago</div>
-    </div>
-    <div class="notification-actions">
-        <button class="delete-btn">🗑</button>
-    </div>
-</div>
 
-<div class="notification-card warning">
-    <div class="notification-text">
-        <div class="notification-title">
-            Weather Alert <span>warning</span>
+        <div class="tabs-content active" id="total-content">
+            <table class="table">
+                <thead>
+                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody><?php renderNotifications($total); ?></tbody>
+            </table>
         </div>
-        <div class="notification-message">Heavy rain expected in your area. Consider rescheduling outdoor pickups.</div>
-        <div class="notification-time">3 hours ago</div>
-    </div>
-    <div class="notification-actions">
-        <div class="mark-read">Mark read</div>
-        <button class="delete-btn">🗑</button>
-    </div>
-</div>
 
-<div class="notification-card info">
-    <div class="notification-text">
-        <div class="notification-title">
-            System Maintenance <span>info</span>
+        <div class="tabs-content" id="unread-content">
+            <table class="table">
+                <thead>
+                    <tr><th>Notification</th><th>Type</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody><?php renderNotifications($unread); ?></tbody>
+            </table>
         </div>
-        <div class="notification-message">Scheduled maintenance tonight from 11 PM to 1 AM. App may be temporarily unavailable.</div>
-        <div class="notification-time">1 day ago</div>
-    </div>
-    <div class="notification-actions">
-        <button class="delete-btn">🗑</button>
-    </div>
-</div>-->
 
-<?php
-// Recent notifications data (in a real application, this would come from your database/models)
-$recentNotifications = [
-    [
-        'id' => 'NOT001',
-        'type' => 'system',
-        'title' => 'System Maintenance Scheduled',
-        'message' => 'Scheduled maintenance on Jan 20, 2024 from 2:00 AM to 4:00 AM',
-        'timestamp' => '2024-01-15 10:30:00',
-        'status' => 'sent',
-        'recipients' => 'All Users'
-    ],
-    [
-        'id' => 'NOT002',
-        'type' => 'alert',
-        'title' => 'High Bid Activity',
-        'message' => 'Unusual bidding activity detected for Lot #1234',
-        'timestamp' => '2024-01-15 09:15:00',
-        'status' => 'sent',
-        'recipients' => 'Administrators'
-    ],
-    [
-        'id' => 'NOT003',
-        'type' => 'info',
-        'title' => 'New Company Registration',
-        'message' => 'EcoRecycle Ltd. has registered and is pending approval',
-        'timestamp' => '2024-01-15 08:45:00',
-        'status' => 'sent',
-        'recipients' => 'Administrators'
-    ],
-    [
-        'id' => 'NOT004',
-        'type' => 'maintenance',
-        'title' => 'Vehicle Maintenance Due',
-        'message' => 'Vehicle ABC-1234 is due for scheduled maintenance',
-        'timestamp' => '2024-01-15 08:00:00',
-        'status' => 'pending',
-        'recipients' => 'Fleet Managers'
-    ],
-    [
-        'id' => 'NOT005',
-        'type' => 'alert',
-        'title' => 'Payment Failed',
-        'message' => 'Payment processing failed for invoice #INV-2024-001',
-        'timestamp' => '2024-01-15 07:30:00',
-        'status' => 'failed',
-        'recipients' => 'Finance Team'
-    ]
-];
-?>
-<!-- Recent Notifications Card -->
-<div class="activity-card">
-    <div class="activity-card__header">
-        <h3 class="activity-card__title">
-            <i class="fa-solid fa-bell" style="margin-right: var(--space-2);"></i>
-            Recent Notifications
-        </h3>
-        <p class="activity-card__description">Recently sent notifications and their status</p>
-    </div>
-    <div class="activity-card__content">
-        <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-            <?php foreach ($recentNotifications as $notification): ?>
-                <div
-                    style="border: 1px solid var(--neutral-200); border-radius: var(--radius-md); padding: var(--space-4);">
-                    <!-- Header with title and status -->
-                    <div
-                        style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-2);">
-                        <h4 class="font-medium" style="margin: 0;">
-                            <?= htmlspecialchars($notification['title']) ?>
-                        </h4>
-                        <?= getStatusTag($notification['status']) ?>
-                    </div>
+        <div class="tabs-content" id="read-content">
+            <table class="table">
+                <thead>
+                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody><?php renderNotifications($read); ?></tbody>
+            </table>
+        </div>
 
-                    <!-- Message -->
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600); margin-bottom: var(--space-2);">
-                        <?= htmlspecialchars($notification['message']) ?>
-                    </p>
-
-                    <!-- Footer with recipient and timestamp -->
-                    <div
-                        style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--neutral-500);">
-                        <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
-                        <span><?= htmlspecialchars($notification['timestamp']) ?></span>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+        <div class="tabs-content" id="archived-content">
+            <table class="table">
+                <thead>
+                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody><?php renderNotifications($archived); ?></tbody>
+            </table>
         </div>
     </div>
 </div>
+
+<script>
+function showTab(tab) {
+    document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
+    document.getElementById(tab + '-content').classList.add('active');
+    document.getElementById(tab + '-tab').classList.add('active');
+}
+</script>
+
