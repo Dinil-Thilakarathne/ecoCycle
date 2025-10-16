@@ -16,234 +16,6 @@ if ($selectedTimeSlot !== 'all') {
     });
 }
 
-// Expose client-side pickup data for modal lookups (use full dataset to allow lookups even when filtered)
-?>
-<script>
-    window.__PICKUP_DATA = <?php echo json_encode($pickupRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-</script>
-<script>
-    // Expose collectors list for edit modal
-    window.__COLLECTORS = <?php echo json_encode($collectors, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-</script>
-
-<!-- Pickup Detail Modal -->
-<div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="user-modal__dialog">
-        <button class="close" aria-label="Close">&times;</button>
-        <h3>Pickup Request Details</h3>
-        <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
-
-            <div><strong>Customer</strong></div>
-            <div class="pd-customer"></div>
-
-            <div><strong>Address</strong></div>
-            <div class="pd-address"></div>
-
-            <div><strong>Waste Categories</strong></div>
-            <div class="pd-waste"></div>
-
-            <div><strong>Time Slot</strong></div>
-            <div class="pd-timeslot"></div>
-
-            <div><strong>Status</strong></div>
-            <div class="pd-status"></div>
-
-            <div><strong>Collector</strong></div>
-            <div class="pd-collector"></div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Close modal handler (delegated)
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('pickup-detail-modal');
-        if (!modal) return;
-        if (e.target.matches('#pickup-detail-modal .close') || e.target.matches('#pickup-detail-modal')) {
-            modal.classList.remove('open');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-    });
-</script>
-
-<!-- Edit Pickup Modal -->
-<div id="pickup-edit-modal" class="user-modal" role="dialog" aria-modal="true">
-    <div class="user-modal__dialog">
-        <button class="close" aria-label="Close">&times;</button>
-        <h3>Edit Pickup Request</h3>
-        <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pe-id"></div>
-
-            <div><strong>Customer</strong></div>
-            <div class="pe-customer"></div>
-
-            <div><strong>Assign Collector</strong></div>
-            <div>
-                <div class="form-select" style="width: fit-content;">
-                    <select id="pe-collector-select">
-                        <option value="">-- Unassigned --</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div style="margin-top: var(--space-8); display:flex; gap:8px; justify-content:flex-end;">
-            <button class="btn" onclick="closeEditModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveEdit()">Save</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    function openEditModal(el, pickupId) {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-
-        const record = (window.__PICKUP_DATA || []).find(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase()) || null;
-        const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${pickupId}"]`);
-
-        if (!record && !row) return;
-
-        // Populate fields
-        modal.querySelector('.pe-id').textContent = record ? record.id : pickupId;
-        // compute customer display text (avoid nested ternary syntax issues)
-        var customerText = '';
-        if (record) {
-            customerText = record.customerName || '';
-        } else if (row) {
-            var custCell = row.querySelector('td:nth-child(2)');
-            customerText = custCell ? custCell.textContent.trim() : '';
-        }
-        modal.querySelector('.pe-customer').textContent = customerText;
-
-        // Populate collectors select
-        const sel = document.getElementById('pe-collector-select');
-        sel.innerHTML = '<option value="">-- Unassigned --</option>';
-        (window.__COLLECTORS || []).forEach(c => {
-            const o = document.createElement('option');
-            o.value = c.id;
-            o.textContent = c.name;
-            sel.appendChild(o);
-        });
-
-        // Set currently assigned collector if present
-        const current = record ? (record.collectorId || '') : '';
-        sel.value = current;
-
-        // Store current editing id on modal element
-        modal.setAttribute('data-editing-id', pickupId);
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeEditModal() {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-    }
-
-    function saveEdit() {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-        const pickupId = modal.getAttribute('data-editing-id');
-        const sel = document.getElementById('pe-collector-select');
-        const collectorId = sel.value || '';
-        // Update in-memory store
-        const idx = (window.__PICKUP_DATA || []).findIndex(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase());
-        let newStatus = '';
-        if (idx !== -1) {
-            // update collector info
-            window.__PICKUP_DATA[idx].collectorId = collectorId;
-            window.__PICKUP_DATA[idx].collectorName = collectorId ? ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name : '';
-
-            // Decide status: if previously completed, keep completed; otherwise assigned <-> pending
-            const prev = (window.__PICKUP_DATA[idx].status || '').toString().toLowerCase();
-            if (prev === 'completed') {
-                newStatus = 'completed';
-            } else {
-                newStatus = collectorId ? 'assigned' : 'pending';
-                window.__PICKUP_DATA[idx].status = newStatus;
-            }
-        }
-
-        // Update the table row DOM (collector and status)
-        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
-        if (row) {
-            // Collector cell (index 6)
-            const collectorCell = row.querySelectorAll('td')[6];
-            if (collectorCell) {
-                if (collectorId) {
-                    const name = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
-                    collectorCell.textContent = name;
-                } else {
-                    collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
-                }
-            }
-
-            // Status cell (index 5)
-            const statusCell = row.querySelectorAll('td')[5];
-            if (statusCell && newStatus) {
-                const makeBadge = (st) => {
-                    switch ((st || '').toString().toLowerCase()) {
-                        case 'pending': return '<div class="tag pending">Pending</div>';
-                        case 'assigned': return '<div class="tag assigned">Assigned</div>';
-                        case 'completed': return '<div class="tag completed">Completed</div>';
-                        default: return '<div class="tag">' + String(st) + '</div>';
-                    }
-                };
-                statusCell.innerHTML = makeBadge(newStatus);
-            }
-        }
-
-        // If detail modal is open, update its fields too
-        const detailModal = document.getElementById('pickup-detail-modal');
-        if (detailModal && detailModal.classList.contains('open')) {
-            const pdCollector = detailModal.querySelector('.pd-collector');
-            const pdStatus = detailModal.querySelector('.pd-status');
-            if (pdCollector) {
-                if (collectorId) {
-                    pdCollector.textContent = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
-                    pdCollector.style.display = '';
-                    const lbl = pdCollector.previousElementSibling;
-                    if (lbl) lbl.style.display = '';
-                } else {
-                    pdCollector.textContent = '';
-                    pdCollector.style.display = 'none';
-                    const lbl = pdCollector.previousElementSibling;
-                    if (lbl) lbl.style.display = 'none';
-                }
-            }
-            if (pdStatus && newStatus) {
-                // plain text is fine in the detail modal
-                pdStatus.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-                pdStatus.style.display = '';
-                const lbl = pdStatus.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-            }
-        }
-
-        // Close modal
-        closeEditModal();
-
-        // UX: console note
-        console.log(`Pickup ${pickupId} collector set to '${collectorId}' and status set to '${newStatus}'`);
-    }
-
-    // Close edit modal when clicking backdrop or close button
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-        if (e.target.matches('#pickup-edit-modal .close') || e.target.matches('#pickup-edit-modal')) {
-            closeEditModal();
-        }
-    });
-</script>
-<?php
-
 function getStatusBadge($status)
 {
     switch ($status) {
@@ -307,7 +79,7 @@ function getStatusBadge($status)
                     </thead>
                     <tbody>
                         <?php foreach ($filteredRequests as $request): ?>
-                            <tr data-id="<?= htmlspecialchars($request['id']) ?>">
+                            <tr>
                                 <td class="font-medium"><?= htmlspecialchars($request['id']) ?></td>
                                 <td>
                                     <div class="cell-with-icon">
@@ -343,18 +115,23 @@ function getStatusBadge($status)
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
-
-                                        <!-- Icon-only action buttons: view and edit -->
-                                        <button class="icon-button" onclick="viewDetails(this, '<?= $request['id'] ?>')"
-                                            title="View Details">
-                                            <i class="fa-solid fa-eye"></i>
+                                    <?php if ($request['status'] === 'pending'): ?>
+                                        <div class="form-select">
+                                            <select onchange="assignCollector('<?= $request['id'] ?>', this.value)"
+                                                style="width: 140px;">
+                                                <option value="">Assign Collector</option>
+                                                <?php foreach ($collectors as $collector): ?>
+                                                    <option value="<?= htmlspecialchars($collector['id']) ?>">
+                                                        <?= htmlspecialchars($collector['name']) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    <?php else: ?>
+                                        <button class="btn btn-outline btn-sm" onclick="viewDetails('<?= $request['id'] ?>')">
+                                            View Details
                                         </button>
-                                        <button class="icon-button" onclick="openEditModal(this, '<?= $request['id'] ?>')"
-                                            title="Edit / Assign Collector">
-                                            <i class="fa-solid fa-pen"></i>
-                                        </button>
-                                    </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -421,72 +198,12 @@ function getStatusBadge($status)
         */
     }
 
-    function viewDetails() {
-        // signature: viewDetails(el, pickupId) or legacy viewDetails(pickupId)
-        let el, pickupId;
-        if (arguments.length === 1) {
-            pickupId = arguments[0];
-            el = document.querySelector(`tr[data-id="${pickupId}"]`);
-        } else {
-            el = arguments[0];
-            pickupId = arguments[1];
-        }
+    function viewDetails(pickupId) {
+        // In a real application, you would navigate to a detail page or open a modal
+        console.log(`Viewing details for pickup ${pickupId}`);
+        alert(`Viewing details for pickup ${pickupId}. In a real application, this would show detailed information.`);
 
-        // Lookup in-memory first
-        let record = null;
-        try {
-            if (window.__PICKUP_DATA && Array.isArray(window.__PICKUP_DATA)) {
-                record = window.__PICKUP_DATA.find(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase()) || null;
-            }
-        } catch (e) {
-            console.warn('pickup lookup failed', e);
-            record = null;
-        }
-
-        // Fallback to reading table cells
-        if (!record && el) {
-            const cells = el.querySelectorAll('td');
-            record = {
-                id: pickupId,
-                customerName: (cells[1] && cells[1].textContent.trim()) || '',
-                address: (cells[2] && cells[2].textContent.trim()) || '',
-                wasteCategories: Array.from(el.querySelectorAll('.badge-group .tag')).map(t => t.textContent.trim()),
-                timeSlot: (cells[4] && cells[4].textContent.trim()) || '',
-                status: (cells[5] && cells[5].textContent.trim()) || '',
-                collectorName: (cells[6] && cells[6].textContent.trim()) || ''
-            };
-        }
-
-        const modal = document.getElementById('pickup-detail-modal');
-        if (!modal) return;
-
-        // Do not open if no record
-        if (!record) return;
-
-        const setText = (sel, txt) => {
-            const elm = modal.querySelector(sel);
-            if (!elm) return;
-            if (!txt || String(txt).trim() === '') {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-                elm.style.display = '';
-                elm.textContent = String(txt).trim();
-            }
-        };
-
-        setText('.pd-id', record.id || '');
-        setText('.pd-customer', record.customerName || '');
-        setText('.pd-address', record.address || '');
-        setText('.pd-waste', (record.wasteCategories && record.wasteCategories.join(', ')) || '');
-        setText('.pd-timeslot', record.timeSlot || '');
-        setText('.pd-status', record.status || '');
-        setText('.pd-collector', record.collectorName || '');
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
+        // You could redirect to a details page:
+        // window.location.href = `/admin/pickup-requests/${pickupId}`;
     }
 </script>

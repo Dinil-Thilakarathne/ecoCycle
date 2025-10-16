@@ -6,14 +6,14 @@ $stats = [
     ['title' => 'Active Collectors', 'value' => '89', 'icon' => 'fa-solid fa-truck', 'change' => '+5%'],
     ['title' => 'Active Pickups', 'value' => '234', 'icon' => 'fa-solid fa-box', 'change' => '+18%'],
     ['title' => 'Pending Bids', 'value' => '67', 'icon' => 'fa-solid fa-gavel', 'change' => '+8%'],
-    ['title' => 'Monthly Revenue', 'value' => 'Rs 45,230', 'icon' => 'fa-solid fa-chart-line', 'change' => '+15%'],
+    ['title' => 'Monthly Revenue', 'value' => '$45,230', 'icon' => 'fa-solid fa-chart-line', 'change' => '+15%'],
 ];
 
 $recentActivity = [
     ['action' => 'New pickup scheduled', 'detail' => 'John Doe', 'time' => '2 minutes ago'],
     ['action' => 'Bid won by GreenTech Co.', 'detail' => 'Lot #1234', 'time' => '5 minutes ago'],
     ['action' => 'Collector assigned', 'detail' => 'Pickup #5678', 'time' => '10 minutes ago'],
-    ['action' => 'Payment processed', 'detail' => 'Rs 125.50', 'time' => '15 minutes ago'],
+    ['action' => 'Payment processed', 'detail' => '$125.50', 'time' => '15 minutes ago'],
     ['action' => 'New company registered', 'detail' => 'EcoRecycle Ltd.', 'time' => '1 hour ago'],
 ];
 ?>

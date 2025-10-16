@@ -48,16 +48,12 @@ if (!$notificationsUrl) {
                     <?php endforeach; ?>
                 </ul>
             </nav>
-            <!-- Sidebar footer: logout form (POST) to properly clear session -->
+            <!-- Sidebar footer: simple logout link -->
             <div class="sidebar-footer">
-                <form id="logout-form" action="/logout" method="post" style="display:inline">
-                    <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
-                    <button type="submit" class="nav-link logout-link" title="Logout"
-                        style="background:none;border:0;padding:0;cursor:pointer">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                        <span>Logout</span>
-                    </button>
-                </form>
+                <a href="/login" class="nav-link logout-link" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </a>
             </div>
         </div>
     </aside>

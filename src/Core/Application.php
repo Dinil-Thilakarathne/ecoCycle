@@ -162,21 +162,13 @@ class Application
     protected function loadConfiguration(): void
     {
         $configPath = $this->basePath . '/config';
-        foreach (glob($configPath . '/*.php') as $filePath) {
-            if (!is_file($filePath)) {
-                continue;
+        $configFiles = ['app', 'database', 'session', 'data'];
+
+        foreach ($configFiles as $file) {
+            $filePath = $configPath . '/' . $file . '.php';
+            if (file_exists($filePath)) {
+                Config::load($filePath);
             }
-            $filename = pathinfo($filePath, PATHINFO_FILENAME);
-            // Skip route definition file (side-effect only)
-            if (in_array($filename, ['routes'])) {
-                continue;
-            }
-            $data = require $filePath;
-            if (is_array($data)) {
-                // Store under filename key
-                Config::set($filename, $data);
-            }
-            // Non-array returns (like side-effect files) are ignored silently
         }
     }
 
@@ -221,16 +213,7 @@ class Application
         $route = $this->router->match($request->getPath(), $request->getMethod());
 
         if (!$route) {
-            // Render the custom 404 error view so users see the friendly page
-            try {
-                // Render using the main app layout so the error page includes site chrome
-                $resp = view('errors/404', ['message' => 'The requested page was not found.'], 'layouts/app');
-                $resp->setStatusCode(404);
-                return $resp;
-            } catch (\Exception $e) {
-                // Fallback to plain response if view rendering fails
-                return new Response('Not Found', 404);
-            }
+            return new Response('Not Found', 404);
         }
 
         return $this->executeRoute($route, $request);
@@ -245,42 +228,35 @@ class Application
      */
     protected function executeRoute(array $route, Request $request): Response
     {
-        // Build middleware pipeline so each middleware receives a $next that returns a Response.
+        // Run middleware stack
         $middlewareStack = $route['middleware'] ?? [];
 
-        // Final action that executes the controller or callable and returns a Response
-        $finalAction = function (Request $req) use ($route) {
-            if (is_callable($route['action'])) {
-                $result = call_user_func($route['action'], $req);
-            } else {
-                list($controllerName, $action) = explode('@', $route['action']);
-                $controller = $this->container->make($controllerName);
+        foreach ($middlewareStack as $middleware) {
+            $middlewareInstance = $this->container->make($middleware);
+            $result = $middlewareInstance->handle($request, function ($req) {
+                return $req;
+            });
 
-                if (!method_exists($controller, $action)) {
-                    return new Response('Method not found', 500);
-                }
+            if ($result instanceof Response) {
+                return $result;
+            }
+        }
 
-                $result = call_user_func([$controller, $action], $req);
+        // Execute controller action
+        if (is_callable($route['action'])) {
+            $result = call_user_func($route['action'], $request);
+        } else {
+            list($controllerName, $action) = explode('@', $route['action']);
+            $controller = $this->container->make($controllerName);
+
+            if (!method_exists($controller, $action)) {
+                return new Response('Method not found', 500);
             }
 
-            return $result instanceof Response ? $result : new Response($result);
-        };
+            $result = call_user_func([$controller, $action], $request);
+        }
 
-        // Reduce middleware stack into a single callable pipeline
-        $pipeline = array_reduce(
-            array_reverse($middlewareStack),
-            function ($next, $middleware) {
-                return function (Request $req) use ($next, $middleware) {
-                    $instance = $this->container->make($middleware);
-                    return $instance->handle($req, $next);
-                };
-            },
-            $finalAction
-        );
-
-        $response = $pipeline($request);
-
-        return $response instanceof Response ? $response : new Response($response);
+        return $result instanceof Response ? $result : new Response($result);
     }
 
     /**

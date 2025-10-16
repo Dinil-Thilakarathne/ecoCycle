@@ -31,25 +31,25 @@ $howItWorksSteps = [
         'step' => '01',
         'title' => 'Schedule pickup',
         'description' => 'Choose your waste categories and preferred time slot through our intuitive platform.',
-        'image' => '/assets/how_it_works_1.jpeg'
+        'image' => '/assets'
     ],
     [
         'step' => '02',
         'title' => 'We collect',
         'description' => 'Our trained collectors arrive at your scheduled time to collect your recyclable materials.',
-        'image' => '/assets/how_it_works_2.jpeg'
+        'image' => ''
     ],
     [
         'step' => '03',
         'title' => 'Companies bid',
         'description' => 'Recycling companies bid on your materials in real-time competitive auctions.',
-        'image' => '/assets/how_it_works_3.jpeg'
+        'image' => ''
     ],
     [
         'step' => '04',
         'title' => 'Get paid',
         'description' => 'Receive your earnings directly to your account after successful sales.',
-        'image' => '/assets/how_it_works_4.jpeg'
+        'image' => ''
     ],
 ];
 
@@ -107,14 +107,11 @@ $testimonials = [
                         <p>Tons recycled</p>
                     </div>
                     <div class="hero-content__bottom-card">
-                        <h3>Rs 50K+</h3>
+                        <h3>$50K+</h3>
                         <p>Paid to users</p>
                     </div>
                 </div>
             </div>
-        </div>
-        <div>
-            <img src="/assets/hero2.png" alt="hero image" />
         </div>
     </section>
 
@@ -126,9 +123,6 @@ $testimonials = [
             </h2>
             <p class="section-description">Our platform connects households with recycling companies through smart
                 technology and sustainable practices.</p>
-        </div>
-        <div>
-            <img src="/assets/hero.png" alt="about section image">
         </div>
     </section>
 
@@ -154,9 +148,6 @@ $testimonials = [
                         </div>
                     </div>
                 <?php endforeach; ?>
-            </div>
-            <div>
-                <img src="/assets/why_ecocycle.png" alt="">
             </div>
         </div>
     </section>
@@ -234,10 +225,10 @@ $testimonials = [
             <p class="cta-section__description">Join thousands of users already earning money while helping the
                 environment.</p>
             <div class="cta-buttons">
-                <a href="/register" class="btn btn-light-solid"><i class="fa-solid fa-users"></i><span>Sign up
+                <a href="/register/customer" class="btn btn-light-solid"><i class="fa-solid fa-users"></i><span>Sign up
                         as household</span></a>
-                <a href="/register" class="btn btn-ghost-light"><i class="fa-solid fa-building"></i><span>Register as
-                        company</span></a>
+                <a href="/register/company" class="btn btn-ghost-light"><i
+                        class="fa-solid fa-building"></i><span>Register as company</span></a>
             </div>
             <p class="cta-section__note">No setup fees • Start earning immediately • Cancel anytime</p>
         </div>

@@ -1,71 +1,73 @@
-<!-- Main Content -->
-<div class="main-content">
-    <div class="dashboard-page">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
-                <?php
-                $profileData = $userProfile ?? [];
-                $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
-                $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
-                $imagePath = $profileData['profileImage'] ?? null;
-                $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
-                ?>
-                <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar"
-                    style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
-                <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
-            </div>
-        </div>
 
-        <!-- Stats Feature Cards -->
-        <?php
-        $customerStats = [
-            [
-                'title' => 'Next Pickup',
-                'value' => 'Tomorrow',
-                'icon' => 'fa-solid fa-calendar-day',
-                'subtitle' => '9:00 AM',
-            ],
-            [
-                'title' => 'Monthly Collected',
-                'value' => '45 kg',
-                'icon' => 'fa-solid fa-weight-hanging',
-                'subtitle' => 'This month',
-            ],
-            [
-                'title' => 'Total Earnings',
-                'value' => 'Rs 127.50',
-                'icon' => 'fa-solid fa-money-bill-wave',
-                'subtitle' => 'This month',
-            ],
-            [
-                'title' => 'Completed Pickups',
-                'value' => '12',
-                'icon' => 'fa-solid fa-check-circle',
-                'subtitle' => 'This month',
-            ],
-        ];
-        ?>
-        <div class="stats-grid">
-            <?php foreach ($customerStats as $stat): ?>
-                <div class="feature-card">
-                    <div class="feature-card__header">
-                        <h3 class="feature-card__title">
-                            <?= htmlspecialchars($stat['title']) ?>
-                        </h3>
-                        <div class="feature-card__icon">
-                            <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="dashboard-page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
+                    <?php
+                    if (isset($_SESSION['profile']['profile_pic'])) {
+                        $profilePic = $_SESSION['profile']['profile_pic'];
+                    } else {
+                        $profilePic = 'default.png';
+                    }
+                    $firstName = isset($_SESSION['profile']['firstName']) ? $_SESSION['profile']['firstName'] : 'Customer';
+                    ?>
+                    <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
+                    <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
+                </div>
+            </div>
+
+            <!-- Stats Feature Cards -->
+            <?php
+            $customerStats = [
+                [
+                    'title' => 'Next Pickup',
+                    'value' => 'Tomorrow',
+                    'icon' => 'fa-solid fa-calendar-day',
+                    'subtitle' => '9:00 AM',
+                ],
+                [
+                    'title' => 'Monthly Collected',
+                    'value' => '45 kg',
+                    'icon' => 'fa-solid fa-weight-hanging',
+                    'subtitle' => 'This month',
+                ],
+                [
+                    'title' => 'Total Earnings',
+                    'value' => 'Rs 127.50',
+                    'icon' => 'fa-solid fa-money-bill-wave',
+                    'subtitle' => 'This month',
+                ],
+                [
+                    'title' => 'Completed Pickups',
+                    'value' => '12',
+                    'icon' => 'fa-solid fa-check-circle',
+                    'subtitle' => 'This month',
+                ],
+            ];
+            ?>
+            <div class="stats-grid">
+                <?php foreach ($customerStats as $stat): ?>
+                    <div class="feature-card">
+                        <div class="feature-card__header">
+                            <h3 class="feature-card__title">
+                                <?= htmlspecialchars($stat['title']) ?>
+                            </h3>
+                            <div class="feature-card__icon">
+                                <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
+                            </div>
+                        </div>
+                        <p class="feature-card__body">
+                            <?= htmlspecialchars($stat['value']) ?>
+                        </p>
+                        <div class="feature-card__footer">
+                            <span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span>
                         </div>
                     </div>
-                    <p class="feature-card__body">
-                        <?= htmlspecialchars($stat['value']) ?>
-                    </p>
-                    <div class="feature-card__footer">
-                        <span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
+                <?php endforeach; ?>
+            </div>
 
             <!-- Recent Pickups Table -->
             <div class="table-section">
@@ -102,7 +104,7 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Plastic</div>
-                                        <div class="tag">Paper</div>
+                                        <div class="tag">Glass</div>
                                     </div>
                                 </td>
                                 <td>
@@ -133,7 +135,8 @@
                                 </td>
                                 <td>
                                     <div class="badge-group">
-                                        <div class="tag">Electronics</div>
+                                        <div class="tag">Metal</div>
+                                        <div class="tag">Paper</div>
                                     </div>
                                 </td>
                                 <td>
@@ -165,7 +168,6 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Glass</div>
-                                        <div class="tag">Metal</div>
                                     </div>
                                 </td>
                                 <td>
@@ -197,6 +199,7 @@
                                 <td>
                                     <div class="badge-group">
                                         <div class="tag">Organic</div>
+                                        <div class="tag">Plastic</div>
                                     </div>
                                 </td>
                                 <td>

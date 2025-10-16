@@ -1,204 +1,78 @@
 <?php
-/**
- * Login portal selection view
- * Recreated to use the requested layout and class names.
- */
-$error = $error ?? (session()->getFlash('error') ?? null);
-$oldLogin = old('login', '');
-$success = $success ?? (session()->getFlash('success') ?? null);
-
-$headContent = '<link rel="stylesheet" href="/css/page/login.css">';
+// Simple login role selection page (no actual auth logic yet)
 ?>
 
 <section class="main-section auth-login-page">
-    <div class="login-content">
-        <div class="content-top">
-            <h1>Welcome Back!</h1>
-            <p>Please signin to access your dashboard.</p>
-        </div>
-        <form class="content-body" method="POST" action="/login">
-            <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+    <div class="container" style="padding-inline: var(--space-8);">
+        <div>
+            <header style="text-align:center; margin-bottom: var(--space-16);">
+                <h1 class="gradient-text"
+                    style="font-size: var(--text-6xl); font-weight: var(--font-weight-bold); line-height:1.1;">
+                    Choose Your Portal
+                </h1>
+                <p style="margin-top: var(--space-4); color: var(--neutral-600); font-size: var(--text-lg);">
+                    Select the user type to continue to the login page.
+                </p>
+            </header>
 
-            <!-- server-side error will be shown inline under the submit button; no separate alert box -->
-            <div class="form-select__wrapper">
-                <label for="role-select" class="sr-only">Choose role</label><br>
-                <div class="form-select">
-                    <select id="role-select" aria-label="Select user role" style=" width:100%;" required>
-                        <option value="" selected disabled>-- Choose a role --</option>
-                        <option value="/customer">Customer — Track recycling requests &amp; status</option>
-                        <option value="/collector">Collector — Manage pickups &amp; routes</option>
-                        <option value="/company">Company — Operations &amp; analytics</option>
-                        <option value="/admin">Admin — Platform configuration</option>
-                    </select>
-                </div>
+            <div class="login-role-grid">
+                <article class="login-card" data-role="role-select">
+                    <div class="login-card__body">
+                        <h2 class="login-card__title">Select your role</h2>
+                        <p class="login-card__desc">Pick a portal from the dropdown and continue to its login page.</p>
+
+                        <div class="form-select">
+                            <label for="role-select" class="sr-only">Choose role</label>
+                            <select id="role-select" aria-label="Select user role"
+                                style=" width:100%; max-width:360px;">
+                                <option value="" selected disabled>-- Choose a role --</option>
+                                <option value="/customer">Customer — Track recycling requests & status</option>
+                                <option value="/collector">Collector — Manage pickups & routes</option>
+                                <option value="/company">Company — Operations & analytics</option>
+                                <option value="/admin">Admin — Platform configuration</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: var(--space-8);">
+                        <a id="role-continue" class="btn btn-gradient login-card__action" href="#" role="button"
+                            aria-disabled="true">Continue</a>
+                    </div>
+                </article>
             </div>
-            <!-- login field: uses underlying native input with name="login" so PHP receives it -->
-            <form-input label="Email or Username" name="login" placeholder="email@example.com or username"
-                value="<?= htmlspecialchars($oldLogin) ?>" <?= $error ? '' : '' /* example of adding attributes conditionally */ ?> required></form-input>
-
-            <!-- password field -->
-            <form-input label="Password" name="password" required type="password"
-                placeholder="Your password"></form-input>
-
-            <p id="loginError" role="status" aria-live="polite" style="color:var(--danger);"
-                class=" <?= $error ? "" : "visible" ?>">
-                <?= $error ? htmlspecialchars($error) : '&nbsp;' ?>
-            </p>
-
-            <!-- Fallback for no-JS / component load failure: include native inputs so POST always contains fields -->
-            <noscript>
-                <div style="display:none;">
-                    <input type="text" name="login" value="<?= htmlspecialchars($oldLogin) ?>" />
-                    <input type="password" name="password" value="" />
-                </div>
-            </noscript>
-
-
-            <div style="display:flex; gap:.5rem; margin-top:var(--space-2); width: 100%; flex-direction:column;">
-                <button id="loginSubmit" type="submit" class="btn btn-gradient login-card__action">Sign in</button>
-                <div class="forget-password">
-                    <a href="/forgot-password">Forgot your password?</a>
-                </div>
-            </div>
-        </form>
-
-        <div class="content-footer">
-            <a href="/register" class="btn btn-outline signup-btn">Sign up</a>
         </div>
 
-        <script src="/js/toast.js"></script>
         <script>
-            // Ensure toast library is available for showing notifications
             (function () {
-                // Ensure core elements exist before operating on them to avoid runtime errors
-                var form = document.querySelector('form.content-body');
-                var loginError = document.getElementById('loginError');
-
-                // Attach AJAX submit handler first so it's always in place even if other code fails
-                if (form) {
-                    form.addEventListener('submit', function (e) {
-                        try {
-                            e.preventDefault();
-
-                            var btnEl = document.getElementById('loginSubmit');
-                            if (btnEl) btnEl.disabled = true;
-                            // if (loginError) loginError.style.display = 'none';
-
-                            var formData = new FormData(form);
-
-                            fetch(form.action || '/login', {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                body: formData,
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            }).then(function (resp) {
-                                return resp.json().catch(function () {
-                                    return { success: false, message: 'Invalid server response' };
-                                });
-                            }).then(function (data) {
-                                if (data && data.success) {
-                                    // show toast, then redirect shortly so the user sees confirmation
-                                    try {
-                                        if (typeof __createToast === 'function') {
-                                            __createToast((data.message && data.message.length) ? data.message : 'Signed in successfully', 'success', 1200);
-                                        }
-                                    } catch (e) {
-                                        // ignore
-                                    }
-                                    setTimeout(function () { window.location.href = data.redirect || '/'; }, 700);
-                                    return;
-                                }
-
-                                var msg = (data && data.message) ? data.message : 'Invalid email or password';
-                                if (loginError) {
-                                    loginError.textContent = msg;
-                                    loginError.style.display = 'block';
-                                } else {
-                                    alert(msg);
-                                }
-                            }).catch(function (err) {
-                                if (loginError) {
-                                    loginError.textContent = 'Network error. Please try again.';
-                                    loginError.style.display = 'block';
-                                }
-                            }).finally(function () {
-                                if (btnEl) btnEl.disabled = false;
-                            });
-                        } catch (ex) {
-                            // In case of any unexpected error, fall back to default submit
-                            console.error('Login submit handler error', ex);
-                        }
-                    });
-                }
-
-                // Role-select button wiring (optional) — guarded to avoid exceptions if the element doesn't exist
                 var select = document.getElementById('role-select');
-                var roleBtn = document.getElementById('role-continue');
+                var btn = document.getElementById('role-continue');
 
-                if (select) {
-                    function updateButton() {
-                        if (!roleBtn) return;
-                        var val = select.value;
-                        if (val) {
-                            roleBtn.removeAttribute('aria-disabled');
-                            roleBtn.classList.remove('disabled');
-                            roleBtn.href = val;
-                        } else {
-                            roleBtn.setAttribute('aria-disabled', 'true');
-                            roleBtn.classList.add('disabled');
-                            roleBtn.href = '#';
-                        }
+                function updateButton() {
+                    var val = select.value;
+                    if (val) {
+                        btn.removeAttribute('aria-disabled');
+                        btn.classList.remove('disabled');
+                        btn.href = val;
+                    } else {
+                        btn.setAttribute('aria-disabled', 'true');
+                        btn.classList.add('disabled');
+                        btn.href = '#';
                     }
-
-                    select.addEventListener('change', updateButton);
-                    select.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter' && select.value) {
-                            window.location.href = select.value;
-                        }
-                    });
-
-                    // initialize safely
-                    try { updateButton(); } catch (e) { /* ignore */ }
                 }
 
-                // Wire up inline form demo fill button
-                var fillDemo = document.getElementById('fillDemo');
-                if (fillDemo) {
-                    fillDemo.addEventListener('click', function () {
-                        var inlineLogin = document.getElementById('inline_login');
-                        var inlinePassword = document.getElementById('inline_password');
-                        if (inlineLogin) inlineLogin.value = 'admin@ecocycle.com';
-                        if (inlinePassword) inlinePassword.value = 'admin123';
-                    });
-                }
+                // update on change
+                select.addEventListener('change', updateButton);
 
-                // AJAX submit: prevents full page reload on invalid credentials
-                var form = document.querySelector('form.content-body');
-                var loginError = document.getElementById('loginError');
-                // If server-side error was flashed, show it inline
-                <?php if ($error): ?>
-                    if (loginError) {
-                        loginError.textContent = <?= json_encode($error) ?>;
-                        loginError.style.display = 'block';
+                // support keyboard Enter on select: navigate when Enter pressed
+                select.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && select.value) {
+                        window.location.href = select.value;
                     }
-                <?php endif; ?>
+                });
 
-                // If a success message was flashed (for example after registration), show toast
-                <?php if ($success): ?>
-                    try {
-                        if (typeof __createToast === 'function') __createToast(<?= json_encode($success) ?>, 'success', 4000);
-                        else document.addEventListener('DOMContentLoaded', function () {
-                            if (typeof __createToast === 'function')
-                                __createToast(<?= json_encode($success) ?>, 'success', 4000);
-                        });
-                    } catch (e) { /* ignore */ }
-                <?php endif; ?>
+                // initialize
+                updateButton();
             })();
         </script>
-    </div>
-    <div class="page_image">
-        <img src="/assets/login_page.png" alt="login page Image" />
     </div>
 </section>

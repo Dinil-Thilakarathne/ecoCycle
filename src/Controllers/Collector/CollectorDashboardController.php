@@ -55,9 +55,24 @@ class CollectorDashboardController extends DashboardController
     }
 
     /**
+     * Route optimization
+     */
+    public function history(): Response
+    {
+        $data = [
+            'pageTitle' => 'Pickup History',
+            'optimizedRoute' => $this->getOptimizedRoute(),
+            'routeHistory' => $this->getRouteHistory(),
+            'routeStats' => $this->getRouteStats()
+        ];
+
+        return $this->renderDashboard('history', $data);
+    }
+
+    /**
      * Earnings and payments
      */
-   /* public function earnings(): Response
+    public function earnings(): Response
     {
         $data = [
             'pageTitle' => 'Earnings & Payments',
@@ -68,7 +83,7 @@ class CollectorDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('earnings', $data);
-    }*/
+    }
 
     /**
      * Collection reporting
@@ -83,18 +98,6 @@ class CollectorDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('analytics', $data);
-    }
-
-    public function notification(): Response
-    {
-        $data = [
-            'pageTitle' => 'Notifications',
-            'collectionStats' => $this->getCollectionStats(),
-            'weightReports' => $this->getWeightReports(),
-            'materialBreakdown' => $this->getMaterialBreakdown()
-        ];
-
-        return $this->renderDashboard('notification', $data);
     }
 
 

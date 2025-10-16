@@ -36,11 +36,7 @@
     <!-- Additional head content -->
     <?= $headContent ?? '' ?>
 
-    <?php // Avoid calling methods on url() object; instead check the error status when available
-    if (!isset($status) || (int) $status !== 404): ?>
-        <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
-    <?php endif; ?>
-
+    <script src="https://kit.fontawesome.com/10d4f02353.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 </head>
@@ -55,23 +51,14 @@
     <!-- Core JS -->
     <script type="module" src="/js/components/core.js"></script>
     <script src="/js/app.js"></script>
-    <script src="/js/toast.js"></script>
 
     <!-- Dashboard JS if this is a dashboard page -->
     <?php if (isset($userType)): ?>
         <script src="<?= asset('js/dashboard.js') ?>"></script>
     <?php endif; ?>
 
-    <!-- Live Reload for Development (only loads on localhost/development)
-         Controlled by HOT_RELOADER_ENABLED environment variable (true/false).
-    -->
-    <?php
-    // Read boolean toggle from environment; default to true for local dev
-    $envVal = $_ENV['HOT_RELOADER_ENABLED'] ?? $_SERVER['HOT_RELOADER_ENABLED'] ?? getenv('HOT_RELOADER_ENABLED') ?? null;
-    $hotReloadEnabled = $envVal === null ? true : filter_var($envVal, FILTER_VALIDATE_BOOLEAN);
-
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    if ($hotReloadEnabled && ($host === 'localhost' || $host === '127.0.0.1')): ?>
+    <!-- Live Reload for Development (only loads on localhost/development) -->
+    <?php if ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1'): ?>
         <?php
         $hotReloaderPath = __DIR__ . '/../../../utils/HotReloader.php';
         if (file_exists($hotReloaderPath)) {
