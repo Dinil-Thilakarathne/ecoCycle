@@ -725,7 +725,7 @@
 
 .dashboard-page {
   padding: var(--space-8);
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
