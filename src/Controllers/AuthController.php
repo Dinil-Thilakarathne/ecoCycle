@@ -27,87 +27,95 @@ class AuthController extends BaseController
      */
     public function login(Request $request): Response
     {
-        $login = trim((string) $request->input('login'));
-        $password = (string) $request->input('password');
-
-        $userModel = new User();
-        $user = null;
-
         try {
-            // Try as email first
-            $user = filter_var($login, FILTER_VALIDATE_EMAIL) ? $userModel->findByEmail($login) : $userModel->findByUsername($login);
-        } catch (\Throwable $e) {
-            // DB not ready; fall back to demo users
-        }
+            $login = trim((string) $request->input('login'));
+            $password = (string) $request->input('password');
 
-        // Fallback to in-memory demo users if DB user not found
-        if (!$user) {
-            $demoUsers = config('auth.demo_users', []);
-            foreach ($demoUsers as $demo) {
-                if (strcasecmp($demo['email'], $login) === 0 || strcasecmp($demo['username'] ?? '', $login) === 0) {
-                    $user = $demo; // plain password comparison below
-                    break;
+            $userModel = new User();
+            $user = null;
+
+            try {
+                // Try as email first
+                $user = filter_var($login, FILTER_VALIDATE_EMAIL) ? $userModel->findByEmail($login) : $userModel->findByUsername($login);
+            } catch (\Throwable $e) {
+                // DB not ready; fall back to demo users
+            }
+
+            // Fallback to in-memory demo users if DB user not found
+            if (!$user) {
+                $demoUsers = config('auth.demo_users', []);
+                foreach ($demoUsers as $demo) {
+                    if (strcasecmp($demo['email'], $login) === 0 || strcasecmp($demo['username'] ?? '', $login) === 0) {
+                        $user = $demo; // plain password comparison below
+                        break;
+                    }
+                }
+                if ($user) {
+                    $valid = hash_equals($user['password_hash'], $password);
+                    if (!$valid) {
+                        $user = null; // invalidate if password mismatch
+                    }
+                }
+            } else {
+                // Verify password (hashed or plain) for DB user
+                if (!$userModel->verifyPassword($user, $password)) {
+                    $user = null;
                 }
             }
+
             if ($user) {
-                $valid = hash_equals($user['password_hash'], $password);
-                if (!$valid) {
-                    $user = null; // invalidate if password mismatch
+                $userData = [
+                    'id' => (int) $user['id'],
+                    'name' => $user['username'] ?? $user['email'],
+                    'email' => $user['email'],
+                    'role' => $user['role_name'] ?? ($user['role'] ?? null)
+                ];
+
+                // Use SessionManager::login so userData() returns the role for middlewares
+                session()->login((int) $userData['id'], $userData);
+
+                // Keep individual keys for backward compatibility with helpers
+                session()->put('user_name', $userData['name']);
+                session()->put('user_email', $userData['email']);
+                session()->put('user_role', $userData['role']);
+
+                // Determine dashboard URL for JSON response if requested
+                $dashboards = config('auth.dashboards', []);
+                $redirectUrl = $dashboards[$userData['role']] ?? '/dashboard';
+
+                if ($request->expectsJson() || $request->isAjax()) {
+                    return \Core\Http\Response::json([
+                        'success' => true,
+                        'message' => 'Authenticated',
+                        'redirect' => $redirectUrl
+                    ]);
                 }
+
+                return dashboard_redirect($userData);
             }
-        } else {
-            // Verify password (hashed or plain) for DB user
-            if (!$userModel->verifyPassword($user, $password)) {
-                $user = null;
-            }
-        }
 
-        if ($user) {
-            $userData = [
-                'id' => (int) $user['id'],
-                'name' => $user['username'] ?? $user['email'],
-                'email' => $user['email'],
-                'role' => $user['role_name'] ?? ($user['role'] ?? null)
-            ];
-
-            // Use SessionManager::login so userData() returns the role for middlewares
-            session()->login((int) $userData['id'], $userData);
-
-            // Keep individual keys for backward compatibility with helpers
-            session()->put('user_name', $userData['name']);
-            session()->put('user_email', $userData['email']);
-            session()->put('user_role', $userData['role']);
-
-            // Determine dashboard URL for JSON response if requested
-            $dashboards = config('auth.dashboards', []);
-            $redirectUrl = $dashboards[$userData['role']] ?? '/dashboard';
+            // On failure: preserve the submitted login value and show an error message.
+            // Use session flash so old() helper works and message survives the redirect for non-AJAX.
+            session()->flash('old', ['login' => $login]);
+            session()->flash('error', 'Invalid email or password');
 
             if ($request->expectsJson() || $request->isAjax()) {
-                return \Core\Http\Response::json([
-                    'success' => true,
-                    'message' => 'Authenticated',
-                    'redirect' => $redirectUrl
-                ]);
+                return \Core\Http\Response::errorJson('Invalid email or password', 422);
             }
 
-            return dashboard_redirect($userData);
+            return redirect('/login');
+        } catch (\Throwable $e) {
+            // Catch any unexpected errors and return JSON for AJAX requests
+            if ($request->expectsJson() || $request->isAjax()) {
+                return \Core\Http\Response::errorJson('Server error: ' . $e->getMessage(), 500);
+            }
+            // For non-AJAX, redirect with error
+            session()->flash('error', 'An unexpected error occurred. Please try again.');
+            return redirect('/login');
         }
-
-        // On failure: preserve the submitted login value and show an error message.
-        // Use session flash so old() helper works and message survives the redirect for non-AJAX.
-        session()->flash('old', ['login' => $login]);
-        session()->flash('error', 'Invalid email or password');
-
-        if ($request->expectsJson() || $request->isAjax()) {
-            return \Core\Http\Response::errorJson('Invalid email or password', 422);
-        }
-
-        return redirect('/login');
-    }
-
-    /**
-     * Handle logout
-     */
+    }    /**
+         * Handle logout
+         */
     public function logout(): Response
     {
         // Use the global helper which performs a full session cleanup and redirect

@@ -178,3 +178,32 @@ $router->get('/debug/db/ping.json', function () {
     $result = \Core\Database::ping();
     return response()->json($result + ['timestamp' => date('c')]);
 });
+
+// ---------------------------------------------
+// Development bypass routes (local dev only)
+// ---------------------------------------------
+$router->get('/dev/login/{role}', function ($role) {
+    $validRoles = ['admin', 'customer', 'collector', 'company'];
+    if (!in_array($role, $validRoles)) {
+        return response("Invalid role: {$role}", 400);
+    }
+
+    // Set fake session for dev
+    $userData = [
+        'id' => 999,
+        'name' => "Dev {$role}",
+        'email' => "dev@{$role}.com",
+        'role' => $role
+    ];
+
+    session()->login(999, $userData);
+    session()->put('user_name', $userData['name']);
+    session()->put('user_email', $userData['email']);
+    session()->put('user_role', $userData['role']);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => "Logged in as {$role}",
+        'redirect' => "/{$role}"
+    ]);
+});
