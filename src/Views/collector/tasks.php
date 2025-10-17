@@ -161,8 +161,15 @@
 
 </body>
 </html>-->
+
 <?php
-// If no dummy data found, provide fallback example data
+// Load dummy data
+$dummy = require base_path('config/dummy.php');
+$pickupRequests = $dummy['pickup_requests'];
+$collectors = $dummy['collectors'];
+$timeSlots = $dummy['time_slots'];
+
+// Fallback example data
 if (empty($pickupRequests)) {
     $pickupRequests = [
         [
@@ -204,59 +211,121 @@ if (empty($pickupRequests)) {
     ];
 }
 
+$currentCollectorId = $_SESSION['collector_id'] ?? 'C001';
 
+// Filter pickups for this collector
+$assignedRequests = array_filter($pickupRequests, fn($r) => isset($r['collectorId']) && $r['collectorId'] === $currentCollectorId);
 
-// Centralized dummy data
-$dummy = require base_path('config/dummy.php');
-$pickupRequests = $dummy['pickup_requests'];
-$collectors = $dummy['collectors'];
-$timeSlots = $dummy['time_slots'];
-
-// Assume collector ID is retrieved from session (e.g., after login)
-$currentCollectorId = $_SESSION['collector_id'] ?? 'C001'; // demo default
-
-// Filter only the pickups assigned to this collector
-$assignedRequests = array_filter($pickupRequests, function ($r) use ($currentCollectorId) {
-    return isset($r['collectorId']) && $r['collectorId'] === $currentCollectorId;
-});
-
-// Optional: Filter by time slot
+// Optional filter by time slot
 $selectedTimeSlot = $_GET['time_slot'] ?? 'all';
 if ($selectedTimeSlot !== 'all') {
-    $assignedRequests = array_filter($assignedRequests, function ($r) use ($selectedTimeSlot) {
-        return $r['timeSlot'] === $selectedTimeSlot;
-    });
+    $assignedRequests = array_filter($assignedRequests, fn($r) => $r['timeSlot'] === $selectedTimeSlot);
+}
+
+// Status badge generator
+function getStatusBadge($status)
+{
+    $status = strtolower($status);
+    $class = match ($status) {
+        'pending' => 'pending',
+        'assigned' => 'assigned',
+        'in progress' => 'inprogress',
+        'completed' => 'completed',
+        default => '',
+    };
+    return "<div class='tag $class'>" . ucfirst($status) . "</div>";
 }
 ?>
 
+<!-- JavaScript data for front-end -->
 <script>
-    // Store assigned pickups for this collector
     window.__PICKUP_DATA = <?php echo json_encode(array_values($assignedRequests), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Pickup Detail Modal -->
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header__content">
+        <h2 class="page-header__title">
+            <i class="fa-solid fa-recycle" style="margin-right:8px;"></i>
+            My Assigned Pickups & Daily Tasks
+        </h2>
+        <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
+    </div>
+
+    <div class="form-select">
+        <select id="timeSlotFilter" onchange="filterByTimeSlot()">
+            <option value="all" <?= $selectedTimeSlot === 'all' ? 'selected' : '' ?>>All Time Slots</option>
+            <?php foreach ($timeSlots as $slot): ?>
+                <option value="<?= htmlspecialchars($slot) ?>" <?= $selectedTimeSlot === $slot ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($slot) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+</div>
+
+<!-- Task Table -->
+<div class="activity-card">
+    <div class="activity-card__header">
+        <h3 class="activity-card__title">
+            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
+            My Tasks
+        </h3>
+        <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
+    </div>
+
+    <div class="activity-card__content">
+        <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Address</th>
+                        <th>Waste</th>
+                        <th>Time Slot</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($assignedRequests)): ?>
+                        <?php foreach ($assignedRequests as $r): ?>
+                            <tr data-id="<?= htmlspecialchars($r['id']) ?>">
+                                <td><?= htmlspecialchars($r['id']) ?></td>
+                                <td><?= htmlspecialchars($r['customerName']) ?></td>
+                                <td><?= htmlspecialchars($r['address']) ?></td>
+                                <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'])) ?></td>
+                                <td><?= htmlspecialchars($r['timeSlot']) ?></td>
+                                <td><?= getStatusBadge($r['status']) ?></td>
+                                <td>
+                                    <button class="icon-button" onclick="viewDetails(this, '<?= $r['id'] ?>')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Task Details -->
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
-        <button class="close" aria-label="Close">&times;</button>
+        <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
-
-            <div><strong>Customer</strong></div>
-            <div class="pd-customer"></div>
-
-            <div><strong>Address</strong></div>
-            <div class="pd-address"></div>
-
-            <div><strong>Waste Categories</strong></div>
-            <div class="pd-waste"></div>
-
-            <div><strong>Time Slot</strong></div>
-            <div class="pd-timeslot"></div>
-
-            <div><strong>Status</strong></div>
-            <div class="pd-status"></div>
+            <div><strong>Request ID</strong></div><div class="pd-id"></div>
+            <div><strong>Customer</strong></div><div class="pd-customer"></div>
+            <div><strong>Address</strong></div><div class="pd-address"></div>
+            <div><strong>Waste Categories</strong></div><div class="pd-waste"></div>
+            <div><strong>Time Slot</strong></div><div class="pd-timeslot"></div>
+            <div><strong>Status</strong></div><div class="pd-status"></div>
         </div>
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
@@ -268,12 +337,10 @@ if ($selectedTimeSlot !== 'all') {
 <script>
 function closeDetailModal() {
     const modal = document.getElementById('pickup-detail-modal');
-    if (!modal) return;
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
 }
 
-// Show details
 function viewDetails(el, pickupId) {
     const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
     const modal = document.getElementById('pickup-detail-modal');
@@ -286,7 +353,6 @@ function viewDetails(el, pickupId) {
     modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
     modal.querySelector('.pd-status').textContent = record.status;
 
-    // Update button text depending on current status
     const btn = document.getElementById('taskActionBtn');
     if (record.status === 'assigned') {
         btn.textContent = 'Start Task';
@@ -295,7 +361,7 @@ function viewDetails(el, pickupId) {
         btn.textContent = 'Mark as Completed';
         btn.style.display = '';
     } else {
-        btn.style.display = 'none'; // hide if completed
+        btn.style.display = 'none';
     }
 
     modal.setAttribute('data-current-id', record.id);
@@ -318,105 +384,19 @@ function updateTaskStatus() {
     if (next) {
         window.__PICKUP_DATA[idx].status = next;
 
-        // Update in table
         const row = document.querySelector(`tr[data-id="${pickupId}"]`);
         if (row) {
             const statusCell = row.querySelectorAll('td')[5];
             if (statusCell) statusCell.innerHTML = getStatusBadge(next);
         }
 
-        // Update modal
         modal.querySelector('.pd-status').textContent = next;
-
-        // Update button label or hide when done
         const btn = document.getElementById('taskActionBtn');
         if (next === 'in progress') btn.textContent = 'Mark as Completed';
         else if (next === 'completed') btn.style.display = 'none';
     }
 }
-</script>
 
-<?php
-function getStatusBadge($status)
-{
-    switch (strtolower($status)) {
-        case 'pending': return '<div class="tag pending">Pending</div>';
-        case 'assigned': return '<div class="tag assigned">Assigned</div>';
-        case 'in progress': return '<div class="tag inprogress">In Progress</div>';
-        case 'completed': return '<div class="tag completed">Completed</div>';
-        default: return '<div class="tag">'.htmlspecialchars($status).'</div>';
-    }
-}
-?>
-
-<div class="page-header">
-    <div class="page-header__content">
-        <h2 class="page-header__title">My Assigned Pickups</h2>
-        <p class="page-header__description">Tasks assigned to you</p>
-    </div>
-    <div class="form-select">
-        <select id="timeSlotFilter" onchange="filterByTimeSlot()">
-            <option value="all" <?= $selectedTimeSlot === 'all' ? 'selected' : '' ?>>All Time Slots</option>
-            <?php foreach ($timeSlots as $slot): ?>
-                <option value="<?= htmlspecialchars($slot) ?>" <?= $selectedTimeSlot === $slot ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($slot) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-</div>
-
-<div class="activity-card">
-    <div class="activity-card__header">
-        <h3 class="activity-card__title">
-            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
-            My Tasks
-        </h3>
-        <p class="activity-card__description">
-            <?= count($assignedRequests) ?> assigned pickups
-        </p>
-    </div>
-    <div class="activity-card__content">
-        <div style="overflow-x:auto;">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Customer</th>
-                        <th>Address</th>
-                        <th>Waste</th>
-                        <th>Time Slot</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($assignedRequests as $r): ?>
-                        <tr data-id="<?= htmlspecialchars($r['id']) ?>">
-                            <td><?= htmlspecialchars($r['id']) ?></td>
-                            <td><?= htmlspecialchars($r['customerName']) ?></td>
-                            <td><?= htmlspecialchars($r['address']) ?></td>
-                            <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'])) ?></td>
-                            <td><?= htmlspecialchars($r['timeSlot']) ?></td>
-                            <td><?= getStatusBadge($r['status']) ?></td>
-                            <td>
-                                <button class="icon-button" onclick="viewDetails(this, '<?= $r['id'] ?>')">
-                                    <i class="fa-solid fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-
-                    <?php if (empty($assignedRequests)): ?>
-                        <tr><td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<script>
 function filterByTimeSlot() {
     const select = document.getElementById('timeSlotFilter');
     const slot = select.value;
@@ -424,5 +404,16 @@ function filterByTimeSlot() {
     if (slot === 'all') url.searchParams.delete('time_slot');
     else url.searchParams.set('time_slot', slot);
     window.location.href = url.toString();
+}
+
+function getStatusBadge(status) {
+    const map = {
+        'pending': 'tag pending',
+        'assigned': 'tag assigned',
+        'in progress': 'tag inprogress',
+        'completed': 'tag completed'
+    };
+    const cls = map[status.toLowerCase()] || 'tag';
+    return `<div class="${cls}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>`;
 }
 </script>
