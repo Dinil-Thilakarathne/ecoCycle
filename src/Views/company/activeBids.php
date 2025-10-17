@@ -118,6 +118,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             <th>Bid Amount</th>
                             <th>Status</th>
                             <th>Date</th>
+                            <th>Update/Cancel</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -129,6 +130,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 <td><?= htmlspecialchars($bid['amount']) ?></td>
                                 <td><span class="tag <?= strtolower($bid['status']) ?>"><?= htmlspecialchars($bid['status']) ?></span></td>
                                 <td><?= htmlspecialchars($bid['date']) ?></td>
+                                <td>
+                                    <?php if ($bid['status'] === 'Active'): ?>
+                                        <!-- Update -->
+                                        <a href="?action=edit&id=<?= $bid['id']; ?>" class="c-action-icon edit" title="Edit Bid">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </a>
+
+                                        <!-- Delete -->
+                                        <a href="?action=delete&id=<?= $bid['id']; ?>" class="c-action-icon delete" title="Cancel Bid"
+                                        onclick="return confirm('Cancel this bid?')">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        N/A
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

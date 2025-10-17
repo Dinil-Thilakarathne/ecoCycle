@@ -18,6 +18,14 @@ $company = [
     ]
 ];
 
+//Bank details
+$bankdetails = [
+    "name" => "Bank of Ceylon",
+    "account_number" => "0123456789",
+    "user" => "Ecowaste Company",
+    "branch" => "Bambalapitiya"
+];
+
 $showToast = false;
 
 $errors = [];
@@ -105,7 +113,7 @@ if (isset($_POST["new_password"])) {
 
     <!-- Company Info -->
   
-    <a href="#editModal" class="btn btn-outline" style="position: absolute; right: 6%; top: 15%; ">✏️ Edit Profile</a>
+    <a href="#editModal" class="btn btn-outline" style="position: absolute; right: 6%; top: 15%; background:var(--info-light);">✏️ Edit Profile</a>
     
     <div class=p-info-card>
       <div class="pc-card">
@@ -145,14 +153,24 @@ if (isset($_POST["new_password"])) {
       </div>
     </div>
 
-    <!-- Waste Types -->
-    <div class="pc-card">
-        <h3 style="font-size: 20px; font-weight: bold;">Waste Types Collected</h3>
-        <div class="waste-tags">
-            <?php foreach ($company['waste_types'] as $w): ?>
-                <span class="wastetag"><?= htmlspecialchars($w) ?></span>
-            <?php endforeach; ?>
-        </div>
+    <div class="p-info-card">
+      <!-- Waste Types -->
+      <div class="pc-card">
+          <h3 style="font-size: 20px; font-weight: bold;">Waste Types Collected</h3>
+          <div class="waste-tags">
+              <?php foreach ($company['waste_types'] as $w): ?>
+                  <span class="wastetag"><?= htmlspecialchars($w) ?></span>
+              <?php endforeach; ?>
+          </div>
+      </div>
+
+      <!--Bank Details-->
+      <div class="pc-card">
+          <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
+          <div class="waste-tags">
+              <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light); ">See Bank Details</a></p>
+          </div>
+      </div>
     </div>
 
     <!-- Security -->
@@ -202,6 +220,34 @@ if (isset($_POST["new_password"])) {
       <div class="form-group"><label>Waste Types (comma-separated)</label>
         <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(", ", $company['waste_types'])) ?>"></div>
       <button type="submit" class="btn btn-primary outline" style="width:100%;">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<!-- Bank Details Modal -->
+<div id="bankdetail" class="form-modal">
+  <div class="form-modal-content">
+    <a href="#" class="close">&times;</a>
+    <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
+    <?php if (!empty($errors)): ?>
+      <div class="error-box">
+          <ul>
+              <?php foreach ($errors as $e): ?>
+                  <li><?= htmlspecialchars($e) ?></li>
+              <?php endforeach; ?>
+          </ul>
+      </div>
+    <?php endif; ?>
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group"><label class="form-lable">Bank Name</label>
+        <input type="text" name="bank" value="<?= htmlspecialchars($bankdetails['name']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Account Number</label>
+        <input type="text" name="number" value="<?= htmlspecialchars($bankdetails['account_number']) ?>"></div>
+      <div class="form-group"><label class="form-lable">User's Name</label>
+        <input type="text" name="user" value="<?= htmlspecialchars($bankdetails['user']) ?>"></div>
+      <div class="form-group"><label class="form-lable">Bank Branch</label>
+        <input type="text" name="branch" value="<?= htmlspecialchars($bankdetails['branch']) ?>"></div>
+      <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>
   </div>
 </div>
