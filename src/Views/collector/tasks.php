@@ -161,8 +161,51 @@
 
 </body>
 </html>-->
-
 <?php
+// If no dummy data found, provide fallback example data
+if (empty($pickupRequests)) {
+    $pickupRequests = [
+        [
+            'id' => 'PK001',
+            'customerName' => 'Ramesh Perera',
+            'address' => 'No. 45, Temple Road, Kandy',
+            'wasteCategories' => ['Plastic', 'Paper'],
+            'timeSlot' => '08:00 AM - 10:00 AM',
+            'status' => 'assigned',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK002',
+            'customerName' => 'Anjali Silva',
+            'address' => '22, Palm Grove, Colombo 03',
+            'wasteCategories' => ['Glass', 'Organic'],
+            'timeSlot' => '10:00 AM - 12:00 PM',
+            'status' => 'in progress',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK003',
+            'customerName' => 'Nuwan Jayasuriya',
+            'address' => '15, Green Street, Galle',
+            'wasteCategories' => ['Metal', 'E-Waste'],
+            'timeSlot' => '12:00 PM - 02:00 PM',
+            'status' => 'completed',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK004',
+            'customerName' => 'Kavindi Fernando',
+            'address' => '78, Lotus Avenue, Matara',
+            'wasteCategories' => ['Plastic', 'Organic'],
+            'timeSlot' => '02:00 PM - 04:00 PM',
+            'status' => 'assigned',
+            'collectorId' => 'C001',
+        ],
+    ];
+}
+
+
+
 // Centralized dummy data
 $dummy = require base_path('config/dummy.php');
 $pickupRequests = $dummy['pickup_requests'];
