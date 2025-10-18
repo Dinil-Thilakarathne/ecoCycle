@@ -146,6 +146,15 @@ class PageRouter
 
                 return response()->json(['success' => true, 'round' => $found]);
             });
+
+            // Pickup request management
+            $router->put('/pickup-requests/{id}', 'Controllers\Api\PickupRequestController@update');
+            // Vehicle management API
+            $router->get('/vehicles', 'Controllers\Api\VehicleController@index');
+            $router->post('/vehicles', 'Controllers\Api\VehicleController@store');
+            $router->get('/vehicles/{id}', 'Controllers\Api\VehicleController@show');
+            $router->put('/vehicles/{id}', 'Controllers\Api\VehicleController@update');
+            $router->delete('/vehicles/{id}', 'Controllers\Api\VehicleController@destroy');
         });
     }
 }
