@@ -51,8 +51,8 @@ class User
     public function createUser(array $data): int|false
     {
         $password = $data['password'] ?? null;
-        if ($password) {
-            $data['password_hash'] = password_hash($password, PASSWORD_BCRYPT);
+        if ($password !== null) {
+            $data['password_hash'] = $password;
             unset($data['password']);
         }
 

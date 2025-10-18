@@ -37,6 +37,12 @@ class AuthController extends BaseController
             try {
                 // Try as email first
                 $user = filter_var($login, FILTER_VALIDATE_EMAIL) ? $userModel->findByEmail($login) : $userModel->findByUsername($login);
+
+                if ($user) {
+                    error_log('LOGIN DEBUG user id=' . ($user['id'] ?? '??'));
+                    error_log('LOGIN DEBUG hash=' . ($user['password_hash'] ?? 'null'));
+                    error_log('LOGIN DEBUG verify=' . (new \Models\User())->verifyPassword($user, $password) ? 'true' : 'false');
+                }
             } catch (\Throwable $e) {
                 // DB not ready; fall back to demo users
             }
