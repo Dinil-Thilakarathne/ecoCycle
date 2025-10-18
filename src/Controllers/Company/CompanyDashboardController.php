@@ -4,8 +4,12 @@ namespace Controllers\Company;
 
 use Controllers\DashboardController;
 use EcoCycle\Core\Navigation\NavigationConfig;
-use Core\Http\Request;
 use Core\Http\Response;
+use Models\BiddingRound;
+use Models\Bid;
+use Models\Payment;
+use Models\User;
+use Models\Notification;
 
 /**
  * Company Dashboard Controller
@@ -14,6 +18,14 @@ use Core\Http\Response;
  */
 class CompanyDashboardController extends DashboardController
 {
+    protected int $companyId = 0;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->companyId = (int) ($this->user['id'] ?? 0);
+    }
+
     protected function setUserContext(): void
     {
         $this->userType = 'company';
@@ -29,11 +41,9 @@ class CompanyDashboardController extends DashboardController
     {
         $data = [
             'pageTitle' => 'Company Dashboard',
-            'wasteOverview' => $this->getWasteOverview(),
-            'upcomingCollections' => $this->getUpcomingCollections(),
-            'recentCollections' => $this->getRecentCollections(),
-            'costSavings' => $this->getCostSavings(),
-            'sustainabilityMetrics' => $this->getSustainabilityMetrics()
+            'availableWaste' => $this->getWasteOverview(),
+            'highestBids' => $this->getHighestBids(),
+            'recentBidActivity' => $this->getBiddingHistory(5),
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -46,6 +56,9 @@ class CompanyDashboardController extends DashboardController
     {
         $data = [
             'pageTitle' => 'Active Bids',
+            'minimumBids' => config('data.minimum_bids', []),
+            'availableWasteLots' => $this->getAvailableWasteLots(),
+            'biddingHistory' => $this->getBiddingHistory(),
         ];
 
         return $this->renderDashboard('activeBids', $data);
@@ -58,6 +71,9 @@ class CompanyDashboardController extends DashboardController
     {
         $data = [
             'pageTitle' => 'My Purchases',
+            'acceptedPurchases' => $this->getAcceptedPurchases(),
+            'purchaseSummary' => $this->getPurchaseSummary(),
+            'purchaseHistory' => $this->getPurchaseHistory(),
         ];
 
         return $this->renderDashboard('purchases', $data);
@@ -68,8 +84,11 @@ class CompanyDashboardController extends DashboardController
      */
     public function reports(): Response
     {
+        $reportData = $this->getReportData();
+
         $data = [
             'pageTitle' => 'Analytics & Reports',
+            'reportData' => $reportData,
         ];
 
         return $this->renderDashboard('reports', $data);
@@ -108,12 +127,14 @@ class CompanyDashboardController extends DashboardController
      */
     public function profile(): Response
     {
+        $profile = $this->getCompanyProfile();
+
         $data = [
             'pageTitle' => 'Company Profile',
-            'companyProfile' => $this->getCompanyProfile(),
-            'locations' => $this->getCompanyLocations(),
-            'contacts' => $this->getCompanyContacts(),
-            'preferences' => $this->getCompanyPreferences()
+            'companyProfile' => $profile,
+            'bankDetails' => $profile['bank_details'] ?? [],
+            'verification' => $profile['verification'] ?? [],
+            'wasteTypes' => $profile['waste_types'] ?? [],
         ];
 
         return $this->renderDashboard('profile', $data);
@@ -122,10 +143,11 @@ class CompanyDashboardController extends DashboardController
     /**
      * Notifications page
      */
-     public function notification(): Response
+    public function notification(): Response
     {
         $data = [
             'pageTitle' => 'Notifications',
+            'notifications' => $this->getNotifications(),
         ];
 
         return $this->renderDashboard('notification', $data);
@@ -136,109 +158,252 @@ class CompanyDashboardController extends DashboardController
         return NavigationConfig::getNavigation($this->userType);
     }
 
-    // Placeholder methods for data retrieval
     private function getWasteOverview(): array
     {
-        return [];
-    }
-    private function getUpcomingCollections(): array
-    {
-        return [];
-    }
-    private function getRecentCollections(): array
-    {
-        return [];
-    }
-    private function getCostSavings(): array
-    {
-        return [];
-    }
-    private function getSustainabilityMetrics(): array
-    {
-        return [];
-    }
-    private function getWasteStreams(): array
-    {
-        return [];
-    }
-    private function getScheduledCollections(): array
-    {
-        return [];
-    }
-    private function getSpecialRequests(): array
-    {
-        return [];
-    }
-    private function getAvailableServices(): array
-    {
-        return [];
-    }
-    private function getCompanyLocations(): array
-    {
-        return [];
-    }
-    private function getCollectionTypes(): array
-    {
-        return [];
-    }
-    private function getWasteAnalytics(): array
-    {
-        return [];
-    }
-    private function getCostAnalysis(): array
-    {
-        return [];
-    }
-    private function getEnvironmentalImpact(): array
-    {
-        return [];
-    }
-    private function getComplianceReports(): array
-    {
-        return [];
-    }
-    private function getCurrentInvoices(): array
-    {
-        return [];
-    }
-    private function getPaymentHistory(): array
-    {
-        return [];
-    }
-    private function getBillingSettings(): array
-    {
-        return [];
-    }
-    private function getCostBreakdown(): array
-    {
-        return [];
-    }
-    private function getCarbonFootprint(): array
-    {
-        return [];
-    }
-    private function getRecyclingRates(): array
-    {
-        return [];
-    }
-    private function getSustainabilityGoals(): array
-    {
-        return [];
-    }
-    private function getCompanyCertifications(): array
-    {
-        return [];
+        $rounds = new BiddingRound();
+        $overview = $rounds->availableWasteOverview();
+        if (empty($overview)) {
+            return [];
+        }
+
+        $iconMap = [
+            'plastic' => 'fa-solid fa-bottle-water',
+            'paper' => 'fa-solid fa-paper-plane',
+            'metal' => 'fa-solid fa-box',
+            'glass' => 'fa-solid fa-wine-bottle',
+            'organic' => 'fa-solid fa-leaf',
+            'cardboard' => 'fa-solid fa-clipboard',
+        ];
+
+        return array_map(function (array $row) use ($iconMap): array {
+            $category = $row['category'] ?? 'Unknown';
+            $key = strtolower($category);
+            $quantity = $row['quantity'] ?? 0.0;
+            $unit = $row['unit'] ?? 'kg';
+
+            return [
+                'title' => $category,
+                'value' => number_format($quantity) . ' ' . $unit,
+                'quantity' => $quantity,
+                'unit' => $unit,
+                'icon' => $iconMap[$key] ?? 'fa-solid fa-recycle',
+            ];
+        }, $overview);
     }
     private function getCompanyProfile(): array
     {
-        return [];
+        $userModel = new User();
+        $profile = $userModel->findById($this->companyId);
+        if (!$profile) {
+            return [];
+        }
+
+        $metadata = $profile['metadata'] ?? [];
+
+        return [
+            'id' => $profile['id'],
+            'name' => $profile['name'] ?? '',
+            'type' => $metadata['companyType'] ?? 'Waste Management',
+            'reg_number' => $metadata['registrationNumber'] ?? ($metadata['regNumber'] ?? ''),
+            'description' => $metadata['description'] ?? '',
+            'email' => $profile['email'] ?? '',
+            'phone' => $profile['phone'] ?? '',
+            'website' => $metadata['website'] ?? '',
+            'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
+            'profile_picture' => $profile['profileImagePath'] ?? 'assets/img/default-company.png',
+            'waste_types' => $metadata['waste_types'] ?? $metadata['wasteTypes'] ?? [],
+            'verification' => $metadata['verification'] ?? [],
+            'bank_details' => $metadata['bank_details'] ?? [],
+            'metadata' => $metadata,
+        ];
     }
-    private function getCompanyContacts(): array
+    private function getHighestBids(): array
     {
-        return [];
+        $rounds = new BiddingRound();
+        $records = $rounds->highestBidsByCategory();
+        if (empty($records)) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            $quantity = $row['quantity'] ?? 0.0;
+            $unit = $row['unit'] ?? 'kg';
+            $perUnit = $quantity > 0 ? $row['currentHighestBid'] / $quantity : $row['currentHighestBid'];
+
+            return [
+                'title' => $row['category'] ?? 'Unknown',
+                'amount' => number_format($quantity) . ' ' . $unit,
+                'bid' => 'Rs.' . number_format($perUnit, 2) . '/' . $unit,
+                'status' => ucfirst($row['status'] ?? 'active'),
+            ];
+        }, $records);
     }
-    private function getCompanyPreferences(): array
+
+    private function getAvailableWasteLots(): array
     {
-        return [];
+        $rounds = new BiddingRound();
+        return $rounds->activeLots();
+    }
+
+    private function getBiddingHistory(int $limit = 10): array
+    {
+        $bidModel = new Bid();
+        return $bidModel->companyHistory($this->companyId, $limit);
+    }
+
+    private function getAcceptedPurchases(): array
+    {
+        $rounds = new BiddingRound();
+        $active = $rounds->companyRounds($this->companyId, 'active', 10);
+
+        return array_map(function (array $row): array {
+            return [
+                'id' => $row['lotId'],
+                'type' => $row['category'],
+                'amount' => number_format($row['quantity']) . ' ' . $row['unit'],
+                'price' => format_rs($row['currentHighestBid']),
+                'pickup_date' => $row['endTime'] ? date('Y-m-d', strtotime($row['endTime'])) : 'TBD',
+                'status' => ucfirst($row['status']),
+            ];
+        }, $active);
+    }
+
+    private function getPurchaseHistory(): array
+    {
+        $rounds = new BiddingRound();
+        $completed = $rounds->companyRounds($this->companyId, 'completed', 20);
+
+        return array_map(function (array $row): array {
+            return [
+                'id' => $row['lotId'],
+                'type' => $row['category'],
+                'amount' => number_format($row['quantity']) . ' ' . $row['unit'],
+                'price' => format_rs($row['currentHighestBid']),
+                'delivery_status' => ucfirst($row['status']),
+                'date' => $row['endTime'] ? date('Y-m-d', strtotime($row['endTime'])) : 'N/A',
+            ];
+        }, $completed);
+    }
+
+    private function getPurchaseSummary(): array
+    {
+        $payment = new Payment();
+        $totals = $payment->companyTotals($this->companyId);
+
+        return [
+            'total' => format_rs($totals['totalAmount'] ?? 0),
+            'active_orders' => $totals['activeOrders'] ?? 0,
+            'completed' => $totals['completedOrders'] ?? 0,
+        ];
+    }
+
+    private function getReportData(): array
+    {
+        $bidModel = new Bid();
+        $totals = $bidModel->totals($this->companyId);
+        $monthlyCounts = $bidModel->monthlyCounts($this->companyId, 6);
+        $categorySeries = $bidModel->monthlyCategoryAmounts($this->companyId, 6);
+
+        $months = [];
+        $totalPerMonth = [];
+        $wonPerMonth = [];
+
+        foreach ($monthlyCounts as $row) {
+            $label = $this->formatMonthLabel($row['period']);
+            $months[] = $label;
+            $totalPerMonth[] = $row['total'];
+            $wonPerMonth[] = $row['won'];
+        }
+
+        if (empty($months)) {
+            $months = [];
+            $totalPerMonth = [];
+            $wonPerMonth = [];
+        }
+
+        $series = [];
+        foreach ($categorySeries as $category => $values) {
+            $series[$category] = [];
+            foreach ($monthlyCounts as $row) {
+                $period = $row['period'];
+                $series[$category][] = isset($values[$period]) ? (float) $values[$period] : 0.0;
+            }
+        }
+
+        $totalBids = $totals['total'] ?? 0;
+        $successful = $totals['won'] ?? 0;
+        $rate = $totalBids > 0 ? round(($successful / $totalBids) * 100, 2) : 0;
+
+        return [
+            'totalBids' => $totalBids,
+            'successfulBids' => $successful,
+            'successRate' => $rate,
+            'months' => $months,
+            'totalBidsPerMonth' => $totalPerMonth,
+            'wonBidsPerMonth' => $wonPerMonth,
+            'categorySeries' => $series,
+        ];
+    }
+
+    private function getNotifications(): array
+    {
+        $notifications = new Notification();
+        return $notifications->forCompany($this->companyId, 25);
+    }
+
+    private function formatMonthLabel(string $period): string
+    {
+        $dt = \DateTime::createFromFormat('Y-m', $period);
+        return $dt ? $dt->format('M') : $period;
+    }
+
+    private function getCurrentInvoices(): array
+    {
+        $payment = new Payment();
+        $invoices = $payment->companyPayments($this->companyId, 20);
+
+        return array_values(array_filter($invoices, function (array $invoice): bool {
+            return ($invoice['status'] ?? '') !== 'completed';
+        }));
+    }
+
+    private function getPaymentHistory(): array
+    {
+        $payment = new Payment();
+        return $payment->companyPayments($this->companyId, 20);
+    }
+
+    private function getBillingSettings(): array
+    {
+        $profile = $this->getCompanyProfile();
+        $metadata = $profile['metadata'] ?? [];
+
+        return [
+            'preferred_method' => $metadata['preferred_payment_method'] ?? 'bank_transfer',
+            'invoice_email' => $profile['email'] ?? '',
+            'billing_contact' => $profile['phone'] ?? '',
+        ];
+    }
+
+    private function getCostBreakdown(): array
+    {
+        $payments = $this->getPaymentHistory();
+        $totals = ['payment' => 0.0, 'payout' => 0.0];
+
+        foreach ($payments as $payment) {
+            $type = $payment['type'] ?? 'payment';
+            $amount = $payment['amount'] ?? 0.0;
+            if (!isset($totals[$type])) {
+                $totals[$type] = 0.0;
+            }
+            $totals[$type] += $amount;
+        }
+
+        $formatted = [];
+        foreach ($totals as $type => $amount) {
+            $formatted[$type] = format_rs($amount);
+        }
+
+        return $formatted;
     }
 }
