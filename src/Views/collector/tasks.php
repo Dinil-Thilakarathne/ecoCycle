@@ -1,111 +1,243 @@
- <div class="header">
-        <div>
-            <h1>Daily Tasks</h1>
-            <div class="sub-header">3 tasks for today <span class="status-tag">Active</span></div>
-        </div>
-    <div class="search-filter">
-        <input type="text" class="search-box" placeholder="Search tasks, customers, or locations...">
-        <select class="filter">
-            <option>All Tasks</option>
-        </select>
+<?php
+// Load dummy data
+$dummy = require base_path('config/dummy.php');
+$pickupRequests = $dummy['pickup_requests'];
+$collectors = $dummy['collectors'];
+
+// Fallback example data
+if (empty($pickupRequests)) {
+    $pickupRequests = [
+        [
+            'id' => 'PK001',
+            'customerName' => 'Ramesh Perera',
+            'address' => 'No. 45, Temple Road, Kandy',
+            'wasteCategories' => ['Plastic', 'Paper'],
+            'timeSlot' => '08:00 AM - 10:00 AM',
+            'status' => 'assigned',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK002',
+            'customerName' => 'Anjali Silva',
+            'address' => '22, Palm Grove, Colombo 03',
+            'wasteCategories' => ['Glass', 'Organic'],
+            'timeSlot' => '10:00 AM - 12:00 PM',
+            'status' => 'in progress',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK003',
+            'customerName' => 'Nuwan Jayasuriya',
+            'address' => '15, Green Street, Galle',
+            'wasteCategories' => ['Metal', 'E-Waste'],
+            'timeSlot' => '12:00 PM - 02:00 PM',
+            'status' => 'completed',
+            'collectorId' => 'C001',
+        ],
+        [
+            'id' => 'PK004',
+            'customerName' => 'Kavindi Fernando',
+            'address' => '78, Lotus Avenue, Matara',
+            'wasteCategories' => ['Plastic', 'Organic'],
+            'timeSlot' => '02:00 PM - 04:00 PM',
+            'status' => 'assigned',
+            'collectorId' => 'C001',
+        ],
+    ];
+}
+
+$currentCollectorId = $_SESSION['collector_id'] ?? 'C001';
+
+// Filter pickups for this collector
+$assignedRequests = array_filter($pickupRequests, fn($r) => isset($r['collectorId']) && $r['collectorId'] === $currentCollectorId);
+
+// Optional filter by time slot
+$selectedTimeSlot = $_GET['time_slot'] ?? 'all';
+if ($selectedTimeSlot !== 'all') {
+    $assignedRequests = array_filter($assignedRequests, fn($r) => $r['timeSlot'] === $selectedTimeSlot);
+}
+
+// Status badge generator
+function getStatusBadge($status)
+{
+    $status = strtolower($status);
+    $class = match ($status) {
+        'pending' => 'pending',
+        'assigned' => 'assigned',
+        'in progress' => 'inprogress',
+        'completed' => 'completed',
+        default => '',
+    };
+    return "<div class='tag $class'>" . ucfirst($status) . "</div>";
+}
+?>
+
+<!-- JavaScript data for front-end -->
+<script>
+    window.__PICKUP_DATA = <?php echo json_encode(array_values($assignedRequests), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header__content">
+        <h2 class="page-header__title">
+            <i class="fa-solid fa-recycle" style="margin-right:8px;"></i>
+            My Assigned Pickups & Daily Tasks
+        </h2>
+        <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
+    </div>
+</div>
+
+<!-- Task Table -->
+<div class="activity-card">
+    <div class="activity-card__header">
+        <h3 class="activity-card__title">
+            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
+            My Tasks
+        </h3>
+        <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
 
-
-    <div class="task-card">
-        <div class="task-top">
-            <div>
-                <div class="task-name">Mike Wilson</div>
-                <div class="task-address">789 Elm Road, Downtown</div>
-            </div>
-            <div class="tags">
-                <div class="tag tag-high">high</div>
-                <div class="tag tag-pending">pending</div>
-            </div>
-        </div>
-        <div class="task-details">
-            <div class="detail-box">Category: Metal</div>
-            <div class="detail-box detail-weight">Weight: 8kg</div>
-            <div class="detail-box detail-time">Time: 02:00 PM</div>
-            <div class="detail-box detail-earnings">Earnings: Rs.500.00</div>
-        </div>
-        <div class="contact-info">
-            <i class="fa-solid fa-phone"></i> +94 763975639 
-            <i class="fa-solid fa-location-dot"></i> 2.3 km 
-            <i class="fa-solid fa-clock"></i> 20 min
-        </div>
-        <div class="notes">
-            <strong>Notes:</strong> Large metal items, need assistance
-        </div>
-        <div class="task-actions">
-            <button class="start-btn"><i class="fa-solid fa-play"></i> Start Task</button>
-            <button class="nav-btn"><i class="fa-solid fa-location-arrow"></i> Navigate</button>
-        </div>
-    </div>
-
-
-    <div class="task-card">
-        <div class="task-top">
-            <div>
-                <div class="task-name">Emma Davis</div>
-                <div class="task-address">321 Maple Street, Uptown</div>
-            </div>
-            <div class="tags">
-                <div class="tag tag-medium">medium</div>
-                <div class="tag tag-pending">pending</div>
-            </div>
-        </div>
-        <div class="task-details">
-            <div class="detail-box">Category: Plastic</div>
-            <div class="detail-box detail-weight">Weight: 12kg</div>
-            <div class="detail-box detail-time">Time: 03:30 PM</div>
-            <div class="detail-box detail-earnings">Earnings: 650.00</div>
-        </div>
-        <div class="contact-info">
-            <i class="fa-solid fa-phone"></i> +94 753608935 
-            <i class="fa-solid fa-location-dot"></i> 1.8 km 
-            <i class="fa-solid fa-clock"></i> 15 min
-        </div>
-        <div class="notes">
-            <strong>Notes:</strong> Sorted plastic containers
-        </div>
-        <div class="task-actions">
-            <button class="start-btn"><i class="fa-solid fa-play"></i> Start Task</button>
-            <button class="nav-btn"><i class="fa-solid fa-location-arrow"></i> Navigate</button>
+    <div class="activity-card__content">
+        <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Address</th>
+                        <th>Waste</th>
+                        <th>Time Slot</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($assignedRequests)): ?>
+                        <?php foreach ($assignedRequests as $r): ?>
+                            <tr data-id="<?= htmlspecialchars($r['id']) ?>">
+                                <td><?= htmlspecialchars($r['id']) ?></td>
+                                <td><?= htmlspecialchars($r['customerName']) ?></td>
+                                <td><?= htmlspecialchars($r['address']) ?></td>
+                                <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'])) ?></td>
+                                <td><?= htmlspecialchars($r['timeSlot']) ?></td>
+                                <td><?= getStatusBadge($r['status']) ?></td>
+                                <td>
+                                    <button class="icon-button" onclick="viewDetails(this, '<?= $r['id'] ?>')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-
-    <div class="task-card">
-        <div class="task-top">
-            <div>
-                <div class="task-name">Robert Brown</div>
-                <div class="task-address">654 Cedar Avenue, Midtown</div>
-            </div>
-            <div class="tags">
-                <div class="tag tag-low">low</div>
-                <div class="tag tag-inprogress">in-progress</div>
-            </div>
+<!-- Modal for Task Details -->
+<div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="user-modal__dialog">
+        <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
+        <h3>Pickup Task Details</h3>
+        <div class="user-modal__grid">
+            <div><strong>Request ID</strong></div><div class="pd-id"></div>
+            <div><strong>Customer</strong></div><div class="pd-customer"></div>
+            <div><strong>Address</strong></div><div class="pd-address"></div>
+            <div><strong>Waste Categories</strong></div><div class="pd-waste"></div>
+            <div><strong>Time Slot</strong></div><div class="pd-timeslot"></div>
+            <div><strong>Status</strong></div><div class="pd-status"></div>
         </div>
-        <div class="task-details">
-            <div class="detail-box">Category: Glass</div>
-            <div class="detail-box detail-weight">Weight: 10kg</div>
-            <div class="detail-box detail-time">Time: 04:00 PM</div>
-            <div class="detail-box detail-earnings">Earnings: 1,000.00</div>
-        </div>
-        <div class="contact-info">
-            <i class="fa-solid fa-phone"></i> +94 775360025 
-            <i class="fa-solid fa-location-dot"></i> 3.1 km 
-            <i class="fa-solid fa-clock"></i> 25 min
-        </div>
-        <div class="notes">
-            <strong>Notes:</strong> Handle with care
-        </div>
-        <div class="task-actions">
-            <button class="start-btn"><i class="fa-solid fa-play"></i> Start Task</button>
-            <button class="nav-btn"><i class="fa-solid fa-location-arrow"></i> Navigate</button>
+        <div style="margin-top: var(--space-8); text-align: right;">
+            <button class="btn" onclick="closeDetailModal()">Close</button>
+            <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
     </div>
+</div>
 
+<script>
+function closeDetailModal() {
+    const modal = document.getElementById('pickup-detail-modal');
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
 
+function viewDetails(el, pickupId) {
+    const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
+    const modal = document.getElementById('pickup-detail-modal');
+    if (!record || !modal) return;
 
+    modal.querySelector('.pd-id').textContent = record.id;
+    modal.querySelector('.pd-customer').textContent = record.customerName;
+    modal.querySelector('.pd-address').textContent = record.address;
+    modal.querySelector('.pd-waste').textContent = record.wasteCategories.join(', ');
+    modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
+    modal.querySelector('.pd-status').textContent = record.status;
 
+    const btn = document.getElementById('taskActionBtn');
+    if (record.status === 'assigned') {
+        btn.textContent = 'Start Task';
+        btn.style.display = '';
+    } else if (record.status === 'in progress') {
+        btn.textContent = 'Mark as Completed';
+        btn.style.display = '';
+    } else {
+        btn.style.display = 'none';
+    }
+
+    modal.setAttribute('data-current-id', record.id);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function updateTaskStatus() {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+    const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
+    if (idx === -1) return;
+
+    let current = window.__PICKUP_DATA[idx].status.toLowerCase();
+    let next = '';
+
+    if (current === 'assigned') next = 'in progress';
+    else if (current === 'in progress') next = 'completed';
+
+    if (next) {
+        window.__PICKUP_DATA[idx].status = next;
+
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
+        if (row) {
+            const statusCell = row.querySelectorAll('td')[5];
+            if (statusCell) statusCell.innerHTML = getStatusBadge(next);
+        }
+
+        modal.querySelector('.pd-status').textContent = next;
+        const btn = document.getElementById('taskActionBtn');
+        if (next === 'in progress') btn.textContent = 'Mark as Completed';
+        else if (next === 'completed') btn.style.display = 'none';
+    }
+}
+
+function filterByTimeSlot() {
+    const select = document.getElementById('timeSlotFilter');
+    const slot = select.value;
+    const url = new URL(window.location);
+    if (slot === 'all') url.searchParams.delete('time_slot');
+    else url.searchParams.set('time_slot', slot);
+    window.location.href = url.toString();
+}
+
+function getStatusBadge(status) {
+    const map = {
+        'pending': 'tag pending',
+        'assigned': 'tag assigned',
+        'in progress': 'tag inprogress',
+        'completed': 'tag completed'
+    };
+    const cls = map[status.toLowerCase()] || 'tag';
+    return `<div class="${cls}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>`;
+}
+</script>
