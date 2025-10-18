@@ -4,28 +4,27 @@
 $availableWaste = [
   ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-bottle-water'],
   ['title' => 'Paper', 'value' => '1,800 kg', 'icon' => 'fa-solid fa-paper-plane'],
-  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-box'],
+  ['title' => 'Metal', 'value' => '900 kg', 'icon' => 'fa-solid fa-box'],
   ['title' => 'Glass', 'value' => '1,200 kg', 'icon' => 'fa-solid fa-wine-bottle'],
-  ['title' => 'Organic', 'value' => '1500 kg', 'icon' => 'fa-solid fa-leaf'],
+  ['title' => 'Organic', 'value' => '700 kg', 'icon' => 'fa-solid fa-leaf'],
 
 ];
 
 $totalWaste = 0;
 
 $bids = [
-    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-    ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250/kg', 'status' => 'Active'],
+    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.1000/kg', 'status' => 'Active'],
+    ['title' => 'Metal', 'amount' => '900 kg', 'bid' => 'Rs.1,600/kg', 'status' => 'Pending'],
+    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.800/kg', 'status' => 'Closed']
 ];
-
 ?>
 
 <!-- Main Content -->
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
-            <h2 class="page-header__title">Welcome back!</h2>
+            <h2 class="page-header__title">Welcome back, EcoWaste!</h2>
             <p class="page-header__description">Here is your latest update on your Dashboard</p>
     </div>
   </header>
@@ -67,6 +66,13 @@ $bids = [
               status="<?= $safeStatus ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
+      </div>
+      <div class="c-dashboard-card">
+        <h3>Send Feedback</h3>
+        <div class="feedback">
+          <input type="text" placeholder="Send Feedback">
+          <button class="btn btn-primary" style="flex: 1;" type="submit">Send</button>
+        </div>
       </div>
     </div>
   </section>
