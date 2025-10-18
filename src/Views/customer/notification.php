@@ -174,6 +174,13 @@ $showSettings = ($action === 'settings');
 ?>
 
     <div class="dashboard-page">
+        <!-- small styles to highlight unread notifications (dot + subtle background) -->
+        <style>
+            .notification-row.unread .notification-title { font-weight: 700; }
+            .notification-row.unread { background: #dff4dbff; }
+            /* keep table row hover readable */
+            .notifications-table .notification-row:hover { background: #f5f5f5; }
+        </style>
         <!-- Header -->
         <div class="header">
             <!-- header-actions removed -->
@@ -228,12 +235,11 @@ $showSettings = ($action === 'settings');
             <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread (<?php echo $unreadNotifications; ?>)</a>
             <a href="?filter=pickup" class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
             <a href="?filter=payment" class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
-            <a href="?filter=system" class="btn <?php echo $filter === 'system' ? 'btn-primary' : 'btn-outline'; ?>">System</a>
         </div>
 
         <!-- Notifications Table -->
         <div class="table-container" style="overflow-x:auto;">
-            <table class="notifications-table" style="min-width:800px;">
+            <table class="notifications-table data-table" style="min-width:800px;">
                 <thead>
                     <tr>
                         <th>Notification</th>
@@ -256,9 +262,12 @@ $showSettings = ($action === 'settings');
                         </tr>
                     <?php else: ?>
                         <?php foreach ($filteredNotifications as $notification): ?>
-                            <tr class="notification-row <?php echo !$notification['isRead'] ? 'unread' : ''; ?>">
+                            <tr class="notification-row <?php echo !$notification['isRead'] ? 'unread' : ''; ?>" data-id="<?php echo $notification['id']; ?>">
                                 <td class="notification-info">
                                     <div class="notification-details">
+                                        <?php if (!$notification['isRead']): ?>
+                                            <span class="unread-dot" aria-hidden="true"></span>
+                                        <?php endif; ?>
                                         <div class="notification-title"><?php echo htmlspecialchars($notification['title']); ?></div>
                                         <div class="notification-message"><?php echo htmlspecialchars(truncateMessage($notification['message'])); ?></div>
                                     </div>
@@ -281,7 +290,7 @@ $showSettings = ($action === 'settings');
                                         <a href="?action=mark_read&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn mark-read">Mark Read</a>
                                     <?php endif; ?>
                                     <a href="?action=view&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn view">View</a>
-                                    <a href="?action=delete&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn delete" onclick="return confirm('Are you sure you want to delete this notification?')">Delete</a>
+                                    <a href="?action=delete&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" data-id="<?php echo $notification['id']; ?>" class="action-btn delete">Delete</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -393,3 +402,63 @@ $showSettings = ($action === 'settings');
             </div>
         </div>
     <?php endif; ?>
+
+    <script>
+        (function(){
+            // Helper to update counts in the stats cards (simple DOM text replace)
+            function updateStats(deltaTotal, deltaUnread) {
+                var totalEl = document.querySelector('.stats-grid .feature-card__body') || null;
+                // More robust selectors: find cards by label text
+                var cards = Array.from(document.querySelectorAll('.stats-grid .feature-card'));
+                cards.forEach(function(card){
+                    var title = (card.querySelector('.feature-card__title') || {}).textContent || '';
+                    var body = card.querySelector('.feature-card__body');
+                    if (!body) return;
+                    if (title.indexOf('Total') !== -1) {
+                        body.textContent = parseInt(body.textContent || 0, 10) + deltaTotal;
+                    }
+                    if (title.indexOf('Unread') !== -1) {
+                        body.textContent = parseInt(body.textContent || 0, 10) + deltaUnread;
+                    }
+                });
+            }
+
+            function removeRowById(id) {
+                var row = document.querySelector('.notification-row[data-id="' + id + '"]');
+                if (!row) return false;
+                var unread = row.classList.contains('unread');
+                row.parentNode.removeChild(row);
+                updateStats(-1, unread ? -1 : 0);
+                // If table body empty, show empty state
+                var tbody = document.querySelector('.notifications-table tbody');
+                if (tbody && !tbody.querySelector('.notification-row')) {
+                    tbody.innerHTML = '\n                        <tr>\n                            <td colspan="5" class="empty-state">\n                                <div class="empty-content">\n                                    <div class="empty-icon">📭</div>\n                                    <h3>No notifications found</h3>\n                                    <p>No notifications match your current filter.</p>\n                                </div>\n                            </td>\n                        </tr>';
+                }
+                return true;
+            }
+
+            // Intercept delete link clicks
+            document.addEventListener('click', function(e){
+                var el = e.target.closest && e.target.closest('.action-btn.delete');
+                if (!el) return;
+                e.preventDefault();
+                var id = el.getAttribute('data-id');
+                if (!id) return;
+                if (!confirm('Are you sure you want to delete this notification?')) return;
+
+                // Optimistic UI: remove from DOM
+                var removed = removeRowById(id);
+                if (!removed) return;
+
+                // Send a background request to the server to delete (non-blocking)
+                // Keep the existing query params for server-side compatibility
+                var href = el.getAttribute('href');
+                if (href) {
+                    fetch(href, { method: 'GET', credentials: 'same-origin' }).catch(function(err){
+                        // if server fails, we don't re-add the row here to avoid complexity
+                        console.error('Delete request failed', err);
+                    });
+                }
+            });
+        })();
+    </script>

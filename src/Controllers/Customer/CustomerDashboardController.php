@@ -4,8 +4,8 @@ namespace Controllers\Customer;
 
 use Controllers\DashboardController;
 use EcoCycle\Core\Navigation\NavigationConfig;
+use Core\Http\Request;
 use Core\Http\Response;
-use Models\User;
 
 /**
  * Customer Dashboard Controller
@@ -32,8 +32,7 @@ class CustomerDashboardController extends DashboardController
             'rewardPoints' => $this->getRewardPoints(),
             'recentPickups' => $this->getRecentPickups(),
             'upcomingPickups' => $this->getUpcomingPickups(),
-            'recyclingStats' => $this->getRecyclingStats(),
-            'userProfile' => $this->getUserProfile()
+            'recyclingStats' => $this->getRecyclingStats()
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -83,19 +82,10 @@ class CustomerDashboardController extends DashboardController
      */
     public function profile(): Response
     {
-        $session = session();
-
-        $statusMessage = $session->getFlash('status');
-        $errors = $session->getFlash('errors', []);
-        $oldInput = $session->getFlash('old', []);
-
         $data = [
             'pageTitle' => 'My Profile',
             'userProfile' => $this->getUserProfile(),
-            'addressBook' => $this->getAddressBook(),
-            'statusMessage' => $statusMessage,
-            'validationErrors' => $errors,
-            'oldInput' => $oldInput,
+            'addressBook' => $this->getAddressBook()
         ];
 
         return $this->renderDashboard('profile', $data);
@@ -164,56 +154,7 @@ class CustomerDashboardController extends DashboardController
     }
     private function getUserProfile(): array
     {
-        $userModel = new User();
-
-        try {
-            $user = $userModel->findById((int) ($this->user['id'] ?? 0));
-        } catch (\Throwable $e) {
-            return [];
-        }
-
-        if (!$user) {
-            return [];
-        }
-
-        $metadata = is_array($user['metadata'] ?? null) ? $user['metadata'] : [];
-
-        $firstName = $metadata['firstName'] ?? '';
-        $lastName = $metadata['lastName'] ?? '';
-
-        if ($firstName === '' && $lastName === '' && isset($user['name'])) {
-            [$firstName, $lastName] = $this->splitName((string) $user['name']);
-        }
-
-        return [
-            'firstName' => $firstName,
-            'lastName' => $lastName,
-            'email' => $user['email'] ?? '',
-            'phone' => $user['phone'] ?? '',
-            'address' => $user['address'] ?? '',
-            'postalCode' => $metadata['postalCode'] ?? '',
-            'bankAccount' => $metadata['bankAccount'] ?? '',
-            'profileImage' => $user['profile_image_path'] ?? null,
-        ];
-    }
-
-    private function splitName(string $fullName): array
-    {
-        $fullName = trim($fullName);
-        if ($fullName === '') {
-            return ['', ''];
-        }
-
-        $parts = preg_split('/\s+/', $fullName, 2);
-
-        if (!$parts) {
-            return ['', ''];
-        }
-
-        $first = $parts[0];
-        $last = $parts[1] ?? '';
-
-        return [$first, $last];
+        return [];
     }
     private function getAddressBook(): array
     {

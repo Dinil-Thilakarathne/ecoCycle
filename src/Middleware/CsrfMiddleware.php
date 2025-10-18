@@ -48,7 +48,7 @@ class CsrfMiddleware
 
         // Validate CSRF token
         if (!$requestToken || !hash_equals($sessionToken, $requestToken)) {
-            if ($request->expectsJson() || $request->isAjax()) {
+            if ($request->expectsJson()) {
                 return Response::errorJson('CSRF token mismatch', 419);
             }
 

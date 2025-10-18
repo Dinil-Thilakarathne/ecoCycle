@@ -57,7 +57,7 @@ $wasteTypeData = [
                 </div>
                 <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
                     <!-- Example income, replace with real value if available -->
-                    $0.00
+                    Rs 0.00
                 </p>
                 <div class="feature-card__footer">
                     <span class="tag success">Total income this month</span>
@@ -112,12 +112,14 @@ const wasteTypeChartData = {
     'Plastic': [22, 16, 20],
     'Glass': [9, 7, 10],
     'Paper': [14, 11, 13],
+    'Metal': [19, 17, 20], // Added Metal bar
     'Organic': [25, 21, 28]
 };
 const wasteTypeColors = {
     'Plastic': '#3b82f6', // blue
     'Glass': '#f59e0b',   // yellow
     'Paper': '#10b981',   // green
+    'Metal': '#ef4444',   // red
     'Organic': '#8b5cf6'  // purple
 };
 
@@ -143,8 +145,28 @@ new Chart(ctxWaste, {
             title: { display: false }
         },
         scales: {
-            x: { stacked: false, grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold' } } },
-            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } }
+            x: {
+                stacked: false,
+                grid: { display: false },
+                ticks: { color: '#64748b', font: { weight: 'bold' } },
+                title: {
+                    display: true,
+                    text: 'Month',
+                    color: '#1e293b',
+                    font: { weight: 'bold' }
+                }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: { color: '#64748b' },
+                title: {
+                    display: true,
+                    text: 'Weight (kg)',
+                    color: '#1e293b',
+                    font: { weight: 'bold' }
+                }
+            }
         }
     }
 });
@@ -174,10 +196,30 @@ new Chart(ctxIncome, {
             title: { display: false }
         },
         scales: {
-            x: { grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold' } } },
-            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b',
-                callback: function(value) { return 'Rs ' + value.toLocaleString(); }
-            } }
+            x: {
+                grid: { display: false },
+                ticks: { color: '#64748b', font: { weight: 'bold' } },
+                title: {
+                    display: true,
+                    text: 'Month',
+                    color: '#1e293b',
+                    font: { weight: 'bold' }
+                }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: {
+                    color: '#64748b',
+                    callback: function(value) { return 'Rs ' + value.toLocaleString(); }
+                },
+                title: {
+                    display: true,
+                    text: 'Income (Rs)',
+                    color: '#1e293b',
+                    font: { weight: 'bold' }
+                }
+            }
         }
     }
 });
@@ -264,43 +306,5 @@ new Chart(ctxIncome, {
         }
     });
 
-    // Pie Chart for Waste Breakdown
-    const ctx2 = document.getElementById('wasteBreakdownChart').getContext('2d');
-    new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-            labels: wasteTypeData.map(d => d.name),
-            datasets: [{
-                data: wasteTypeData.map(d => d.value),
-                backgroundColor: wasteTypeData.map(d => d.color),
-                borderWidth: 2,
-                borderColor: '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${value}kg (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
 </script>
 
