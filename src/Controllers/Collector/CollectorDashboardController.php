@@ -4,8 +4,7 @@ namespace Controllers\Collector;
 
 use Controllers\DashboardController;
 use EcoCycle\Core\Navigation\NavigationConfig;
-use Core\Http\Request;
-use Core\Http\Response;
+use Models\PickupRequest;
 
 /**
  * Collector Dashboard Controller
@@ -25,7 +24,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Collector dashboard home
      */
-    public function index(): Response
+    public function index(): \Core\Http\Response
     {
         $data = [
             'pageTitle' => 'Collector Dashboard',
@@ -42,38 +41,44 @@ class CollectorDashboardController extends DashboardController
     /**
      * Pickup assignments
      */
-    public function tasks(): Response
+    public function tasks(): \Core\Http\Response
     {
+        $request = request();
+        $selectedTimeSlot = $this->normalizeTimeSlot((string) $request->query('time_slot', 'all'));
+        $selectedStatus = $this->normalizeStatus((string) $request->query('status', 'all'));
+
         $data = [
             'pageTitle' => 'Pickup Assignments',
-            'assignedPickups' => $this->getAssignedPickups(),
+            'assignedPickups' => $this->getAssignedPickups($selectedTimeSlot, $selectedStatus),
             'availablePickups' => $this->getAvailablePickups(),
-            'pickupFilters' => $this->getPickupFilters()
+            'pickupFilters' => $this->getPickupFilters(),
+            'timeSlots' => $this->getTimeSlots(),
+            'selectedTimeSlot' => $selectedTimeSlot,
+            'selectedStatus' => $selectedStatus,
         ];
-
         return $this->renderDashboard('tasks', $data);
     }
 
     /**
      * Earnings and payments
      */
-   /* public function earnings(): Response
-    {
-        $data = [
-            'pageTitle' => 'Earnings & Payments',
-            'dailyEarnings' => $this->getDailyEarnings(),
-            'monthlyEarnings' => $this->getMonthlyEarnings(),
-            'paymentHistory' => $this->getPaymentHistory(),
-            'pendingPayments' => $this->getPendingPayments()
-        ];
+    /* public function earnings(): Response
+     {
+         $data = [
+             'pageTitle' => 'Earnings & Payments',
+             'dailyEarnings' => $this->getDailyEarnings(),
+             'monthlyEarnings' => $this->getMonthlyEarnings(),
+             'paymentHistory' => $this->getPaymentHistory(),
+             'pendingPayments' => $this->getPendingPayments()
+         ];
 
-        return $this->renderDashboard('earnings', $data);
-    }*/
+         return $this->renderDashboard('earnings', $data);
+     }*/
 
     /**
      * Collection reporting
      */
-    public function analytics(): Response
+    public function analytics(): \Core\Http\Response
     {
         $data = [
             'pageTitle' => 'Collection Analytics',
@@ -85,7 +90,7 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('analytics', $data);
     }
 
-    public function notification(): Response
+    public function notification(): \Core\Http\Response
     {
         $data = [
             'pageTitle' => 'Notifications',
@@ -101,7 +106,7 @@ class CollectorDashboardController extends DashboardController
 
 
 
-    public function setting(): Response
+    public function setting(): \Core\Http\Response
     {
         $data = [
             'pageTitle' => 'Collection Setting',
@@ -114,7 +119,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Profile and vehicle info
      */
-    public function profile(): Response
+    public function profile(): \Core\Http\Response
     {
         $data = [
             'pageTitle' => 'Collector Profile',
@@ -152,8 +157,26 @@ class CollectorDashboardController extends DashboardController
     {
         return [];
     }
-    private function getAssignedPickups(): array
+    private function getAssignedPickups(string $timeSlotFilter = 'all', string $statusFilter = 'all'): array
     {
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return [];
+        }
+
+        $timeSlot = $timeSlotFilter !== 'all' ? $timeSlotFilter : null;
+        $status = $statusFilter !== 'all' ? $this->mapStatusForQuery($statusFilter) : null;
+
+        try {
+            $pickupRequest = new PickupRequest();
+            $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
+            if (!empty($records)) {
+                return $records;
+            }
+        } catch (\Throwable $e) {
+            error_log('Collector tasks load failed: ' . $e->getMessage());
+        }
+
         return [];
     }
     private function getAvailablePickups(): array
@@ -162,7 +185,52 @@ class CollectorDashboardController extends DashboardController
     }
     private function getPickupFilters(): array
     {
-        return [];
+        return [
+            'timeSlots' => $this->getTimeSlots(),
+            'statuses' => ['all', 'pending', 'assigned', 'in progress', 'completed'],
+        ];
+    }
+
+    private function getTimeSlots(): array
+    {
+        try {
+            $pickupRequest = new PickupRequest();
+            return $pickupRequest->listTimeSlots();
+        } catch (\Throwable $e) {
+            error_log('Collector time slot load failed: ' . $e->getMessage());
+        }
+
+        $dummy = dummy_data('time_slots');
+        return is_array($dummy) ? $dummy : [];
+    }
+
+    private function normalizeTimeSlot(string $input): string
+    {
+        $candidate = trim($input);
+        if ($candidate === '') {
+            return 'all';
+        }
+        return $candidate;
+    }
+
+    private function normalizeStatus(string $input): string
+    {
+        $candidate = strtolower(trim($input));
+        if ($candidate === '' || $candidate === 'all') {
+            return 'all';
+        }
+
+        $allowed = ['pending', 'assigned', 'in progress', 'completed'];
+        return in_array($candidate, $allowed, true) ? $candidate : 'all';
+    }
+
+    private function mapStatusForQuery(string $status): string
+    {
+        if ($status === 'in progress') {
+            return 'in_progress';
+        }
+
+        return $status;
     }
     private function getRouteHistory(): array
     {

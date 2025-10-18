@@ -33,6 +33,43 @@ class PickupRequest extends BaseModel
         return array_map(fn(array $row) => $this->formatRow($row, $wasteMap), $rows);
     }
 
+    public function listForCollector(int $collectorId, ?string $status = null, ?string $timeSlot = null): array
+    {
+        $collectorId = (int) $collectorId;
+        if ($collectorId <= 0) {
+            return [];
+        }
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+                FROM {$this->table} pr
+                LEFT JOIN users c ON c.id = pr.customer_id
+                LEFT JOIN users col ON col.id = pr.collector_id
+                WHERE pr.collector_id = ?";
+        $params = [$collectorId];
+
+        if ($status !== null && $status !== '') {
+            $sql .= " AND pr.status = ?";
+            $params[] = $status;
+        }
+
+        if ($timeSlot !== null && $timeSlot !== '') {
+            $sql .= " AND pr.time_slot = ?";
+            $params[] = $timeSlot;
+        }
+
+        $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
+
+        $rows = $this->db->fetchAll($sql, $params);
+        if (!$rows) {
+            return [];
+        }
+
+        $ids = array_column($rows, 'id');
+        $wasteMap = $this->wasteCategoriesForPickups($ids);
+
+        return array_map(fn(array $row) => $this->formatRow($row, $wasteMap), $rows);
+    }
+
     public function listAll(?string $timeSlot = null): array
     {
         $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
@@ -330,13 +367,16 @@ class PickupRequest extends BaseModel
         $names = $wasteEntry['names'] ?? [];
         $details = $wasteEntry['details'] ?? [];
 
+        $status = $this->normalizeStatusValue($row['status'] ?? 'pending');
+
         return [
             'id' => $pickupId,
             'customerId' => $row['customer_id'],
             'customerName' => $row['customer_name'] ?? '',
             'address' => $row['address'] ?? ($row['customer_address'] ?? ''),
             'timeSlot' => $row['time_slot'] ?? '',
-            'status' => $row['status'] ?? 'pending',
+            'status' => $status,
+            'statusRaw' => $row['status'] ?? 'pending',
             'collectorId' => $row['collector_id'],
             'collectorName' => $row['collector_name'] ?? '',
             'wasteCategories' => $names,
@@ -382,6 +422,26 @@ class PickupRequest extends BaseModel
         } while ($this->exists($id));
 
         return $id;
+    }
+
+    private function normalizeStatusValue(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+
+        switch ($normalized) {
+            case 'in_progress':
+            case 'in-progress':
+                return 'in progress';
+            case 'in progress':
+            case 'pending':
+            case 'assigned':
+            case 'completed':
+            case 'cancelled':
+            case 'confirmed':
+                return $normalized;
+            default:
+                return $normalized;
+        }
     }
 
     private function isCustomerEditableStatus(string $status): bool
