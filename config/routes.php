@@ -20,6 +20,30 @@ PageRouter::registerPageRoutes($router);
 // Auto-register API routes (like Next.js api/ folder)  
 PageRouter::registerApiRoutes($router);
 
+// Customer pickup request APIs
+$router->get('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->post('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->put('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\PickupRequestController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\PickupRequestController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
