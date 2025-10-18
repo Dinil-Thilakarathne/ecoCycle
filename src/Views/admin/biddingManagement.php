@@ -1,16 +1,16 @@
 <?php
-// Centralized dummy data (amounts in Rs)
-$dummy = require base_path('config/dummy.php');
-$biddingRounds = $dummy['bidding_rounds'];
-
-// Expose client-side bidding data for modal lookups
+$biddingRounds = $biddingRounds ?? [];
+consoleLog('Bidding Rounds:', $biddingRounds);
+$biddingRounds = is_array($biddingRounds) ? $biddingRounds : [];
+$bidStats = $bidStats ?? [];
+$wasteCategories = $wasteCategories ?? [];
+$wasteCategories = array_values(array_filter(is_array($wasteCategories) ? $wasteCategories : []));
+$minimumBids = $minimumBids ?? [];
 ?>
 <script>
-
     window.__BIDDING_DATA = <?php echo json_encode($biddingRounds, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-    window.__WASTE_CATEGORIES = <?php echo json_encode($dummy['waste_categories'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-    <?php $dataConfig = require base_path('config/data.php'); ?>
-    window.__MINIMUM_BIDS = <?php echo json_encode(array_change_key_case($dataConfig['minimum_bids'] ?? [], CASE_LOWER), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    window.__WASTE_CATEGORIES = <?php echo json_encode($wasteCategories, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    window.__MINIMUM_BIDS = <?php echo json_encode($minimumBids, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 <?php
 
@@ -31,12 +31,22 @@ function getStatusBadge($status)
 
 function formatTimeRemaining($endTime)
 {
-    $end = new DateTime($endTime);
+    if (empty($endTime)) {
+        return 'N/A';
+    }
+
+    try {
+        $end = new DateTime($endTime);
+    } catch (Exception $e) {
+        return 'N/A';
+    }
+
     $now = new DateTime();
     $diff = $end->getTimestamp() - $now->getTimestamp();
 
-    if ($diff <= 0)
+    if ($diff <= 0) {
         return 'Ended';
+    }
 
     $hours = floor($diff / 3600);
     $minutes = floor(($diff % 3600) / 60);
@@ -45,13 +55,9 @@ function formatTimeRemaining($endTime)
 }
 
 // Calculate statistics
-$activeRounds = array_filter($biddingRounds, function ($round) {
-    return $round['status'] === 'active';
-});
-$completedRounds = array_filter($biddingRounds, function ($round) {
-    return $round['status'] === 'completed';
-});
-$totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
+$activeRoundCount = (int) ($bidStats['active'] ?? 0);
+$completedRoundCount = (int) ($bidStats['completed'] ?? 0);
+$totalBidValue = (float) ($bidStats['totalValue'] ?? 0.0);
 ?>
 
 <div>
@@ -68,10 +74,11 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
 
     <!-- Statistics Cards (data-driven using feature-card component) -->
     <?php
+    $avgWinningBid = $completedRoundCount > 0 ? $totalBidValue / $completedRoundCount : 0;
     $bidStatCards = [
         [
             'title' => 'Active Bidding Rounds',
-            'value' => count($activeRounds),
+            'value' => $activeRoundCount,
             'icon' => 'fa-solid fa-gavel',
             'change' => '',
             'period' => 'Currently running',
@@ -87,10 +94,18 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
         ],
         [
             'title' => 'Completed Rounds',
-            'value' => count($completedRounds),
+            'value' => $completedRoundCount,
             'icon' => 'fa-solid fa-box',
             'change' => '',
             'period' => 'Finished today',
+            'negative' => false,
+        ],
+        [
+            'title' => 'Avg. Winning Bid',
+            'value' => 'Rs ' . number_format($avgWinningBid, 2),
+            'icon' => 'fa-solid fa-chart-line',
+            'change' => '',
+            'period' => 'Across completed rounds',
             'negative' => false,
         ],
     ];
@@ -129,39 +144,51 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
                     </thead>
                     <tbody>
                         <?php foreach ($biddingRounds as $round): ?>
-                            <tr data-id="<?= htmlspecialchars($round['id']) ?>">
-                                <td class="font-medium"><?= htmlspecialchars($round['lotId']) ?></td>
-                                <td><?= htmlspecialchars($round['wasteCategory']) ?></td>
+                            <?php
+                            $roundId = $round['id'] ?? '';
+                            $lotId = $round['lotId'] ?? '';
+                            $wasteCategory = $round['wasteCategory'] ?? '';
+                            $quantity = $round['quantity'] ?? '';
+                            $unit = $round['unit'] ?? '';
+                            $currentBid = isset($round['currentHighestBid']) ? (float) $round['currentHighestBid'] : 0;
+                            $biddingCompany = $round['biddingCompany'] ?? '—';
+                            $status = $round['status'] ?? 'pending';
+                            $endTime = $round['endTime'] ?? null;
+                            ?>
+                            <tr data-id="<?= htmlspecialchars($roundId) ?>">
+                                <td class="font-medium"><?= htmlspecialchars($lotId) ?></td>
+                                <td><?= htmlspecialchars($wasteCategory) ?></td>
                                 <td>
-                                    <?= htmlspecialchars($round['quantity']) ?>     <?= htmlspecialchars($round['unit']) ?>
+                                    <?= htmlspecialchars($quantity) ?>     <?= htmlspecialchars($unit) ?>
                                 </td>
                                 <td>
                                     <div class="cell-with-icon">
-                                        Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
+                                        Rs <?= htmlspecialchars(number_format($currentBid, 2)) ?>
                                     </div>
                                 </td>
-                                <td><?= htmlspecialchars($round['biddingCompany']) ?></td>
+                                <td><?= htmlspecialchars($biddingCompany) ?></td>
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-clock"></i>
-                                        <?= formatTimeRemaining($round['endTime']) ?>
+                                        <?= htmlspecialchars(formatTimeRemaining($endTime)) ?>
                                     </div>
                                 </td>
-                                <td><?= getStatusBadge($round['status']) ?></td>
+                                <td><?= getStatusBadge($status) ?></td>
                                 <td>
                                     <div style="display: flex; gap: 8px;">
-                                        <?php if ($round['status'] === 'completed'): ?>
-                                            <button class="icon-button approve" onclick="approveWinner('<?= $round['id'] ?>')"
-                                                title="Approve">
+                                        <?php if ($status === 'completed'): ?>
+                                            <button class="icon-button approve"
+                                                onclick="approveWinner('<?= htmlspecialchars($roundId) ?>')" title="Approve">
                                                 <i class="fa-solid fa-user-check"></i>
                                             </button>
-                                            <button class="icon-button suspend" onclick="rejectBid('<?= $round['id'] ?>')"
-                                                title="Reject">
+                                            <button class="icon-button suspend"
+                                                onclick="rejectBid('<?= htmlspecialchars($roundId) ?>')" title="Reject">
                                                 <i class="fa-solid fa-user-times"></i>
                                             </button>
                                         <?php else: ?>
                                             <button class="icon-button"
-                                                onclick="viewBiddingDetails(this, '<?= $round['id'] ?>')" title="View Details">
+                                                onclick="viewBiddingDetails(this, '<?= htmlspecialchars($roundId) ?>')"
+                                                title="View Details">
                                                 <i class="fa-solid fa-eye"></i>
                                             </button>
                                         <?php endif; ?>
@@ -488,7 +515,7 @@ $totalBidValue = array_sum(array_column($biddingRounds, 'currentHighestBid'));
         // (In a real application, you might use WebSockets or Server-Sent Events for real-time updates)
         setInterval(function () {
             // Only refresh if there are active bidding rounds
-            const hasActiveBids = <?= count($activeRounds) > 0 ? 'true' : 'false' ?>;
+            const hasActiveBids = <?= $activeRoundCount > 0 ? 'true' : 'false' ?>;
             if (hasActiveBids) {
                 location.reload();
             }

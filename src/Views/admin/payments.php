@@ -1,26 +1,30 @@
 <?php
-// Centralized dummy data
-$dummy = require base_path('config/dummy.php');
-$payments = $dummy['payments'];
+$payments = $payments ?? [];
+$payments = is_array($payments) ? $payments : [];
+$summary = $paymentSummary ?? [];
 
-// Calculate totals
-$totalPayouts = 0;
-$totalPayments = 0;
-$pendingCount = 0;
+$totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 0.0;
+$totalPayments = isset($summary['total_payments']) ? (float) $summary['total_payments'] : 0.0;
+$pendingCount = isset($summary['pending_count']) ? (int) $summary['pending_count'] : 0;
 
-foreach ($payments as $payment) {
-    if ($payment['type'] === 'payout' && $payment['status'] === 'completed') {
-        $totalPayouts += $payment['amount'];
-    }
-    if ($payment['type'] === 'payment' && $payment['status'] === 'completed') {
-        $totalPayments += $payment['amount'];
-    }
-    if ($payment['status'] === 'pending') {
-        $pendingCount++;
+// Fallback to calculating from provided payments if summary missing
+if ($summary === [] && !empty($payments)) {
+    foreach ($payments as $payment) {
+        $type = $payment['type'] ?? '';
+        $status = $payment['status'] ?? '';
+        $amount = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
+        if ($type === 'payout' && $status === 'completed') {
+            $totalPayouts += $amount;
+        }
+        if ($type === 'payment' && $status === 'completed') {
+            $totalPayments += $amount;
+        }
+        if ($status === 'pending') {
+            $pendingCount++;
+        }
     }
 }
 
-// $netRevenue = $totalPayments - $totalPayouts;
 $netRevenue = $totalPayments - $totalPayouts;
 
 function getStatusTag($status)
@@ -109,10 +113,10 @@ function getStatusTag($status)
                 <tbody>
                     <?php foreach ($payments as $payment): ?>
                         <tr>
-                            <td class="font-medium"><?= htmlspecialchars($payment['id']) ?></td>
+                            <td class="font-medium"><?= htmlspecialchars($payment['id'] ?? '') ?></td>
                             <td>
                                 <div class="cell-with-icon">
-                                    <?php if ($payment['type'] === 'payout'): ?>
+                                    <?php if (($payment['type'] ?? '') === 'payout'): ?>
                                         <i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i>
                                         Payout
                                     <?php else: ?>
@@ -121,16 +125,16 @@ function getStatusTag($status)
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td>Rs <?= number_format($payment['amount'], 2) ?></td>
-                            <td><?= htmlspecialchars($payment['recipient']) ?></td>
-                            <td><?= htmlspecialchars($payment['date']) ?></td>
+                            <td>Rs <?= number_format((float) ($payment['amount'] ?? 0), 2) ?></td>
+                            <td><?= htmlspecialchars($payment['recipient'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($payment['date'] ?? '') ?></td>
                             <td>
-                                <?= getStatusTag($payment['status']) ?>
+                                <?= getStatusTag($payment['status'] ?? '') ?>
                             </td>
                             <td>
-                                <?php if ($payment['status'] === 'pending'): ?>
+                                <?php if (($payment['status'] ?? '') === 'pending'): ?>
                                     <button class="btn btn-sm btn-primary"
-                                        onclick="processPayment('<?= htmlspecialchars($payment['id']) ?>')">
+                                        onclick="processPayment('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
                                         Process
                                     </button>
                                 <?php else: ?>
@@ -141,6 +145,13 @@ function getStatusTag($status)
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if (empty($payments)): ?>
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
+                                No payment records found.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
