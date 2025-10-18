@@ -562,72 +562,12 @@ function getStatusBadge($status)
         */
     }
 
-    function viewDetails() {
-        // signature: viewDetails(el, pickupId) or legacy viewDetails(pickupId)
-        let el, pickupId;
-        if (arguments.length === 1) {
-            pickupId = arguments[0];
-            el = document.querySelector(`tr[data-id="${pickupId}"]`);
-        } else {
-            el = arguments[0];
-            pickupId = arguments[1];
-        }
+    function viewDetails(pickupId) {
+        // In a real application, you would navigate to a detail page or open a modal
+        console.log(`Viewing details for pickup ${pickupId}`);
+        alert(`Viewing details for pickup ${pickupId}. In a real application, this would show detailed information.`);
 
-        // Lookup in-memory first
-        let record = null;
-        try {
-            if (window.__PICKUP_DATA && Array.isArray(window.__PICKUP_DATA)) {
-                record = window.__PICKUP_DATA.find(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase()) || null;
-            }
-        } catch (e) {
-            console.warn('pickup lookup failed', e);
-            record = null;
-        }
-
-        // Fallback to reading table cells
-        if (!record && el) {
-            const cells = el.querySelectorAll('td');
-            record = {
-                id: pickupId,
-                customerName: (cells[1] && cells[1].textContent.trim()) || '',
-                address: (cells[2] && cells[2].textContent.trim()) || '',
-                wasteCategories: Array.from(el.querySelectorAll('.badge-group .tag')).map(t => t.textContent.trim()),
-                timeSlot: (cells[4] && cells[4].textContent.trim()) || '',
-                status: (cells[5] && cells[5].textContent.trim()) || '',
-                collectorName: (cells[6] && cells[6].textContent.trim()) || ''
-            };
-        }
-
-        const modal = document.getElementById('pickup-detail-modal');
-        if (!modal) return;
-
-        // Do not open if no record
-        if (!record) return;
-
-        const setText = (sel, txt) => {
-            const elm = modal.querySelector(sel);
-            if (!elm) return;
-            if (!txt || String(txt).trim() === '') {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-                elm.style.display = '';
-                elm.textContent = String(txt).trim();
-            }
-        };
-
-        setText('.pd-id', record.id || '');
-        setText('.pd-customer', record.customerName || '');
-        setText('.pd-address', record.address || '');
-        setText('.pd-waste', (record.wasteCategories && record.wasteCategories.join(', ')) || '');
-        setText('.pd-timeslot', record.timeSlot || '');
-        setText('.pd-status', record.status || '');
-        setText('.pd-collector', record.collectorName || '');
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
+        // You could redirect to a details page:
+        // window.location.href = `/admin/pickup-requests/${pickupId}`;
     }
 </script>

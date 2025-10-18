@@ -174,17 +174,19 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ((array) ($customers ?? []) as $customer): ?>
-                                    <tr data-user-type="customer" data-id="<?= $customer['id'] ?>">
+                                <?php foreach ($customers as $customer): ?>
+                                    <tr data-user-type="customer" data-name="<?= strtolower($customer['name']) ?>"
+                                        data-email="<?= strtolower($customer['email']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($customer['name']) ?></td>
                                         <td><?= htmlspecialchars($customer['email']) ?></td>
                                         <td><?= htmlspecialchars($customer['phone']) ?></td>
                                         <td><?= htmlspecialchars($customer['totalPickups']) ?></td>
-                                        <td>Rs <?= number_format($customer['totalEarnings'], 2) ?></td>
+                                        <td>$<?= number_format($customer['totalEarnings'], 2) ?></td>
                                         <td><?= getStatusBadge($customer['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button" onclick="viewUser(this, 'customer')"
+                                                <button class="icon-button"
+                                                    onclick="viewUser('<?= $customer['id'] ?>', 'customer')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
@@ -231,8 +233,9 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ((array) ($companies ?? []) as $company): ?>
-                                    <tr data-user-type="company" data-id="<?= $company['id'] ?>">
+                                <?php foreach ($companies as $company): ?>
+                                    <tr data-user-type="company" data-name="<?= strtolower($company['name']) ?>"
+                                        data-email="<?= strtolower($company['email']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($company['name']) ?></td>
                                         <td><?= htmlspecialchars($company['email']) ?></td>
                                         <td><?= htmlspecialchars($company['phone']) ?></td>
@@ -241,7 +244,8 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                         <td><?= getStatusBadge($company['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button" onclick="viewUser(this, 'company')"
+                                                <button class="icon-button"
+                                                    onclick="viewUser('<?= $company['id'] ?>', 'company')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
@@ -288,8 +292,9 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ((array) ($collectors ?? []) as $collector): ?>
-                                    <tr data-user-type="collector" data-id="<?= $collector['id'] ?>">
+                                <?php foreach ($collectors as $collector): ?>
+                                    <tr data-user-type="collector" data-name="<?= strtolower($collector['name']) ?>"
+                                        data-email="<?= strtolower($collector['email']) ?>">
                                         <td class="font-medium"><?= htmlspecialchars($collector['name']) ?></td>
                                         <td><?= htmlspecialchars($collector['email']) ?></td>
                                         <td><?= htmlspecialchars($collector['phone']) ?></td>
@@ -298,7 +303,8 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                         <td><?= getStatusBadge($collector['status']) ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="icon-button" onclick="viewUser(this, 'collector')"
+                                                <button class="icon-button"
+                                                    onclick="viewUser('<?= $collector['id'] ?>', 'collector')"
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
@@ -327,9 +333,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
 
 <script>
     // Tab functionality
-    function showTab(tabName, updateUrl = true) {
-        if (!tabName) return;
-
+    function showTab(tabName) {
         // Hide all tab contents
         const contents = document.querySelectorAll('.tabs-content');
         contents.forEach(content => content.classList.remove('active'));
@@ -338,39 +342,21 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         const triggers = document.querySelectorAll('.tabs-trigger');
         triggers.forEach(trigger => trigger.classList.remove('active'));
 
-        // Show selected tab content (guard elements exist)
-        const contentEl = document.getElementById(tabName + '-content');
-        const triggerEl = document.getElementById(tabName + '-tab');
-        if (contentEl) contentEl.classList.add('active');
-        if (triggerEl) triggerEl.classList.add('active');
-
-        // Update the URL query parameter so the tab state persists on refresh
-        if (updateUrl && window.history && window.location) {
-            try {
-                const url = new URL(window.location.href);
-                url.searchParams.set('tab', tabName);
-                // Use replaceState to avoid polluting history with each click
-                window.history.replaceState(null, '', url.toString());
-            } catch (e) {
-                // Fallback: set hash if URL API isn't available
-                window.location.hash = '#tab=' + encodeURIComponent(tabName);
-            }
-        }
+        // Show selected tab content
+        document.getElementById(tabName + '-content').classList.add('active');
+        document.getElementById(tabName + '-tab').classList.add('active');
     }
 
-    // Search functionality (use visible table cells instead of removed data-* attributes)
+    // Search functionality
     function filterUsers() {
-        const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const activeTab = document.querySelector('.tabs-content.active');
-        if (!activeTab) return;
         const table = activeTab.querySelector('table');
-        if (!table) return;
         const rows = table.querySelectorAll('tbody tr');
 
         rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            const name = (cells[0] && cells[0].textContent || '').toLowerCase();
-            const email = (cells[1] && cells[1].textContent || '').toLowerCase();
+            const name = row.getAttribute('data-name') || '';
+            const email = row.getAttribute('data-email') || '';
 
             if (name.includes(searchTerm) || email.includes(searchTerm)) {
                 row.style.display = '';
@@ -381,115 +367,12 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
     }
 
     // User management functions
-    function viewUser(el, userType) {
-        // Populate and open the modal by looking up the full record in window.__USER_DATA
-        // Falls back to reading visible table cells when the store doesn't have the record.
-        if (!el || !el.closest) return;
-        const row = el.closest('tr');
-        if (!row) return;
+    function viewUser(userId, userType) {
+        console.log(`Viewing ${userType} ${userId}`);
+        alert(`Viewing details for ${userType} ${userId}. In a real application, this would show detailed user information, account history, and activity logs.`);
 
-        const id = row.getAttribute('data-id') || '';
-        const rowType = (userType && String(userType).toLowerCase()) || (row.getAttribute('data-user-type') || '').toLowerCase();
-
-        // Map singular type -> store key
-        const lookupMap = { customer: 'customers', company: 'companies', collector: 'collectors' };
-        const storeKey = lookupMap[rowType] || null;
-
-        let user = null;
-        try {
-            if (window.__USER_DATA && storeKey && Array.isArray(window.__USER_DATA[storeKey])) {
-                const pool = window.__USER_DATA[storeKey];
-                user = pool.find(u => (u.id || '').toString().toLowerCase() === id.toString().toLowerCase()) || null;
-            }
-        } catch (err) {
-            console.warn('user lookup failed', err);
-            user = null;
-        }
-
-        // Fallback: read visible table cells (name/email/phone etc.)
-        const cells = row.querySelectorAll('td');
-        const fallback = {
-            id: id,
-            name: (cells[0] && cells[0].textContent.trim()) || '',
-            email: (cells[1] && cells[1].textContent.trim()) || '',
-            phone: (cells[2] && cells[2].textContent.trim()) || '',
-            // attempt to parse commonly present numeric columns where applicable
-            totalPickups: (cells[3] && cells[3].textContent.trim()) || '',
-            totalEarnings: (cells[4] && cells[4].textContent.replace(/[^0-9.\-]/g, '').trim()) || '0',
-            status: (cells[5] && cells[5].textContent.trim()) || ''
-        };
-
-        const src = user || fallback;
-
-        // Fill modal fields
-        const modal = document.getElementById('user-detail-modal');
-        if (!modal) return;
-        const setOrHide = (selector, text, opts = {}) => {
-            const elm = modal.querySelector(selector);
-            if (!elm) return;
-            const label = elm.previousElementSibling; // should be the <div><strong>Label</strong></div>
-
-            // Normalize text
-            const value = (text === null || text === undefined) ? '' : String(text).trim();
-
-            // Decide visibility: hide when value is empty or a single dash
-            const hide = (value === '' || value === '-');
-
-            if (hide) {
-                if (label) label.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                if (label) label.style.display = '';
-                elm.style.display = '';
-                elm.textContent = value;
-            }
-        };
-        // Define all possible selectors and field groups per user type
-        const allSelectors = ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-vehicle', '.ud-totalpickups', '.ud-totalearnings', '.ud-totalbids', '.ud-totalpurchases'];
-
-        const allowedByType = {
-            customer: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-totalpickups', '.ud-totalearnings'],
-            company: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-totalbids', '.ud-totalpurchases'],
-            collector: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-vehicle', '.ud-totalpickups']
-        };
-
-        // Hide everything first
-        allSelectors.forEach(sel => {
-            const e = modal.querySelector(sel);
-            if (e) {
-                const lbl = e.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                e.style.display = 'none';
-            }
-        });
-        // Populate and show only allowed selectors for this user type
-        const allowed = allowedByType[rowType] || [];
-        if (allowed.includes('.ud-id')) setOrHide('.ud-id', src.id || '');
-        if (allowed.includes('.ud-name')) setOrHide('.ud-name', src.name || '');
-        if (allowed.includes('.ud-email')) setOrHide('.ud-email', src.email || '');
-        if (allowed.includes('.ud-phone')) setOrHide('.ud-phone', src.phone || '');
-        if (allowed.includes('.ud-address')) setOrHide('.ud-address', src.address || '');
-        if (allowed.includes('.ud-status')) setOrHide('.ud-status', src.status ? (src.status.charAt(0).toUpperCase() + src.status.slice(1)) : '');
-        if (allowed.includes('.ud-vehicle')) setOrHide('.ud-vehicle', src.vehicleId || src.vehicle || '');
-        if (allowed.includes('.ud-totalpickups')) setOrHide('.ud-totalpickups', src.totalPickups || src.todayPickups || src.totalPickups);
-
-        // Earnings formatted
-        const earningsRaw = src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : (src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : src.totalEarnings || src.totalEarnings);
-        const earningsVal = parseFloat(earningsRaw || fallback.totalEarnings || 0);
-        if (allowed.includes('.ud-totalearnings')) {
-            if (!isNaN(earningsVal)) {
-                setOrHide('.ud-totalearnings', 'Rs ' + earningsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-            } else {
-                setOrHide('.ud-totalearnings', fallback.totalEarnings || '0');
-            }
-        }
-
-        if (allowed.includes('.ud-totalbids')) setOrHide('.ud-totalbids', src.totalBids || '0');
-        if (allowed.includes('.ud-totalpurchases')) setOrHide('.ud-totalpurchases', src.totalPurchases || '0');
-
-        // Open modal
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
+        // You could redirect to a user details page:
+        // window.location.href = `/admin/users/${userType}/${userId}`;
     }
 
     function approveUser(userId, userType) {
@@ -544,57 +427,11 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         }
     }
 
-    // Initialize search functionality and restore tab from URL on page load
+    // Initialize search functionality on page load
     document.addEventListener('DOMContentLoaded', function () {
         // Add event listener to search input for real-time filtering
         const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.addEventListener('input', filterUsers);
-
-        // Restore active tab from URL (?tab=...) or from hash (#tab=...)
-        let tabFromUrl = null;
-        try {
-            const params = new URL(window.location.href).searchParams;
-            tabFromUrl = params.get('tab');
-        } catch (e) {
-            // ignore
-        }
-
-        if (!tabFromUrl && window.location.hash) {
-            const m = window.location.hash.match(/tab=([^&]+)/);
-            if (m && m[1]) tabFromUrl = decodeURIComponent(m[1]);
-        }
-
-        // Default to 'customers' if nothing provided
-        const initialTab = tabFromUrl || 'customers';
-        showTab(initialTab, /* updateUrl= */ false);
-    });
-
-    // Capitalize helper
-    function capitalize(s) {
-        if (!s) return '';
-        return s.charAt(0).toUpperCase() + s.slice(1);
-    }
-
-    // Modal close handlers
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('user-detail-modal');
-        if (!modal) return;
-
-        if (e.target.matches('#user-detail-modal .close') || e.target.matches('#user-detail-modal')) {
-            modal.classList.remove('open');
-
-            // Remove view/id from URL without reloading
-            try {
-                const url = new URL(window.location.href);
-                if (url.searchParams.has('view') || url.searchParams.has('id')) {
-                    url.searchParams.delete('view');
-                    url.searchParams.delete('id');
-                    window.history.replaceState(null, '', url.toString());
-                }
-            } catch (err) {
-                // ignore
-            }
-        }
+        searchInput.addEventListener('input', filterUsers);
     });
 </script>
 

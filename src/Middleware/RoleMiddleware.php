@@ -64,7 +64,7 @@ class RoleMiddleware
             }
 
             // Redirect to appropriate page based on role
-            return redirect("/login");
+            return $this->redirectBasedOnRole($userRole);
         }
 
         // Proceed to the next middleware or request handler
@@ -81,13 +81,13 @@ class RoleMiddleware
     {
         switch ($userRole) {
             case 'customer':
-                return Response::redirect('/customer');
+                return Response::redirect('/customer/dashboard');
             case 'collector':
-                return Response::redirect('/collector');
+                return Response::redirect('/collector/dashboard');
             case 'company':
-                return Response::redirect('/company');
+                return Response::redirect('/company/dashboard');
             case 'admin':
-                return Response::redirect('/admin');
+                return Response::redirect('/admin/dashboard');
             default:
                 return Response::redirect('/dashboard');
         }

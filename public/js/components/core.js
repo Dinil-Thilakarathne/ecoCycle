@@ -8,8 +8,6 @@ import "./status-item.js";
 import "./page-header.js";
 import "./bid-item.js";
 import "./alert-box.js";
-import "./form-input.js";
-import "./profile-image-input.js";
 
 // Example: future components
 // import './ui-button.js';

@@ -214,292 +214,68 @@ $totalBidValue = (float) ($bidStats['totalValue'] ?? 0.0);
 
 <script>
     function createNewLot() {
-        // Build modal for creating a new lot (client-side only)
-        const modal = document.createElement('div');
-        modal.className = 'simple-modal-backdrop';
-        modal.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1000;';
+        // In a real application, you would navigate to a form or open a modal
+        console.log('Creating new lot...');
+        alert('Create New Lot functionality - In a real application, this would open a form to create a new waste lot for bidding.');
 
-        const categories = Array.isArray(window.__WASTE_CATEGORIES) ? window.__WASTE_CATEGORIES : [];
-
-        modal.innerHTML = `
-            <div style="background:#fff;padding:1.25rem;border-radius:8px;max-width:640px;width:96%;">
-                <h3 style="margin:0 0 0.75rem 0;">Create New Lot</h3>
-                <form id="createLotForm">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Lot ID</label>
-                            <input name="lotId" required placeholder="LOT123" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
-                        </div>
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Waste Category</label>
-                            <select name="wasteCategory" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
-                                <option value="">Select category</option>
-                                ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Quantity</label>
-                            <input type="number" name="quantity" min="1" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
-                        </div>
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Unit</label>
-                            <select name="unit" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
-                                <option value="kg">kg</option>
-                                <option value="tons">tons</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Starting Bid (Rs)</label>
-                            <input type="number" name="startingBid" min="0" step="0.01" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
-                        </div>
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">End Time</label>
-                            <input type="datetime-local" name="endTime" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
-                        <button type="button" id="createLotCancel" style="padding:8px 12px;border-radius:6px;background:#6b7280;color:#fff;border:none;">Cancel</button>
-                        <button type="submit" id="createLotSubmit" style="padding:8px 12px;border-radius:6px;background:#0ea5e9;color:#fff;border:none;">Create Lot</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        function close() { modal.remove(); }
-
-        document.getElementById('createLotCancel').addEventListener('click', close);
-
-        // Wire category -> starting bid default using config minimums
-        (function wireCategoryDefaults() {
-            try {
-                const form = modal.querySelector('#createLotForm');
-                const categorySelect = form.querySelector('select[name="wasteCategory"]');
-                const startingBidInput = form.querySelector('input[name="startingBid"]');
-                if (!categorySelect || !startingBidInput) return;
-
-                categorySelect.addEventListener('change', function () {
-                    const cat = (this.value || '').toString().trim();
-                    if (!cat) {
-                        startingBidInput.removeAttribute('min');
-                        return;
-                    }
-                    const minMap = window.__MINIMUM_BIDS || {};
-                    const minValRaw = minMap[cat.toLowerCase()];
-                    const minVal = typeof minValRaw !== 'undefined' && minValRaw !== null ? parseFloat(minValRaw) : NaN;
-                    if (!isNaN(minVal)) {
-                        // set visible value and enforce min
-                        startingBidInput.value = Number(minVal).toFixed(2);
-                        startingBidInput.setAttribute('min', String(minVal));
-                    } else {
-                        startingBidInput.removeAttribute('min');
-                    }
-                });
-            } catch (err) {
-                console.warn('Failed to wire category defaults', err);
-            }
-        })();
-
-        document.getElementById('createLotForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const lotId = (fd.get('lotId') || '').toString().trim();
-            const wasteCategory = (fd.get('wasteCategory') || '').toString().trim();
-            const quantity = parseFloat(fd.get('quantity')) || 0;
-            const unit = (fd.get('unit') || '').toString().trim();
-            const startingBid = parseFloat(fd.get('startingBid')) || 0;
-            const endTimeRaw = fd.get('endTime');
-
-            // Client-side validation
-            const errors = [];
-            if (!lotId) errors.push('Lot ID is required');
-            if (!wasteCategory) errors.push('Waste category is required');
-            if (!(quantity > 0)) errors.push('Quantity must be greater than zero');
-            if (!unit) errors.push('Unit is required');
-            if (!(startingBid >= 0)) errors.push('Starting bid must be zero or more');
-            if (!endTimeRaw) errors.push('End time is required');
-
-            // Ensure unique lotId in current in-memory dataset
-            if (window.__BIDDING_DATA && window.__BIDDING_DATA.some(r => (r.lotId || '').toString().toLowerCase() === lotId.toLowerCase())) {
-                errors.push('Lot ID already exists');
-            }
-
-            const endTime = endTimeRaw ? new Date(endTimeRaw) : null;
-            if (endTime && endTime <= new Date()) {
-                errors.push('End time must be in the future');
-            }
-
-            // Validate minimum starting bid for selected category (if configured)
-            try {
-                const minMap = window.__MINIMUM_BIDS || {};
-                const minValRaw = minMap[(wasteCategory || '').toLowerCase()];
-                const minVal = typeof minValRaw !== 'undefined' && minValRaw !== null ? parseFloat(minValRaw) : NaN;
-                if (!isNaN(minVal) && startingBid < minVal) {
-                    errors.push(`Starting bid must be at least Rs ${Number(minVal).toFixed(2)} for ${wasteCategory}`);
-                }
-            } catch (err) {
-                // ignore and continue if mapping not present
-            }
-
-            if (errors.length) {
-                window.__createToast(errors.join('\n'), 'error', 6000);
-                return;
-            }
-
-            // Build new round object
-            const nextId = (() => {
-                const existing = window.__BIDDING_DATA || [];
-                const nums = existing.map(r => {
-                    const m = (r.id || '').toString().match(/BR(\d+)/i);
-                    return m ? parseInt(m[1], 10) : 0;
-                });
-                const max = nums.length ? Math.max(...nums) : 0;
-                return 'BR' + String(max + 1).padStart(3, '0');
-            })();
-
-            const newRound = {
-                id: nextId,
-                lotId: lotId,
-                wasteCategory: wasteCategory,
-                quantity: quantity,
-                unit: unit,
-                currentHighestBid: startingBid,
-                biddingCompany: '',
-                status: endTime && endTime > new Date() ? 'active' : 'completed',
-                endTime: endTime ? endTime.toISOString().slice(0, 19).replace('T', ' ') : (new Date()).toISOString().slice(0, 19).replace('T', ' ')
-            };
-
-            // Update in-memory
-            window.__BIDDING_DATA = window.__BIDDING_DATA || [];
-            window.__BIDDING_DATA.unshift(newRound);
-
-            // Insert row into table (top)
-            const tbody = document.querySelector('.data-table tbody');
-            if (tbody) {
-                const tr = document.createElement('tr');
-                tr.setAttribute('data-id', newRound.id);
-                tr.innerHTML = `
-                    <td class="font-medium">${escapeHtml(newRound.lotId)}</td>
-                    <td>${escapeHtml(newRound.wasteCategory)}</td>
-                    <td>${escapeHtml(String(newRound.quantity))} ${escapeHtml(newRound.unit)}</td>
-                    <td><div class="cell-with-icon">Rs ${Number(newRound.currentHighestBid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></td>
-                    <td></td>
-                    <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${timeRemainingText(newRound.endTime)}</div></td>
-                    <td><div class="tag online">Active</div></td>
-                    <td>
-                        <div style="display:flex;gap:8px;">
-                            <button class="icon-button" onclick="viewBiddingDetails(this,'${newRound.id}')" title="View Details"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                    </td>
-                `;
-                tbody.insertBefore(tr, tbody.firstChild);
-            }
-
-            window.__createToast('New lot created', 'success');
-            close();
-        });
-
-        // small helpers
-        function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
-        function timeRemainingText(end) {
-            try {
-                const e = new Date(end.replace(' ', 'T'));
-                const diff = Math.floor((e.getTime() - Date.now()) / 1000);
-                if (diff <= 0) return 'Ended';
-                const h = Math.floor(diff / 3600);
-                const m = Math.floor((diff % 3600) / 60);
-                return `${h}h ${m}m`;
-            } catch (e) { return '' }
-        }
+        // You could redirect to a new lot creation page:
+        // window.location.href = '/admin/lots/create';
     }
 
     function approveWinner(biddingId) {
-        // Fire-and-forget: call API and update UI on completion; no blocking prompts
-        fetch('/api/bidding/approve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ biddingId: biddingId })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (!data || !data.success) {
-                    window.__createToast('Approve failed: ' + (data && data.error ? data.error : 'Unknown error'), 'error');
-                    return;
-                }
+        if (confirm('Are you sure you want to approve this bid winner?')) {
+            console.log(`Approving winner for bidding round ${biddingId}`);
+            alert(`Bid approved for ${biddingId}. In a real application, this would update the database and notify the winning company.`);
 
-                const round = data.round || {};
-                if (window.__BIDDING_DATA && Array.isArray(window.__BIDDING_DATA)) {
-                    const idx = window.__BIDDING_DATA.findIndex(r => (r.id || '') === (biddingId || ''));
-                    if (idx !== -1) window.__BIDDING_DATA[idx] = Object.assign({}, window.__BIDDING_DATA[idx], round);
-                }
-
-                const row = document.querySelector(`tr[data-id="${biddingId}"]`);
-                if (row) {
-                    const statusCell = row.querySelectorAll('td')[6];
-                    if (statusCell) statusCell.innerHTML = '<div class="tag assigned">Awarded</div>';
-                    const companyCell = row.querySelectorAll('td')[4];
-                    if (companyCell && round.awardedCompany) companyCell.textContent = round.awardedCompany;
-                }
-
-                window.__createToast('Bid approved', 'success');
+            // You would make an AJAX request here:
+            /*
+            fetch('/api/bidding/approve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    biddingId: biddingId
+                })
             })
-            .catch(err => {
-                console.error('Approve error', err);
-                window.__createToast('Approve failed: ' + err.message, 'error');
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to approve bid');
+                }
             });
+            */
+        }
     }
 
     function rejectBid(biddingId) {
-        // Optional non-blocking rejection with silent prompt capture via a small inline modal-like UX
-        // For now: call API without asking for reason; keep UX simple and non-blocking
-        fetch('/api/bidding/reject', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ biddingId: biddingId })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (!data || !data.success) {
-                    window.__createToast('Reject failed: ' + (data && data.error ? data.error : 'Unknown error'), 'error');
-                    return;
-                }
+        if (confirm('Are you sure you want to reject this bid?')) {
+            console.log(`Rejecting bid for bidding round ${biddingId}`);
+            alert(`Bid rejected for ${biddingId}. In a real application, this would update the database and start a new bidding round.`);
 
-                const round = data.round || {};
-                if (window.__BIDDING_DATA && Array.isArray(window.__BIDDING_DATA)) {
-                    const idx = window.__BIDDING_DATA.findIndex(r => (r.id || '') === (biddingId || ''));
-                    if (idx !== -1) window.__BIDDING_DATA[idx] = Object.assign({}, window.__BIDDING_DATA[idx], round);
-                }
-
-                const row = document.querySelector(`tr[data-id="${biddingId}"]`);
-                if (row) {
-                    const statusCell = row.querySelectorAll('td')[6];
-                    if (statusCell) statusCell.innerHTML = '<div class="tag warning">Cancelled</div>';
-                }
-
-                window.__createToast('Bid rejected', 'success');
-            })
-            .catch(err => {
-                console.error('Reject error', err);
-                window.__createToast('Reject failed: ' + err.message, 'error');
+            // You would make an AJAX request here:
+            /*
+            fetch('/api/bidding/reject', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    biddingId: biddingId
+                })
             });
+            */
+        }
     }
 
     function viewBiddingDetails(biddingId) {
-        // legacy signature: viewBiddingDetails(biddingId)
-        if (arguments.length === 1) {
-            biddingId = arguments[0];
-            // try to find a row element
-            const row = document.querySelector(`tr[data-id="${biddingId}"]`);
-            openBiddingModal(row, biddingId);
-            return;
-        }
+        console.log(`Viewing details for bidding round ${biddingId}`);
+        alert(`Viewing bidding details for ${biddingId}. In a real application, this would show detailed bidding information, bid history, and participating companies.`);
 
-        // new signature: viewBiddingDetails(el, biddingId)
-        const el = arguments[0];
-        biddingId = arguments[1];
-        const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${biddingId}"]`);
-        openBiddingModal(row, biddingId);
+        // You could redirect to a details page:
+        // window.location.href = `/admin/bidding/${biddingId}`;
     }
 
     // Auto-refresh the page every 30 seconds to update time remaining
