@@ -142,6 +142,7 @@ class AuthController extends BaseController
     public function register(Request $request): Response
     {
         $rolesConfig = $this->getRegistrationRoles();
+        $wantsJson = $request->expectsJson() || $request->isAjax();
         $roleInput = (string) $request->input('role');
         $role = $this->resolveRegistrationRole($roleInput, $rolesConfig);
 
@@ -170,19 +171,19 @@ class AuthController extends BaseController
         );
 
         if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '') {
-            return $this->registrationErrorRedirect($oldInput, 'Please fill out all required fields.');
+            return $this->registrationErrorRedirect($oldInput, 'Please fill out all required fields.', $wantsJson);
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $this->registrationErrorRedirect($oldInput, 'Please provide a valid email address.');
+            return $this->registrationErrorRedirect($oldInput, 'Please provide a valid email address.', $wantsJson);
         }
 
         if (strlen($password) < 6) {
-            return $this->registrationErrorRedirect($oldInput, 'Password must be at least 6 characters.');
+            return $this->registrationErrorRedirect($oldInput, 'Password must be at least 6 characters.', $wantsJson);
         }
 
         if ($password !== $passwordConfirm) {
-            return $this->registrationErrorRedirect($oldInput, 'Passwords do not match.');
+            return $this->registrationErrorRedirect($oldInput, 'Passwords do not match.', $wantsJson);
         }
 
         $fieldErrors = [];
@@ -208,7 +209,8 @@ class AuthController extends BaseController
         if (!empty($fieldErrors)) {
             return $this->registrationErrorRedirect(
                 $oldInput,
-                'Please review your details: ' . implode(' ', $fieldErrors)
+                'Please review your details: ' . implode(' ', $fieldErrors),
+                $wantsJson
             );
         }
 
@@ -217,10 +219,10 @@ class AuthController extends BaseController
         try {
             $existing = $userModel->findByEmail($email);
             if ($existing) {
-                return $this->registrationErrorRedirect($oldInput, 'An account with that email already exists.');
+                return $this->registrationErrorRedirect($oldInput, 'An account with that email already exists.', $wantsJson);
             }
         } catch (\Throwable $e) {
-            return $this->registrationErrorRedirect($oldInput, 'Unable to access database. Please try again later.');
+            return $this->registrationErrorRedirect($oldInput, 'Unable to access database. Please try again later.', $wantsJson);
         }
 
         $roleId = null;
@@ -242,13 +244,14 @@ class AuthController extends BaseController
             if (!$uploadResult['ok']) {
                 return $this->registrationErrorRedirect(
                     $oldInput,
-                    $uploadResult['error'] ?? 'Failed to upload the profile photo.'
+                    $uploadResult['error'] ?? 'Failed to upload the profile photo.',
+                    $wantsJson
                 );
             }
 
             $profileImagePath = $uploadResult['path'] ?? null;
             if ($profileImagePath === null) {
-                return $this->registrationErrorRedirect($oldInput, 'Failed to process the uploaded profile photo.');
+                return $this->registrationErrorRedirect($oldInput, 'Failed to process the uploaded profile photo.', $wantsJson);
             }
         }
 
@@ -283,16 +286,23 @@ class AuthController extends BaseController
                 if ($profileImagePath !== null) {
                     $imageManager->delete($profileImagePath);
                 }
-                return $this->registrationErrorRedirect($oldInput, 'Failed to create account. Please try again.');
+                return $this->registrationErrorRedirect($oldInput, 'Failed to create account. Please try again.', $wantsJson);
             }
         } catch (\Throwable $e) {
             if ($profileImagePath !== null) {
                 $imageManager->delete($profileImagePath);
             }
-            return $this->registrationErrorRedirect($oldInput, 'Failed to create account: ' . $e->getMessage());
+            return $this->registrationErrorRedirect($oldInput, 'Failed to create account: ' . $e->getMessage(), $wantsJson);
         }
 
         session()->flash('success', 'Account created. Please sign in.');
+        if ($wantsJson) {
+            return \Core\Http\Response::json([
+                'success' => true,
+                'message' => 'Account created. Please sign in.',
+                'redirect' => '/login',
+            ]);
+        }
         return redirect('/login');
     }
 
@@ -542,8 +552,12 @@ class AuthController extends BaseController
     /**
      * Flash error state and redirect back to the registration page.
      */
-    private function registrationErrorRedirect(array $oldInput, string $message): Response
+    private function registrationErrorRedirect(array $oldInput, string $message, bool $wantsJson = false): Response
     {
+        if ($wantsJson) {
+            return \Core\Http\Response::errorJson($message, 422);
+        }
+
         session()->flash('old', $oldInput);
         session()->flash('error', $message);
 

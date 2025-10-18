@@ -56,7 +56,14 @@ class User
     {
         $password = $data['password'] ?? null;
         if ($password !== null) {
-            $data['password_hash'] = $password;
+            if (!is_string($password)) {
+                $password = (string) $password;
+            }
+
+            $passwordInfo = password_get_info($password);
+            $isAlreadyHashed = is_array($passwordInfo) && ($passwordInfo['algo'] ?? 0) !== 0;
+
+            $data['password_hash'] = $isAlreadyHashed ? $password : password_hash($password, PASSWORD_DEFAULT);
             unset($data['password']);
         }
 
@@ -68,7 +75,12 @@ class User
         $placeholders = array_fill(0, count($cols), '?');
         $sql = 'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeholders) . ')';
         $ok = $this->db->query($sql, array_values($data));
-        return $ok ? $this->db->lastInsertId() : false;
+        if (!$ok) {
+            return false;
+        }
+
+        $lastId = $this->db->lastInsertId();
+        return $lastId !== false ? (int) $lastId : false;
     }
 
     public function findById(int $id): ?array
@@ -138,13 +150,13 @@ class User
 
     public function findByEmail(string $email): array|null
     {
-        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u INNER JOIN roles r ON r.id = u.role_id WHERE u.email = ? LIMIT 1", [$email]);
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.email = ? LIMIT 1", [$email]);
         return $row ?: null;
     }
 
     public function findByUsername(string $username): array|null
     {
-        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u INNER JOIN roles r ON r.id = u.role_id WHERE u.username = ? LIMIT 1", [$username]);
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.username = ? LIMIT 1", [$username]);
         return $row ?: null;
     }
 

@@ -20,6 +20,31 @@ PageRouter::registerPageRoutes($router);
 // Auto-register API routes (like Next.js api/ folder)  
 PageRouter::registerApiRoutes($router);
 
+$router->get('/api/vehicles', 'Controllers\Api\VehicleController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/vehicles/{id}', 'Controllers\Api\VehicleController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/vehicles', 'Controllers\Api\VehicleController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/vehicles/{id}', 'Controllers\Api\VehicleController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 // Customer pickup request APIs
 $router->get('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@index', [
     'Middleware\AuthMiddleware',
