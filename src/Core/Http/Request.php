@@ -330,6 +330,19 @@ class Request
     }
 
     /**
+     * Merge additional data into the request body parameters.
+     */
+    public function mergeBody(array $data): void
+    {
+        if (empty($data)) {
+            return;
+        }
+
+        $this->body = array_merge($this->body, $data);
+        $this->parameters = array_merge($this->parameters, $data);
+    }
+
+    /**
      * Check if request expects JSON response
      * 
      * @return bool
