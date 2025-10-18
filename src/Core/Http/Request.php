@@ -90,7 +90,12 @@ class Request
     ) {
         $this->uri = $uri;
         $this->method = strtoupper($method);
-        $this->headers = $headers;
+        // Normalize header keys to lowercase for case-insensitive lookups
+        $normalized = [];
+        foreach ($headers as $k => $v) {
+            $normalized[strtolower((string) $k)] = $v;
+        }
+        $this->headers = $normalized;
         $this->query = $query;
         $this->body = $body;
         $this->files = $files;
@@ -260,7 +265,8 @@ class Request
      */
     public function header(string $key, $default = null)
     {
-        return $this->headers[$key] ?? $default;
+        $lookup = strtolower($key);
+        return $this->headers[$lookup] ?? $default;
     }
 
     /**

@@ -348,7 +348,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Capacity (kg)</label>
-                    <input type="number" name="capacity" min="100" max="20000" required
+                    <input type="number" name="capacity" min="100" max="20000" required step="100"
                         value="${escapeHtml(values.capacity ?? '')}"
                         style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                 </div>
