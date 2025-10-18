@@ -64,6 +64,13 @@ class Request
     protected array $files;
 
     /**
+     * Route parameters extracted from the matched route
+     *
+     * @var array
+     */
+    protected array $routeParameters = [];
+
+    /**
      * Create new Request instance
      * 
      * @param string $uri
@@ -88,6 +95,42 @@ class Request
         $this->body = $body;
         $this->files = $files;
         $this->parameters = array_merge($query, $body);
+    }
+
+    /**
+     * Set parameters resolved from the route path
+     *
+     * @param array $parameters
+     * @return void
+     */
+    public function setRouteParameters(array $parameters): void
+    {
+        $this->routeParameters = $parameters;
+        if (!empty($parameters)) {
+            $this->parameters = array_merge($this->parameters, $parameters);
+        }
+    }
+
+    /**
+     * Get a specific route parameter
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function route(string $key, $default = null)
+    {
+        return $this->routeParameters[$key] ?? $default;
+    }
+
+    /**
+     * Get all route parameters
+     *
+     * @return array
+     */
+    public function routeParameters(): array
+    {
+        return $this->routeParameters;
     }
 
     /**
