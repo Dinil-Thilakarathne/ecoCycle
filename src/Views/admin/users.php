@@ -1,11 +1,20 @@
 <?php
-// Centralized dummy data
-$dummy = require base_path('config/dummy.php');
-$customers = $dummy['customers'];
-$companies = $dummy['companies'];
-$collectors = $dummy['collectors'];
+// View receives $customers, $companies, $collectors from the controller
+// Ensure variables exist to avoid undefined notices
+$customers = $customers ?? [];
+$companies = $companies ?? [];
+$collectors = $collectors ?? [];
 
-consoleLog('customers:', $customers);
+if (!function_exists('adminUsersViewLog')) {
+    function adminUsersViewLog(...$args): void
+    {
+        if (function_exists('consoleLog')) {
+            consoleLog(...$args);
+        }
+    }
+}
+
+adminUsersViewLog('users view loaded, customers count: ' . count($customers));
 ?>
 
 <script>
@@ -62,17 +71,17 @@ function findUserById(string $type, string $id)
             $source = [];
     }
 
-    consoleLog('source:', $source);
+    adminUsersViewLog('source:', $source);
 
     foreach ((array) $source as $u) {
-        consoleLog('Checking user:', $u);
+        adminUsersViewLog('Checking user:', $u);
         if (isset($u['id'])) {
             // Debug hex representation to detect invisible/extra bytes
             $uIdStr = (string) $u['id'];
             $lookupIdStr = (string) $id;
             $uHex = bin2hex($uIdStr);
             $lookupHex = bin2hex($lookupIdStr);
-            consoleLog('id-compare', ['u_id' => $uIdStr, 'u_hex' => $uHex, 'lookup_id' => $lookupIdStr, 'lookup_hex' => $lookupHex]);
+            adminUsersViewLog('id-compare', ['u_id' => $uIdStr, 'u_hex' => $uHex, 'lookup_id' => $lookupIdStr, 'lookup_hex' => $lookupHex]);
 
             if (strcasecmp($uIdStr, $lookupIdStr) === 0) {
                 return $u;
@@ -93,7 +102,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
     $i = preg_replace('/[:#].*/', '', trim((string) $iRaw));
 
     // Debug: show what the server will lookup
-    consoleLog('users.php lookup', ['view_raw' => $t, 'id_raw' => $iRaw, 'id_normalized' => $i]);
+    adminUsersViewLog('users.php lookup', ['view_raw' => $t, 'id_raw' => $iRaw, 'id_normalized' => $i]);
 
     $found = findUserById($t, $i);
     if ($found) {
@@ -667,4 +676,3 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         </div>
     </div>
 <?php endif; ?>
-

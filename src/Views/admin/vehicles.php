@@ -1,7 +1,7 @@
 <?php
-// Centralized dummy data
-$dummy = require base_path('config/dummy.php');
-$vehicles = $dummy['vehicles'];
+$vehicles = $vehicles ?? [];
+consoleLog('Vehicles:', $vehicles);
+$vehicles = is_array($vehicles) ? $vehicles : [];
 
 // Vehicle plate number validation function
 function validatePlateNumber($plateNumber)
@@ -45,15 +45,19 @@ function getStatusBadge($status)
 // Calculate statistics
 $totalVehicles = count($vehicles);
 $availableVehicles = count(array_filter($vehicles, function ($v) {
-    return $v['status'] === 'available';
+    return ($v['status'] ?? '') === 'available';
 }));
 $inMaintenanceVehicles = count(array_filter($vehicles, function ($v) {
-    return $v['status'] === 'maintenance';
+    return ($v['status'] ?? '') === 'maintenance';
 }));
 $inUseVehicles = count(array_filter($vehicles, function ($v) {
-    return $v['status'] === 'in-use';
+    return ($v['status'] ?? '') === 'in-use';
 }));
 ?>
+
+<script>
+    window.__VEHICLES = <?php echo json_encode($vehicles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
 
 <div>
     <!-- Page Header -->
@@ -133,24 +137,26 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     </thead>
                     <tbody>
                         <?php foreach ($vehicles as $vehicle): ?>
-                            <tr>
-                                <td class="font-medium"><?= htmlspecialchars($vehicle['id']) ?></td>
-                                <td><?= htmlspecialchars($vehicle['plateNumber']) ?></td>
-                                <td><?= htmlspecialchars($vehicle['type']) ?></td>
-                                <td><?= number_format($vehicle['capacity']) ?></td>
-                                <td><?= getStatusBadge($vehicle['status']) ?></td>
+                            <tr data-id="<?= htmlspecialchars($vehicle['id'] ?? '') ?>">
+                                <td class="font-medium" data-field="id"><?= htmlspecialchars($vehicle['id'] ?? '') ?></td>
+                                <td data-field="plateNumber"><?= htmlspecialchars($vehicle['plateNumber'] ?? '') ?></td>
+                                <td data-field="type"><?= htmlspecialchars($vehicle['type'] ?? '') ?></td>
+                                <td data-field="capacity"><?= number_format((int) ($vehicle['capacity'] ?? 0)) ?></td>
+                                <td data-field="status"><?= getStatusBadge($vehicle['status'] ?? 'available') ?></td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <i class="fa-solid fa-calendar-days"
                                             style="color: var(--text-muted); font-size: 14px;"></i>
-                                        <span><?= htmlspecialchars($vehicle['lastMaintenance']) ?></span>
+                                        <span
+                                            data-field="lastMaintenance"><?= htmlspecialchars($vehicle['lastMaintenance'] ?? '-') ?></span>
                                     </div>
                                 </td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <i class="fa-solid fa-calendar-days"
                                             style="color: var(--text-muted); font-size: 14px;"></i>
-                                        <span><?= htmlspecialchars($vehicle['nextMaintenance']) ?></span>
+                                        <span
+                                            data-field="nextMaintenance"><?= htmlspecialchars($vehicle['nextMaintenance'] ?? '-') ?></span>
                                     </div>
                                 </td>
                                 <td>
@@ -171,6 +177,14 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                        <?php if (empty($vehicles)): ?>
+                            <tr data-empty="true">
+                                <td colspan="8"
+                                    style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
+                                    No vehicles found.
+                                </td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -179,179 +193,530 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 </div>
 
 <script>
-    // Vehicle plate number validation
+    const VEHICLE_API_BASE = '/api/vehicles';
+    const VEHICLE_STATUS_OPTIONS = ['available', 'in-use', 'maintenance'];
+
+    function showToast(message, type = 'info') {
+        if (typeof window.__createToast === 'function') {
+            window.__createToast(message, type, 5000);
+        } else {
+            const prefix = type === 'error' ? 'Error: ' : '';
+            alert(prefix + message);
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function statusLabel(status) {
+        switch (status) {
+            case 'available':
+                return 'Available';
+            case 'in-use':
+                return 'In Use';
+            case 'maintenance':
+                return 'Maintenance';
+            default:
+                return status;
+        }
+    }
+
+    function renderStatusBadge(status) {
+        const normalized = (status || '').toLowerCase();
+        if (normalized === 'available') {
+            return '<div class="tag online">Available</div>';
+        }
+        if (normalized === 'in-use') {
+            return '<div class="tag warning">In Use</div>';
+        }
+        if (normalized === 'maintenance') {
+            return '<div class="tag danger">Maintenance</div>';
+        }
+
+        return '<div class="tag">' + escapeHtml(status || 'Unknown') + '</div>';
+    }
+
     function validatePlateNumber(plateNumber) {
-        // Pattern: XXX-XXXX (3 capital letters - 4 digits)
         const pattern = /^[A-Z]{3}-[0-9]{4}$/;
         return pattern.test(plateNumber);
     }
 
-    // Format plate number as user types
     function formatPlateNumberInput(input) {
         let value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
         if (value.length >= 3) {
             value = value.substring(0, 3) + '-' + value.substring(3, 7);
         }
-
         input.value = value;
 
-        // Show validation feedback
         const isValid = validatePlateNumber(value);
         if (value.length >= 7) {
-            if (isValid) {
-                input.style.borderColor = '#16a34a';
-                input.style.backgroundColor = '#f0fdf4';
-            } else {
-                input.style.borderColor = '#dc2626';
-                input.style.backgroundColor = '#fef2f2';
-            }
+            input.style.borderColor = isValid ? '#16a34a' : '#dc2626';
+            input.style.backgroundColor = isValid ? '#f0fdf4' : '#fef2f2';
         } else {
             input.style.borderColor = '';
             input.style.backgroundColor = '';
         }
     }
 
-    // Vehicle management functions
-    function addVehicle() {
-        console.log('Adding new vehicle');
+    async function apiRequest(url, options = {}) {
+        const opts = Object.assign({ headers: {} }, options);
+        if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+            opts.headers['Content-Type'] = opts.headers['Content-Type'] || 'application/json';
+            opts.body = JSON.stringify(opts.body);
+        }
 
-        // Create a simple modal for adding vehicle with plate number validation
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
+        const response = await fetch(url, opts);
+        let payload = null;
 
-        modal.innerHTML = `
-            <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
-                <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Add New Vehicle</h3>
-                <form id="addVehicleForm">
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Plate Number:</label>
-                        <input type="text" id="plateNumber" name="plateNumber" maxlength="8" 
-                               placeholder="ABC-1234" required
-                               style="width: 100%; padding: 0.5rem; border: 2px solid #d1d5db; border-radius: 4px; font-family: monospace;"
-                               oninput="formatPlateNumberInput(this)">
-                        <small style="color: #6b7280; display: block; margin-top: 0.25rem;">
-                            Format: 3 capital letters followed by 4 numbers (e.g., ABC-1234)
-                        </small>
+        try {
+            payload = await response.json();
+        } catch (err) {
+            payload = null;
+        }
+
+        if (!response.ok || (payload && payload.success === false)) {
+            const message = payload && payload.message ? payload.message : `Request failed (${response.status})`;
+            let detail = '';
+            if (payload && payload.errors) {
+                detail = Object.values(payload.errors).join('\n');
+            }
+            throw new Error(detail ? `${message}\n${detail}` : message);
+        }
+
+        return payload || {};
+    }
+
+    function syncVehicleCache(vehicle) {
+        if (!Array.isArray(window.__VEHICLES)) {
+            window.__VEHICLES = [];
+        }
+        const id = Number(vehicle.id);
+        const index = window.__VEHICLES.findIndex((item) => Number(item.id) === id);
+        if (index >= 0) {
+            window.__VEHICLES[index] = vehicle;
+        } else {
+            window.__VEHICLES.push(vehicle);
+        }
+    }
+
+    function buildVehicleForm(initialValues = {}) {
+        const defaults = {
+            plateNumber: '',
+            type: '',
+            capacity: '',
+            status: 'available',
+            lastMaintenance: '',
+            nextMaintenance: '',
+        };
+
+        const values = Object.assign({}, defaults, initialValues);
+        const statusOptions = VEHICLE_STATUS_OPTIONS.map((status) => {
+            const selected = status === values.status ? 'selected' : '';
+            return `<option value="${status}" ${selected}>${statusLabel(status)}</option>`;
+        }).join('');
+
+        const vehicleTypes = ['Van', 'Pickup Truck', 'Small Truck', 'Large Truck'];
+        const typeOptions = ['<option value="">Select Type</option>']
+            .concat(vehicleTypes.map((type) => {
+                const selected = type === values.type ? 'selected' : '';
+                return `<option value="${escapeHtml(type)}" ${selected}>${escapeHtml(type)}</option>`;
+            }))
+            .join('');
+
+        const form = document.createElement('form');
+        form.innerHTML = `
+            <div style="display:grid;gap:1rem;">
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Plate Number</label>
+                    <input type="text" name="plateNumber" maxlength="8" required placeholder="ABC-1234"
+                        value="${escapeHtml(values.plateNumber || '')}"
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;font-family:monospace;"
+                    />
+                    <small style="color:#6b7280;display:block;margin-top:0.25rem;">Format: 3 capital letters followed by 4 numbers</small>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Vehicle Type</label>
+                    <select name="type" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
+                        ${typeOptions}
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Capacity (kg)</label>
+                    <input type="number" name="capacity" min="100" max="20000" required
+                        value="${escapeHtml(values.capacity ?? '')}"
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Status</label>
+                    <select name="status" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
+                        ${statusOptions}
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Last Maintenance</label>
+                        <input type="date" name="lastMaintenance"
+                            value="${escapeHtml(values.lastMaintenance || '')}"
+                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                     </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Vehicle Type:</label>
-                        <select name="type" required style="width: 100%; padding: 0.5rem; border: 2px solid #d1d5db; border-radius: 4px;">
-                            <option value="">Select Type</option>
-                            <option value="Van">Van</option>
-                            <option value="Pickup Truck">Pickup Truck</option>
-                            <option value="Small Truck">Small Truck</option>
-                            <option value="Large Truck">Large Truck</option>
-                        </select>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Next Maintenance</label>
+                        <input type="date" name="nextMaintenance"
+                            value="${escapeHtml(values.nextMaintenance || '')}"
+                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                     </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Capacity (kg):</label>
-                        <input type="number" name="capacity" min="500" max="10000" required
-                               style="width: 100%; padding: 0.5rem; border: 2px solid #d1d5db; border-radius: 4px;">
-                    </div>
-                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                        <button type="button" onclick="closeModal()" 
-                                style="padding: 0.5rem 1rem; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            Cancel
-                        </button>
-                        <button type="submit" 
-                                style="padding: 0.5rem 1rem; background: #16a34a; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            Add Vehicle
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         `;
 
-        document.body.appendChild(modal);
-
-        // Handle form submission
-        document.getElementById('addVehicleForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const plateNumber = document.getElementById('plateNumber').value;
-
-            if (!validatePlateNumber(plateNumber)) {
-                alert('Please enter a valid plate number in format: XXX-XXXX (3 capital letters followed by 4 numbers)');
-                return;
-            }
-
-            alert(`Vehicle with plate number ${plateNumber} would be added to the system.`);
-            closeModal();
+        const plateInput = form.querySelector('input[name="plateNumber"]');
+        plateInput.addEventListener('input', function () {
+            formatPlateNumberInput(this);
         });
 
-        // Close modal function
-        window.closeModal = function () {
-            document.body.removeChild(modal);
-        };
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+        });
 
-        // Close on outside click
-        modal.addEventListener('click', function (e) {
-            if (e.target === modal) {
+        return form;
+    }
+
+    function extractVehicleFormData(form) {
+        const formData = new FormData(form);
+        const plateNumber = (formData.get('plateNumber') || '').toString().toUpperCase();
+
+        return {
+            plateNumber,
+            type: (formData.get('type') || '').toString(),
+            capacity: Number(formData.get('capacity')),
+            status: (formData.get('status') || 'available').toString(),
+            lastMaintenance: (formData.get('lastMaintenance') || '') || null,
+            nextMaintenance: (formData.get('nextMaintenance') || '') || null,
+        };
+    }
+
+    function createModal({ title, content, buttons = [], width = '520px' }) {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'simple-modal-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:min(${width},100%);max-width:${width};padding:1.75rem;display:flex;flex-direction:column;gap:1.5rem;`;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;';
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        titleEl.style.cssText = 'margin:0;font-size:1.25rem;font-weight:600;color:#111827;';
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.innerHTML = '&times;';
+        closeButton.style.cssText = 'border:none;background:transparent;font-size:1.75rem;line-height:1;color:#6b7280;cursor:pointer;padding:0 0 0.25rem 0;';
+
+        const body = document.createElement('div');
+        body.style.cssText = 'max-height:60vh;overflow:auto;';
+        body.appendChild(content);
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.75rem;';
+
+        function closeModal() {
+            backdrop.remove();
+        }
+
+        closeButton.addEventListener('click', closeModal);
+        backdrop.addEventListener('click', function (event) {
+            if (event.target === backdrop) {
                 closeModal();
             }
         });
+
+        buttons.forEach((buttonConfig) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = buttonConfig.label;
+
+            const variant = buttonConfig.variant || 'secondary';
+            let styles = 'padding:0.6rem 1.25rem;border-radius:6px;font-weight:600;border:none;cursor:pointer;';
+            if (variant === 'primary') {
+                styles += 'background:#16a34a;color:#fff;';
+            } else if (variant === 'danger') {
+                styles += 'background:#dc2626;color:#fff;';
+            } else {
+                styles += 'background:#6b7280;color:#fff;';
+            }
+            btn.style.cssText = styles;
+
+            btn.addEventListener('click', function () {
+                if (typeof buttonConfig.onClick === 'function') {
+                    buttonConfig.onClick(closeModal);
+                } else {
+                    closeModal();
+                }
+            });
+
+            footer.appendChild(btn);
+        });
+
+        header.appendChild(titleEl);
+        header.appendChild(closeButton);
+        dialog.appendChild(header);
+        dialog.appendChild(body);
+        dialog.appendChild(footer);
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+
+        return {
+            close: closeModal,
+            element: backdrop,
+        };
+    }
+
+    function formatDateForDisplay(value) {
+        return value && value !== '0000-00-00' ? value : '-';
+    }
+
+    function formatCapacity(value) {
+        const numeric = Number(value || 0);
+        return new Intl.NumberFormat().format(numeric);
+    }
+
+    function createVehicleRowElement(vehicle) {
+        const tr = document.createElement('tr');
+        const idValue = vehicle.id;
+        const idString = String(idValue);
+        const idLiteral = JSON.stringify(idValue);
+        tr.setAttribute('data-id', idString);
+        tr.innerHTML = `
+            <td class="font-medium" data-field="id">${escapeHtml(idString)}</td>
+            <td data-field="plateNumber">${escapeHtml(vehicle.plateNumber || '')}</td>
+            <td data-field="type">${escapeHtml(vehicle.type || '')}</td>
+            <td data-field="capacity">${formatCapacity(vehicle.capacity)}</td>
+            <td data-field="status">${renderStatusBadge(vehicle.status)}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-calendar-days" style="color:var(--text-muted);font-size:14px;"></i>
+                    <span data-field="lastMaintenance">${escapeHtml(formatDateForDisplay(vehicle.lastMaintenance))}</span>
+                </div>
+            </td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-calendar-days" style="color:var(--text-muted);font-size:14px;"></i>
+                    <span data-field="nextMaintenance">${escapeHtml(formatDateForDisplay(vehicle.nextMaintenance))}</span>
+                </div>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <button class="icon-button" onclick="scheduleMaintenance(${idLiteral})" title="Schedule Maintenance">
+                        <i class="fa-solid fa-wrench"></i>
+                    </button>
+                    <button class="icon-button" onclick="viewVehicleDetails(${idLiteral})" title="View Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button class="icon-button" onclick="editVehicle(${idLiteral})" title="Edit Vehicle">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        return tr;
+    }
+
+    function appendVehicleRow(vehicle) {
+        const tbody = document.querySelector('.data-table tbody');
+        if (!tbody) {
+            return;
+        }
+
+        const emptyRow = tbody.querySelector('[data-empty]');
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+
+        const existingRow = tbody.querySelector(`tr[data-id="${vehicle.id}"]`);
+        if (existingRow) {
+            existingRow.replaceWith(createVehicleRowElement(vehicle));
+        } else {
+            tbody.prepend(createVehicleRowElement(vehicle));
+        }
+    }
+
+    function updateVehicleRow(vehicle) {
+        const row = document.querySelector(`tr[data-id="${vehicle.id}"]`);
+        if (!row) {
+            appendVehicleRow(vehicle);
+            return;
+        }
+
+        const plateCell = row.querySelector('[data-field="plateNumber"]');
+        if (plateCell) plateCell.textContent = vehicle.plateNumber || '';
+
+        const typeCell = row.querySelector('[data-field="type"]');
+        if (typeCell) typeCell.textContent = vehicle.type || '';
+
+        const capacityCell = row.querySelector('[data-field="capacity"]');
+        if (capacityCell) capacityCell.textContent = formatCapacity(vehicle.capacity);
+
+        const statusCell = row.querySelector('[data-field="status"]');
+        if (statusCell) statusCell.innerHTML = renderStatusBadge(vehicle.status);
+
+        const lastMaintenance = row.querySelector('[data-field="lastMaintenance"]');
+        if (lastMaintenance) lastMaintenance.textContent = formatDateForDisplay(vehicle.lastMaintenance);
+
+        const nextMaintenance = row.querySelector('[data-field="nextMaintenance"]');
+        if (nextMaintenance) nextMaintenance.textContent = formatDateForDisplay(vehicle.nextMaintenance);
+    }
+
+    async function handleVehicleSave({ mode, vehicleId, form, close }) {
+        try {
+            const payload = extractVehicleFormData(form);
+
+            if (!validatePlateNumber(payload.plateNumber)) {
+                showToast('Please use the format ABC-1234 for plate numbers.', 'error');
+                return;
+            }
+
+            if (!Number.isFinite(payload.capacity) || payload.capacity <= 0) {
+                showToast('Capacity must be a positive number.', 'error');
+                return;
+            }
+
+            const endpoint = mode === 'create' ? VEHICLE_API_BASE : `${VEHICLE_API_BASE}/${vehicleId}`;
+            const method = mode === 'create' ? 'POST' : 'PUT';
+            const response = await apiRequest(endpoint, { method, body: payload });
+            const vehicle = response.vehicle;
+
+            syncVehicleCache(vehicle);
+
+            if (mode === 'create') {
+                appendVehicleRow(vehicle);
+            } else {
+                updateVehicleRow(vehicle);
+            }
+
+            if (typeof close === 'function') {
+                close();
+            }
+            showToast(mode === 'create' ? 'Vehicle added successfully.' : 'Vehicle updated successfully.', 'success');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    function addVehicle() {
+        const form = buildVehicleForm();
+        createModal({
+            title: 'Add New Vehicle',
+            content: form,
+            buttons: [
+                { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
+                {
+                    label: 'Save Vehicle',
+                    variant: 'primary',
+                    onClick: (close) => handleVehicleSave({ mode: 'create', form, close })
+                }
+            ]
+        });
+    }
+
+    async function fetchVehicle(vehicleId) {
+        const id = Number(vehicleId);
+        const response = await apiRequest(`${VEHICLE_API_BASE}/${id}`);
+        const vehicle = response.vehicle;
+        if (vehicle) {
+            syncVehicleCache(vehicle);
+        }
+        return vehicle;
+    }
+
+    async function viewVehicleDetails(vehicleId) {
+        try {
+            const vehicle = await fetchVehicle(vehicleId);
+            if (!vehicle) {
+                showToast('Vehicle not found.', 'error');
+                return;
+            }
+
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div style="display:grid;gap:1rem;">
+                    <div>
+                        <span style="display:block;color:#6b7280;font-size:0.85rem;">Plate Number</span>
+                        <strong style="font-size:1.1rem;color:#111827;">${escapeHtml(vehicle.plateNumber || '')}</strong>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">
+                        <div>
+                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Type</span>
+                            <strong>${escapeHtml(vehicle.type || '-')}</strong>
+                        </div>
+                        <div>
+                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Capacity</span>
+                            <strong>${formatCapacity(vehicle.capacity)} kg</strong>
+                        </div>
+                        <div>
+                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Status</span>
+                            <span>${renderStatusBadge(vehicle.status)}</span>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">
+                        <div>
+                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Last Maintenance</span>
+                            <strong>${escapeHtml(formatDateForDisplay(vehicle.lastMaintenance))}</strong>
+                        </div>
+                        <div>
+                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Next Maintenance</span>
+                            <strong>${escapeHtml(formatDateForDisplay(vehicle.nextMaintenance))}</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            createModal({
+                title: `Vehicle ${escapeHtml(vehicle.plateNumber || vehicle.id)}`,
+                content: container,
+                buttons: [
+                    { label: 'Close', variant: 'secondary', onClick: (close) => close() }
+                ],
+                width: '480px'
+            });
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function editVehicle(vehicleId) {
+        try {
+            const vehicle = await fetchVehicle(vehicleId);
+            if (!vehicle) {
+                showToast('Vehicle not found.', 'error');
+                return;
+            }
+
+            const form = buildVehicleForm(vehicle);
+            createModal({
+                title: `Edit Vehicle ${escapeHtml(vehicle.plateNumber || vehicle.id)}`,
+                content: form,
+                buttons: [
+                    { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
+                    {
+                        label: 'Save Changes',
+                        variant: 'primary',
+                        onClick: (close) => handleVehicleSave({ mode: 'update', vehicleId: vehicle.id, form, close })
+                    }
+                ]
+            });
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
     }
 
     function scheduleMaintenance(vehicleId) {
-        console.log(`Scheduling maintenance for vehicle ${vehicleId}`);
-        alert(`Scheduling maintenance for vehicle ${vehicleId}. This would open a maintenance scheduling form with available dates and service types.`);
-
-        // In a real application, you would open a maintenance scheduling modal or form:
-        /*
-        fetch('/api/vehicles/schedule-maintenance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                vehicleId: vehicleId,
-                scheduledDate: selectedDate,
-                maintenanceType: selectedType
-            })
-        });
-        */
-    }
-
-    function viewVehicleDetails(vehicleId) {
-        console.log(`Viewing details for vehicle ${vehicleId}`);
-        alert(`Viewing details for vehicle ${vehicleId}. This would show comprehensive vehicle information including maintenance history, current assignments, and performance metrics.`);
-
-        // In a real application, this would redirect to a vehicle details page:
-        // window.location.href = `/admin/vehicles/${vehicleId}`;
-    }
-
-    function editVehicle(vehicleId) {
-        console.log(`Editing vehicle ${vehicleId}`);
-        alert(`Editing vehicle ${vehicleId}. This would open an edit form where you can update vehicle information like capacity, type, plate number, etc.`);
-
-        // In a real application, this would redirect to an edit form or open a modal:
-        // window.location.href = `/admin/vehicles/${vehicleId}/edit`;
-    }
-
-    // Additional functionality for future implementation
-    function assignVehicle(vehicleId, collectorId) {
-        console.log(`Assigning vehicle ${vehicleId} to collector ${collectorId}`);
-        // Implementation for assigning vehicles to collectors
-    }
-
-    function markVehicleAvailable(vehicleId) {
-        console.log(`Marking vehicle ${vehicleId} as available`);
-        // Implementation for updating vehicle status to available
-    }
-
-    function generateMaintenanceReport(vehicleId) {
-        console.log(`Generating maintenance report for vehicle ${vehicleId}`);
-        // Implementation for generating maintenance reports
+        showToast(`Maintenance scheduling for vehicle ${vehicleId} is coming soon.`, 'info');
     }
 </script>
