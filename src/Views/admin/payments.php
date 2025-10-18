@@ -61,7 +61,7 @@ function getStatusTag($status)
             'period' => 'To customers',
         ],
         [
-            'title' => 'Total Payments',
+            'title' => 'Total Income',
             'value' => 'Rs ' . number_format($totalPayments, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
             'period' => 'From companies',

@@ -162,13 +162,21 @@ class Application
     protected function loadConfiguration(): void
     {
         $configPath = $this->basePath . '/config';
-        $configFiles = ['app', 'database', 'session', 'data'];
-
-        foreach ($configFiles as $file) {
-            $filePath = $configPath . '/' . $file . '.php';
-            if (file_exists($filePath)) {
-                Config::load($filePath);
+        foreach (glob($configPath . '/*.php') as $filePath) {
+            if (!is_file($filePath)) {
+                continue;
             }
+            $filename = pathinfo($filePath, PATHINFO_FILENAME);
+            // Skip route definition file (side-effect only)
+            if (in_array($filename, ['routes'])) {
+                continue;
+            }
+            $data = require $filePath;
+            if (is_array($data)) {
+                // Store under filename key
+                Config::set($filename, $data);
+            }
+            // Non-array returns (like side-effect files) are ignored silently
         }
     }
 
@@ -213,7 +221,16 @@ class Application
         $route = $this->router->match($request->getPath(), $request->getMethod());
 
         if (!$route) {
-            return new Response('Not Found', 404);
+            // Render the custom 404 error view so users see the friendly page
+            try {
+                // Render using the main app layout so the error page includes site chrome
+                $resp = view('errors/404', ['message' => 'The requested page was not found.'], 'layouts/app');
+                $resp->setStatusCode(404);
+                return $resp;
+            } catch (\Exception $e) {
+                // Fallback to plain response if view rendering fails
+                return new Response('Not Found', 404);
+            }
         }
 
         return $this->executeRoute($route, $request);

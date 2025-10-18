@@ -371,15 +371,23 @@ function getAlertStatusTag($status)
     }
 
     // Auto-refresh recent notifications every 30 seconds
-    setInterval(function () {
-        // In a real application, you would fetch updated notifications:
-        /*
-        fetch('/api/notifications/recent')
-            .then(response => response.json())
-            .then(data => {
-                updateRecentNotificationsList(data.notifications);
-            })
-            .catch(error => console.error('Error refreshing notifications:', error));
-        */
-    }, 30000);
+    // Can be disabled by setting HOT_RELOADER_PAGE_AUTO_REFRESH=false
+    (function () {
+        const envVal = (typeof window !== 'undefined' && (window.HOT_RELOADER_PAGE_AUTO_REFRESH !== undefined)) ? window.HOT_RELOADER_PAGE_AUTO_REFRESH : null;
+        const serverToggle = <?= (getenv('HOT_RELOADER_PAGE_AUTO_REFRESH') === false || getenv('HOT_RELOADER_PAGE_AUTO_REFRESH') === 'false') ? 'false' : 'true' ?>;
+        const enabled = envVal === null ? serverToggle : Boolean(envVal);
+        if (!enabled) return;
+
+        setInterval(function () {
+            // In a real application, you would fetch updated notifications:
+            /*
+            fetch('/api/notifications/recent')
+                .then(response => response.json())
+                .then(data => {
+                    updateRecentNotificationsList(data.notifications);
+                })
+                .catch(error => console.error('Error refreshing notifications:', error));
+            */
+        }, 30000);
+    })();
 </script>

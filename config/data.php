@@ -22,7 +22,7 @@ return [
         'plastic' => '#0000ff',
         'paper' => '#008000',
         'metal' => '#ffa500',
-        'glass' => '#008000',
+        'glass' => '#ff0000',
         'organic' => '#8B5A2B',
     ],
     'wasteCategories' => [
