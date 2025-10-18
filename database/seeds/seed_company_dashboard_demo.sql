@@ -48,7 +48,7 @@ SET @cat_glass = (SELECT id FROM waste_categories WHERE name = 'Glass' LIMIT 1);
 SET @cat_paper = (SELECT id FROM waste_categories WHERE name = 'Paper' LIMIT 1);
 
 -- Demo companies (BrightCycle is the primary dashboard user)
-INSERT INTO users (type, role_id, name, email, phone, address, profile_image_path, password_hash, status, total_bids, total_purchases, metadata, created_at)
+INSERT INTO users (type, role_id, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, profile_image_path, password_hash, status, total_bids, total_purchases, metadata, created_at)
 VALUES (
   'company',
   @role_company,
@@ -56,6 +56,10 @@ VALUES (
   'brightcycle@example.com',
   '+94 77 123 4567',
   '54 River Way, Neo City',
+  'BrightCycle Industries',
+  '947301234',
+  'Eco Bank',
+  'Neo City Branch',
   'assets/img/demo/company-brightcycle.png',
   'password',
   'active',
@@ -76,7 +80,7 @@ VALUES (
 );
 SET @company_brightcycle_id = LAST_INSERT_ID();
 
-INSERT INTO users (type, role_id, name, email, phone, address, password_hash, status, total_bids, total_purchases, metadata, created_at)
+INSERT INTO users (type, role_id, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, password_hash, status, total_bids, total_purchases, metadata, created_at)
 VALUES (
   'company',
   @role_company,
@@ -84,6 +88,10 @@ VALUES (
   'procurement@renewall.example.com',
   '+94 77 987 6543',
   '81 Circular Avenue, Port Sterling',
+  'RenewAll Manufacturing',
+  '935002211',
+  'First Capital Bank',
+  'Port Sterling Branch',
   'password',
   'active',
   11,
@@ -98,7 +106,7 @@ VALUES (
 );
 SET @company_renewall_id = LAST_INSERT_ID();
 
-INSERT INTO users (type, role_id, name, email, phone, address, password_hash, status, total_bids, total_purchases, metadata, created_at)
+INSERT INTO users (type, role_id, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, password_hash, status, total_bids, total_purchases, metadata, created_at)
 VALUES (
   'company',
   @role_company,
@@ -106,6 +114,10 @@ VALUES (
   'hello@northloop.example.com',
   '+94 11 445 8899',
   '22 Horizon Park, Green District',
+  'NorthLoop Circular',
+  '944785210',
+  'Eco Bank',
+  'Green District Branch',
   'password',
   'active',
   9,

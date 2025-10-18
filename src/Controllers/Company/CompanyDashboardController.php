@@ -198,7 +198,52 @@ class CompanyDashboardController extends DashboardController
             return [];
         }
 
-        $metadata = $profile['metadata'] ?? [];
+        $metadata = is_array($profile['metadata'] ?? null) ? $profile['metadata'] : [];
+
+        $wasteTypes = $metadata['waste_types'] ?? $metadata['wasteTypes'] ?? [];
+        if (is_string($wasteTypes)) {
+            $decoded = json_decode($wasteTypes, true);
+            $wasteTypes = is_array($decoded) ? $decoded : [$wasteTypes];
+        } elseif (!is_array($wasteTypes)) {
+            $wasteTypes = [];
+        }
+
+        $verification = $metadata['verification'] ?? [];
+        if (is_string($verification)) {
+            $decoded = json_decode($verification, true);
+            $verification = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($verification)) {
+            $verification = [];
+        }
+
+        $bankDetails = [
+            'name' => $profile['bank_name'] ?? '',
+            'account_number' => $profile['bank_account_number'] ?? '',
+            'user' => $profile['bank_account_name'] ?? '',
+            'branch' => $profile['bank_branch'] ?? '',
+        ];
+
+        $bankRaw = $metadata['bank_details'] ?? [];
+        if (is_string($bankRaw)) {
+            $decoded = json_decode($bankRaw, true);
+            $bankRaw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($bankRaw)) {
+            $bankRaw = [];
+        }
+        if (empty($bankDetails['name'])) {
+            $bankDetails['name'] = $bankRaw['name'] ?? ($bankRaw['bank'] ?? '');
+        }
+        if (empty($bankDetails['account_number'])) {
+            $bankDetails['account_number'] = $bankRaw['account_number'] ?? ($bankRaw['accountNumber'] ?? '');
+        }
+        if (empty($bankDetails['user'])) {
+            $bankDetails['user'] = $bankRaw['user'] ?? ($bankRaw['accountName'] ?? '');
+        }
+        if (empty($bankDetails['branch'])) {
+            $bankDetails['branch'] = $bankRaw['branch'] ?? '';
+        }
 
         return [
             'id' => $profile['id'],
@@ -211,9 +256,9 @@ class CompanyDashboardController extends DashboardController
             'website' => $metadata['website'] ?? '',
             'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
             'profile_picture' => $profile['profileImagePath'] ?? 'assets/img/default-company.png',
-            'waste_types' => $metadata['waste_types'] ?? $metadata['wasteTypes'] ?? [],
-            'verification' => $metadata['verification'] ?? [],
-            'bank_details' => $metadata['bank_details'] ?? [],
+            'waste_types' => $wasteTypes,
+            'verification' => $verification,
+            'bank_details' => $bankDetails,
             'metadata' => $metadata,
         ];
     }

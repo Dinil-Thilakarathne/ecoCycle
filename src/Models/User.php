@@ -24,6 +24,10 @@ class User
             `email` VARCHAR(150) DEFAULT NULL,
             `phone` VARCHAR(50) DEFAULT NULL,
             `address` TEXT DEFAULT NULL,
+            `bank_account_name` VARCHAR(255) DEFAULT NULL,
+            `bank_account_number` VARCHAR(100) DEFAULT NULL,
+            `bank_name` VARCHAR(150) DEFAULT NULL,
+            `bank_branch` VARCHAR(150) DEFAULT NULL,
             `profile_image_path` VARCHAR(255) DEFAULT NULL,
             `password_hash` VARCHAR(255) DEFAULT NULL,
             `role_id` INT DEFAULT NULL,
@@ -236,6 +240,19 @@ class User
         // Normalize some commonly-used names
         if (array_key_exists('profile_image_path', $row)) {
             $row['profileImagePath'] = $row['profile_image_path'];
+        }
+
+        if (array_key_exists('bank_account_name', $row)) {
+            $row['bankAccountName'] = $row['bank_account_name'];
+        }
+        if (array_key_exists('bank_account_number', $row)) {
+            $row['bankAccountNumber'] = $row['bank_account_number'];
+        }
+        if (array_key_exists('bank_name', $row)) {
+            $row['bankName'] = $row['bank_name'];
+        }
+        if (array_key_exists('bank_branch', $row)) {
+            $row['bankBranch'] = $row['bank_branch'];
         }
 
         // Keep id, name, email, phone as-is (existing column names match view expectations)

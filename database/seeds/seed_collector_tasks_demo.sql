@@ -22,13 +22,17 @@ VALUES
   ('Metal', 'kg', @now)
 ON DUPLICATE KEY UPDATE unit = VALUES(unit);
 
-INSERT INTO users (type, name, email, phone, address, status, password_hash, total_pickups, created_at, updated_at)
+INSERT INTO users (type, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, status, password_hash, total_pickups, created_at, updated_at)
 VALUES
-  ('collector', 'Demo Collector', 'collector@ecocycle.com', '+94 71 000 0000', '42 Green Route, Eco City', 'active', 'password', 12, @now, @now)
+  ('collector', 'Demo Collector', 'collector@ecocycle.com', '+94 71 000 0000', '42 Green Route, Eco City', 'Demo Collector', '776543210987', 'Eco Bank', 'Eco City Branch', 'active', 'password', 12, @now, @now)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   phone = VALUES(phone),
   address = VALUES(address),
+  bank_account_name = VALUES(bank_account_name),
+  bank_account_number = VALUES(bank_account_number),
+  bank_name = VALUES(bank_name),
+  bank_branch = VALUES(bank_branch),
   status = VALUES(status),
   total_pickups = VALUES(total_pickups),
   updated_at = @now,
@@ -38,37 +42,49 @@ SET @collector_id := LAST_INSERT_ID();
 SET @collector_name := (SELECT name FROM users WHERE id = @collector_id LIMIT 1);
 
 -- Demo customers
-INSERT INTO users (type, name, email, phone, address, status, password_hash, created_at, updated_at)
+INSERT INTO users (type, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, status, password_hash, created_at, updated_at)
 VALUES
-  ('customer', 'Hasini Perera', 'customer1@ecocycle.com', '+94 77 100 2003', '15 Lake Road, Kandy', 'active', 'password', @now, @now)
+  ('customer', 'Hasini Perera', 'customer1@ecocycle.com', '+94 77 100 2003', '15 Lake Road, Kandy', 'Hasini Perera', '701122334455', 'National Bank', 'Kandy Branch', 'active', 'password', @now, @now)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   phone = VALUES(phone),
   address = VALUES(address),
+  bank_account_name = VALUES(bank_account_name),
+  bank_account_number = VALUES(bank_account_number),
+  bank_name = VALUES(bank_name),
+  bank_branch = VALUES(bank_branch),
   status = VALUES(status),
   updated_at = @now,
   id = LAST_INSERT_ID(id);
 SET @customer1_id := LAST_INSERT_ID();
 
-INSERT INTO users (type, name, email, phone, address, status, password_hash, created_at, updated_at)
+INSERT INTO users (type, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, status, password_hash, created_at, updated_at)
 VALUES
-  ('customer', 'Ishara Silva', 'customer2@ecocycle.com', '+94 71 555 8899', '78 Palm Grove, Colombo 03', 'active', 'password', @now, @now)
+  ('customer', 'Ishara Silva', 'customer2@ecocycle.com', '+94 71 555 8899', '78 Palm Grove, Colombo 03', 'Ishara Silva', '702233445566', 'National Bank', 'Colombo 03 Branch', 'active', 'password', @now, @now)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   phone = VALUES(phone),
   address = VALUES(address),
+  bank_account_name = VALUES(bank_account_name),
+  bank_account_number = VALUES(bank_account_number),
+  bank_name = VALUES(bank_name),
+  bank_branch = VALUES(bank_branch),
   status = VALUES(status),
   updated_at = @now,
   id = LAST_INSERT_ID(id);
 SET @customer2_id := LAST_INSERT_ID();
 
-INSERT INTO users (type, name, email, phone, address, status, password_hash, created_at, updated_at)
+INSERT INTO users (type, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, status, password_hash, created_at, updated_at)
 VALUES
-  ('customer', 'Ruwani Fernando', 'customer3@ecocycle.com', '+94 75 440 2211', '9 Flower Avenue, Galle', 'active', 'password', @now, @now)
+  ('customer', 'Ruwani Fernando', 'customer3@ecocycle.com', '+94 75 440 2211', '9 Flower Avenue, Galle', 'Ruwani Fernando', '703344556677', 'National Bank', 'Galle Branch', 'active', 'password', @now, @now)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   phone = VALUES(phone),
   address = VALUES(address),
+  bank_account_name = VALUES(bank_account_name),
+  bank_account_number = VALUES(bank_account_number),
+  bank_name = VALUES(bank_name),
+  bank_branch = VALUES(bank_branch),
   status = VALUES(status),
   updated_at = @now,
   id = LAST_INSERT_ID(id);

@@ -5,6 +5,8 @@ namespace Controllers\Collector;
 use Controllers\DashboardController;
 use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
+use Models\User;
+use Models\Vehicle;
 
 /**
  * Collector Dashboard Controller
@@ -13,6 +15,8 @@ use Models\PickupRequest;
  */
 class CollectorDashboardController extends DashboardController
 {
+    private ?array $collectorRecord = null;
+
     protected function setUserContext(): void
     {
         $this->userType = 'collector';
@@ -270,14 +274,152 @@ class CollectorDashboardController extends DashboardController
     }
     private function getCollectorProfile(): array
     {
-        return [];
+        $record = $this->loadCollectorRecord();
+        if (!$record) {
+            return $this->getCollectorFallbackProfile();
+        }
+
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+
+        $bank = [
+            'account_name' => $record['bank_account_name'] ?? '',
+            'account_number' => $record['bank_account_number'] ?? '',
+            'bank_name' => $record['bank_name'] ?? '',
+            'branch' => $record['bank_branch'] ?? '',
+        ];
+
+        $bankRaw = $metadata['bank'] ?? $metadata['bank_details'] ?? $metadata['bankDetails'] ?? [];
+        if (is_string($bankRaw)) {
+            $decoded = json_decode($bankRaw, true);
+            $bankRaw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($bankRaw)) {
+            $bankRaw = [];
+        }
+
+        if ($bank['account_name'] === '') {
+            $bank['account_name'] = $bankRaw['account_name'] ?? ($bankRaw['accountName'] ?? ($bankRaw['holderName'] ?? ''));
+        }
+        if ($bank['account_number'] === '') {
+            $bank['account_number'] = $bankRaw['account_number'] ?? ($bankRaw['accountNumber'] ?? '');
+        }
+        if ($bank['bank_name'] === '') {
+            $bank['bank_name'] = $bankRaw['bank_name'] ?? ($bankRaw['bank'] ?? ($bankRaw['bankName'] ?? ''));
+        }
+        if ($bank['branch'] === '') {
+            $bank['branch'] = $bankRaw['branch'] ?? '';
+        }
+
+        $profile = [
+            'id' => $record['id'] ?? null,
+            'name' => $record['name'] ?? '',
+            'email' => $record['email'] ?? '',
+            'phone' => $record['phone'] ?? '',
+            'address' => $record['address'] ?? ($metadata['address'] ?? ''),
+            'profile_picture' => $record['profileImagePath'] ?? ($record['profile_image_path'] ?? null),
+            'bank' => $bank,
+            'metadata' => $metadata,
+        ];
+
+        $hasCoreDetails = trim((string) ($profile['name'] ?? '')) !== ''
+            || trim((string) ($profile['email'] ?? '')) !== ''
+            || trim((string) ($profile['phone'] ?? '')) !== ''
+            || trim((string) ($profile['address'] ?? '')) !== '';
+
+        if (!$hasCoreDetails) {
+            return $this->getCollectorFallbackProfile();
+        }
+
+        return $profile;
     }
     private function getVehicleInfo(): array
     {
-        return [];
+        $record = $this->loadCollectorRecord();
+        if (!$record) {
+            return [];
+        }
+
+        $vehicleId = (int) ($record['vehicleId'] ?? $record['vehicle_id'] ?? 0);
+        if ($vehicleId > 0) {
+            try {
+                $vehicleModel = new Vehicle();
+                $vehicle = $vehicleModel->find($vehicleId);
+                if (!empty($vehicle)) {
+                    return $vehicle;
+                }
+            } catch (\Throwable $e) {
+                error_log('Collector vehicle load failed: ' . $e->getMessage());
+            }
+        }
+
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+        $vehicleMeta = $metadata['vehicle'] ?? [];
+        if (is_string($vehicleMeta)) {
+            $decoded = json_decode($vehicleMeta, true);
+            $vehicleMeta = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($vehicleMeta) ? $vehicleMeta : [];
     }
     private function getCertifications(): array
     {
-        return [];
+        $record = $this->loadCollectorRecord();
+        if (!$record) {
+            return [];
+        }
+
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+        $certifications = $metadata['certifications'] ?? [];
+        if (is_string($certifications)) {
+            $decoded = json_decode($certifications, true);
+            $certifications = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($certifications) ? $certifications : [];
+    }
+
+    private function loadCollectorRecord(): ?array
+    {
+        if ($this->collectorRecord !== null) {
+            return $this->collectorRecord;
+        }
+
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            $this->collectorRecord = null;
+            return null;
+        }
+
+        try {
+            $userModel = new User();
+            $record = $userModel->findById($collectorId);
+        } catch (\Throwable $e) {
+            error_log('Collector profile load failed: ' . $e->getMessage());
+            $record = null;
+        }
+
+        $this->collectorRecord = is_array($record) ? $record : null;
+        return $this->collectorRecord;
+    }
+
+    private function getCollectorFallbackProfile(): array
+    {
+        $name = $this->user['name'] ?? 'Demo Collector';
+        $email = $this->user['email'] ?? 'collector@example.com';
+
+        return [
+            'name' => $name,
+            'email' => $email,
+            'phone' => $this->user['phone'] ?? '+94 71 000 0000',
+            'address' => $this->user['address'] ?? '42 Green Route, Eco City',
+            'profile_picture' => null,
+            'bank' => [
+                'account_name' => $name,
+                'account_number' => '1234567890',
+                'bank_name' => 'National Bank',
+                'branch' => 'Colombo Main',
+            ],
+            'metadata' => [],
+        ];
     }
 }
