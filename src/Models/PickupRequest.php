@@ -6,6 +6,33 @@ class PickupRequest extends BaseModel
 {
     protected string $table = 'pickup_requests';
 
+    public function listForCustomer(int $customerId, ?string $status = null): array
+    {
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+                FROM {$this->table} pr
+                LEFT JOIN users c ON c.id = pr.customer_id
+                LEFT JOIN users col ON col.id = pr.collector_id
+                WHERE pr.customer_id = ?";
+        $params = [$customerId];
+
+        if ($status !== null && $status !== '') {
+            $sql .= " AND pr.status = ?";
+            $params[] = $status;
+        }
+
+        $sql .= " ORDER BY pr.created_at DESC";
+
+        $rows = $this->db->fetchAll($sql, $params);
+        if (!$rows) {
+            return [];
+        }
+
+        $ids = array_column($rows, 'id');
+        $wasteMap = $this->wasteCategoriesForPickups($ids);
+
+        return array_map(fn(array $row) => $this->formatRow($row, $wasteMap), $rows);
+    }
+
     public function listAll(?string $timeSlot = null): array
     {
         $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
@@ -65,6 +92,37 @@ class PickupRequest extends BaseModel
         return (bool) $row;
     }
 
+    public function createForCustomer(int $customerId, array $payload): array
+    {
+        $id = $this->generateId();
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $address = $payload['address'] ?? null;
+            $timeSlot = $payload['timeSlot'] ?? null;
+            $scheduledAt = $payload['scheduledAt'] ?? null;
+
+            $this->db->query(
+                "INSERT INTO {$this->table} (id, customer_id, address, time_slot, status, collector_id, collector_name, scheduled_at, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, 'pending', NULL, NULL, ?, NOW(), NOW())",
+                [$id, $customerId, $address, $timeSlot, $scheduledAt]
+            );
+
+            $categories = $payload['wasteCategories'] ?? [];
+            if (!empty($categories)) {
+                $this->replaceWasteCategories($id, $categories, false);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return $this->find($id) ?? [];
+    }
+
     public function update(string $id, array $data): bool
     {
         $allowed = ['collector_id', 'collector_name', 'status', 'time_slot', 'scheduled_at', 'address'];
@@ -96,6 +154,86 @@ class PickupRequest extends BaseModel
         $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1';
 
         return $this->db->query($sql, $params);
+    }
+
+    public function updateForCustomer(string $id, int $customerId, array $payload): bool
+    {
+        $current = $this->db->fetch(
+            "SELECT status FROM {$this->table} WHERE id = ? AND customer_id = ? LIMIT 1",
+            [$id, $customerId]
+        );
+
+        if (!$current) {
+            return false;
+        }
+
+        if (!$this->isCustomerEditableStatus((string) ($current['status'] ?? ''))) {
+            return false;
+        }
+
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $fields = [];
+            $params = [];
+
+            if (array_key_exists('address', $payload)) {
+                $fields[] = '`address` = ?';
+                $params[] = $payload['address'];
+            }
+
+            if (array_key_exists('timeSlot', $payload)) {
+                $fields[] = '`time_slot` = ?';
+                $params[] = $payload['timeSlot'];
+            }
+
+            if (array_key_exists('scheduledAt', $payload)) {
+                $fields[] = '`scheduled_at` = ?';
+                $params[] = $payload['scheduledAt'];
+            }
+
+            if (!empty($fields)) {
+                $fields[] = '`updated_at` = NOW()';
+                $params[] = $id;
+                $params[] = $customerId;
+
+                $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $fields) . ' WHERE id = ? AND customer_id = ? LIMIT 1';
+                $this->db->query($sql, $params);
+            }
+
+            if (array_key_exists('wasteCategories', $payload)) {
+                $this->replaceWasteCategories($id, $payload['wasteCategories']);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return true;
+    }
+
+    public function cancelForCustomer(string $id, int $customerId): bool
+    {
+        $current = $this->db->fetch(
+            "SELECT status FROM {$this->table} WHERE id = ? AND customer_id = ? LIMIT 1",
+            [$id, $customerId]
+        );
+
+        if (!$current) {
+            return false;
+        }
+
+        if (!$this->isCustomerCancellableStatus((string) ($current['status'] ?? ''))) {
+            return false;
+        }
+
+        return $this->db->query(
+            "UPDATE {$this->table} SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND customer_id = ? LIMIT 1",
+            [$id, $customerId]
+        );
     }
 
     public function countByStatuses(array $statuses): int
@@ -148,7 +286,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, wc.name
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.quantity, prw.unit, wc.name
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -162,12 +300,24 @@ class PickupRequest extends BaseModel
         foreach ($rows as $row) {
             $pid = $row['pickup_id'];
             if (!isset($map[$pid])) {
-                $map[$pid] = [];
+                $map[$pid] = [
+                    'names' => [],
+                    'details' => [],
+                ];
             }
 
             $name = trim((string) ($row['name'] ?? ''));
-            if ($name !== '' && !in_array($name, $map[$pid], true)) {
-                $map[$pid][] = $name;
+            if ($name !== '' && !in_array($name, $map[$pid]['names'], true)) {
+                $map[$pid]['names'][] = $name;
+            }
+
+            if (isset($row['waste_category_id'])) {
+                $map[$pid]['details'][] = [
+                    'id' => (int) $row['waste_category_id'],
+                    'name' => $name,
+                    'quantity' => $row['quantity'] !== null ? (float) $row['quantity'] : null,
+                    'unit' => $row['unit'] ?? null,
+                ];
             }
         }
         return $map;
@@ -176,7 +326,9 @@ class PickupRequest extends BaseModel
     private function formatRow(array $row, array $wasteMap): array
     {
         $pickupId = $row['id'];
-        $waste = $wasteMap[$pickupId] ?? [];
+        $wasteEntry = $wasteMap[$pickupId] ?? ['names' => [], 'details' => []];
+        $names = $wasteEntry['names'] ?? [];
+        $details = $wasteEntry['details'] ?? [];
 
         return [
             'id' => $pickupId,
@@ -187,8 +339,60 @@ class PickupRequest extends BaseModel
             'status' => $row['status'] ?? 'pending',
             'collectorId' => $row['collector_id'],
             'collectorName' => $row['collector_name'] ?? '',
-            'wasteCategories' => $waste,
+            'wasteCategories' => $names,
+            'wasteCategoryDetails' => $details,
             'createdAt' => $row['created_at'] ?? null,
+            'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
+    }
+
+    private function replaceWasteCategories(string $pickupId, array $categories, bool $clearExisting = true): void
+    {
+        if ($clearExisting) {
+            $this->db->query(
+                'DELETE FROM pickup_request_wastes WHERE pickup_id = ?',
+                [$pickupId]
+            );
+        }
+
+        foreach ($categories as $category) {
+            $categoryId = $category['id'] ?? null;
+            if ($categoryId === null) {
+                continue;
+            }
+
+            $quantity = $category['quantity'] ?? null;
+            if ($quantity !== null) {
+                $quantity = (float) $quantity;
+            }
+
+            $unit = $category['unit'] ?? null;
+
+            $this->db->query(
+                'INSERT INTO pickup_request_wastes (pickup_id, waste_category_id, quantity, unit) VALUES (?, ?, ?, ?)',
+                [$pickupId, $categoryId, $quantity, $unit]
+            );
+        }
+    }
+
+    private function generateId(): string
+    {
+        do {
+            $id = 'PR' . strtoupper(bin2hex(random_bytes(5)));
+        } while ($this->exists($id));
+
+        return $id;
+    }
+
+    private function isCustomerEditableStatus(string $status): bool
+    {
+        $status = strtolower($status);
+        return in_array($status, ['pending'], true);
+    }
+
+    private function isCustomerCancellableStatus(string $status): bool
+    {
+        $status = strtolower($status);
+        return in_array($status, ['pending', 'assigned', 'confirmed'], true);
     }
 }
