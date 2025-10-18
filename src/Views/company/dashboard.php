@@ -13,10 +13,10 @@ $availableWaste = [
 $totalWaste = 0;
 
 $bids = [
-  ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250', 'status' => 'Active'],
-  ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.900', 'status' => 'Active'],
-  ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
-  ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
+    ['title' => 'Plastic', 'amount' => '2,500 kg', 'bid' => 'Rs.1,250/kg', 'status' => 'Active'],
+    ['title' => 'Paper', 'amount' => '1,800 kg', 'bid' => 'Rs.1000/kg', 'status' => 'Active'],
+    ['title' => 'Metal', 'amount' => '900 kg', 'bid' => 'Rs.1,600/kg', 'status' => 'Pending'],
+    ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.800/kg', 'status' => 'Closed']
 ];
 ?>
 
@@ -24,37 +24,37 @@ $bids = [
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
-      <h2 class="page-header__title">Welcome back!</h2>
-      <p class="page-header__description">Here is your latest update on your Dashboard</p>
+            <h2 class="page-header__title">Welcome back, EcoWaste!</h2>
+            <p class="page-header__description">Here is your latest update on your Dashboard</p>
     </div>
   </header>
 
   <section class="companyDashboard">
     <!-- Available Waste Amount -->
-    <?php foreach ($availableWaste as $waste) {
-      $numericValue = (int) filter_var($waste['value'], FILTER_SANITIZE_NUMBER_INT);
-      $totalWaste += $numericValue;
-    }
-    ?>
+      <?php foreach ($availableWaste as $waste) {
+              $numericValue = (int) filter_var($waste['value'], FILTER_SANITIZE_NUMBER_INT);
+              $totalWaste += $numericValue;
+          }
+      ?>
 
-    <div class="c-dashboard-card">
-      <h3>Available Waste Amount</h3>
-      <p class="value">
-        <?= number_format($totalWaste) ?> kg
-      </p>
-      <ul class="stats-grid">
-        <?php foreach ($availableWaste as $type): ?>
-          <feature-card unwrap title="<?= htmlspecialchars($type['title']) ?>"
-            value="<?= htmlspecialchars($type['value']) ?>" icon="<?= htmlspecialchars($type['icon']) ?>"></feature-card>
-        <?php endforeach; ?>
-      </ul>
+    <div class="c-dashboard-card"> 
+          <h3>Available Waste Amount</h3>
+          <p class="value">
+              <?= number_format($totalWaste) ?> kg
+          </p>
+          <ul class="waste-list">
+              <?php foreach ($availableWaste as $type): ?>
+              <feature-card unwrap title="<?= htmlspecialchars($type['title']) ?>"
+                value="<?= htmlspecialchars($type['value']) ?>" icon="<?= htmlspecialchars($type['icon']) ?>"></feature-card>
+              <?php endforeach; ?>
+          </ul>
     </div>
 
     <!-- Highest Bids -->
     <div class="c-dashboard-grid">
       <div class="c-dashboard-card">
         <h3>Current Highest Bid for Each Waste Type</h3>
-        <ul class="stats-grid">
+        <ul class="bids">
           <?php
           foreach ($bids as $type => $data):
             $safeType = htmlspecialchars($data['title'], ENT_QUOTES, 'UTF-8');
