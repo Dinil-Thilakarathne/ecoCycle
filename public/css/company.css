@@ -692,6 +692,7 @@ span.unverified {
   justify-content: center;
   align-items: center;
   overflow-y: scroll;
+  z-index: 99999;
 }
 
 .form-modal:target {
@@ -766,7 +767,7 @@ textarea {
   }
 }
 
-/* Layout */
+/* NOTIFICATION*/
 
 .mark-read-btn {
   background: var(--info-light);

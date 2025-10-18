@@ -57,7 +57,7 @@ class CompanyDashboardController extends DashboardController
     public function purchases(): Response
     {
         $data = [
-            'pageTitle' => 'Schedule Collection',
+            'pageTitle' => 'My Purchases',
         ];
 
         return $this->renderDashboard('purchases', $data);
@@ -97,7 +97,7 @@ class CompanyDashboardController extends DashboardController
     public function helpCenter(): Response
     {
         $data = [
-            'pageTitle' => 'Sustainability Reports',
+            'pageTitle' => 'Help & Support',
         ];
 
         return $this->renderDashboard('helpCenter', $data);

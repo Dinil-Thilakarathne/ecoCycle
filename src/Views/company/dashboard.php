@@ -4,9 +4,9 @@
 $availableWaste = [
   ['title' => 'Plastic', 'value' => '2,500 kg', 'icon' => 'fa-solid fa-bottle-water'],
   ['title' => 'Paper', 'value' => '1,800 kg', 'icon' => 'fa-solid fa-paper-plane'],
-  ['title' => 'Metal', 'value' => '3,200 kg', 'icon' => 'fa-solid fa-box'],
+  ['title' => 'Metal', 'value' => '900 kg', 'icon' => 'fa-solid fa-box'],
   ['title' => 'Glass', 'value' => '1,200 kg', 'icon' => 'fa-solid fa-wine-bottle'],
-  ['title' => 'Organic', 'value' => '1500 kg', 'icon' => 'fa-solid fa-leaf'],
+  ['title' => 'Organic', 'value' => '700 kg', 'icon' => 'fa-solid fa-leaf'],
 
 ];
 
@@ -18,7 +18,6 @@ $bids = [
   ['title' => 'Metal', 'amount' => '3,200 kg', 'bid' => 'Rs.1,600', 'status' => 'Pending'],
   ['title' => 'Glass', 'amount' => '1,200 kg', 'bid' => 'Rs.600', 'status' => 'Closed']
 ];
-
 ?>
 
 <!-- Main Content -->
@@ -67,6 +66,13 @@ $bids = [
               status="<?= $safeStatus ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
+      </div>
+      <div class="c-dashboard-card">
+        <h3>Send Feedback</h3>
+        <div class="feedback">
+          <input type="text" placeholder="Send Feedback">
+          <button class="btn btn-primary" style="flex: 1;" type="submit">Send</button>
+        </div>
       </div>
     </div>
   </section>
