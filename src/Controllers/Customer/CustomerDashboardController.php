@@ -6,6 +6,8 @@ use Controllers\DashboardController;
 use EcoCycle\Core\Navigation\NavigationConfig;
 use Core\Http\Response;
 use Models\User;
+use Models\PickupRequest;
+use Models\WasteCategory;
 
 /**
  * Customer Dashboard Controller
@@ -44,8 +46,36 @@ class CustomerDashboardController extends DashboardController
      */
     public function pickup(): Response
     {
+        $pickupModel = new PickupRequest();
+        $wasteCategoryModel = new WasteCategory();
+        $customerId = (int) ($this->user['id'] ?? 0);
+
+        try {
+            $timeSlots = $pickupModel->listTimeSlots();
+        } catch (\Throwable $e) {
+            $timeSlots = [];
+        }
+        if (empty($timeSlots)) {
+            $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+        }
+
+        try {
+            $pickupRequests = $pickupModel->listForCustomer($customerId);
+        } catch (\Throwable $e) {
+            $pickupRequests = [];
+        }
+
+        try {
+            $wasteCategories = $wasteCategoryModel->listAll();
+        } catch (\Throwable $e) {
+            $wasteCategories = [];
+        }
+
         $data = [
             'pageTitle' => 'Pickup Request',
+            'timeSlots' => $timeSlots,
+            'pickupRequests' => $pickupRequests,
+            'wasteCategories' => $wasteCategories,
         ];
 
         return $this->renderDashboard('pickup', $data);
