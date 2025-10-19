@@ -75,8 +75,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["profile_pic"])) {
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
-    <i class="fa-solid fa-profile" style="margin-right:8px;"></i>
-      <h2 class="page-header__title">Collector Profile</h2>
+    
+      <h2 class="page-header__title">
+        <i class="fa-solid fa-user" style="margin-right:8px;"></i>Collector Profile</h2>
       <p class="page-header__description">Update your profile and security settings.</p>
     </div>
   </header>
