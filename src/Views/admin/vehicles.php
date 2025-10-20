@@ -37,6 +37,8 @@ function getStatusBadge($status)
             return '<div class="tag warning">In Use</div>';
         case 'maintenance':
             return '<div class="tag danger">Maintenance</div>';
+        case 'removed':
+            return '<div class="tag danger">Removed</div>';
         default:
             return '<div class="tag">' . htmlspecialchars($status) . '</div>';
     }
@@ -173,6 +175,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                                             title="Edit Vehicle">
                                             <i class="fa-solid fa-edit"></i>
                                         </button>
+                                        <button class="icon-button danger" onclick="removeVehicle('<?= $vehicle['id'] ?>')"
+                                            title="Remove Vehicle">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -194,7 +200,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
 <script>
     const VEHICLE_API_BASE = '/api/vehicles';
-    const VEHICLE_STATUS_OPTIONS = ['available', 'in-use', 'maintenance'];
+    const VEHICLE_STATUS_OPTIONS = ['available', 'in-use', 'maintenance', 'removed'];
 
     function showToast(message, type = 'info') {
         if (typeof window.__createToast === 'function') {
@@ -222,6 +228,8 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 return 'In Use';
             case 'maintenance':
                 return 'Maintenance';
+            case 'removed':
+                return 'Removed';
             default:
                 return status;
         }
@@ -237,6 +245,9 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
         if (normalized === 'maintenance') {
             return '<div class="tag danger">Maintenance</div>';
+        }
+        if (normalized === 'removed') {
+            return '<div class="tag danger">Removed</div>';
         }
 
         return '<div class="tag">' + escapeHtml(status || 'Unknown') + '</div>';
@@ -522,6 +533,9 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <button class="icon-button" onclick="editVehicle(${idLiteral})" title="Edit Vehicle">
                         <i class="fa-solid fa-edit"></i>
                     </button>
+                    <button class="icon-button danger" onclick="removeVehicle(${idLiteral})" title="Remove Vehicle">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </div>
             </td>
         `;
@@ -708,6 +722,58 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                         label: 'Save Changes',
                         variant: 'primary',
                         onClick: (close) => handleVehicleSave({ mode: 'update', vehicleId: vehicle.id, form, close })
+                    }
+                ]
+            });
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function removeVehicle(vehicleId) {
+        try {
+            const vehicle = await fetchVehicle(vehicleId);
+            if (!vehicle) {
+                showToast('Vehicle not found.', 'error');
+                return;
+            }
+
+            if ((vehicle.status || '').toLowerCase() === 'removed') {
+                showToast('Vehicle is already marked as removed.', 'info');
+                return;
+            }
+
+            const label = escapeHtml(vehicle.plateNumber || `Vehicle #${vehicle.id}`);
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <p style="margin:0 0 0.75rem 0;line-height:1.5;color:#374151;">
+                    This action will mark <strong>${label}</strong> as <strong>Removed</strong>. The vehicle will remain in the list for record keeping, but will no longer be considered active.
+                </p>
+                <p style="margin:0;color:#6b7280;font-size:0.9rem;">
+                    You can restore the vehicle later by editing it and updating the status.
+                </p>
+            `;
+
+            createModal({
+                title: 'Remove Vehicle',
+                content: container,
+                buttons: [
+                    { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
+                    {
+                        label: 'Mark as Removed',
+                        variant: 'danger',
+                        onClick: async (close) => {
+                            try {
+                                const response = await apiRequest(`${VEHICLE_API_BASE}/${vehicleId}`, { method: 'DELETE' });
+                                const updatedVehicle = response.vehicle || Object.assign({}, vehicle, { status: 'removed' });
+                                syncVehicleCache(updatedVehicle);
+                                updateVehicleRow(updatedVehicle);
+                                showToast('Vehicle marked as removed.', 'success');
+                                close();
+                            } catch (error) {
+                                showToast(error.message, 'error');
+                            }
+                        }
                     }
                 ]
             });
