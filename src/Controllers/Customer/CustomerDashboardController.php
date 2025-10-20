@@ -29,14 +29,18 @@ class CustomerDashboardController extends DashboardController
      */
     public function index(): Response
     {
+        $pickupData = $this->getCustomerPickupData();
+
         $data = [
             'pageTitle' => 'My Dashboard',
             'rewardPoints' => $this->getRewardPoints(),
-            'recentPickups' => $this->getRecentPickups(),
+            'recentPickups' => array_slice($pickupData['pickupRequests'], 0, 5),
             'upcomingPickups' => $this->getUpcomingPickups(),
             'recyclingStats' => $this->getRecyclingStats(),
-            'userProfile' => $this->getUserProfile()
+            'userProfile' => $pickupData['userProfile'] ?? []
         ];
+
+        $data = array_merge($data, $pickupData);
 
         return $this->renderDashboard('dashboard', $data);
     }
@@ -46,37 +50,11 @@ class CustomerDashboardController extends DashboardController
      */
     public function pickup(): Response
     {
-        $pickupModel = new PickupRequest();
-        $wasteCategoryModel = new WasteCategory();
-        $customerId = (int) ($this->user['id'] ?? 0);
-
-        try {
-            $timeSlots = $pickupModel->listTimeSlots();
-        } catch (\Throwable $e) {
-            $timeSlots = [];
-        }
-        if (empty($timeSlots)) {
-            $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
-        }
-
-        try {
-            $pickupRequests = $pickupModel->listForCustomer($customerId);
-        } catch (\Throwable $e) {
-            $pickupRequests = [];
-        }
-
-        try {
-            $wasteCategories = $wasteCategoryModel->listAll();
-        } catch (\Throwable $e) {
-            $wasteCategories = [];
-        }
+        $pickupData = $this->getCustomerPickupData();
 
         $data = [
             'pageTitle' => 'Pickup Request',
-            'timeSlots' => $timeSlots,
-            'pickupRequests' => $pickupRequests,
-            'wasteCategories' => $wasteCategories,
-        ];
+        ] + $pickupData;
 
         return $this->renderDashboard('pickup', $data);
     }
@@ -191,6 +169,41 @@ class CustomerDashboardController extends DashboardController
     private function getAvailableRewards(): array
     {
         return [];
+    }
+    private function getCustomerPickupData(): array
+    {
+        $pickupModel = new PickupRequest();
+        $wasteCategoryModel = new WasteCategory();
+        $customerId = (int) ($this->user['id'] ?? 0);
+
+        try {
+            $timeSlots = $pickupModel->listTimeSlots();
+        } catch (\Throwable $e) {
+            $timeSlots = [];
+        }
+
+        if (empty($timeSlots)) {
+            $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+        }
+
+        try {
+            $pickupRequests = $pickupModel->listForCustomer($customerId);
+        } catch (\Throwable $e) {
+            $pickupRequests = [];
+        }
+
+        try {
+            $wasteCategories = $wasteCategoryModel->listAll();
+        } catch (\Throwable $e) {
+            $wasteCategories = [];
+        }
+
+        return [
+            'timeSlots' => $timeSlots,
+            'pickupRequests' => array_values($pickupRequests),
+            'wasteCategories' => $wasteCategories,
+            'userProfile' => $this->getUserProfile(),
+        ];
     }
     private function getUserProfile(): array
     {
