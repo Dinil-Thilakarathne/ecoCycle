@@ -7,6 +7,9 @@ $timeSlots = $timeSlots ?? [];
 $wasteCategories = $wasteCategories ?? [];
 $pickupRequests = array_values($pickupRequests ?? []);
 $filter = $_GET['filter'] ?? 'all';
+$profileData = is_array($userProfile ?? null) ? $userProfile : [];
+$userData = is_array($user ?? null) ? $user : [];
+$defaultAddress = trim((string) ($profileData['address'] ?? ($userData['address'] ?? '')));
 
 $normalizedFilter = is_string($filter) ? strtolower($filter) : 'all';
 $filteredRequests = $pickupRequests;
@@ -203,7 +206,20 @@ if (!function_exists('customer_pickup_format_datetime')) {
                             <td>#<?= e((string) $request['id']) ?></td>
                             <td><?= e((string) ($request['address'] ?? '')) ?></td>
                             <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
-                            <td><?= e(implode(', ', array_map('strval', $categoryList))) ?></td>
+                            <td>
+                                <?php
+                                $categoryNames = array_values(array_filter(array_map('strval', is_array($categoryList) ? $categoryList : [])));
+                                ?>
+                                <?php if (!empty($categoryNames)): ?>
+                                    <div class="badge-group">
+                                        <?php foreach ($categoryNames as $categoryName): ?>
+                                            <span class="tag"><?= e($categoryName) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span>-</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= e(customer_pickup_format_datetime($request['createdAt'] ?? null)) ?></td>
                             <td><?= e(customer_pickup_format_datetime($request['scheduledAt'] ?? null)) ?></td>
                             <td><?= e($collector !== '' ? $collector : '-') ?></td>
@@ -245,7 +261,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             <div class="form-group">
                 <label for="new_address">Pickup Address</label>
                 <textarea name="address" id="new_address" rows="3" placeholder="Where should we collect from?"
-                    required></textarea>
+                    required><?= e($defaultAddress) ?></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -339,6 +355,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
         const timeSlots = <?= json_encode($timeSlots, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const wasteCategories = <?= json_encode($wasteCategories, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const defaultAddress = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
         const tableBody = document.getElementById('pickup-requests-body');
         const newModal = document.getElementById('newRequestModal');
@@ -405,6 +422,31 @@ if (!function_exists('customer_pickup_format_datetime')) {
             });
         }
 
+        function renderWasteCategories(rawList) {
+            const list = Array.isArray(rawList) ? rawList : [];
+            const normalized = list
+                .map((item) => {
+                    if (typeof item === 'string') {
+                        return item.trim();
+                    }
+                    if (item == null) {
+                        return '';
+                    }
+                    return String(item).trim();
+                })
+                .filter((item) => item !== '');
+
+            if (!normalized.length) {
+                return '<span>-</span>';
+            }
+
+            const tags = normalized
+                .map((name) => `<span class="tag">${escapeHtml(name)}</span>`)
+                .join('');
+
+            return `<div class="badge-group">${tags}</div>`;
+        }
+
         function renderTable() {
             if (!tableBody) return;
             tableBody.innerHTML = '';
@@ -430,7 +472,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const rows = filtered.map((request) => {
                 const status = (request.status || 'pending');
                 const normalizedStatus = status.toLowerCase();
-                const categories = Array.isArray(request.wasteCategories) ? request.wasteCategories.join(', ') : '';
                 const collector = request.collectorName ? request.collectorName : '-';
                 const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
                 const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
@@ -440,7 +481,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         <td>#${request.id}</td>
                         <td>${escapeHtml(request.address || '')}</td>
                         <td>${escapeHtml(request.timeSlot || '')}</td>
-                        <td>${escapeHtml(categories)}</td>
+                        <td>${renderWasteCategories(request.wasteCategories)}</td>
                         <td>${escapeHtml(formatDate(request.createdAt))}</td>
                         <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
                         <td>${escapeHtml(collector)}</td>
@@ -475,6 +516,14 @@ if (!function_exists('customer_pickup_format_datetime')) {
         function showNewRequestForm() {
             if (!newModal) return;
             newModal.classList.add('modal-open');
+
+            const form = document.getElementById('newRequestForm');
+            if (form) {
+                const addressField = form.elements.namedItem('address');
+                if (addressField) {
+                    addressField.value = defaultAddress || '';
+                }
+            }
 
             const dateField = document.getElementById('new_date');
             if (dateField) {
