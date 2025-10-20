@@ -39,43 +39,137 @@ class Bid extends BaseModel
             return [];
         }
 
-        return array_map(function (array $row) use ($companyId): array {
-            $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
-            $unit = $row['unit'] ?? 'kg';
-            $category = $row['waste_category_name'] ?? 'Unknown';
-            $lotId = $row['lot_id'] ?: ('BR-' . $row['id']);
-            $amount = isset($row['amount']) ? (float) $row['amount'] : 0.0;
-            $createdAt = $row['created_at'] ?? null;
-            $roundStatus = $row['round_status'] ?? 'pending';
-            $leadingCompanyId = $row['leading_company_id'] ?? null;
-            $isWinner = (int) ($row['is_winner'] ?? 0) === 1;
+        return array_map(fn(array $row): array => $this->mapCompanyHistoryRow($row, $companyId), $rows);
+    }
 
-            $status = 'Pending';
-            if ($roundStatus === 'active') {
-                $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Active';
-            } elseif ($roundStatus === 'completed') {
-                $status = $isWinner ? 'Won' : 'Lost';
+    public function findForCompanyById(int $bidId, int $companyId): ?array
+    {
+        if ($bidId <= 0 || $companyId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT
+                    b.id,
+                    b.amount,
+                    b.is_winner,
+                    b.created_at,
+                    br.lot_id,
+                    br.quantity,
+                    br.unit,
+                    br.status AS round_status,
+                    br.current_highest_bid,
+                    br.leading_company_id,
+                    br.end_time,
+                    wc.name AS waste_category_name
+                FROM {$this->table} b
+                INNER JOIN bidding_rounds br ON br.id = b.bidding_round_id
+                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+                WHERE b.id = ? AND b.company_id = ?
+                LIMIT 1";
+
+        $row = $this->db->fetch($sql, [$bidId, $companyId]);
+        if (!$row) {
+            return null;
+        }
+
+        return $this->mapCompanyHistoryRow($row, $companyId);
+    }
+
+    public function placeBid(string $roundId, int $companyId, float $amount): int
+    {
+        $roundId = trim($roundId);
+        if ($roundId === '' || $companyId <= 0 || $amount <= 0) {
+            throw new \DomainException('Invalid bid payload.');
+        }
+
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $round = $this->db->fetch(
+                "SELECT id, status, end_time, current_highest_bid FROM bidding_rounds WHERE id = ? FOR UPDATE",
+                [$roundId]
+            );
+
+            if (!$round) {
+                throw new \DomainException('Selected bidding round could not be found.');
             }
 
-            if ($isWinner && $roundStatus !== 'completed') {
-                $status = 'Won';
+            $status = $round['status'] ?? 'pending';
+            if ($status !== 'active') {
+                throw new \DomainException('Bidding on this round is closed.');
             }
 
-            return [
-                'id' => (int) $row['id'],
-                'displayId' => 'BID' . str_pad((string) $row['id'], 4, '0', STR_PAD_LEFT),
-                'category' => $category,
-                'quantity' => $quantity,
-                'unit' => $unit,
-                'amount' => $amount,
-                'status' => $status,
-                'roundStatus' => $roundStatus,
-                'lotId' => $lotId,
-                'createdAt' => $createdAt,
-                'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
-                'endTime' => $row['end_time'] ?? null,
-            ];
-        }, $rows);
+            if (!empty($round['end_time']) && strtotime((string) $round['end_time']) <= time()) {
+                throw new \DomainException('This bidding round has already ended.');
+            }
+
+            $currentHighest = isset($round['current_highest_bid']) ? (float) $round['current_highest_bid'] : 0.0;
+            if ($amount <= $currentHighest) {
+                throw new \DomainException('Bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            }
+
+            $this->db->query(
+                "INSERT INTO bids (bidding_round_id, company_id, amount, created_at) VALUES (?, ?, ?, NOW())",
+                [$roundId, $companyId, $amount]
+            );
+
+            $bidId = (int) $this->db->lastInsertId();
+
+            $this->db->query(
+                "UPDATE bidding_rounds SET current_highest_bid = ?, leading_company_id = ?, updated_at = NOW() WHERE id = ?",
+                [$amount, $companyId, $roundId]
+            );
+
+            $pdo->commit();
+
+            return $bidId;
+        } catch (\DomainException $e) {
+            $pdo->rollBack();
+            throw $e;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    private function mapCompanyHistoryRow(array $row, int $companyId): array
+    {
+        $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
+        $unit = $row['unit'] ?? 'kg';
+        $category = $row['waste_category_name'] ?? 'Unknown';
+        $lotId = $row['lot_id'] ?: ('BR-' . $row['id']);
+        $amount = isset($row['amount']) ? (float) $row['amount'] : 0.0;
+        $createdAt = $row['created_at'] ?? null;
+        $roundStatus = $row['round_status'] ?? 'pending';
+        $leadingCompanyId = $row['leading_company_id'] ?? null;
+        $isWinner = (int) ($row['is_winner'] ?? 0) === 1;
+
+        $status = 'Pending';
+        if ($roundStatus === 'active') {
+            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Active';
+        } elseif ($roundStatus === 'completed') {
+            $status = $isWinner ? 'Won' : 'Lost';
+        }
+
+        if ($isWinner && $roundStatus !== 'completed') {
+            $status = 'Won';
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'displayId' => 'BID' . str_pad((string) $row['id'], 4, '0', STR_PAD_LEFT),
+            'category' => $category,
+            'quantity' => $quantity,
+            'unit' => $unit,
+            'amount' => $amount,
+            'status' => $status,
+            'roundStatus' => $roundStatus,
+            'lotId' => $lotId,
+            'createdAt' => $createdAt,
+            'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
+            'endTime' => $row['end_time'] ?? null,
+        ];
     }
 
     public function monthlyCounts(int $companyId, int $months = 6): array

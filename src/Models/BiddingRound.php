@@ -6,6 +6,151 @@ class BiddingRound extends BaseModel
 {
     protected string $table = 'bidding_rounds';
 
+    public function findById(string $id): ?array
+    {
+        $row = $this->fetchDetailedRow($id);
+        return $row ? $this->normalizeRound($row) : null;
+    }
+
+    public function findByLotId(string $lotId): ?array
+    {
+        $trimmed = trim($lotId);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $row = $this->db->fetch("SELECT id FROM {$this->table} WHERE lot_id = ? LIMIT 1", [$trimmed]);
+        if (!$row || empty($row['id'])) {
+            return null;
+        }
+
+        return $this->findById($row['id']);
+    }
+
+    public function existsByLotId(string $lotId): bool
+    {
+        $trimmed = trim($lotId);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $row = $this->db->fetch("SELECT id FROM {$this->table} WHERE lot_id = ? LIMIT 1", [$trimmed]);
+        return (bool) $row;
+    }
+
+    public function createRound(array $payload): array
+    {
+        $id = $payload['id'] ?? $this->generateId();
+        $sql = "INSERT INTO {$this->table} (id, lot_id, waste_category_id, quantity, unit, starting_bid, current_highest_bid, leading_company_id, status, end_time, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+
+        $params = [
+            $id,
+            $payload['lot_id'] ?? null,
+            $payload['waste_category_id'] ?? null,
+            $payload['quantity'] ?? null,
+            $payload['unit'] ?? null,
+            $payload['starting_bid'] ?? 0.0,
+            $payload['current_highest_bid'] ?? 0.0,
+            $payload['leading_company_id'] ?? null,
+            $payload['status'] ?? 'active',
+            $payload['end_time'] ?? null,
+            $payload['notes'] ?? null,
+        ];
+
+        $this->db->query($sql, $params);
+
+        return $this->findById($id) ?? [];
+    }
+
+    public function approveRound(string $id, ?int $companyId = null): ?array
+    {
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $round = $this->db->fetch("SELECT * FROM {$this->table} WHERE id = ? FOR UPDATE", [$id]);
+            if (!$round) {
+                $pdo->rollBack();
+                return null;
+            }
+
+            $selectedCompanyId = $companyId;
+            $winningBidAmount = null;
+
+            if ($selectedCompanyId === null && isset($round['leading_company_id']) && $round['leading_company_id']) {
+                $selectedCompanyId = (int) $round['leading_company_id'];
+            }
+
+            if ($selectedCompanyId === null) {
+                $topBid = $this->db->fetch(
+                    "SELECT company_id, amount FROM bids WHERE bidding_round_id = ? ORDER BY amount DESC, created_at DESC LIMIT 1",
+                    [$id]
+                );
+                if ($topBid) {
+                    $selectedCompanyId = (int) $topBid['company_id'];
+                    $winningBidAmount = isset($topBid['amount']) ? (float) $topBid['amount'] : null;
+                }
+            }
+
+            $updates = [
+                'status' => 'awarded',
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+
+            if ($selectedCompanyId !== null) {
+                $updates['leading_company_id'] = $selectedCompanyId;
+            }
+
+            if ($winningBidAmount !== null) {
+                $updates['current_highest_bid'] = $winningBidAmount;
+            }
+
+            if (empty($round['end_time'])) {
+                $updates['end_time'] = date('Y-m-d H:i:s');
+            }
+
+            $this->updateAttributes($id, $updates);
+
+            if ($selectedCompanyId !== null) {
+                $this->db->query(
+                    "UPDATE bids SET is_winner = CASE WHEN company_id = ? THEN 1 ELSE 0 END WHERE bidding_round_id = ?",
+                    [$selectedCompanyId, $id]
+                );
+            } else {
+                $this->db->query(
+                    "UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?",
+                    [$id]
+                );
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return $this->findById($id);
+    }
+
+    public function rejectRound(string $id, ?string $reason = null): ?array
+    {
+        $updates = [
+            'status' => 'cancelled',
+            'leading_company_id' => null,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($reason !== null && $reason !== '') {
+            $updates['notes'] = $reason;
+        }
+
+        $this->updateAttributes($id, $updates);
+        $this->db->query("UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?", [$id]);
+
+        return $this->findById($id);
+    }
+
     public function availableWasteOverview(): array
     {
         $sql = "SELECT
@@ -165,19 +310,7 @@ class BiddingRound extends BaseModel
             return [];
         }
 
-        return array_map(function (array $row): array {
-            return [
-                'id' => $row['id'],
-                'lotId' => $row['lot_id'] ?? $row['id'],
-                'wasteCategory' => $row['waste_category_name'] ?? '',
-                'quantity' => isset($row['quantity']) ? (float) $row['quantity'] : 0.0,
-                'unit' => $row['unit'] ?? 'kg',
-                'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
-                'biddingCompany' => $row['company_name'] ?? '',
-                'status' => $row['status'] ?? 'active',
-                'endTime' => $row['end_time'] ?? null,
-            ];
-        }, $rows);
+        return array_map(fn(array $row): array => $this->normalizeRound($row), $rows);
     }
 
     public function stats(): array
@@ -208,5 +341,70 @@ class BiddingRound extends BaseModel
              LIMIT {$limit}"
         );
         return $rows ?: [];
+    }
+
+    private function fetchDetailedRow(string $id): ?array
+    {
+        $row = $this->db->fetch(
+            "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name
+             FROM {$this->table} br
+             LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+             LEFT JOIN users u ON u.id = br.leading_company_id
+             WHERE br.id = ?
+             LIMIT 1",
+            [$id]
+        );
+
+        return $row ?: null;
+    }
+
+    private function normalizeRound(array $row): array
+    {
+        $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
+        $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
+        $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : null;
+        $leadingCompanyId = array_key_exists('leading_company_id', $row) ? $row['leading_company_id'] : null;
+
+        return [
+            'id' => $row['id'],
+            'lotId' => $row['lot_id'] ?? $row['id'],
+            'wasteCategory' => $row['waste_category_name'] ?? '',
+            'wasteCategoryId' => isset($row['waste_category_id']) ? (int) $row['waste_category_id'] : null,
+            'quantity' => $quantity,
+            'unit' => $row['unit'] ?? 'kg',
+            'startingBid' => $startingBid,
+            'currentHighestBid' => $currentHighestBid,
+            'biddingCompany' => $row['company_name'] ?? '',
+            'leadingCompanyId' => $leadingCompanyId !== null ? (int) $leadingCompanyId : null,
+            'status' => $row['status'] ?? 'active',
+            'endTime' => $row['end_time'] ?? null,
+            'notes' => $row['notes'] ?? null,
+            'awardedCompany' => $row['company_name'] ?? '',
+        ];
+    }
+
+    private function updateAttributes(string $id, array $attributes): void
+    {
+        if (empty($attributes)) {
+            return;
+        }
+
+        $columns = [];
+        $params = [];
+
+        foreach ($attributes as $column => $value) {
+            $columns[] = $column . ' = ?';
+            $params[] = $value;
+        }
+
+        $params[] = $id;
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $columns) . " WHERE id = ?";
+        $this->db->query($sql, $params);
+    }
+
+    private function generateId(): string
+    {
+        return 'BR-' . strtoupper(bin2hex(random_bytes(4)));
     }
 }

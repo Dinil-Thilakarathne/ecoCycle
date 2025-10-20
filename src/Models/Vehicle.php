@@ -78,6 +78,12 @@ class Vehicle extends BaseModel
         return $this->db->query($sql, $params);
     }
 
+    public function markStatus(int $id, string $status): bool
+    {
+        $sql = "UPDATE {$this->table} SET status = ?, updated_at = NOW() WHERE id = ?";
+        return $this->db->query($sql, [$status, $id]);
+    }
+
     public function delete(int $id): bool
     {
         return $this->db->query("DELETE FROM {$this->table} WHERE id = ?", [$id]);

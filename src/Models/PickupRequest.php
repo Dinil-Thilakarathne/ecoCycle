@@ -252,6 +252,20 @@ class PickupRequest extends BaseModel
         return true;
     }
 
+    public function updateStatusForCollector(string $id, int $collectorId, string $status): bool
+    {
+        $id = trim($id);
+        $collectorId = (int) $collectorId;
+        if ($id === '' || $collectorId <= 0) {
+            return false;
+        }
+
+        return $this->db->query(
+            "UPDATE {$this->table} SET status = ?, updated_at = NOW() WHERE id = ? AND collector_id = ? LIMIT 1",
+            [$status, $id, $collectorId]
+        );
+    }
+
     public function cancelForCustomer(string $id, int $customerId): bool
     {
         $current = $this->db->fetch(
