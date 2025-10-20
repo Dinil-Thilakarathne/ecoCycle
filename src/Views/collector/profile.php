@@ -24,27 +24,63 @@ $showToast = $showToast ?? false;
      ✏ Edit Profile
   </a>
 
-  <!-- Collector Info -->
-    <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Collector Information</h3>
-      <div class="profile-picture">
-        <img src="<?= htmlspecialchars($collector['profile_picture'] ?? 'assets/img/default-collector.png') ?>"
-             alt="Profile Picture" width="100">
+  <!-- Collecter Information -->
+  <div class="pc-card">
+    <h3 style="font-size: 20px; font-weight: bold;">Collector Information</h3>
+
+    <!-- Profile Image Section -->
+    <div style="display: flex; align-items: center; gap: 20px; margin: 15px 0;">
+      <!-- Profile Image Preview -->
+      <div style="text-align: center;">
+        <?php 
+          // Use uploaded image if available, otherwise show default
+          $profilePic = !empty($collector['profile_picture']) 
+            ? htmlspecialchars($collector['profile_picture']) 
+            : 'C:\Users\gjgld\OneDrive\Desktop\download.jpeg';
+        ?>
+        <img 
+          src="<?= $profilePic ?>" 
+          alt="Profile Picture" 
+          style="width: 130px; height: 130px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc; padding: 4px; background: #fff;">
       </div>
 
- <div class="form-group"><label>Name</label>
-        <input type="text" value="<?= htmlspecialchars($collector['name'] ?? 'N/A') ?>" disabled>
-      </div>
-      <div class="form-group"><label>Email</label>
-        <input type="email" value="<?= htmlspecialchars($collector['email'] ?? '') ?>" disabled>
-      </div>
-      <div class="form-group"><label>Collector ID</label>
-        <input type="text" value="<?= htmlspecialchars($collector['collector_id'] ?? 'N/A') ?>" disabled>
-      </div>
-       <div class="form-group"><label>Phone</label>
-        <input type="tel" value="<?= htmlspecialchars($collector['phone'] ?? '') ?>" disabled>
-      </div>
-</div>
+      <!-- Upload New Image Form -->
+      <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 10px;">
+        <!--<label style="font-weight: 500;">Upload New Image</label>-->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input 
+            type="file" 
+            name="profile_picture" 
+            accept="image/*" 
+            required 
+            style="flex: none; width: auto;">
+          <button 
+            type="submit" 
+            class="btn btn-primary outline" 
+            style="padding: 6px 85px; cursor: pointer;">
+            Upload Your Image
+          </button>
+        </div>
+      </form>
+    </div>
+
+
+    <!-- Collector Info Fields -->
+    <div class="form-group"><label>Name</label>
+      <input type="text" value="<?= htmlspecialchars($collector['name'] ?? 'N/A') ?>" disabled>
+    </div>
+    <div class="form-group"><label>Email</label>
+      <input type="email" value="<?= htmlspecialchars($collector['email'] ?? '') ?>" disabled>
+    </div>
+    <div class="form-group"><label>Collector ID</label>
+      <input type="text" value="<?= htmlspecialchars($collector['collector_id'] ?? 'N/A') ?>" disabled>
+    </div>
+    <div class="form-group"><label>Address</label>
+      <textarea disabled><?= htmlspecialchars($collector['address'] ?? '') ?></textarea>
+    </div>
+  </div>
+<!--</div>-->
+
 
   <!-- Bank Details -->
   <div class="pc-card">
