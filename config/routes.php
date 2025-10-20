@@ -45,6 +45,36 @@ $router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/bidding/approve', 'Controllers\Api\BiddingController@approve', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/bidding/reject', 'Controllers\Api\BiddingController@reject', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/company/bids', 'Controllers\Api\Company\BidController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+$router->put('/api/company/bids/{id}', 'Controllers\Api\Company\BidController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+$router->delete('/api/company/bids/{id}', 'Controllers\Api\Company\BidController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
 // Customer pickup request APIs
 $router->get('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@index', [
     'Middleware\AuthMiddleware',
@@ -67,6 +97,12 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CustomerOnly',
+]);
+
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
 ]);
 
 // Root redirect to navigation page for development
