@@ -611,11 +611,9 @@ textarea {
   border-radius: 6px;
 }
 
-/* Toast */
+/* Toast (styled inside a bottom-right container) */
 .toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
+  /* positioning handled by #toast-container in public/js/toast.js */
   background: var(--primary-500);
   color: var(--neutral-0);
   padding: 12px 18px;
