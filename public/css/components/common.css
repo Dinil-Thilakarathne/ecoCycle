@@ -682,13 +682,18 @@
   }
 
   .user-modal__dialog {
+    --_min-width: 320px;
     background: #fff;
     border-radius: 8px;
     padding: 20px;
-    min-width: 320px;
+    width: min(100%, var(--_min-width));
     max-width: 720px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     position: relative;
+
+    @media (min-width: 768px) {
+      --_min-width: 480px;
+    }
   }
 
   .user-modal__dialog .close {

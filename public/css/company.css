@@ -548,19 +548,6 @@ span.unverified {
   margin-top: 175px;
 }
 
-.close {
-  position: absolute;
-  right: 15px;
-  top: 25px;
-  font-size: 40px;
-  text-decoration: none;
-  color: var(--neutral-800);
-}
-
-.close:hover {
-  color: var(--danger);
-}
-
 .form-group {
   margin-bottom: 12px;
   display: flex;
