@@ -3,6 +3,7 @@ $assignedPickups = $assignedPickups ?? [];
 $selectedTimeSlot = $selectedTimeSlot ?? 'all';
 $selectedStatus = $selectedStatus ?? 'all';
 $assignedRequests = array_values($assignedPickups);
+$csrfToken = csrf_token();
 
 // Status badge generator
 function getStatusBadge($status)
@@ -34,6 +35,7 @@ function getStatusBadge($status)
         timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
         status: <?php echo json_encode($selectedStatus); ?>
     };
+    const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <!-- Page Header -->
@@ -143,15 +145,16 @@ function getStatusBadge($status)
         modal.querySelector('.pd-address').textContent = record.address;
         modal.querySelector('.pd-waste').textContent = record.wasteCategories.join(', ');
         modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
-        modal.querySelector('.pd-status').textContent = record.status;
+        const statusValue = normalizeStatusValue(record.status);
+        modal.querySelector('.pd-status').textContent = statusValue;
 
         const btn = document.getElementById('taskActionBtn');
-        if (record.status === 'assigned') {
+        btn.style.display = '';
+        btn.disabled = false;
+        if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
-            btn.style.display = '';
-        } else if (record.status === 'in progress') {
+        } else if (statusValue === 'in progress') {
             btn.textContent = 'Mark as Completed';
-            btn.style.display = '';
         } else {
             btn.style.display = 'none';
         }
@@ -161,31 +164,69 @@ function getStatusBadge($status)
         modal.setAttribute('aria-hidden', 'false');
     }
 
-    function updateTaskStatus() {
+    async function updateTaskStatus() {
         const modal = document.getElementById('pickup-detail-modal');
         const pickupId = modal.getAttribute('data-current-id');
         const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
         if (idx === -1) return;
 
-        let current = window.__PICKUP_DATA[idx].status.toLowerCase();
-        let next = '';
+        const current = normalizeStatusValue(window.__PICKUP_DATA[idx].status);
+        let nextTarget = '';
+        if (current === 'assigned') nextTarget = 'in_progress';
+        else if (current === 'in progress') nextTarget = 'completed';
+        if (!nextTarget) return;
 
-        if (current === 'assigned') next = 'in progress';
-        else if (current === 'in progress') next = 'completed';
+        const btn = document.getElementById('taskActionBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Updating...';
 
-        if (next) {
-            window.__PICKUP_DATA[idx].status = next;
+        try {
+            const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ status: nextTarget })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const message = (payload && payload.message) ? payload.message : 'Failed to update task status.';
+                throw new Error(message);
+            }
+
+            const updated = payload.data || {};
+            const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
+            window.__PICKUP_DATA[idx] = {
+                ...window.__PICKUP_DATA[idx],
+                ...updated,
+                status: normalizedStatus
+            };
 
             const row = document.querySelector(`tr[data-id="${pickupId}"]`);
             if (row) {
                 const statusCell = row.querySelectorAll('td')[5];
-                if (statusCell) statusCell.innerHTML = getStatusBadge(next);
+                if (statusCell) statusCell.innerHTML = getStatusBadge(normalizedStatus);
             }
 
-            modal.querySelector('.pd-status').textContent = next;
-            const btn = document.getElementById('taskActionBtn');
-            if (next === 'in progress') btn.textContent = 'Mark as Completed';
-            else if (next === 'completed') btn.style.display = 'none';
+            modal.querySelector('.pd-status').textContent = normalizedStatus;
+
+            if (normalizedStatus === 'in progress') {
+                btn.textContent = 'Mark as Completed';
+                btn.disabled = false;
+            } else if (normalizedStatus === 'completed') {
+                btn.style.display = 'none';
+            } else {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            alert(error.message || 'Unable to update task status.');
         }
     }
 
@@ -199,13 +240,22 @@ function getStatusBadge($status)
     }
 
     function getStatusBadge(status) {
+        const normalized = normalizeStatusValue(status);
         const map = {
             'pending': 'tag pending',
             'assigned': 'tag assigned',
             'in progress': 'tag inprogress',
             'completed': 'tag completed'
         };
-        const cls = map[status.toLowerCase()] || 'tag';
-        return `<div class="${cls}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>`;
+        const cls = map[normalized] || 'tag';
+        return `<div class="${cls}">${normalized.charAt(0).toUpperCase() + normalized.slice(1)}</div>`;
+    }
+
+    function normalizeStatusValue(status) {
+        const value = (status || '').toString().toLowerCase();
+        if (value === 'in_progress' || value === 'in-progress') {
+            return 'in progress';
+        }
+        return value;
     }
 </script>

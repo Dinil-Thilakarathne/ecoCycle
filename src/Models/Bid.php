@@ -133,6 +133,78 @@ class Bid extends BaseModel
         }
     }
 
+    /**
+     * Update a bid amount belonging to a company.
+     * Returns true on success.
+     */
+    public function updateBid(int $bidId, int $companyId, float $newAmount): bool
+    {
+        if ($bidId <= 0 || $companyId <= 0 || $newAmount <= 0) {
+            throw new \DomainException('Invalid update payload.');
+        }
+
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $row = $this->db->fetch(
+                "SELECT b.id, b.bidding_round_id, br.status, br.end_time, br.current_highest_bid FROM {$this->table} b INNER JOIN bidding_rounds br ON br.id = b.bidding_round_id WHERE b.id = ? AND b.company_id = ? FOR UPDATE",
+                [$bidId, $companyId]
+            );
+
+            if (!$row) {
+                throw new \DomainException('Bid not found or you do not have permission to modify it.');
+            }
+
+            if (($row['status'] ?? '') !== 'active') {
+                throw new \DomainException('Bidding round is closed; cannot update bid.');
+            }
+
+            if (!empty($row['end_time']) && strtotime((string) $row['end_time']) <= time()) {
+                throw new \DomainException('Bidding round has already ended.');
+            }
+
+            $currentHighest = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
+            if ($newAmount <= $currentHighest) {
+                throw new \DomainException('Updated bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            }
+
+            $this->db->query("UPDATE {$this->table} SET amount = ? WHERE id = ? AND company_id = ?", [$newAmount, $bidId, $companyId]);
+
+            // Update round highest if necessary
+            $this->db->query("UPDATE bidding_rounds SET current_highest_bid = ?, leading_company_id = ?, updated_at = NOW() WHERE id = ?", [$newAmount, $companyId, $row['bidding_round_id']]);
+
+            $pdo->commit();
+            return true;
+        } catch (\DomainException $e) {
+            $pdo->rollBack();
+            throw $e;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Delete (cancel) a bid belonging to a company.
+     * Returns true on success.
+     */
+    public function deleteBid(int $bidId, int $companyId): bool
+    {
+        if ($bidId <= 0 || $companyId <= 0) {
+            throw new \DomainException('Invalid delete payload.');
+        }
+
+        // Ensure the bid exists and belongs to the company
+        $row = $this->db->fetch("SELECT id, bidding_round_id FROM {$this->table} WHERE id = ? AND company_id = ? LIMIT 1", [$bidId, $companyId]);
+        if (!$row) {
+            throw new \DomainException('Bid not found or you do not have permission to delete it.');
+        }
+
+        $this->db->query("DELETE FROM {$this->table} WHERE id = ? AND company_id = ?", [$bidId, $companyId]);
+        return true;
+    }
+
     private function mapCompanyHistoryRow(array $row, int $companyId): array
     {
         $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
