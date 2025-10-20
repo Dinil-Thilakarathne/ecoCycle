@@ -8,11 +8,10 @@
 @import url("./components/sidebar.css") layer(components);
 @import url("./components/footer.css") layer(components);
 
-@import url("./components/atomic.css") layer(utilities);
-
 @import url("./landingpage.css") layer(page);
 @import url("./404.css") layer(page);
 
+@import url("./components/atomic.css") layer(utilities);
 /* testing */
 /* @import url("./customer.css");
 @import url("./Collector.css");
