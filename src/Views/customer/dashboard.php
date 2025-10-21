@@ -171,7 +171,7 @@ $customerStats = [
                 <table class="data-table" style="min-width:900px;">
                     <thead>
                         <tr>
-                            <th style="width:60px;">#</th>
+                            <th style="width:60px;">PID</th>
                             <th>Address</th>
                             <th>Time Slot</th>
                             <th>Waste Categories</th>
@@ -201,7 +201,7 @@ $customerStats = [
                                 $categoryList = is_array($categoryListRaw) ? $categoryListRaw : [];
                                 ?>
                                 <tr data-request-id="<?= e((string) $request['id']) ?>">
-                                    <td>#<?= e((string) $request['id']) ?></td>
+                                    <td><?= e((string) $request['id']) ?></td>
                                     <td><?= e((string) ($request['address'] ?? '')) ?></td>
                                     <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
                                     <td>

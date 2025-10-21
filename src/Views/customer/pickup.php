@@ -171,7 +171,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         <table class="data-table" style="min-width:900px;">
             <thead>
                 <tr>
-                    <th style="width:60px;">#</th>
+                    <th style="width:60px;">PID</th>
                     <th>Address</th>
                     <th>Time Slot</th>
                     <th>Waste Categories</th>
@@ -478,7 +478,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
 
                 return `
                     <tr data-request-id="${request.id}">
-                        <td>#${request.id}</td>
+                        <td>${request.id}</td>
                         <td>${escapeHtml(request.address || '')}</td>
                         <td>${escapeHtml(request.timeSlot || '')}</td>
                         <td>${renderWasteCategories(request.wasteCategories)}</td>
