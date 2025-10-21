@@ -323,7 +323,6 @@ $csrfToken = csrf_token();
         Password</button>
     </form>
   </div>
-</div>
 
 <?php if ($showToast && $toastMessage !== ''): ?>
   <script>

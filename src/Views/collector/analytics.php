@@ -57,7 +57,7 @@ function getFeedbackBadge($status)
 
 <div>
     <!-- Page Header -->
-    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
+       <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
         <div data-header-action style="display: flex; gap: var(--space-2);">
             <button class="btn btn-primary" onclick="addFeedback()">
                 <i class="fa-solid fa-comment-dots" style="margin-right: 8px;"></i>
