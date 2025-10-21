@@ -31,7 +31,7 @@ $howItWorksSteps = [
         'step' => '01',
         'title' => 'Schedule pickup',
         'description' => 'Choose your waste categories and preferred time slot through our intuitive platform.',
-        'image' => '/assets/how_it_works_1.jpeg'
+        'image' => '/assets/how_it_works_1.png'
     ],
     [
         'step' => '02',
@@ -60,21 +60,21 @@ $testimonials = [
         'role' => 'Homeowner, Seattle',
         'content' => "I've earned over $300 this year just from my recyclable waste. The pickup service is incredibly reliable and the app makes everything so easy!",
         'rating' => 5,
-        'avatar' => ''
+        'avatar' => '/assets/avatar.png'
     ],
     [
         'name' => 'David Chen',
         'role' => 'GreenTech Recycling',
         'content' => 'The bidding system is transparent and efficient. We\'ve secured high-quality materials at fair prices consistently. Great platform for sourcing materials.',
         'rating' => 5,
-        'avatar' => ''
+        'avatar' => '/assets/avatar.png'
     ],
     [
         'name' => 'Mike Wilson',
         'role' => 'Collector, Portland',
         'content' => 'The route optimization and scheduling system makes my job much more efficient. I can handle 40% more pickups per day now!',
         'rating' => 5,
-        'avatar' => ''
+        'avatar' => '/assets/avatar.png'
     ],
 ];
 ?>
