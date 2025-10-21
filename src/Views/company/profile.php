@@ -31,7 +31,7 @@ $showToast = $showToast ?? false;
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Company Information</h3>
       <div class="profile-picture">
-        <img src="<?= htmlspecialchars($company['profile_picture'] ?? 'assets/img/default-company.png') ?>"
+        <img src="<?= htmlspecialchars($company['profile_picture'] ?? 'assets/avatar.png') ?>"
           alt="Profile Picture" width="100">
       </div>
       <div class="form-group"><label>Name</label>
@@ -56,6 +56,9 @@ $showToast = $showToast ?? false;
       </div>
       <div class="form-group"><label>Phone</label>
         <input type="tel" value="<?= htmlspecialchars($company['phone'] ?? '') ?>" disabled>
+      </div>
+      <div class="form-group"><label>Land Phone</label>
+        <input type="tel" value="011-1234567" disabled>
       </div>
       <div class="form-group"><label>Website</label>
         <input type="text" value="<?= htmlspecialchars($company['website'] ?? '') ?>" disabled>
@@ -133,6 +136,9 @@ $showToast = $showToast ?? false;
       <div class="form-group"><label for="phone" class="form-lable">Phone</label>
         <input type="tel" pattern="[0-9]{10}" maxlength="10" name="phone"
           value="<?= htmlspecialchars($company['phone'] ?? '') ?>">
+      </div>
+      <div class="form-group"><label for="land_phone" class="form-lable">Land Phone</label>
+        <input type="text" name="land_phone" value="011-1234567" disabled>
       </div>
       <div class="form-group"><label class="form-lable">Website</label>
         <input type="text" name="website" value="<?= htmlspecialchars($company['website'] ?? '') ?>">
