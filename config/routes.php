@@ -50,6 +50,21 @@ $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', 
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->get('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 $router->post('/api/bidding/approve', 'Controllers\Api\BiddingController@approve', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
@@ -117,6 +132,7 @@ $router->post('/login', 'AuthController@login');
 $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
+$router->get('/forget-password', 'AuthController@showForgetPassword');
 
 // Auto-register all dashboard routes based on NavigationConfig
 // This ensures consistency between navigation and routes
