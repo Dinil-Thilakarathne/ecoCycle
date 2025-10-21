@@ -125,11 +125,16 @@ class CollectorDashboardController extends DashboardController
      */
     public function profile(): \Core\Http\Response
     {
+        $session = session();
+
         $data = [
             'pageTitle' => 'Collector Profile',
             'collectorProfile' => $this->getCollectorProfile(),
             'vehicleInfo' => $this->getVehicleInfo(),
-            'certifications' => $this->getCertifications()
+            'certifications' => $this->getCertifications(),
+            'statusMessage' => $session->getFlash('status'),
+            'validationErrors' => $session->getFlash('errors', []),
+            'oldInput' => $session->getFlash('old', []),
         ];
 
         return $this->renderDashboard('profile', $data);
@@ -281,11 +286,26 @@ class CollectorDashboardController extends DashboardController
 
         $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
 
+        $firstName = trim((string) ($metadata['firstName'] ?? ''));
+        $lastName = trim((string) ($metadata['lastName'] ?? ''));
+        if ($firstName === '' && $lastName === '') {
+            [$firstName, $lastName] = $this->splitName((string) ($record['name'] ?? ''));
+        }
+
+        $displayName = trim((string) ($record['name'] ?? ''));
+        if ($displayName === '' && ($firstName !== '' || $lastName !== '')) {
+            $displayName = trim($firstName . ' ' . $lastName);
+        }
+
+        $postalCode = trim((string) ($metadata['postalCode'] ?? ($metadata['postal_code'] ?? '')));
+        $nic = trim((string) ($metadata['nic'] ?? ($metadata['NIC'] ?? '')));
+        $description = trim((string) ($metadata['description'] ?? ($metadata['bio'] ?? '')));
+
         $bank = [
-            'account_name' => $record['bank_account_name'] ?? '',
-            'account_number' => $record['bank_account_number'] ?? '',
-            'bank_name' => $record['bank_name'] ?? '',
+            'bankName' => $record['bank_name'] ?? '',
             'branch' => $record['bank_branch'] ?? '',
+            'holderName' => $record['bank_account_name'] ?? '',
+            'accountNumber' => $record['bank_account_number'] ?? '',
         ];
 
         $bankRaw = $metadata['bank'] ?? $metadata['bank_details'] ?? $metadata['bankDetails'] ?? [];
@@ -297,27 +317,38 @@ class CollectorDashboardController extends DashboardController
             $bankRaw = [];
         }
 
-        if ($bank['account_name'] === '') {
-            $bank['account_name'] = $bankRaw['account_name'] ?? ($bankRaw['accountName'] ?? ($bankRaw['holderName'] ?? ''));
-        }
-        if ($bank['account_number'] === '') {
-            $bank['account_number'] = $bankRaw['account_number'] ?? ($bankRaw['accountNumber'] ?? '');
-        }
-        if ($bank['bank_name'] === '') {
-            $bank['bank_name'] = $bankRaw['bank_name'] ?? ($bankRaw['bank'] ?? ($bankRaw['bankName'] ?? ''));
+        if ($bank['bankName'] === '') {
+            $bank['bankName'] = $bankRaw['bankName'] ?? ($bankRaw['bank_name'] ?? ($bankRaw['bank'] ?? ''));
         }
         if ($bank['branch'] === '') {
             $bank['branch'] = $bankRaw['branch'] ?? '';
         }
+        if ($bank['holderName'] === '') {
+            $bank['holderName'] = $bankRaw['holderName'] ?? ($bankRaw['account_name'] ?? ($bankRaw['accountName'] ?? ''));
+        }
+        if ($bank['accountNumber'] === '') {
+            $bank['accountNumber'] = $bankRaw['accountNumber'] ?? ($bankRaw['account_number'] ?? '');
+        }
+
+        $profileImagePath = $record['profileImagePath'] ?? ($record['profile_image_path'] ?? null);
+        $profilePic = $metadata['profile_pic'] ?? ($metadata['profileImage'] ?? $profileImagePath);
 
         $profile = [
             'id' => $record['id'] ?? null,
-            'name' => $record['name'] ?? '',
+            'name' => $displayName,
+            'firstName' => $firstName,
+            'lastName' => $lastName,
             'email' => $record['email'] ?? '',
             'phone' => $record['phone'] ?? '',
             'address' => $record['address'] ?? ($metadata['address'] ?? ''),
-            'profile_picture' => $record['profileImagePath'] ?? ($record['profile_image_path'] ?? null),
+            'postalCode' => $postalCode,
+            'nic' => $nic,
+            'description' => $description,
             'bank' => $bank,
+            'bankAccount' => $bank['accountNumber'],
+            'profile_pic' => $profilePic,
+            'profileImage' => $profileImagePath,
+            'profileImagePath' => $profileImagePath,
             'metadata' => $metadata,
         ];
 
@@ -406,20 +437,47 @@ class CollectorDashboardController extends DashboardController
     {
         $name = $this->user['name'] ?? 'Demo Collector';
         $email = $this->user['email'] ?? 'collector@example.com';
+        [$first, $last] = $this->splitName($name);
 
         return [
             'name' => $name,
+            'firstName' => $first,
+            'lastName' => $last,
             'email' => $email,
             'phone' => $this->user['phone'] ?? '+94 71 000 0000',
             'address' => $this->user['address'] ?? '42 Green Route, Eco City',
-            'profile_picture' => null,
+            'postalCode' => '',
+            'nic' => '',
+            'description' => '',
+            'profile_pic' => null,
+            'profileImage' => null,
+            'profileImagePath' => null,
             'bank' => [
-                'account_name' => $name,
-                'account_number' => '1234567890',
-                'bank_name' => 'National Bank',
+                'bankName' => 'National Bank',
                 'branch' => 'Colombo Main',
+                'holderName' => $name,
+                'accountNumber' => '1234567890',
             ],
+            'bankAccount' => '1234567890',
             'metadata' => [],
         ];
+    }
+
+    private function splitName(string $fullName): array
+    {
+        $fullName = trim($fullName);
+        if ($fullName === '') {
+            return ['', ''];
+        }
+
+        $parts = preg_split('/\s+/', $fullName, 2);
+        if (!$parts) {
+            return ['', ''];
+        }
+
+        $first = $parts[0];
+        $last = $parts[1] ?? '';
+
+        return [$first, $last];
     }
 }
