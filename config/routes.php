@@ -175,6 +175,13 @@ $router->post('/customer/profile', 'Controllers\Customer\ProfileController@updat
     'Middleware\Roles\CustomerOnly'
 ]);
 
+// Collector profile management
+$router->post('/collector/profile', 'Controllers\Collector\ProfileController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
