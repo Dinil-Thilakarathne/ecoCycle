@@ -16,7 +16,8 @@ return [
                     'type' => 'tel',
                     'placeholder' => '07XXXXXXXX',
                     'help' => 'Use a 10-digit mobile number starting with 0.',
-                    'rules' => ['required', 'regex:/^0\d{9}$/'],
+                    // made nullable so registration can proceed without phone for now
+                    'rules' => ['nullable', 'regex:/^0\d{9}$/'],
                     'store' => 'user',
                     'column' => 'phone',
                     'attributes' => [
@@ -30,7 +31,8 @@ return [
                     'label' => 'Address',
                     'type' => 'textarea',
                     'placeholder' => 'Street address, city',
-                    'rules' => ['required', 'max:255'],
+                    // made nullable so registration can proceed without address for now
+                    'rules' => ['nullable', 'max:255'],
                     'store' => 'user',
                     'column' => 'address',
                     'attributes' => [
@@ -164,7 +166,8 @@ return [
                     'label' => 'Head office address',
                     'type' => 'textarea',
                     'placeholder' => 'Registered business address',
-                    'rules' => ['required', 'max:255'],
+                    // made nullable so company registration can proceed without address for now
+                    'rules' => ['nullable', 'max:255'],
                     'store' => 'user',
                     'column' => 'address',
                     'attributes' => [

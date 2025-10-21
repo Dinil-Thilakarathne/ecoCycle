@@ -57,7 +57,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
             <div style="display:flex; gap:.5rem; margin-top:var(--space-2); width: 100%; flex-direction:column;">
                 <button id="loginSubmit" type="submit" class="btn btn-gradient login-card__action">Sign in</button>
                 <div class="forget-password">
-                    <a href="/forgot-password">Forgot your password?</a>
+                    <a href="/forget-password">Forgot your password?</a>
                 </div>
             </div>
         </form>
@@ -197,8 +197,5 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                 <?php endif; ?>
             })();
         </script>
-    </div>
-    <div class="page_image">
-        <img src="/assets/login_page.png" alt="login page Image" />
     </div>
 </section>
