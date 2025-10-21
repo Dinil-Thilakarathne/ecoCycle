@@ -136,174 +136,303 @@ class AuthController extends BaseController
         return $this->view('auth/register');
     }
 
+    /**
+     * Show password reset request form (UI only).
+     */
+    public function showForgetPassword(): Response
+    {
+        return $this->view('auth/forget-password');
+    }
+
     /**phe
      * Handle registration
      */
     public function register(Request $request): Response
     {
-        $rolesConfig = $this->getRegistrationRoles();
-        $wantsJson = $request->expectsJson() || $request->isAjax();
-        $roleInput = (string) $request->input('role');
-        $role = $this->resolveRegistrationRole($roleInput, $rolesConfig);
+        try {
+            // Debug: log incoming register attempt (avoid logging passwords)
+            try {
+                $logName = substr((string) $request->input('name'), 0, 120);
+                $logEmail = substr((string) $request->input('email'), 0, 150);
+                $logRole = substr((string) $request->input('role'), 0, 50);
+                $hasFile = $request->hasFile('profile_photo') ? 'yes' : 'no';
+                error_log("[Register][POST] name=" . $logName . " email=" . $logEmail . " role=" . $logRole . " file=" . $hasFile);
 
-        $name = trim((string) $request->input('name'));
-        $email = trim((string) $request->input('email'));
-        $password = (string) $request->input('password');
-        $passwordConfirm = (string) $request->input('password_confirm');
-
-        $roleDefinition = $rolesConfig[$role] ?? [];
-        $roleFields = is_array($roleDefinition['fields'] ?? null) ? $roleDefinition['fields'] : [];
-
-        $dynamicValues = [];
-        foreach ($roleFields as $field) {
-            $fieldName = $field['name'] ?? null;
-            if (!$fieldName) {
-                continue;
+                // Persistent debug log (storage/logs/register_debug.log)
+                try {
+                    $logDir = base_path('storage/logs');
+                    if (!is_dir($logDir)) {
+                        @mkdir($logDir, 0755, true);
+                    }
+                    $logFile = $logDir . '/register_debug.log';
+                    $sessionToken = '';
+                    try {
+                        $sessionToken = session()->token();
+                    } catch (\Throwable $_) {
+                    }
+                    $requestToken = (string) $request->input('_token');
+                    $cookies = $_SERVER['HTTP_COOKIE'] ?? '';
+                    $entry = sprintf(
+                        "%s | name=%s | email=%s | role=%s | file=%s | session_token=%s | request_token=%s | cookies=%s\n",
+                        date('c'),
+                        $logName,
+                        $logEmail,
+                        $logRole,
+                        $hasFile,
+                        $sessionToken,
+                        $requestToken,
+                        preg_replace('/;?\s*?PHPSESSID=[^;]*/', ';PHPSESSID=REDACTED', $cookies)
+                    );
+                    @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+                } catch (\Throwable $_) {
+                    // ignore persistent log failures
+                }
+            } catch (\Throwable $_) {
+                // ignore logging failures
             }
 
-            $raw = $request->input($fieldName);
-            $dynamicValues[$fieldName] = is_array($raw) ? $raw : trim((string) $raw);
-        }
+            $rolesConfig = $this->getRegistrationRoles();
 
-        $oldInput = array_merge(
-            ['name' => $name, 'email' => $email, 'role' => $role],
-            $dynamicValues
-        );
+            // DEBUG: log sanitized POST body to help trace missing fields (don't log passwords)
+            try {
+                $body = $request->all();
+                unset($body['password'], $body['password_confirm']);
+                $sanitized = [];
+                foreach ($body as $k => $v) {
+                    if (is_string($v) && strlen($v) > 200) {
+                        $sanitized[$k] = substr($v, 0, 200) . '...';
+                    } else {
+                        $sanitized[$k] = $v;
+                    }
+                }
+                @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | request_body | " . json_encode($sanitized, JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+            } catch (\Throwable $_) {
+                // ignore logging failures
+            }
+            $wantsJson = $request->expectsJson() || $request->isAjax();
+            $roleInput = (string) $request->input('role');
+            $role = $this->resolveRegistrationRole($roleInput, $rolesConfig);
 
-        if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '') {
-            return $this->registrationErrorRedirect($oldInput, 'Please fill out all required fields.', $wantsJson);
-        }
+            $name = trim((string) $request->input('name'));
+            $email = trim((string) $request->input('email'));
+            $password = (string) $request->input('password');
+            $passwordConfirm = (string) $request->input('password_confirm');
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $this->registrationErrorRedirect($oldInput, 'Please provide a valid email address.', $wantsJson);
-        }
+            $roleDefinition = $rolesConfig[$role] ?? [];
+            $roleFields = is_array($roleDefinition['fields'] ?? null) ? $roleDefinition['fields'] : [];
 
-        if (strlen($password) < 6) {
-            return $this->registrationErrorRedirect($oldInput, 'Password must be at least 6 characters.', $wantsJson);
-        }
+            $dynamicValues = [];
+            foreach ($roleFields as $field) {
+                $fieldName = $field['name'] ?? null;
+                if (!$fieldName) {
+                    continue;
+                }
 
-        if ($password !== $passwordConfirm) {
-            return $this->registrationErrorRedirect($oldInput, 'Passwords do not match.', $wantsJson);
-        }
-
-        $fieldErrors = [];
-        $userOverrides = [];
-        $metadataPayload = [];
-
-        foreach ($roleFields as $field) {
-            $fieldName = $field['name'] ?? null;
-            if (!$fieldName) {
-                continue;
+                $raw = $request->input($fieldName);
+                $dynamicValues[$fieldName] = is_array($raw) ? $raw : trim((string) $raw);
             }
 
-            $value = $dynamicValues[$fieldName] ?? '';
-            $fieldValidationErrors = $this->validateRegistrationField($field, $value);
-            if (!empty($fieldValidationErrors)) {
-                $fieldErrors = array_merge($fieldErrors, $fieldValidationErrors);
-                continue;
+            // DEBUG: persist the received dynamic field values so we can see what the server got
+            try {
+                $dbg = [];
+                foreach ($dynamicValues as $k => $v) {
+                    $dbg[] = $k . '=' . (is_array($v) ? json_encode($v) : (string) $v);
+                }
+                @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | dynamic_values | " . implode(' | ', $dbg) . "\n", FILE_APPEND | LOCK_EX);
+            } catch (\Throwable $_) {
+                // ignore logging problems
             }
 
-            $this->assignRegistrationFieldValue($field, $value, $userOverrides, $metadataPayload);
-        }
-
-        if (!empty($fieldErrors)) {
-            return $this->registrationErrorRedirect(
-                $oldInput,
-                'Please review your details: ' . implode(' ', $fieldErrors),
-                $wantsJson
+            $oldInput = array_merge(
+                ['name' => $name, 'email' => $email, 'role' => $role],
+                $dynamicValues
             );
-        }
 
-        $userModel = new User();
-
-        try {
-            $existing = $userModel->findByEmail($email);
-            if ($existing) {
-                return $this->registrationErrorRedirect($oldInput, 'An account with that email already exists.', $wantsJson);
+            if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '') {
+                return $this->registrationErrorRedirect($oldInput, 'Please fill out all required fields.', $wantsJson);
             }
-        } catch (\Throwable $e) {
-            return $this->registrationErrorRedirect($oldInput, 'Unable to access database. Please try again later.', $wantsJson);
-        }
 
-        $roleId = null;
-        try {
-            $db = new \Core\Database();
-            $row = $db->fetch('SELECT id FROM roles WHERE name = ? LIMIT 1', [$role]);
-            if ($row && isset($row['id'])) {
-                $roleId = (int) $row['id'];
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $this->registrationErrorRedirect($oldInput, 'Please provide a valid email address.', $wantsJson);
             }
-        } catch (\Throwable $e) {
-            // ignore - role id remains null
-        }
 
-        $imageManager = new ProfileImageManager();
-        $profileImagePath = null;
+            if (strlen($password) < 6) {
+                return $this->registrationErrorRedirect($oldInput, 'Password must be at least 6 characters.', $wantsJson);
+            }
 
-        if ($request->hasFile('profile_photo')) {
-            $uploadResult = $imageManager->store($request->file('profile_photo') ?? []);
-            if (!$uploadResult['ok']) {
+            if ($password !== $passwordConfirm) {
+                return $this->registrationErrorRedirect($oldInput, 'Passwords do not match.', $wantsJson);
+            }
+
+            $fieldErrors = [];
+            $userOverrides = [];
+            $metadataPayload = [];
+
+            foreach ($roleFields as $field) {
+                $fieldName = $field['name'] ?? null;
+                if (!$fieldName) {
+                    continue;
+                }
+
+                $value = $dynamicValues[$fieldName] ?? '';
+                $fieldValidationErrors = $this->validateRegistrationField($field, $value);
+                if (!empty($fieldValidationErrors)) {
+                    $fieldErrors = array_merge($fieldErrors, $fieldValidationErrors);
+                    continue;
+                }
+
+                $this->assignRegistrationFieldValue($field, $value, $userOverrides, $metadataPayload);
+            }
+
+            if (!empty($fieldErrors)) {
                 return $this->registrationErrorRedirect(
                     $oldInput,
-                    $uploadResult['error'] ?? 'Failed to upload the profile photo.',
+                    'Please review your details: ' . implode(' ', $fieldErrors),
                     $wantsJson
                 );
             }
 
-            $profileImagePath = $uploadResult['path'] ?? null;
-            if ($profileImagePath === null) {
-                return $this->registrationErrorRedirect($oldInput, 'Failed to process the uploaded profile photo.', $wantsJson);
+            $userModel = new User();
+
+            try {
+                $existing = $userModel->findByEmail($email);
+                if ($existing) {
+                    // Log existing user outcome
+                    try {
+                        @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | existing_user_email=" . $email . "\n", FILE_APPEND | LOCK_EX);
+                    } catch (\Throwable $_) {
+                    }
+                    return $this->registrationErrorRedirect($oldInput, 'An account with that email already exists.', $wantsJson);
+                }
+            } catch (\Throwable $e) {
+                try {
+                    @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | findByEmail_error=" . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
+                } catch (\Throwable $_) {
+                }
+                return $this->registrationErrorRedirect($oldInput, 'Unable to access database. Please try again later.', $wantsJson);
             }
-        }
 
-        $data = [
-            'name' => $name,
-            'email' => $email,
-            'type' => $role,
-            'password' => $password,
-        ];
-
-        if ($roleId !== null) {
-            $data['role_id'] = $roleId;
-        }
-
-        if ($profileImagePath !== null) {
-            $data['profile_image_path'] = $profileImagePath;
-        }
-
-        if (!empty($userOverrides)) {
-            foreach ($userOverrides as $column => $value) {
-                $data[$column] = $value;
+            $roleId = null;
+            try {
+                $db = new \Core\Database();
+                $row = $db->fetch('SELECT id FROM roles WHERE name = ? LIMIT 1', [$role]);
+                if ($row && isset($row['id'])) {
+                    $roleId = (int) $row['id'];
+                }
+            } catch (\Throwable $e) {
+                // ignore - role id remains null
             }
-        }
 
-        if (!empty($metadataPayload)) {
-            $data['metadata'] = $metadataPayload;
-        }
+            $imageManager = new ProfileImageManager();
+            $profileImagePath = null;
 
-        try {
-            $newId = $userModel->createUser($data);
-            if ($newId === false) {
+            if ($request->hasFile('profile_photo')) {
+                $uploadResult = $imageManager->store($request->file('profile_photo') ?? []);
+                if (!$uploadResult['ok']) {
+                    return $this->registrationErrorRedirect(
+                        $oldInput,
+                        $uploadResult['error'] ?? 'Failed to upload the profile photo.',
+                        $wantsJson
+                    );
+                }
+
+                $profileImagePath = $uploadResult['path'] ?? null;
+                if ($profileImagePath === null) {
+                    return $this->registrationErrorRedirect($oldInput, 'Failed to process the uploaded profile photo.', $wantsJson);
+                }
+            }
+
+            $data = [
+                'name' => $name,
+                'email' => $email,
+                'type' => $role,
+                'password' => $password,
+            ];
+
+            if ($roleId !== null) {
+                $data['role_id'] = $roleId;
+            }
+
+            if ($profileImagePath !== null) {
+                $data['profile_image_path'] = $profileImagePath;
+            }
+
+            if (!empty($userOverrides)) {
+                foreach ($userOverrides as $column => $value) {
+                    $data[$column] = $value;
+                }
+            }
+
+            if (!empty($metadataPayload)) {
+                $data['metadata'] = $metadataPayload;
+            }
+
+            try {
+                $newId = $userModel->createUser($data);
+                if ($newId === false) {
+                    try {
+                        @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | createUser_failed\n", FILE_APPEND | LOCK_EX);
+                    } catch (\Throwable $_) {
+                    }
+                    if ($profileImagePath !== null) {
+                        $imageManager->delete($profileImagePath);
+                    }
+                    return $this->registrationErrorRedirect($oldInput, 'Failed to create account. Please try again.', $wantsJson);
+                }
+
+                try {
+                    @file_put_contents(base_path('storage/logs/register_debug.log'), date('c') . " | createUser_success id=" . (int) $newId . "\n", FILE_APPEND | LOCK_EX);
+                } catch (\Throwable $_) {
+                }
+
+                // Ensure role_id is persisted even if the initial lookup missed it.
+                if (!isset($data['role_id']) || $data['role_id'] === null) {
+                    try {
+                        $db = new \Core\Database();
+                        $row = $db->fetch('SELECT id FROM roles WHERE name = ? LIMIT 1', [$role]);
+                        if ($row && isset($row['id'])) {
+                            $resolvedRoleId = (int) $row['id'];
+                            $userModel->updateUser((int) $newId, ['role_id' => $resolvedRoleId]);
+                        }
+                    } catch (\Throwable $e) {
+                        // ignore — role assignment is best-effort
+                    }
+                }
+            } catch (\Throwable $e) {
                 if ($profileImagePath !== null) {
                     $imageManager->delete($profileImagePath);
                 }
-                return $this->registrationErrorRedirect($oldInput, 'Failed to create account. Please try again.', $wantsJson);
+                return $this->registrationErrorRedirect($oldInput, 'Failed to create account: ' . $e->getMessage(), $wantsJson);
             }
-        } catch (\Throwable $e) {
-            if ($profileImagePath !== null) {
-                $imageManager->delete($profileImagePath);
-            }
-            return $this->registrationErrorRedirect($oldInput, 'Failed to create account: ' . $e->getMessage(), $wantsJson);
-        }
 
-        session()->flash('success', 'Account created. Please sign in.');
-        if ($wantsJson) {
-            return \Core\Http\Response::json([
-                'success' => true,
-                'message' => 'Account created. Please sign in.',
-                'redirect' => '/login',
-            ]);
+            session()->flash('success', 'Account created. Please sign in.');
+            if ($wantsJson) {
+                return \Core\Http\Response::json([
+                    'success' => true,
+                    'message' => 'Account created. Please sign in.',
+                    'redirect' => '/login',
+                ]);
+            }
+            return redirect('/login');
+        } catch (\Throwable $e) {
+            // Log and provide a friendly error to the user
+            error_log('[Register] Unhandled exception: ' . $e->getMessage() . " in " . $e->getFile() . ':' . $e->getLine());
+            try {
+                if (isset($imageManager) && isset($profileImagePath) && $profileImagePath !== null) {
+                    $imageManager->delete($profileImagePath);
+                }
+            } catch (\Throwable $_) {
+                // ignore cleanup errors
+            }
+
+            $wantsJson = isset($wantsJson) ? $wantsJson : ($request->expectsJson() || $request->isAjax());
+            if ($wantsJson) {
+                return \Core\Http\Response::errorJson('Server error during registration. Please try again later.', 500);
+            }
+
+            session()->flash('error', 'An unexpected error occurred while creating your account. Please try again.');
+            return redirect('/register');
         }
-        return redirect('/login');
     }
 
     /**
@@ -554,6 +683,20 @@ class AuthController extends BaseController
      */
     private function registrationErrorRedirect(array $oldInput, string $message, bool $wantsJson = false): Response
     {
+        // Persistent logging for debugging registration errors
+        try {
+            $logDir = base_path('storage/logs');
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+            $logFile = $logDir . '/register_debug.log';
+            $summary = isset($oldInput['email']) ? $oldInput['email'] : ($oldInput['name'] ?? '');
+            $entry = sprintf("%s | registration_error | email=%s | message=%s\n", date('c'), $summary, str_replace("\n", ' ', $message));
+            @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable $_) {
+            // ignore logging failures
+        }
+
         if ($wantsJson) {
             return \Core\Http\Response::errorJson($message, 422);
         }

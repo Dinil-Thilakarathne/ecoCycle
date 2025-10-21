@@ -38,6 +38,22 @@ class BiddingRound extends BaseModel
         return (bool) $row;
     }
 
+    public function existsByLotIdExcept(string $lotId, string $excludeId): bool
+    {
+        $trimmed = trim($lotId);
+        $ignore = trim($excludeId);
+        if ($trimmed === '' || $ignore === '') {
+            return false;
+        }
+
+        $row = $this->db->fetch(
+            "SELECT id FROM {$this->table} WHERE lot_id = ? AND id <> ? LIMIT 1",
+            [$trimmed, $ignore]
+        );
+
+        return (bool) $row;
+    }
+
     public function createRound(array $payload): array
     {
         $id = $payload['id'] ?? $this->generateId();
@@ -61,6 +77,37 @@ class BiddingRound extends BaseModel
         $this->db->query($sql, $params);
 
         return $this->findById($id) ?? [];
+    }
+
+    public function updateRound(string $id, array $attributes): ?array
+    {
+        if (empty($attributes)) {
+            return $this->findById($id);
+        }
+
+        $currentRow = $this->db->fetch(
+            "SELECT current_highest_bid FROM {$this->table} WHERE id = ? LIMIT 1",
+            [$id]
+        );
+
+        if (!$currentRow) {
+            return null;
+        }
+
+        $updates = $attributes;
+        $updates['updated_at'] = date('Y-m-d H:i:s');
+
+        if (isset($attributes['starting_bid'])) {
+            $startingBid = (float) $attributes['starting_bid'];
+            $currentHighest = isset($currentRow['current_highest_bid']) ? (float) $currentRow['current_highest_bid'] : null;
+            if ($currentHighest === null || $startingBid > $currentHighest) {
+                $updates['current_highest_bid'] = $startingBid;
+            }
+        }
+
+        $this->updateAttributes($id, $updates);
+
+        return $this->findById($id);
     }
 
     public function approveRound(string $id, ?int $companyId = null): ?array
@@ -143,6 +190,27 @@ class BiddingRound extends BaseModel
 
         if ($reason !== null && $reason !== '') {
             $updates['notes'] = $reason;
+        }
+
+        $this->updateAttributes($id, $updates);
+        $this->db->query("UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?", [$id]);
+
+        return $this->findById($id);
+    }
+
+    public function cancelRound(string $id, ?string $reason = null): ?array
+    {
+        $trimmedReason = $reason !== null ? trim($reason) : null;
+
+        $updates = [
+            'status' => 'cancelled',
+            'leading_company_id' => null,
+            'end_time' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($trimmedReason !== null && $trimmedReason !== '') {
+            $updates['notes'] = $trimmedReason;
         }
 
         $this->updateAttributes($id, $updates);
