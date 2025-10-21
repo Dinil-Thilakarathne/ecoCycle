@@ -281,7 +281,6 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>Vehicle ID</th>
                                     <th>Today's Pickups</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -293,7 +292,6 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                         <td class="font-medium"><?= htmlspecialchars($collector['name']) ?></td>
                                         <td><?= htmlspecialchars($collector['email']) ?></td>
                                         <td><?= htmlspecialchars($collector['phone']) ?></td>
-                                        <td><?= htmlspecialchars($collector['vehicleId']) ?></td>
                                         <td><?= htmlspecialchars($collector['todayPickups']) ?></td>
                                         <td><?= getStatusBadge($collector['status']) ?></td>
                                         <td>

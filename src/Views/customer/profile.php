@@ -36,7 +36,7 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 } elseif (is_string($profileImage) && $profileImage !== '') {
   $profileImageSrc = '/' . ltrim($profileImage, '/');
 } else {
-  $profileImageSrc = 'assets/avatar.png';
+  $profileImageSrc = '/assets/avatar.png';
 }
 
 $toastMessage = $toastMessage ?? '';
@@ -63,9 +63,6 @@ $csrfToken = csrf_token();
     </div>
   </header>
 
-  <a href="#editModal" class="btn btn-outline"
-    style="position: absolute; right: 6%; top: 15%; background:var(--info-light);">✏️ Edit Profile</a>
-
   <div class="p-info-card">
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Customer Information</h3>
@@ -87,6 +84,9 @@ $csrfToken = csrf_token();
     </div>
 
     <div class="pc-card">
+      <a href="#editModal" class="btn btn-outline"
+        style="position: absolute; right: 6%; top: 0%; background:var(--info-light);">✏️ Edit Profile</a>
+
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($displayEmail) ?>" disabled>
@@ -126,7 +126,7 @@ $csrfToken = csrf_token();
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankModal" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">See
+        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">See
             Bank Details</a></p>
       </div>
     </div>
@@ -135,8 +135,9 @@ $csrfToken = csrf_token();
   <div class="pc-card">
     <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
     <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
-    <p><button class="btn btn-primary" style="margin-bottom: 5px" disabled>Two-Factor Authentication</button></p>
-    <p><button class="p-btn-delete" disabled>Delete Account</button></p>
+    <p><button type="button" class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button>
+    </p>
+    <p><button type="button" class="p-btn-delete">Delete Account</button></p>
   </div>
 </main>
 
@@ -197,7 +198,7 @@ $csrfToken = csrf_token();
 </div>
 
 <!-- Bank Details Modal -->
-<div id="bankModal" class="form-modal">
+<div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
@@ -242,13 +243,26 @@ $csrfToken = csrf_token();
   </div>
 </div>
 
-<!-- Toast Notification -->
+
 <?php if ($showToast && $toastMessage !== ''): ?>
-  <?php if ($toastType === 'error'): ?>
-    <div class="toast" style="background:#3b0210;color:#ffd6d6;">⚠️ <?= htmlspecialchars($toastMessage) ?></div>
-  <?php else: ?>
-    <div class="toast">✅ <?= htmlspecialchars($toastMessage) ?></div>
-  <?php endif; ?>
+  <script>
+    (function () {
+      const triggerToast = function () {
+        if (typeof window.__createToast === 'function') {
+          window.__createToast(
+            <?= json_encode($toastMessage, JSON_UNESCAPED_UNICODE) ?>,
+            <?= json_encode($toastType === 'error' ? 'error' : 'success') ?>,
+            4000
+          );
+        }
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', triggerToast);
+      } else {
+        triggerToast();
+      }
+    })();
+  </script>
 <?php endif; ?>
 
 <?php if (!empty($errors)): ?>

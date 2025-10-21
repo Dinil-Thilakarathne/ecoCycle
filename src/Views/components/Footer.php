@@ -7,8 +7,7 @@ $footerNav = [
         ['label' => 'For Households', 'href' => '/customer'],
         ['label' => 'For Companies', 'href' => '/company'],
         ['label' => 'For Collectors', 'href' => '/collector'],
-        ['label' => 'Pricing', 'href' => '/pricing'],
-    ],
+   ],
 ];
 
 // Contact info formatted for Sri Lanka
@@ -57,10 +56,6 @@ $contactInfo = [
 
         <div class="site-footer__bottom">
             <p class="site-footer__copyright">&copy; <?php echo date('Y'); ?> Ecocycle. All rights reserved.</p>
-            <div class="site-footer__powered">
-                <span>Powered by sustainable technology</span>
-                <i class="fa-solid fa-bolt-lightning"></i>
-            </div>
         </div>
     </div>
 </footer>
