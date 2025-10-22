@@ -211,8 +211,13 @@
           data: materialWeights,
           backgroundColor: materialColors,
           borderWidth: 2,
-          borderColor: '#ffffff'
+          borderColor: '#ffffff',
+          hoverOffset: 4
         }]
+      },
+      config: {
+        rotation: 0,
+        circumference: 360,
       },
       options: {
         responsive: true,
