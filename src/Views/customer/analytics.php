@@ -63,25 +63,9 @@ $wasteTypeData = [
                 <span class="tag success">Total income this month</span>
             </div>
         </div>
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Progress</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
-            </div>
-            <?php $customerRating = 82; // Example rating percent ?>
-            <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                <?= $customerRating ?>%
-            </p>
-            <div style="width:100%;background:#f1f5f9;border-radius:8px;height:12px;margin-bottom:0.5rem;">
-                <div style="width:<?= $customerRating ?>%;background:#22c55e;height:100%;border-radius:8px;"></div>
-            </div>
-            <div class="feature-card__footer">
-                <span class="tag success">Your customer rating progress</span>
-            </div>
-        </div>
     </div>
 
-    <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:2.5rem;">
+    <div class="stats-grid">
         <!-- Multi-bar graph for waste types per month (last 3 months) -->
         <div class="feature-card">
             <div class="section-header" style="margin-bottom:1rem;">

@@ -4,6 +4,7 @@ use function htmlspecialchars as e;
 
 $csrfToken = csrf_token();
 $timeSlots = $timeSlots ?? [];
+consoleLog($timeSlots);
 $wasteCategories = $wasteCategories ?? [];
 $pickupRequests = array_values($pickupRequests ?? []);
 // Remove any cancelled requests from the initial server-side list so they don't show anywhere
@@ -458,6 +459,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
             return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
         }
 
+        // Format a Date object for input[type=date] as local YYYY-MM-DD (avoid toISOString UTC shift)
+        function formatDateForInput(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function renderStats() {
             const cards = document.querySelectorAll('.feature-card');
             if (cards.length < 4) return;
@@ -607,7 +617,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
         function showEditRequestForm(requestId) {
             const modal = editModal;
             if (!modal) return;
-            const request = state.requests.find((item) => item.id === requestId);
+            const idStr = String(requestId ?? '');
+            const request = state.requests.find((item) => String(item.id) === idStr);
             if (!request) return;
 
             const form = document.getElementById('editRequestForm');
@@ -619,13 +630,21 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const scheduledInput = form.querySelector('#edit_date');
             if (scheduledInput) {
                 if (request.scheduledAt) {
-                    const date = new Date(request.scheduledAt.replace(' ', 'T'));
+                    const date = new Date(String(request.scheduledAt).replace(' ', 'T'));
+                    console.log('parsed scheduledAt date:', date);
                     if (!Number.isNaN(date.getTime())) {
-                        scheduledInput.value = date.toISOString().split('T')[0];
+                        // Use local date components to avoid UTC offset moving the day backwards
+                        scheduledInput.value = formatDateForInput(date);
                     }
                 } else {
                     scheduledInput.value = '';
                 }
+            }
+            const dateField = document.getElementById('edit_date');
+            if (dateField) {
+                const minDate = new Date();
+                minDate.setDate(minDate.getDate() + 1);
+                dateField.min = minDate.toISOString().split('T')[0];
             }
 
             const selectedIds = new Set(
@@ -642,7 +661,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
 
         function hideEditRequestForm() {
             if (editModal) {
-                editModal.style.display = 'none';
+                // Keep behavior consistent with showEditRequestForm which uses class toggling
+                editModal.classList.remove('modal-open');
             }
         }
 
@@ -833,9 +853,11 @@ if (!function_exists('customer_pickup_format_datetime')) {
             document.addEventListener('click', (event) => {
                 const target = event.target;
                 if (!(target instanceof HTMLElement)) return;
-                const action = target.getAttribute('data-action');
+                const actionEl = target.closest('[data-action]');
+                if (!(actionEl instanceof HTMLElement)) return;
+                const action = actionEl.getAttribute('data-action');
                 if (!action) return;
-                const requestId = target.getAttribute('data-id');
+                const requestId = actionEl.getAttribute('data-id');
                 if (!requestId) return;
 
                 if (action === 'edit') {

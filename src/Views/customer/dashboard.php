@@ -4,6 +4,11 @@ use function htmlspecialchars as e;
 
 $initialPickupRequests = $pickupRequests ?? $recentPickups ?? [];
 $pickupRequests = is_array($initialPickupRequests) ? array_values($initialPickupRequests) : [];
+// Remove cancelled requests from the dashboard so they are never displayed here
+$pickupRequests = array_values(array_filter($pickupRequests, static function ($r) {
+    $status = strtolower((string) ($r['status'] ?? ''));
+    return $status !== 'cancelled';
+}));
 $filter = $_GET['filter'] ?? 'all';
 $normalizedFilter = is_string($filter) ? strtolower($filter) : 'all';
 
@@ -155,14 +160,14 @@ $customerStats = [
                     'assigned' => 'Assigned',
                     'confirmed' => 'Confirmed',
                     'completed' => 'Completed',
-                    'cancelled' => 'Cancelled',
+                    // cancelled intentionally omitted from dashboard filters
                 ];
                 foreach ($filters as $key => $label):
                     $isActive = $normalizedFilter === $key ? 'btn-primary' : 'btn-outline';
                     ?>
-                    <a class="btn <?= $isActive ?>" href="?filter=<?= e($key) ?>">
+                    <button type="button" class="btn <?= $isActive ?>" data-filter="<?= e($key) ?>">
                         <?= e($label) ?>
-                    </a>
+                    </button>
                 <?php endforeach; ?>
             </div>
 
@@ -179,10 +184,9 @@ $customerStats = [
                             <th>Scheduled</th>
                             <th>Collector</th>
                             <th>Status</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="dashboard-pickup-body">
                         <?php if (empty($filteredRequests)): ?>
                             <tr>
                                 <td colspan="9" class="empty-state">
@@ -226,9 +230,6 @@ $customerStats = [
                                             <?= e(ucfirst($status)) ?>
                                         </span>
                                     </td>
-                                    <td style="text-align:center;">
-                                        <a class="btn btn-outline btn-sm" href="/customer/pickup">Manage</a>
-                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -238,3 +239,136 @@ $customerStats = [
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        // Client-side renderer for the Recent Pickups table so filtering does not change the URL
+        const state = {
+            requests: <?= json_encode($pickupRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
+            filter: '<?= e($normalizedFilter) ?>'
+        };
+
+        const tableBody = document.getElementById('dashboard-pickup-body');
+        const filterButtons = document.querySelectorAll('[data-filter]');
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatDate(value) {
+            if (!value) return '-';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                const parsed = new Date(String(value).replace(' ', 'T'));
+                if (Number.isNaN(parsed.getTime())) return '-';
+                return parsed.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+            }
+            return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+        }
+
+        function statusClass(status) {
+            const map = {
+                pending: 'pending',
+                assigned: 'assigned',
+                confirmed: 'assigned',
+                completed: 'completed',
+                cancelled: 'warning'
+            };
+            return map[(status || '').toLowerCase()] || 'secondary';
+        }
+
+        function renderWasteCategories(rawList) {
+            const list = Array.isArray(rawList) ? rawList : [];
+            const normalized = list.map((item) => (typeof item === 'string' ? item.trim() : String(item).trim())).filter(Boolean);
+            if (!normalized.length) return '<span>-</span>';
+            return '<div class="badge-group">' + normalized.map(n => `<span class="tag">${escapeHtml(n)}</span>`).join('') + '</div>';
+        }
+
+        function capitalize(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function renderTable() {
+            if (!tableBody) return;
+
+            const filtered = state.filter === 'all' ? state.requests : state.requests.filter(r => ((r.status || '').toLowerCase()) === state.filter);
+
+            if (!filtered.length) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-content">
+                                <div class="empty-icon">📦</div>
+                                <h3>No pickup requests found</h3>
+                                <p>No pickup requests match your current filter.</p>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            const rows = filtered.map((request) => {
+                const status = (request.status || 'pending');
+                const normalizedStatus = status.toLowerCase();
+                const collector = request.collectorName ? request.collectorName : '-';
+                const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
+                const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
+
+                return `
+                    <tr data-request-id="${escapeHtml(String(request.id))}">
+                        <td>${escapeHtml(String(request.id))}</td>
+                        <td>${escapeHtml(request.address || '')}</td>
+                        <td>${escapeHtml(request.timeSlot || '')}</td>
+                        <td>${renderWasteCategories(request.wasteCategories)}</td>
+                        <td>${escapeHtml(formatDate(request.createdAt))}</td>
+                        <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
+                        <td>${escapeHtml(collector)}</td>
+                        <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
+                    </tr>`;
+            });
+
+            tableBody.innerHTML = rows.join('');
+        }
+
+        function attachFilterListeners() {
+            filterButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    state.filter = button.getAttribute('data-filter') || 'all';
+                    filterButtons.forEach((btn) => {
+                        btn.classList.remove('btn-primary');
+                        btn.classList.add('btn-outline');
+                    });
+                    button.classList.remove('btn-outline');
+                    button.classList.add('btn-primary');
+                    renderTable();
+                });
+            });
+        }
+
+        // Delegate edit/cancel buttons to existing page (they link to /customer/pickup currently)
+        document.addEventListener('click', function (e) {
+            const target = e.target;
+            if (!(target instanceof HTMLElement)) return;
+            const action = target.getAttribute('data-action');
+            const id = target.getAttribute('data-id');
+            if (!action || !id) return;
+
+            if (action === 'edit') {
+                // Navigate to the full pickup management page to edit
+                window.location.href = '/customer/pickup?edit=' + encodeURIComponent(id);
+            } else if (action === 'cancel') {
+                window.location.href = '/customer/pickup?cancel=' + encodeURIComponent(id);
+            }
+        });
+
+        // Initialize
+        attachFilterListeners();
+        renderTable();
+    })();
+</script>
