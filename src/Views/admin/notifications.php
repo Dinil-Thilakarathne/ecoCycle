@@ -243,10 +243,9 @@ function getAlertStatusTag($status)
         <div class="activity-card__content">
             <div style="display: grid; gap: var(--space-4); grid-template-columns: repeat(3, 1fr);">
                 <?php foreach ($systemAlerts as $alert): ?>
-                    <div
-                        style="display: flex; flex-direction: column; gap: var(--space-2); border: 1px solid var(--neutral-200); border-radius: var(--radius-lg); padding: var(--space-4);">
+                    <div class="alert-box">
                         <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <h4 class="font-medium"><?= htmlspecialchars($alert['name']) ?></h4>
+                            <h4 class="alert-box__title"><?= htmlspecialchars($alert['name']) ?></h4>
                             <?= getAlertStatusTag($alert['status']) ?>
                         </div>
                         <p style="font-size: var(--text-sm); color: var(--neutral-600);">
@@ -266,6 +265,16 @@ function getAlertStatusTag($status)
 </div>
 
 <script>
+    // Toast utility wrapper for cleaner code
+    function showToast(message, type = 'info') {
+        if (window.__createToast) {
+            window.__createToast(message, type);
+        } else {
+            console.warn('Toast API not available, falling back to alert');
+            alert(message);
+        }
+    }
+
     // Handle notification form submission
     document.getElementById('notificationForm').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -275,7 +284,7 @@ function getAlertStatusTag($status)
         const message = document.getElementById('message').value;
 
         if (!recipient || !notificationType || !message.trim()) {
-            alert('Please fill in all required fields');
+            showToast('Please fill in all required fields', 'error');
             return;
         }
 
@@ -287,7 +296,7 @@ function getAlertStatusTag($status)
         });
 
         // Show success message
-        alert(`Notification sent successfully to ${recipient}!`);
+        showToast(`Notification sent successfully to ${recipient}!`, 'success');
 
         // Reset form
         document.getElementById('recipient').value = '';
@@ -312,16 +321,16 @@ function getAlertStatusTag($status)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Notification sent successfully!');
+                showToast('Notification sent successfully!', 'success');
                 // Refresh the page or update the recent notifications list
                 location.reload();
             } else {
-                alert('Failed to send notification: ' + data.message);
+                showToast('Failed to send notification: ' + data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to send notification. Please try again.');
+            showToast('Failed to send notification. Please try again.', 'error');
         });
         */
     });
@@ -340,13 +349,14 @@ function getAlertStatusTag($status)
     // Toggle system alert configuration
     function toggleAlert(alertName) {
         console.log(`Configuring alert: ${alertName}`);
-        alert(`Configuration panel for "${alertName}" would open here. This would allow you to:
-        
-• Set notification frequency
-• Configure trigger conditions
-• Customize message templates
-• Manage recipient groups
-• Schedule notifications`);
+        showToast(`Opening configuration for "${alertName}"`, 'info');
+
+        // Configuration options that would be available:
+        // • Set notification frequency
+        // • Configure trigger conditions
+        // • Customize message templates
+        // • Manage recipient groups
+        // • Schedule notifications
 
         // In a real application, this would open a configuration modal:
         /*

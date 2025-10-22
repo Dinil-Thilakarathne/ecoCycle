@@ -171,13 +171,19 @@ $bidStatCards = [
                     <?php foreach ($biddingRounds as $round): ?>
                         <?php
                         $roundId = $round['id'] ?? '';
+                        $status = $round['status'] ?? 'pending';
+
+                        // Skip cancelled rounds - they shouldn't be displayed in the table
+                        if (strtolower($status) === 'cancelled') {
+                            continue;
+                        }
+
                         $lotId = $round['lotId'] ?? '';
                         $wasteCategory = $round['wasteCategory'] ?? '';
                         $quantity = $round['quantity'] ?? '';
                         $unit = $round['unit'] ?? '';
                         $currentBid = isset($round['currentHighestBid']) ? (float) $round['currentHighestBid'] : 0;
                         $biddingCompany = $round['biddingCompany'] ?? '—';
-                        $status = $round['status'] ?? 'pending';
                         $endTime = $round['endTime'] ?? null;
                         ?>
                         <tr data-id="<?= htmlspecialchars($roundId) ?>">
@@ -200,7 +206,7 @@ $bidStatCards = [
                             </td>
                             <td><?= getStatusBadge($status) ?></td>
                             <td>
-                                <div style="display: flex; gap: 8px;">
+                                <div class="action-buttons">
                                     <?php if ($status === 'completed'): ?>
                                         <button class="icon-button approve"
                                             onclick="approveWinner('<?= htmlspecialchars($roundId) ?>')" title="Approve">
@@ -216,6 +222,26 @@ $bidStatCards = [
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
+                                        <?php if ($status === 'active'): ?>
+                                            <button class="icon-button"
+                                                onclick="editBiddingRound('<?= htmlspecialchars($roundId) ?>')"
+                                                title="Edit Bid Round">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </button>
+                                            <?php
+                                            // Only show cancel button if no company has bid yet
+                                            $hasLeadingCompany = !empty($biddingCompany) && $biddingCompany !== '—';
+                                            $startingBid = isset($round['startingBid']) ? (float) $round['startingBid'] : 0;
+                                            $hasBids = $currentBid > $startingBid;
+
+                                            if (!$hasLeadingCompany && !$hasBids): ?>
+                                                <button class="icon-button danger"
+                                                    onclick="cancelBiddingRound('<?= htmlspecialchars($roundId) ?>')"
+                                                    title="Cancel Bid Round">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -613,6 +639,468 @@ $bidStatCards = [
         biddingId = arguments[1];
         const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${biddingId}"]`);
         openBiddingModal(row, biddingId);
+    }
+
+    function showToast(message, type = 'info') {
+        if (typeof window.__createToast === 'function') {
+            window.__createToast(message, type, 5000);
+        } else {
+            const prefix = type === 'error' ? 'Error: ' : '';
+            alert(prefix + message);
+        }
+    }
+
+    function createModal({ title, content, buttons = [], width = '520px' }) {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'simple-modal-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:min(${width},100%);max-width:${width};padding:1.75rem;display:flex;flex-direction:column;gap:1.5rem;`;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;';
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        titleEl.style.cssText = 'margin:0;font-size:1.25rem;font-weight:600;color:#111827;';
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.innerHTML = '&times;';
+        closeButton.style.cssText = 'border:none;background:transparent;font-size:1.75rem;line-height:1;color:#6b7280;cursor:pointer;padding:0 0 0.25rem 0;';
+
+        const body = document.createElement('div');
+        body.style.cssText = 'max-height:60vh;overflow:auto;';
+        body.appendChild(content);
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.75rem;';
+
+        function closeModal() {
+            backdrop.remove();
+        }
+
+        closeButton.addEventListener('click', closeModal);
+        backdrop.addEventListener('click', function (event) {
+            if (event.target === backdrop) {
+                closeModal();
+            }
+        });
+
+        buttons.forEach((buttonConfig) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = buttonConfig.label;
+
+            const variant = buttonConfig.variant || 'secondary';
+            let styles = 'padding:0.6rem 1.25rem;border-radius:6px;font-weight:600;border:none;cursor:pointer;';
+            if (variant === 'primary') {
+                styles += 'background:#16a34a;color:#fff;';
+            } else if (variant === 'danger') {
+                styles += 'background:#dc2626;color:#fff;';
+            } else {
+                styles += 'background:#6b7280;color:#fff;';
+            }
+            btn.style.cssText = styles;
+
+            btn.addEventListener('click', function () {
+                if (typeof buttonConfig.onClick === 'function') {
+                    buttonConfig.onClick(closeModal);
+                } else {
+                    closeModal();
+                }
+            });
+
+            footer.appendChild(btn);
+        });
+
+        header.appendChild(titleEl);
+        header.appendChild(closeButton);
+        dialog.appendChild(header);
+        dialog.appendChild(body);
+        dialog.appendChild(footer);
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+
+        return {
+            close: closeModal,
+            element: backdrop,
+        };
+    }
+
+    async function apiRequest(url, options = {}) {
+        const opts = Object.assign({ headers: {} }, options);
+        if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+            opts.headers['Content-Type'] = opts.headers['Content-Type'] || 'application/json';
+            opts.body = JSON.stringify(opts.body);
+        }
+
+        const response = await fetch(url, opts);
+        let payload = null;
+
+        try {
+            payload = await response.json();
+        } catch (err) {
+            payload = null;
+        }
+
+        if (!response.ok || (payload && payload.success === false)) {
+            const message = payload && payload.message ? payload.message : `Request failed (${response.status})`;
+            let detail = '';
+            if (payload && payload.errors) {
+                detail = Object.values(payload.errors).join('\n');
+            }
+            throw new Error(detail ? `${message}\n${detail}` : message);
+        }
+
+        return payload || {};
+    }
+
+    function syncBiddingCache(round) {
+        if (!Array.isArray(window.__BIDDING_DATA)) {
+            window.__BIDDING_DATA = [];
+        }
+        const id = String(round.id);
+        const index = window.__BIDDING_DATA.findIndex((item) => String(item.id) === id);
+        if (index >= 0) {
+            window.__BIDDING_DATA[index] = round;
+        } else {
+            window.__BIDDING_DATA.push(round);
+        }
+    }
+
+    async function fetchBiddingRound(roundId) {
+        try {
+            const response = await apiRequest(`/api/bidding/rounds/${roundId}`);
+            const round = response.round;
+            if (round) {
+                syncBiddingCache(round);
+            }
+            return round;
+        } catch (error) {
+            console.error('Failed to fetch bidding round:', error);
+            return null;
+        }
+    }
+
+    function formatDateTimeForInput(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return '';
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function buildBiddingForm(initialValues = {}) {
+        const defaults = {
+            lotId: '',
+            wasteCategory: '',
+            quantity: '',
+            unit: 'kg',
+            startingBid: '',
+            endTime: '',
+        };
+
+        const values = Object.assign({}, defaults, initialValues);
+        const categories = Array.isArray(window.__WASTE_CATEGORIES) ? window.__WASTE_CATEGORIES : [];
+
+        const categoryOptions = ['<option value="">Select category</option>']
+            .concat(categories.map((cat) => {
+                const selected = cat === values.wasteCategory ? 'selected' : '';
+                return `<option value="${escapeHtml(cat)}" ${selected}>${escapeHtml(cat)}</option>`;
+            }))
+            .join('');
+
+        const unitOptions = ['kg', 'tons'].map((unit) => {
+            const selected = unit === values.unit ? 'selected' : '';
+            return `<option value="${unit}" ${selected}>${unit}</option>`;
+        }).join('');
+
+        const form = document.createElement('form');
+        form.innerHTML = `
+            <div style="display:grid;gap:1rem;">
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Lot ID</label>
+                    <input type="text" name="lotId" required placeholder="LOT123"
+                        value="${escapeHtml(values.lotId || '')}"
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Waste Category</label>
+                    <select name="wasteCategory" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
+                        ${categoryOptions}
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Quantity</label>
+                        <input type="number" name="quantity" min="100" step="100" required
+                            value="${escapeHtml(values.quantity ?? '')}"
+                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Unit</label>
+                        <select name="unit" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
+                            ${unitOptions}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Starting Bid (Rs)</label>
+                    <input type="number" name="startingBid" min="0" step="0.01" required
+                        value="${escapeHtml(values.startingBid ?? '')}"
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">End Time</label>
+                    <input type="datetime-local" name="endTime" required
+                        value="${escapeHtml(formatDateTimeForInput(values.endTime))}"
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                </div>
+            </div>
+        `;
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+        });
+
+        return form;
+    }
+
+    function extractBiddingFormData(form) {
+        const formData = new FormData(form);
+
+        return {
+            lotId: (formData.get('lotId') || '').toString().trim(),
+            wasteCategory: (formData.get('wasteCategory') || '').toString().trim(),
+            quantity: Number(formData.get('quantity')),
+            unit: (formData.get('unit') || 'kg').toString(),
+            startingBid: Number(formData.get('startingBid')),
+            endTime: formData.get('endTime') ? new Date(formData.get('endTime')).toISOString() : null,
+        };
+    }
+
+    function updateBiddingRow(round) {
+        const row = document.querySelector(`tr[data-id="${round.id}"]`);
+        if (!row) {
+            return;
+        }
+
+        const cells = row.querySelectorAll('td');
+        if (cells[0]) cells[0].textContent = round.lotId || '';
+        if (cells[1]) cells[1].textContent = round.wasteCategory || '';
+        if (cells[2]) cells[2].textContent = `${round.quantity || ''} ${round.unit || ''}`;
+        if (cells[3]) cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(round.currentHighestBid || round.startingBid || 0)}</div>`;
+        if (cells[4]) cells[4].textContent = round.biddingCompany || '—';
+        if (cells[5]) cells[5].innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(round.endTime)}</div>`;
+        if (cells[6]) cells[6].innerHTML = renderStatusBadge(round.status);
+    }
+
+    function removeBiddingRow(roundId) {
+        const row = document.querySelector(`tr[data-id="${roundId}"]`);
+        if (!row) {
+            return;
+        }
+
+        // Add fade-out animation
+        row.style.transition = 'opacity 0.3s ease-out';
+        row.style.opacity = '0';
+
+        setTimeout(() => {
+            row.remove();
+
+            // Check if table is now empty and show empty message
+            const tbody = document.querySelector('.data-table tbody');
+            if (tbody && tbody.querySelectorAll('tr:not([data-empty])').length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.setAttribute('data-empty', 'true');
+                emptyRow.innerHTML = `
+                    <td colspan="8" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">
+                        No bidding rounds found.
+                    </td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+        }, 300);
+    }
+
+    async function editBiddingRound(roundId) {
+        try {
+            const round = await fetchBiddingRound(roundId);
+            if (!round) {
+                showToast('Bidding round not found.', 'error');
+                return;
+            }
+
+            if (round.status && round.status.toLowerCase() !== 'active') {
+                showToast('Only active bidding rounds can be edited.', 'warning');
+                return;
+            }
+
+            const form = buildBiddingForm({
+                lotId: round.lotId,
+                wasteCategory: round.wasteCategory,
+                quantity: round.quantity,
+                unit: round.unit,
+                startingBid: round.startingBid || round.currentHighestBid,
+                endTime: round.endTime,
+            });
+
+            createModal({
+                title: `Edit Bidding Round - ${escapeHtml(round.lotId || round.id)}`,
+                content: form,
+                buttons: [
+                    { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
+                    {
+                        label: 'Save Changes',
+                        variant: 'primary',
+                        onClick: async (close) => {
+                            try {
+                                const payload = extractBiddingFormData(form);
+
+                                if (!payload.lotId) {
+                                    showToast('Lot ID is required.', 'error');
+                                    return;
+                                }
+
+                                if (!payload.wasteCategory) {
+                                    showToast('Waste category is required.', 'error');
+                                    return;
+                                }
+
+                                if (!Number.isFinite(payload.quantity) || payload.quantity <= 0) {
+                                    showToast('Quantity must be a positive number.', 'error');
+                                    return;
+                                }
+
+                                if (!Number.isFinite(payload.startingBid) || payload.startingBid < 0) {
+                                    showToast('Starting bid must be zero or more.', 'error');
+                                    return;
+                                }
+
+                                if (!payload.endTime) {
+                                    showToast('End time is required.', 'error');
+                                    return;
+                                }
+
+                                const endTime = new Date(payload.endTime);
+                                if (endTime <= new Date()) {
+                                    showToast('End time must be in the future.', 'error');
+                                    return;
+                                }
+
+                                const response = await apiRequest(`/api/bidding/rounds/${roundId}`, {
+                                    method: 'PUT',
+                                    body: payload
+                                });
+
+                                const updatedRound = response.round;
+                                syncBiddingCache(updatedRound);
+                                updateBiddingRow(updatedRound);
+
+                                showToast('Bidding round updated successfully.', 'success');
+                                close();
+                            } catch (error) {
+                                showToast(error.message, 'error');
+                            }
+                        }
+                    }
+                ],
+                width: '580px'
+            });
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function cancelBiddingRound(roundId) {
+        try {
+            const round = await fetchBiddingRound(roundId);
+            if (!round) {
+                showToast('Bidding round not found.', 'error');
+                return;
+            }
+
+            if (round.status && round.status.toLowerCase() === 'cancelled') {
+                showToast('Bidding round is already cancelled.', 'info');
+                return;
+            }
+
+            if (round.status && round.status.toLowerCase() !== 'active') {
+                showToast('Only active bidding rounds can be cancelled.', 'warning');
+                return;
+            }
+
+            // Check if there's a leading company (bids have been placed)
+            const hasLeadingCompany = round.biddingCompany &&
+                round.biddingCompany !== '—' &&
+                round.biddingCompany.trim() !== '';
+
+            // Check if the current bid is higher than starting bid (alternative check)
+            const startingBid = parseFloat(round.startingBid || 0);
+            const currentBid = parseFloat(round.currentHighestBid || 0);
+            const hasBids = currentBid > startingBid;
+
+            if (hasLeadingCompany || hasBids) {
+                showToast('Cannot cancel bidding round: Companies have already placed bids. Only rounds without bids can be cancelled.', 'error');
+                return;
+            }
+
+            const label = escapeHtml(round.lotId || `Round #${round.id}`);
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <p style="margin:0 0 0.75rem 0;line-height:1.5;color:#374151;">
+                    Are you sure you want to cancel bidding round <strong>${label}</strong>?
+                </p>
+                <p style="margin:0 0 0.75rem 0;color:#6b7280;font-size:0.9rem;">
+                    This will immediately end the bidding process and mark the round as cancelled. The round will be removed from the active list but kept in the database for records.
+                </p>
+                <p style="margin:0;color:#dc2626;font-size:0.85rem;font-weight:600;">
+                    ⚠️ This action cannot be undone.
+                </p>
+            `;
+
+            createModal({
+                title: 'Cancel Bidding Round',
+                content: container,
+                buttons: [
+                    { label: 'Keep Active', variant: 'secondary', onClick: (close) => close() },
+                    {
+                        label: 'Cancel Round',
+                        variant: 'danger',
+                        onClick: async (close) => {
+                            try {
+                                const response = await apiRequest(`/api/bidding/rounds/${roundId}`, {
+                                    method: 'DELETE',
+                                    body: {
+                                        reason: 'Cancelled by administrator'
+                                    }
+                                });
+
+                                const updatedRound = response.round || Object.assign({}, round, { status: 'cancelled' });
+                                syncBiddingCache(updatedRound);
+
+                                // Remove the row from the table instead of updating it
+                                removeBiddingRow(roundId);
+
+                                showToast('Bidding round cancelled and removed from active list.', 'success');
+                                close();
+                            } catch (error) {
+                                showToast(error.message, 'error');
+                            }
+                        }
+                    }
+                ],
+                width: '480px'
+            });
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
     }
 
     // Auto-refresh the page every 30 seconds to update time remaining
