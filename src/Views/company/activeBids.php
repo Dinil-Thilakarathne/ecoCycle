@@ -76,12 +76,11 @@ $formSuccess = $formSuccess ?? null;
             </select>
 
             <label>Waste Type</label>
-            <select name="waste_type" id="waste_type" required>
-                <option value="">Select waste type…</option>
-                <?php foreach ($minimumBids as $type => $min): ?>
-                    <option value="<?= htmlspecialchars($type) ?>"><?= ucfirst($type) ?></option>
-                <?php endforeach; ?>
-            </select>
+            <div class="input-readonly" id="waste_type_display"
+                style="padding:10px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;font-weight:600;color:#6b7280;">
+                Select a lot first…
+            </div>
+            <input type="hidden" name="waste_type" id="waste_type_hidden" value="">
 
             <label>Bid for 1kg of waste</label>
             <input type="number" id="bid_amount" name="bid_amount" step="100" placeholder="Enter bid amount" required>
@@ -101,7 +100,7 @@ $formSuccess = $formSuccess ?? null;
         </form>
 
 
-        <div class="available-waste">
+        <div class="available-waste" style="min-height: 540px;">
             <h2 style="font-size: 20px; font-weight: bold;">Available Waste Lots</h2>
 
             <?php foreach ($availableWasteLots as $lot): ?>
@@ -158,8 +157,8 @@ $formSuccess = $formSuccess ?? null;
                         <td><?= htmlspecialchars($bid['createdAt'] ? date('Y-m-d', strtotime($bid['createdAt'])) : 'N/A') ?>
                         </td>
                         <td>
-                            <?php if (($bid['status'] ?? '') === 'Leading' || ($bid['status'] ?? '') === 'Active'): ?>
-                                <div class="action-buttons">
+                            <div class="action-buttons">
+                                <?php if (($bid['status'] ?? '') === 'Leading' || ($bid['status'] ?? '') === 'Active'): ?>
                                     <button class="icon-button" title="Edit Bid" data-action="edit-bid"
                                         data-bid-id="<?= htmlspecialchars($bid['id']) ?>">
                                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
@@ -169,10 +168,20 @@ $formSuccess = $formSuccess ?? null;
                                         data-bid-id="<?= htmlspecialchars($bid['id']) ?>">
                                         <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                     </button>
-                                </div>
-                            <?php else: ?>
-                                N/A
-                            <?php endif; ?>
+                                <?php else: ?>
+                                    <button class="icon-button" disabled
+                                        title="Cannot edit - bid is <?= htmlspecialchars(strtolower($bid['status'] ?? 'closed')) ?>"
+                                        style="opacity: 0.4; cursor: not-allowed;">
+                                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                    </button>
+
+                                    <button class="icon-button danger" disabled
+                                        title="Cannot cancel - bid is <?= htmlspecialchars(strtolower($bid['status'] ?? 'closed')) ?>"
+                                        style="opacity: 0.4; cursor: not-allowed;">
+                                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -191,7 +200,8 @@ $formSuccess = $formSuccess ?? null;
         }
 
         const lotSelect = form.querySelector('#lot_id');
-        const wasteTypeSelect = form.querySelector('#waste_type');
+        const wasteTypeDisplay = form.querySelector('#waste_type_display');
+        const wasteTypeHidden = form.querySelector('#waste_type_hidden');
         const bidAmountInput = form.querySelector('#bid_amount');
         const wasteAmountInput = form.querySelector('input[name="waste_amount"]');
         const submitBtn = form.querySelector('button[type="submit"]');
@@ -230,10 +240,10 @@ $formSuccess = $formSuccess ?? null;
         }
 
         function updateMinBidFromWasteType() {
-            if (!wasteTypeSelect || !bidAmountInput) {
+            if (!wasteTypeHidden || !bidAmountInput) {
                 return;
             }
-            const selected = (wasteTypeSelect.value || '').toLowerCase();
+            const selected = (wasteTypeHidden.value || '').toLowerCase();
             const minVal = selected && Object.prototype.hasOwnProperty.call(minBids, selected)
                 ? parseFloat(minBids[selected])
                 : null;
@@ -248,34 +258,30 @@ $formSuccess = $formSuccess ?? null;
             updateTotalBid();
         }
 
-        function selectFirstLotForType() {
-            if (!lotSelect || !wasteTypeSelect) {
-                return;
-            }
-            const desired = (wasteTypeSelect.value || '').toLowerCase();
-            if (!desired) {
-                return;
-            }
-            const options = Array.from(lotSelect.options).filter(option => option.value);
-            const match = options.find(option => (option.dataset.category || '').toLowerCase() === desired);
-            if (match) {
-                lotSelect.value = match.value;
-            }
-        }
-
         function syncWasteTypeFromLot() {
-            if (!lotSelect || !wasteTypeSelect) {
+            if (!lotSelect || !wasteTypeDisplay || !wasteTypeHidden) {
                 return;
             }
             const option = lotSelect.options[lotSelect.selectedIndex];
-            if (!option) {
+            if (!option || !option.value) {
+                // No lot selected - reset waste type display
+                wasteTypeDisplay.textContent = 'Select a lot first…';
+                wasteTypeDisplay.style.color = '#6b7280';
+                wasteTypeHidden.value = '';
                 return;
             }
+
+            // Lot selected - sync waste type
             const category = (option.dataset.category || '').toLowerCase();
-            if (category && wasteTypeSelect.value.toLowerCase() !== category) {
-                wasteTypeSelect.value = category;
+            if (category) {
+                // Capitalize first letter for display
+                const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+                wasteTypeDisplay.textContent = displayCategory;
+                wasteTypeDisplay.style.color = '#111827';
+                wasteTypeHidden.value = category;
                 updateMinBidFromWasteType();
             }
+
             // If lot option provides quantity, set default and max for waste amount
             if (option.dataset.quantity) {
                 const q = parseFloat(option.dataset.quantity);
@@ -289,15 +295,6 @@ $formSuccess = $formSuccess ?? null;
                     }
                 }
             }
-        }
-
-        if (wasteTypeSelect) {
-            wasteTypeSelect.addEventListener('change', () => {
-                updateMinBidFromWasteType();
-                if (lotSelect && !lotSelect.value) {
-                    selectFirstLotForType();
-                }
-            });
         }
 
         if (lotSelect) {
@@ -352,7 +349,7 @@ $formSuccess = $formSuccess ?? null;
                 }
                 lotSelect.value = lotId;
                 syncWasteTypeFromLot();
-                updateMinBidFromWasteType();
+                updateTotalBid();
                 form.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
@@ -419,7 +416,14 @@ $formSuccess = $formSuccess ?? null;
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>`
-                : 'N/A';
+                : `<div class="action-buttons">
+                    <button class="icon-button" disabled title="Cannot edit - bid is ${escapeHtml(status.toLowerCase())}" style="opacity: 0.4; cursor: not-allowed;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="icon-button danger" disabled title="Cannot cancel - bid is ${escapeHtml(status.toLowerCase())}" style="opacity: 0.4; cursor: not-allowed;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>`;
 
             return `<tr data-bid-id="${escapeHtml(String(bid.id))}">
                 <td>${escapeHtml(bid.displayId || ('BID' + String(bid.id)))}</td>
@@ -466,7 +470,7 @@ $formSuccess = $formSuccess ?? null;
             event.preventDefault();
 
             const lotId = lotSelect ? lotSelect.value.trim() : '';
-            const wasteType = (wasteTypeSelect ? wasteTypeSelect.value : '').trim().toLowerCase();
+            const wasteType = (wasteTypeHidden ? wasteTypeHidden.value : '').trim().toLowerCase();
             const bidPerUnit = parseFloat(bidAmountInput ? bidAmountInput.value : '');
             const wasteAmount = parseFloat(wasteAmountInput ? wasteAmountInput.value : '');
 
@@ -475,7 +479,7 @@ $formSuccess = $formSuccess ?? null;
                 errors.push('Select a waste lot.');
             }
             if (!wasteType) {
-                errors.push('Choose a waste type.');
+                errors.push('Waste type not determined. Please reselect the lot.');
             }
             if (!(bidPerUnit > 0)) {
                 errors.push('Enter a valid bid amount per unit.');
@@ -570,7 +574,7 @@ $formSuccess = $formSuccess ?? null;
                 });
         });
 
-        updateMinBidFromWasteType();
+        // Initialize form state
         syncWasteTypeFromLot();
         updateTotalBid();
     })();

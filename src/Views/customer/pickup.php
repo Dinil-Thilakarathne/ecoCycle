@@ -6,6 +6,11 @@ $csrfToken = csrf_token();
 $timeSlots = $timeSlots ?? [];
 $wasteCategories = $wasteCategories ?? [];
 $pickupRequests = array_values($pickupRequests ?? []);
+// Remove any cancelled requests from the initial server-side list so they don't show anywhere
+$pickupRequests = array_values(array_filter($pickupRequests, static function ($r) {
+    $status = strtolower((string) ($r['status'] ?? ''));
+    return $status !== 'cancelled';
+}));
 $filter = $_GET['filter'] ?? 'all';
 $profileData = is_array($userProfile ?? null) ? $userProfile : [];
 $userData = is_array($user ?? null) ? $user : [];
@@ -94,7 +99,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
 <div class="dashboard-page">
     <div class="page-header" style="margin-bottom:2rem;">
         <div class="header-content">
-            <p><strong>Manage special, bulk, and missed pickup requests</strong></p>
+            <h1><strong>Manage pickup requests</strong></h1>
         </div>
         <div class="header-actions">
             <button class="btn btn-primary" onclick="showNewRequestForm()">+ New Request</button>
@@ -156,7 +161,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             'assigned' => 'Assigned',
             'confirmed' => 'Confirmed',
             'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
+            // 'cancelled' intentionally omitted: cancelled requests are not shown anywhere
         ];
         foreach ($filters as $key => $label):
             $isActive = $normalizedFilter === $key ? 'btn-primary' : 'btn-outline';
@@ -349,7 +354,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
 <script>
     (function () {
         const state = {
-            requests: <?= json_encode($pickupRequests, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+            requests: <?= json_encode(array_values(array_filter($pickupRequests, static function ($r) {
+                return strtolower((string) ($r['status'] ?? '')) !== 'cancelled';
+            })), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
             filter: '<?= e($normalizedFilter) ?>'
         };
         const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
@@ -371,6 +378,60 @@ if (!function_exists('customer_pickup_format_datetime')) {
             } else {
                 console.log(message);
             }
+        }
+
+        // Simple confirm modal that returns a Promise<boolean>
+        function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+            return new Promise((resolve) => {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'simple-modal-backdrop';
+                backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
+
+                const dialog = document.createElement('div');
+                dialog.style.cssText = 'background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:480px;max-width:100%;padding:1.25rem;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;';
+                const titleEl = document.createElement('h3');
+                titleEl.textContent = title;
+                titleEl.style.cssText = 'margin:0;font-size:1.05rem;font-weight:700;color:#111827;';
+
+                const body = document.createElement('div');
+                body.innerHTML = `<p style="margin:0 0 1rem 0;color:#374151;">${escapeHtml(message)}</p>`;
+
+                const footer = document.createElement('div');
+                footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.5rem;';
+
+                const btnCancel = document.createElement('button');
+                btnCancel.type = 'button';
+                btnCancel.textContent = cancelLabel;
+                btnCancel.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#6b7280;color:#fff;cursor:pointer;';
+
+                const btnConfirm = document.createElement('button');
+                btnConfirm.type = 'button';
+                btnConfirm.textContent = confirmLabel;
+                btnConfirm.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#dc2626;color:#fff;cursor:pointer;';
+
+                btnCancel.addEventListener('click', () => {
+                    backdrop.remove();
+                    resolve(false);
+                });
+
+                btnConfirm.addEventListener('click', () => {
+                    backdrop.remove();
+                    resolve(true);
+                });
+
+                footer.appendChild(btnCancel);
+                footer.appendChild(btnConfirm);
+
+                header.appendChild(titleEl);
+                dialog.appendChild(header);
+                dialog.appendChild(body);
+                dialog.appendChild(footer);
+                backdrop.appendChild(dialog);
+                document.body.appendChild(backdrop);
+            });
         }
 
         function statusClass(status) {
@@ -597,7 +658,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     throw new Error('Failed to load pickup requests');
                 }
                 const payload = await response.json();
-                state.requests = Array.isArray(payload.data) ? payload.data : [];
+                // Filter out cancelled requests so they never appear in the UI
+                state.requests = Array.isArray(payload.data) ? payload.data.filter(r => (r.status || '').toLowerCase() !== 'cancelled') : [];
                 renderStats();
                 renderTable();
             } catch (error) {
@@ -698,9 +760,14 @@ if (!function_exists('customer_pickup_format_datetime')) {
         }
 
         async function cancelRequest(requestId) {
-            if (!window.confirm('Are you sure you want to cancel this request?')) {
-                return;
-            }
+            // Show a custom confirmation modal instead of native confirm
+            const confirmed = await createConfirmModal({
+                title: 'Cancel pickup request',
+                message: 'Are you sure you want to cancel this pickup request? This action cannot be undone.',
+                confirmLabel: 'Yes, cancel',
+                cancelLabel: 'Keep request'
+            });
+            if (!confirmed) return;
 
             try {
                 const response = await fetch(`/api/customer/pickup-requests/${requestId}`, {
@@ -718,11 +785,34 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     throw new Error((result.message || 'Failed to cancel pickup request') + detail);
                 }
 
+                // Remove the cancelled request from the local state so it disappears from the table
+                removeRequestFromState(requestId);
+                renderStats();
+                renderTable();
                 showAlert('Pickup request cancelled.');
-                await loadPickupRequests();
             } catch (error) {
                 console.error(error);
                 showAlert(error.message || 'Failed to cancel pickup request.', 'error');
+            }
+        }
+
+        function updateRequestStatusInState(requestId, status, fullObject) {
+            const id = String(requestId ?? '');
+            const index = state.requests.findIndex((r) => String(r.id) === id);
+            if (index >= 0) {
+                if (fullObject && typeof fullObject === 'object') {
+                    state.requests[index] = Object.assign({}, state.requests[index], fullObject);
+                } else {
+                    state.requests[index].status = status;
+                }
+            }
+        }
+
+        function removeRequestFromState(requestId) {
+            const id = typeof requestId === 'number' ? String(requestId) : String(requestId || '');
+            const index = state.requests.findIndex((r) => String(r.id) === id);
+            if (index >= 0) {
+                state.requests.splice(index, 1);
             }
         }
 
