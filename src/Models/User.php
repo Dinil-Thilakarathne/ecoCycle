@@ -21,6 +21,7 @@ class User
             `type` ENUM('customer','company','collector','admin') NOT NULL DEFAULT 'customer',
             `name` VARCHAR(255) DEFAULT NULL,
             `username` VARCHAR(100) DEFAULT NULL,
+            `nic` VARCHAR(30) DEFAULT NULL,
             `email` VARCHAR(150) DEFAULT NULL,
             `phone` VARCHAR(50) DEFAULT NULL,
             `address` TEXT DEFAULT NULL,
@@ -43,6 +44,7 @@ class User
             UNIQUE KEY `users_email_unique` (`email`),
             INDEX `idx_users_type` (`type`),
             INDEX `idx_users_status` (`status`),
+            INDEX `idx_users_nic` (`nic`),
             INDEX `idx_users_role` (`role_id`),
             INDEX `idx_users_vehicle` (`vehicle_id`),
             FOREIGN KEY (`role_id`) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -136,6 +138,22 @@ class User
     {
         $sql = 'SELECT id FROM users WHERE email = ?';
         $params = [$email];
+
+        if ($excludeId !== null) {
+            $sql .= ' AND id != ?';
+            $params[] = $excludeId;
+        }
+
+        $sql .= ' LIMIT 1';
+
+        $row = $this->db->fetch($sql, $params);
+        return (bool) $row;
+    }
+
+    public function nicExists(string $nic, ?int $excludeId = null): bool
+    {
+        $sql = 'SELECT id FROM users WHERE nic = ?';
+        $params = [$nic];
 
         if ($excludeId !== null) {
             $sql .= ' AND id != ?';
