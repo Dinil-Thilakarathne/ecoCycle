@@ -139,12 +139,25 @@ class PickupRequest extends BaseModel
             $address = $payload['address'] ?? null;
             $timeSlot = $payload['timeSlot'] ?? null;
             $scheduledAt = $payload['scheduledAt'] ?? null;
+            // Normalize empty scheduledAt to null so we don't insert empty strings
+            if ($scheduledAt === '') {
+                $scheduledAt = null;
+            }
 
-            $this->db->query(
-                "INSERT INTO {$this->table} (id, customer_id, address, time_slot, status, collector_id, collector_name, scheduled_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, 'pending', NULL, NULL, ?, NOW(), NOW())",
-                [$id, $customerId, $address, $timeSlot, $scheduledAt]
-            );
+            // If scheduledAt is null, bind a NULL explicitly by using the appropriate SQL fragment
+            if ($scheduledAt === null) {
+                $this->db->query(
+                    "INSERT INTO {$this->table} (id, customer_id, address, time_slot, status, collector_id, collector_name, scheduled_at, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, 'pending', NULL, NULL, NULL, NOW(), NOW())",
+                    [$id, $customerId, $address, $timeSlot]
+                );
+            } else {
+                $this->db->query(
+                    "INSERT INTO {$this->table} (id, customer_id, address, time_slot, status, collector_id, collector_name, scheduled_at, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, 'pending', NULL, NULL, ?, NOW(), NOW())",
+                    [$id, $customerId, $address, $timeSlot, $scheduledAt]
+                );
+            }
 
             $categories = $payload['wasteCategories'] ?? [];
             if (!empty($categories)) {
@@ -226,8 +239,13 @@ class PickupRequest extends BaseModel
             }
 
             if (array_key_exists('scheduledAt', $payload)) {
-                $fields[] = '`scheduled_at` = ?';
-                $params[] = $payload['scheduledAt'];
+                // Allow clearing the scheduledAt by sending null or empty string
+                if ($payload['scheduledAt'] === '' || $payload['scheduledAt'] === null) {
+                    $fields[] = '`scheduled_at` = NULL';
+                } else {
+                    $fields[] = '`scheduled_at` = ?';
+                    $params[] = $payload['scheduledAt'];
+                }
             }
 
             if (!empty($fields)) {
@@ -312,21 +330,23 @@ class PickupRequest extends BaseModel
 
     public function listTimeSlots(): array
     {
-        $slots = $this->db->fetchAll("SELECT DISTINCT time_slot FROM {$this->table} WHERE time_slot IS NOT NULL AND time_slot != '' ORDER BY time_slot ASC");
-        $values = array_values(array_filter(array_map(fn($row) => $row['time_slot'] ?? null, $slots)));
-        if (!empty($values)) {
-            return $values;
-        }
+        return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to fix this 
 
-        $aggregate = $this->db->fetch("SELECT value FROM analytics_aggregates WHERE `key` = 'time_slots' LIMIT 1");
-        if ($aggregate && !empty($aggregate['value'])) {
-            $decoded = json_decode($aggregate['value'], true);
-            if (is_array($decoded) && !empty($decoded)) {
-                return array_values(array_filter(array_map('strval', $decoded)));
-            }
-        }
+        // $slots = $this->db->fetchAll("SELECT DISTINCT time_slot FROM {$this->table} WHERE time_slot IS NOT NULL AND time_slot != '' ORDER BY time_slot ASC");
+        // $values = array_values(array_filter(array_map(fn($row) => $row['time_slot'] ?? null, $slots)));
+        // if (!empty($values)) {
+        //     return $values;
+        // }
 
-        return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+        // $aggregate = $this->db->fetch("SELECT value FROM analytics_aggregates WHERE `key` = 'time_slots' LIMIT 1");
+        // if ($aggregate && !empty($aggregate['value'])) {
+        //     $decoded = json_decode($aggregate['value'], true);
+        //     if (is_array($decoded) && !empty($decoded)) {
+        //         return array_values(array_filter(array_map('strval', $decoded)));
+        //     }
+        // }
+
+        // return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
     }
 
     private function wasteCategoriesForPickups(array $pickupIds): array

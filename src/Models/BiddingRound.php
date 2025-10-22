@@ -246,6 +246,36 @@ class BiddingRound extends BaseModel
         }, $rows);
     }
 
+    /**
+     * Returns true if there are any bids recorded for the given bidding round id
+     */
+    public function hasBids(string $id): bool
+    {
+        if (trim($id) === '') {
+            return false;
+        }
+
+        $row = $this->db->fetch("SELECT COUNT(1) AS c FROM bids WHERE bidding_round_id = ?", [$id]);
+        if (!$row || !isset($row['c']))
+            return false;
+        return ((int) $row['c']) > 0;
+    }
+
+    /**
+     * Returns true when the round has a leading company id
+     */
+    public function hasLeadingCompanyById(string $id): bool
+    {
+        if (trim($id) === '') {
+            return false;
+        }
+
+        $row = $this->db->fetch("SELECT leading_company_id FROM {$this->table} WHERE id = ? LIMIT 1", [$id]);
+        if (!$row)
+            return false;
+        return !empty($row['leading_company_id']);
+    }
+
     public function highestBidsByCategory(): array
     {
         $sql = "SELECT
@@ -474,5 +504,31 @@ class BiddingRound extends BaseModel
     private function generateId(): string
     {
         return 'BR-' . strtoupper(bin2hex(random_bytes(4)));
+    }
+
+    /**
+     * Generate a unique lot id for a bidding round. Ensures uniqueness against existing lot_id values.
+     */
+    public function generateLotId(): string
+    {
+        // Try to generate a readable LOT-XXX id until we find one that doesn't exist
+        for ($i = 0; $i < 8; $i++) {
+            $candidate = 'LOT-' . strtoupper(bin2hex(random_bytes(3)));
+            if (!$this->existsByLotId($candidate)) {
+                return $candidate;
+            }
+        }
+
+        // Fallback to using the internal id generator if collision persists
+        $fallback = $this->generateId();
+        // ensure uniqueness by appending an incremental suffix
+        $suffix = 1;
+        $candidate = $fallback;
+        while ($this->existsByLotId($candidate)) {
+            $candidate = $fallback . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $candidate;
     }
 }
