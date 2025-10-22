@@ -42,7 +42,6 @@ function getStatusBadge($status)
 <div class="page-header">
     <div class="page-header__content">
         <h2 class="page-header__title">
-            <i class="fa-solid fa-recycle" style="margin-right:8px;"></i>
             My Assigned Pickups & Daily Tasks
         </h2>
         <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>

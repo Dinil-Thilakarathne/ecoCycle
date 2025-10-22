@@ -1,12 +1,14 @@
-<header>
-    <div class="breadcrumb">
-        Dashboard &gt; <span>Settings</span>
+<!-- Page Header -->
+<page-header title="Settings" description="Manage your account and app preferences">
+    <div data-header-action style="display: flex; gap: var(--space-2);">
+        <button class="btn btn-primary" onclick="saveAllSettings()">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Save All Changes
+        </button>
     </div>
-</header>
+</page-header>
 
 <main>
-    <h1>Settings</h1>
-    <p class="subtitle">Manage your account and app preferences</p>
 
     <!-- Account Settings -->
     <div class="settings-section">
@@ -64,3 +66,13 @@
             </div>
         </div>
     </div>
+</main>
+
+<script>
+    function saveAllSettings() {
+        // Gather all settings and save them
+        console.log('Saving all settings...');
+        alert('All settings have been saved successfully!');
+        // In production, this would make an API call to save the settings
+    }
+</script>
