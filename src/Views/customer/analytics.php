@@ -34,7 +34,7 @@ $wasteTypeData = [
     <div class="page-header">
         <div class="header-content">
 
-            <p><b>Track your recycling performance and environmental impact</b></p>
+            <h1><b>Track your recycling performance and environmental impact</b></h1>
         </div>
     </div>
 

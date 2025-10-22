@@ -84,22 +84,22 @@ $customerStats = [
         'subtitle' => 'All time',
     ],
     [
-        'title' => 'Pending',
+        'title' => 'Pending Request',
         'value' => $pendingCount,
         'icon' => 'fa-solid fa-hourglass-half',
         'subtitle' => 'Awaiting confirmation',
     ],
     [
-        'title' => 'Scheduled',
+        'title' => 'Scheduled Pickups',
         'value' => $scheduledCount,
         'icon' => 'fa-solid fa-calendar-check',
         'subtitle' => 'Assigned / Confirmed',
     ],
     [
-        'title' => 'Completed',
-        'value' => $completedCount,
-        'icon' => 'fa-solid fa-clipboard-check',
-        'subtitle' => 'Finished pickups',
+        'title' => 'Total Income',
+        'value' => "Rs: 10,000.00",
+        'icon' => 'fa-solid fa-wallet',
+        'subtitle' => 'Total earnings (Rs)'
     ],
 ];
 ?>

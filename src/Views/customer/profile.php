@@ -58,7 +58,7 @@ $csrfToken = csrf_token();
 <main class="content profile-page">
   <header class="page-header">
     <div class="page-header__content">
-      <h2 class="page-header__title">Customer Profile</h2>
+      <h1 class="page-header__title">Customer Profile</h1>
       <p class="page-header__description">Update your profile here!</p>
     </div>
   </header>
