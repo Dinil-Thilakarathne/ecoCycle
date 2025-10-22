@@ -177,7 +177,7 @@ class CustomerDashboardController extends DashboardController
         $customerId = (int) ($this->user['id'] ?? 0);
 
         try {
-            $timeSlots = $pickupModel->listTimeSlots();
+            $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
         } catch (\Throwable $e) {
             $timeSlots = [];
         }
