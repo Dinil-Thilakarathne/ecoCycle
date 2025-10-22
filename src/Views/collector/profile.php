@@ -104,8 +104,6 @@ $csrfToken = csrf_token();
     </div>
   </header>
 
-  <a href="#editModal" class="btn btn-outline"
-    style="position: absolute; right: 6%; top: 15%; background:var(--info-light);">✏️ Edit Profile</a>
 
   <div class="p-info-card">
     <div class="pc-card">
@@ -128,6 +126,8 @@ $csrfToken = csrf_token();
     </div>
 
     <div class="pc-card">
+      <a href="#editModal" class="btn btn-outline"
+        style="position: absolute; right: 6%; top: 2%; background:var(--info-light);">✏️ Edit Profile</a>
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($displayEmail) ?>" disabled>
@@ -324,27 +324,27 @@ $csrfToken = csrf_token();
     </form>
   </div>
 
-<?php if ($showToast && $toastMessage !== ''): ?>
-  <script>
-    (function () {
-      const triggerToast = function () {
-        if (typeof window.__createToast === 'function') {
-          window.__createToast(
-            <?= json_encode($toastMessage, JSON_UNESCAPED_UNICODE) ?>,
-            <?= json_encode($toastType === 'error' ? 'error' : 'success') ?>,
-            4000
-          );
+  <?php if ($showToast && $toastMessage !== ''): ?>
+    <script>
+      (function () {
+        const triggerToast = function () {
+          if (typeof window.__createToast === 'function') {
+            window.__createToast(
+              <?= json_encode($toastMessage, JSON_UNESCAPED_UNICODE) ?>,
+              <?= json_encode($toastType === 'error' ? 'error' : 'success') ?>,
+              4000
+            );
+          }
+        };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', triggerToast);
+        } else {
+          triggerToast();
         }
-      };
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', triggerToast);
-      } else {
-        triggerToast();
-      }
-    })();
-  </script>
-<?php endif; ?>
+      })();
+    </script>
+  <?php endif; ?>
 
-<?php if (!empty($errors)): ?>
-  <script>window.location.hash = '#editModal';</script>
-<?php endif; ?>
+  <?php if (!empty($errors)): ?>
+    <script>window.location.hash = '#editModal';</script>
+  <?php endif; ?>

@@ -24,15 +24,12 @@ $showToast = $showToast ?? false;
 
   <!-- Company Info -->
 
-  <a href="#editModal" class="btn btn-outline"
-    style="position: absolute; right: 6%; top: 15%; background:var(--info-light);">✏️ Edit Profile</a>
-
   <div class=p-info-card>
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Company Information</h3>
       <div class="profile-picture">
-        <img src="<?= htmlspecialchars($company['profile_picture'] ?? 'assets/avatar.png') ?>"
-          alt="Profile Picture" width="100">
+        <img src="<?= htmlspecialchars($company['profile_picture'] ?? 'assets/avatar.png') ?>" alt="Profile Picture"
+          width="100">
       </div>
       <div class="form-group"><label>Name</label>
         <input type="text" value="<?= htmlspecialchars($company['name'] ?? 'N/A') ?>" disabled>
@@ -50,6 +47,9 @@ $showToast = $showToast ?? false;
 
     <!-- Contact Info -->
     <div class="pc-card">
+
+      <a href="#editModal" class="btn btn-outline"
+        style="position: absolute; right: 6%; top: 2%; background:var(--info-light);">✏️ Edit Profile</a>
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>" disabled>

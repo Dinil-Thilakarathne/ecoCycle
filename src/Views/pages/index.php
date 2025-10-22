@@ -94,8 +94,8 @@ $testimonials = [
                         the planet.</p>
                 </div>
                 <div>
-                    <button class="btn btn-gradient btn-icon"><span>Join Today </span><i
-                            class="fa-solid fa-arrow-right"></i></button>
+                    <a href="/login" class="btn btn-gradient btn-icon" style="width: fit-content;"><span>Join Today </span><i
+                            class="fa-solid fa-arrow-right"></i></a>
                 </div>
                 <div class="hero-content__bottom">
                     <div class="hero-content__bottom-card">
