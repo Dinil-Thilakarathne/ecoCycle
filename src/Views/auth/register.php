@@ -211,6 +211,8 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                 <form-input unwrap label="Email" name="email" type="email" placeholder="email@example.com"
                     value="<?= $old('email') ?>" required></form-input>
 
+                <form-input unwrap label="National ID (NIC)" name="nic" type="text" placeholder="e.g. 901234567V or 199012345678" value="<?= $old('nic') ?>"></form-input>
+
                 <form-input unwrap label="Password" name="password" type="password" placeholder="Choose a password"
                     required></form-input>
 
@@ -240,6 +242,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                 <div style="display:none;">
                     <input type="text" name="name" value="<?= $old('name') ?>" />
                     <input type="email" name="email" value="<?= $old('email') ?>" />
+                    <input type="text" name="nic" value="<?= $old('nic') ?>" />
                     <input type="password" name="password" />
                     <input type="password" name="password_confirm" />
                 </div>

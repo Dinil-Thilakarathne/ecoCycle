@@ -208,13 +208,10 @@ $bidStatCards = [
                             <td>
                                 <div class="action-buttons">
                                     <?php if ($status === 'completed'): ?>
-                                        <button class="icon-button approve"
-                                            onclick="approveWinner('<?= htmlspecialchars($roundId) ?>')" title="Approve">
-                                            <i class="fa-solid fa-user-check"></i>
-                                        </button>
-                                        <button class="icon-button suspend"
-                                            onclick="rejectBid('<?= htmlspecialchars($roundId) ?>')" title="Reject">
-                                            <i class="fa-solid fa-user-times"></i>
+                                        <button class="icon-button"
+                                            onclick="viewBiddingDetails(this, '<?= htmlspecialchars($roundId) ?>')"
+                                            title="View Details">
+                                            <i class="fa-solid fa-eye"></i>
                                         </button>
                                     <?php else: ?>
                                         <button class="icon-button"
@@ -223,18 +220,20 @@ $bidStatCards = [
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
                                         <?php if ($status === 'active'): ?>
-                                            <button class="icon-button"
-                                                onclick="editBiddingRound('<?= htmlspecialchars($roundId) ?>')"
-                                                title="Edit Bid Round">
-                                                <i class="fa-solid fa-edit"></i>
-                                            </button>
                                             <?php
-                                            // Only show cancel button if no company has bid yet
+                                            // Only allow edit/delete when there is no leading company and no bids above starting bid
                                             $hasLeadingCompany = !empty($biddingCompany) && $biddingCompany !== '—';
                                             $startingBid = isset($round['startingBid']) ? (float) $round['startingBid'] : 0;
                                             $hasBids = $currentBid > $startingBid;
 
+                                            // Edit should only be available when there are no bids/leading company
                                             if (!$hasLeadingCompany && !$hasBids): ?>
+                                                <button class="icon-button"
+                                                    onclick="editBiddingRound('<?= htmlspecialchars($roundId) ?>')"
+                                                    title="Edit Bid Round">
+                                                    <i class="fa-solid fa-edit"></i>
+                                                </button>
+
                                                 <button class="icon-button danger"
                                                     onclick="cancelBiddingRound('<?= htmlspecialchars($roundId) ?>')"
                                                     title="Cancel Bid Round">
@@ -299,6 +298,52 @@ $bidStatCards = [
         });
     }
 
+    // Render a complete table row HTML for a bidding round (used when inserting a new row)
+    function renderBiddingRow(round) {
+        const lotId = escapeHtml(round.lotId || round.id || '');
+        const wasteCategory = escapeHtml(round.wasteCategory || '');
+        const quantity = escapeHtml(String(round.quantity || '')) + ' ' + escapeHtml(round.unit || '');
+        const currentBid = formatCurrency(round.currentHighestBid || round.startingBid || 0);
+        const biddingCompany = escapeHtml(round.biddingCompany || '—');
+        const timeRemaining = formatTimeRemainingText(round.endTime);
+        const status = renderStatusBadge(round.status || 'pending');
+
+        // Determine if edit/delete should be shown (no leading company and no bids)
+        const hasLeadingCompany = !!(round.leadingCompanyId || (round.biddingCompany && String(round.biddingCompany).trim() !== '' && round.biddingCompany !== '—'));
+        const startingBid = Number(round.startingBid || 0);
+        const currentHighest = Number(round.currentHighestBid || 0);
+        const hasBids = currentHighest > startingBid;
+
+        let actionsHtml = '<div class="action-buttons">';
+        actionsHtml += `<button class="icon-button" onclick="viewBiddingDetails(this,'${escapeHtml(round.id)}')" title="View Details"><i class="fa-solid fa-eye"></i></button>`;
+
+        if ((round.status || '').toLowerCase() === 'completed') {
+            // Completed rounds: only allow viewing details. Approval/rejection is not required here.
+            // Keep a single View button so admins can inspect the round.
+            // (Any award/settlement actions should be handled from a dedicated workflow if needed.)
+            // Note: this mirrors the server-rendered behavior above.
+            // No approve/reject buttons added.
+        } else {
+            if (!hasLeadingCompany && !hasBids && (round.status || '').toLowerCase() === 'active') {
+                actionsHtml += `<button class="icon-button" onclick="editBiddingRound('${escapeHtml(round.id)}')" title="Edit Bid Round"><i class="fa-solid fa-edit"></i></button>`;
+                actionsHtml += `<button class="icon-button danger" onclick="cancelBiddingRound('${escapeHtml(round.id)}')" title="Cancel Bid Round"><i class="fa-solid fa-trash"></i></button>`;
+            }
+        }
+
+        actionsHtml += '</div>';
+
+        return `
+            <td class="font-medium">${lotId}</td>
+            <td>${wasteCategory}</td>
+            <td>${quantity}</td>
+            <td><div class="cell-with-icon">${currentBid}</div></td>
+            <td>${biddingCompany}</td>
+            <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${timeRemaining}</div></td>
+            <td>${status}</td>
+            <td>${actionsHtml}</td>
+        `;
+    }
+
     function parseEndTime(raw) {
         if (!raw) {
             return null;
@@ -337,10 +382,7 @@ $bidStatCards = [
                 <h3 style="margin:0 0 0.75rem 0;">Create New Lot</h3>
                 <form id="createLotForm">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div>
-                            <label style="display:block;font-weight:600;margin-bottom:6px;">Lot ID</label>
-                            <input name="lotId" required placeholder="LOT123" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
-                        </div>
+                        <!-- Lot ID is generated by the system and not user-editable -->
                         <div>
                             <label style="display:block;font-weight:600;margin-bottom:6px;">Waste Category</label>
                             <select name="wasteCategory" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
@@ -365,7 +407,7 @@ $bidStatCards = [
                         </div>
                         <div>
                             <label style="display:block;font-weight:600;margin-bottom:6px;">End Time</label>
-                            <input type="datetime-local" name="endTime" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
+                            <input type="datetime-local" name="endTime" min="${new Date().toISOString().slice(0, 16)}" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
@@ -415,7 +457,6 @@ $bidStatCards = [
         document.getElementById('createLotForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const fd = new FormData(e.target);
-            const lotId = (fd.get('lotId') || '').toString().trim();
             const wasteCategory = (fd.get('wasteCategory') || '').toString().trim();
             const quantity = parseFloat(fd.get('quantity')) || 0;
             const unit = (fd.get('unit') || '').toString().trim();
@@ -423,16 +464,13 @@ $bidStatCards = [
             const endTimeRaw = fd.get('endTime');
 
             const errors = [];
-            if (!lotId) errors.push('Lot ID is required');
             if (!wasteCategory) errors.push('Waste category is required');
             if (!(quantity > 0)) errors.push('Quantity must be greater than zero');
             if (!unit) errors.push('Unit is required');
             if (!(startingBid >= 0)) errors.push('Starting bid must be zero or more');
             if (!endTimeRaw) errors.push('End time is required');
 
-            if (Array.isArray(window.__BIDDING_DATA) && window.__BIDDING_DATA.some(r => (r.lotId || '').toString().toLowerCase() === lotId.toLowerCase())) {
-                errors.push('Lot ID already exists');
-            }
+            // Lot ID uniqueness will be enforced server-side; client doesn't provide it
 
             const endTime = endTimeRaw ? new Date(endTimeRaw) : null;
             if (endTime && endTime <= new Date()) {
@@ -463,7 +501,7 @@ $bidStatCards = [
             }
 
             const payload = {
-                lotId,
+                // lotId intentionally omitted; server will generate
                 wasteCategory,
                 quantity,
                 unit,
@@ -493,34 +531,59 @@ $bidStatCards = [
                         })
                 )
                 .then(data => {
-                    const round = data.round || {};
+                    const created = data.round || {};
 
-                    window.__BIDDING_DATA = Array.isArray(window.__BIDDING_DATA) ? window.__BIDDING_DATA : [];
-                    window.__BIDDING_DATA.unshift(round);
+                    // Ensure we have the canonical round data from the server
+                    fetchBiddingRound(created.id).then((round) => {
+                        if (!round) {
+                            // fallback: use created object
+                            round = created;
+                        }
 
-                    const tbody = document.querySelector('.data-table tbody');
-                    if (tbody) {
-                        const tr = document.createElement('tr');
-                        tr.setAttribute('data-id', round.id);
-                        tr.innerHTML = `
-                            <td class="font-medium">${escapeHtml(round.lotId)}</td>
-                            <td>${escapeHtml(round.wasteCategory)}</td>
-                            <td>${escapeHtml(String(round.quantity))} ${escapeHtml(round.unit)}</td>
-                            <td><div class="cell-with-icon">${formatCurrency(round.currentHighestBid)}</div></td>
-                            <td>${escapeHtml(round.biddingCompany || '')}</td>
-                            <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(round.endTime)}</div></td>
-                            <td>${renderStatusBadge(round.status)}</td>
-                            <td>
-                                <div style="display:flex;gap:8px;">
-                                    <button class="icon-button" onclick="viewBiddingDetails(this,'${round.id}')" title="View Details"><i class="fa-solid fa-eye"></i></button>
-                                </div>
-                            </td>
-                        `;
-                        tbody.insertBefore(tr, tbody.firstChild);
-                    }
+                        window.__BIDDING_DATA = Array.isArray(window.__BIDDING_DATA) ? window.__BIDDING_DATA : [];
+                        // add to the beginning of cache
+                        window.__BIDDING_DATA.unshift(round);
 
-                    window.__createToast('New lot created', 'success');
-                    close();
+                        const tbody = document.querySelector('.data-table tbody');
+                        if (tbody) {
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-id', round.id);
+                            tr.innerHTML = renderBiddingRow(round);
+                            tbody.insertBefore(tr, tbody.firstChild);
+                        }
+
+                        window.__createToast('New lot created', 'success');
+                        close();
+                    }).catch(err => {
+                        console.warn('Failed to fetch created round details', err);
+                        // fallback insertion with minimal data
+                        const round = created;
+                        window.__BIDDING_DATA = Array.isArray(window.__BIDDING_DATA) ? window.__BIDDING_DATA : [];
+                        window.__BIDDING_DATA.unshift(round);
+                        const tbody = document.querySelector('.data-table tbody');
+                        if (tbody) {
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-id', round.id);
+                            tr.innerHTML = `
+                                    <td class="font-medium">${escapeHtml(round.lotId)}</td>
+                                    <td>${escapeHtml(round.wasteCategory)}</td>
+                                    <td>${escapeHtml(String(round.quantity))} ${escapeHtml(round.unit)}</td>
+                                    <td><div class="cell-with-icon">${formatCurrency(round.currentHighestBid)}</div></td>
+                                    <td>${escapeHtml(round.biddingCompany || '')}</td>
+                                    <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(round.endTime)}</div></td>
+                                    <td>${renderStatusBadge(round.status)}</td>
+                                    <td>
+                                        <div style="display:flex;gap:8px;">
+                                            <button class="icon-button" onclick="viewBiddingDetails(this,'${round.id}')" title="View Details"><i class="fa-solid fa-eye"></i></button>
+                                        </div>
+                                    </td>
+                                `;
+                            tbody.insertBefore(tr, tbody.firstChild);
+                        }
+
+                        window.__createToast('New lot created (partial)', 'success');
+                        close();
+                    });
                 })
                 .catch(err => {
                     console.error('Create lot error', err);
@@ -651,6 +714,14 @@ $bidStatCards = [
     }
 
     function createModal({ title, content, buttons = [], width = '520px' }) {
+
+        const dateField = document.getElementById('end_date');
+        if (dateField) {
+            const minDate = new Date();
+            minDate.setDate(minDate.getDate() + 1);
+            dateField.min = minDate.toISOString().split('T')[0];
+        }
+
         const backdrop = document.createElement('div');
         backdrop.className = 'simple-modal-backdrop';
         backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
@@ -796,59 +867,35 @@ $bidStatCards = [
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
 
+    // Build edit-only form which allows editing only quantity, startingBid and endTime
     function buildBiddingForm(initialValues = {}) {
+
+        const dateField = document.getElementById('end_date');
+        if (dateField) {
+            const minDate = new Date();
+            minDate.setDate(minDate.getDate() + 1);
+            dateField.min = minDate.toISOString().split('T')[0];
+        }
+
         const defaults = {
-            lotId: '',
-            wasteCategory: '',
             quantity: '',
-            unit: 'kg',
             startingBid: '',
             endTime: '',
         };
 
         const values = Object.assign({}, defaults, initialValues);
-        const categories = Array.isArray(window.__WASTE_CATEGORIES) ? window.__WASTE_CATEGORIES : [];
-
-        const categoryOptions = ['<option value="">Select category</option>']
-            .concat(categories.map((cat) => {
-                const selected = cat === values.wasteCategory ? 'selected' : '';
-                return `<option value="${escapeHtml(cat)}" ${selected}>${escapeHtml(cat)}</option>`;
-            }))
-            .join('');
-
-        const unitOptions = ['kg', 'tons'].map((unit) => {
-            const selected = unit === values.unit ? 'selected' : '';
-            return `<option value="${unit}" ${selected}>${unit}</option>`;
-        }).join('');
 
         const form = document.createElement('form');
         form.innerHTML = `
             <div style="display:grid;gap:1rem;">
+                    <!-- Hidden fields to ensure lotId and wasteCategory are preserved when editing -->
+                    <input type="hidden" name="lotId" value="${escapeHtml(values.lotId ?? '')}" />
+                    <input type="hidden" name="wasteCategory" value="${escapeHtml(values.wasteCategory ?? '')}" />
                 <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Lot ID</label>
-                    <input type="text" name="lotId" required placeholder="LOT123"
-                        value="${escapeHtml(values.lotId || '')}"
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Quantity</label>
+                    <input type="number" name="quantity" min="1" step="1" required
+                        value="${escapeHtml(values.quantity ?? '')}"
                         style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
-                </div>
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Waste Category</label>
-                    <select name="wasteCategory" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
-                        ${categoryOptions}
-                    </select>
-                </div>
-                <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Quantity</label>
-                        <input type="number" name="quantity" min="100" step="100" required
-                            value="${escapeHtml(values.quantity ?? '')}"
-                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Unit</label>
-                        <select name="unit" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
-                            ${unitOptions}
-                        </select>
-                    </div>
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Starting Bid (Rs)</label>
@@ -858,7 +905,7 @@ $bidStatCards = [
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">End Time</label>
-                    <input type="datetime-local" name="endTime" required
+                    <input type="datetime-local" name="endTime" required id="end_date" min="${new Date().toISOString().slice(0, 16)}"
                         value="${escapeHtml(formatDateTimeForInput(values.endTime))}"
                         style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                 </div>
@@ -875,9 +922,31 @@ $bidStatCards = [
     function extractBiddingFormData(form) {
         const formData = new FormData(form);
 
+        // Primary source: form inputs
+        let lotId = (formData.get('lotId') || '').toString().trim();
+        let wasteCategory = (formData.get('wasteCategory') || '').toString().trim();
+
+        // Fallback: try to locate the row containing this form (if the form was built from a row)
+        if ((!lotId || !wasteCategory) && form && form.closest) {
+            const row = form.closest('tr');
+            if (row) {
+                try {
+                    const cells = row.querySelectorAll('td');
+                    if (!lotId && cells[0]) {
+                        lotId = (cells[0].textContent || '').toString().trim();
+                    }
+                    if (!wasteCategory && cells[1]) {
+                        wasteCategory = (cells[1].textContent || '').toString().trim();
+                    }
+                } catch (e) {
+                    // ignore DOM read errors and continue with whatever we have
+                }
+            }
+        }
+
         return {
-            lotId: (formData.get('lotId') || '').toString().trim(),
-            wasteCategory: (formData.get('wasteCategory') || '').toString().trim(),
+            lotId: lotId,
+            wasteCategory: wasteCategory,
             quantity: Number(formData.get('quantity')),
             unit: (formData.get('unit') || 'kg').toString(),
             startingBid: Number(formData.get('startingBid')),
@@ -962,16 +1031,9 @@ $bidStatCards = [
                         onClick: async (close) => {
                             try {
                                 const payload = extractBiddingFormData(form);
+                                console.log('Payload for update:', payload);
 
-                                if (!payload.lotId) {
-                                    showToast('Lot ID is required.', 'error');
-                                    return;
-                                }
-
-                                if (!payload.wasteCategory) {
-                                    showToast('Waste category is required.', 'error');
-                                    return;
-                                }
+                                // Only quantity, startingBid and endTime are editable here
 
                                 if (!Number.isFinite(payload.quantity) || payload.quantity <= 0) {
                                     showToast('Quantity must be a positive number.', 'error');

@@ -765,10 +765,31 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                         onClick: async (close) => {
                             try {
                                 const response = await apiRequest(`${VEHICLE_API_BASE}/${vehicleId}`, { method: 'DELETE' });
-                                const updatedVehicle = response.vehicle || Object.assign({}, vehicle, { status: 'removed' });
-                                syncVehicleCache(updatedVehicle);
-                                updateVehicleRow(updatedVehicle);
-                                showToast('Vehicle marked as removed.', 'success');
+
+                                // Remove from client cache
+                                if (Array.isArray(window.__VEHICLES)) {
+                                    const idx = window.__VEHICLES.findIndex((v) => Number(v.id) === Number(vehicleId));
+                                    if (idx >= 0) {
+                                        window.__VEHICLES.splice(idx, 1);
+                                    }
+                                }
+
+                                // Remove row from DOM
+                                const row = document.querySelector(`tr[data-id="${vehicleId}"]`);
+                                if (row) {
+                                    row.remove();
+                                }
+
+                                // If table is now empty, show empty row
+                                const tbody = document.querySelector('.data-table tbody');
+                                if (tbody && !tbody.querySelector('tr')) {
+                                    const emptyTr = document.createElement('tr');
+                                    emptyTr.setAttribute('data-empty', 'true');
+                                    emptyTr.innerHTML = `<td colspan="8" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">No vehicles found.</td>`;
+                                    tbody.appendChild(emptyTr);
+                                }
+
+                                showToast(response.message || 'Vehicle deleted.', 'success');
                                 close();
                             } catch (error) {
                                 showToast(error.message, 'error');
