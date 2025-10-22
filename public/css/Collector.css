@@ -171,7 +171,7 @@
   padding: 20px;
   background: #fff;
   border-radius: 15px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   width: 400px; /* Adjust width */
   /*margin: 0 auto;  Center horizontally */
 }
@@ -465,61 +465,61 @@ input[type="file"] {
 
 /* ===== Profile Picture Styling ===== */
 .profile-section {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .profile-pic-container {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid #3a86ff;
-    margin-bottom: 10px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #3a86ff;
+  margin-bottom: 10px;
 }
 .profile-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .p-info-card {
-    display: flex;
-    gap: 30px;
-    flex-wrap: wrap;
-    margin-top: 20px;
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+  margin-top: 20px;
 }
 .pc-card {
-    flex: 1;
-    background: #f9f9f9;
-    padding: 20px;
-    border-radius: 10px;
+  flex: 1;
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 10px;
 }
 .form-group {
-    margin-bottom: 12px;
+  margin-bottom: 12px;
 }
 .form-group label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 4px;
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
 }
-input[disabled], textarea[disabled] {
-    background-color: #eee;
-    border: 1px solid #ccc;
-    width: 100%;
-    padding: 8px;
+input[disabled],
+textarea[disabled] {
+  background-color: #eee;
+  border: 1px solid #ccc;
+  width: 100%;
+  padding: 8px;
 }
 .toast {
-    background: #333;
-    color: white;
-    padding: 10px 15px;
-    border-radius: 6px;
-    position: fixed;
-    bottom: 15px;
-    right: 15px;
+  background: #333;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 6px;
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
 }
-
 
 form {
   display: grid;
@@ -591,34 +591,24 @@ form select:focus {
 .task-info {
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .task-name {
   font-weight: var(--font-weight-semibold);
   margin-bottom: 2px;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+
+  & span{
+    display: block;
+  }
 }
 
 .task-meta {
   font-size: 13px;
   color: var(--gray);
-}
-
-.status {
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-.completed {
-  background: #e6f4ea;
-  color: var(--primary);
-}
-
-.pending {
-  background: #fff7e6;
-  color: #d98200;
 }
 
 .task-right {
@@ -744,22 +734,6 @@ form select:focus {
   font-size: 13px;
   color: #777;
 }
-/*.tags {
-        display: flex;
-        gap: 8px;
-    }
-    /*.tag {
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-size: 11px;
-        font-weight: bold;
-    }
-    .tag-high { background: #ffcdd2; color: #c62828; }
-    .tag-medium { background: #ffe0b2; color: #ef6c00; }
-    .tag-low { background: #c8e6c9; color: #2e7d32; }
-    .tag-pending { background: #ffccbc; color: #d84315; }
-    .tag-inprogress { background: #bbdefb; color: #1565c0; }
-*/
 .task-details {
   display: flex;
   flex-wrap: wrap;
@@ -1095,43 +1069,6 @@ th {
   color: #777;
 }
 
-/* Page Header */
-.page-header {
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.page-header__title {
-  font-size: 24px;
-  font-weight: bold;
-  margin: 0;
-  color: #111827;
-}
-
-.page-header__description {
-  font-size: 14px;
-  color: #6b7280;
-  margin: 5px 0 0;
-}
-
-/* Edit Button */
-
-/*edit-btn { 
-  background: var(--info-light); 
-  color: var(--info); 
-  margin-bottom: 20px;
-  border: 2px solid var(--info); 
-  position: absolute; 
-  right: 6%; 
-  top: 15%; 
-}
-
-.edit-btn:hover { 
-  background: var(--danger-light); 
-  color: var(--danger); 
-  border: 2px solid var(--danger);
-}*/
-
 /* Info Cards */
 .p-info-card {
   display: grid;
@@ -1314,7 +1251,6 @@ th {
   color: #111827;
 }
 
-
 /* Toast */
 .toast {
   position: fixed;
@@ -1358,7 +1294,6 @@ th {
 .fa-star.filled {
   color: #fbbf24;
 }
-
 
 .status.success {
   background: #e6f9ed;
@@ -1607,17 +1542,17 @@ textarea {
 }
 
 /* your .p-submit button styles */
-.p-submit { 
-  background: var(--success-light); 
-  color: var(--success); 
-  border: 2px solid var(--success); 
+.p-submit {
+  background: var(--success-light);
+  color: var(--success);
+  border: 2px solid var(--success);
   border-radius: 6px;
   padding: 8px 20px;
   cursor: pointer;
   transition: 0.3s;
 }
 
-.p-submit:hover { 
-  background: var(--success); 
-  color: var(--neutral-0); 
+.p-submit:hover {
+  background: var(--success);
+  color: var(--neutral-0);
 }
