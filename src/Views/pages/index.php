@@ -132,7 +132,7 @@ $testimonials = [
         </div>
     </section>
 
-    <section class="feature-section main-section container">
+    <section class="feature-section main-section container" id="features">
         <div>
             <h2 class="section-header">
                 <span>Why choose</span>
@@ -161,7 +161,7 @@ $testimonials = [
         </div>
     </section>
 
-    <section class="how-it-works-section main-section container">
+    <section class="how-it-works-section main-section container" id="how-it-works">
         <div>
             <h2 class="section-header">
                 <span>How it</span>
@@ -190,7 +190,7 @@ $testimonials = [
         </div>
     </section>
 
-    <section class="reviews-section main-section container">
+    <section class="reviews-section main-section container" id="reviews">
         <div>
             <h2 class="section-header">
                 <span>Loved by</span>
