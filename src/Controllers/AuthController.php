@@ -215,6 +215,7 @@ class AuthController extends BaseController
 
             $name = trim((string) $request->input('name'));
             $email = trim((string) $request->input('email'));
+            $nic = trim((string) $request->input('nic'));
             $password = (string) $request->input('password');
             $passwordConfirm = (string) $request->input('password_confirm');
 
@@ -245,7 +246,8 @@ class AuthController extends BaseController
 
             $oldInput = array_merge(
                 ['name' => $name, 'email' => $email, 'role' => $role],
-                $dynamicValues
+                $dynamicValues,
+                ['nic' => $nic]
             );
 
             if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '') {
@@ -262,6 +264,13 @@ class AuthController extends BaseController
 
             if ($password !== $passwordConfirm) {
                 return $this->registrationErrorRedirect($oldInput, 'Passwords do not match.', $wantsJson);
+            }
+
+            // Validate NIC if provided (optional). Basic checks: length <= 30
+            if ($nic !== '') {
+                if (mb_strlen($nic) > 30) {
+                    return $this->registrationErrorRedirect($oldInput, 'NIC is too long (max 30 characters).', $wantsJson);
+                }
             }
 
             $fieldErrors = [];
@@ -348,6 +357,10 @@ class AuthController extends BaseController
                 'type' => $role,
                 'password' => $password,
             ];
+
+            if ($nic !== '') {
+                $data['nic'] = $nic;
+            }
 
             if ($roleId !== null) {
                 $data['role_id'] = $roleId;

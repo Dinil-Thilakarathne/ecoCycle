@@ -105,7 +105,7 @@ class AdminDashboardController extends DashboardController
 
         $pickupModel = new PickupRequest();
         $allRequests = $pickupModel->listAll();
-        $timeSlots = $pickupModel->listTimeSlots();
+        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
 
         $collectors = (new User())->listByType('collector', 200);
 

@@ -204,7 +204,7 @@ class CollectorDashboardController extends DashboardController
     {
         try {
             $pickupRequest = new PickupRequest();
-            return $pickupRequest->listTimeSlots();
+            return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];  // TODO: need to fix this
         } catch (\Throwable $e) {
             error_log('Collector time slot load failed: ' . $e->getMessage());
         }
