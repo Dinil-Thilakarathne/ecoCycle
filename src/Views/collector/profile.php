@@ -120,9 +120,6 @@ $csrfToken = csrf_token();
       <div class="form-group"><label>Last Name</label>
         <input type="text" value="<?= htmlspecialchars($displayLastName) ?>" disabled>
       </div>
-      <div class="form-group"><label>NIC</label>
-        <input type="text" value="<?= htmlspecialchars($displayNic) ?>" disabled>
-      </div>
     </div>
 
     <div class="pc-card">
@@ -240,10 +237,6 @@ $csrfToken = csrf_token();
       </div>
       <div class="form-group"><label class="form-lable">Last Name</label>
         <input type="text" name="lastName" value="<?= htmlspecialchars($editLastName) ?>" required>
-      </div>
-      <div class="form-group"><label class="form-lable">NIC</label>
-        <input type="text" name="nic" value="<?= htmlspecialchars($editNic) ?>" maxlength="15" pattern="[0-9Vv]{5,15}"
-          title="NIC should be between 5 and 15 characters (numbers and V)">
       </div>
       <div class="form-group"><label class="form-lable">Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($editEmail) ?>" required>

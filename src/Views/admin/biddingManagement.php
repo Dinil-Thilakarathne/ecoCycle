@@ -183,6 +183,13 @@ $bidStatCards = [
                         $quantity = $round['quantity'] ?? '';
                         $unit = $round['unit'] ?? '';
                         $currentBid = isset($round['currentHighestBid']) ? (float) $round['currentHighestBid'] : 0;
+                        if ($currentBid <= 0) {
+                            if (isset($round['reservePrice']) && $round['reservePrice'] > 0) {
+                                $currentBid = (float) $round['reservePrice'];
+                            } elseif (isset($round['startingBid'], $round['quantity'])) {
+                                $currentBid = (float) $round['startingBid'] * (float) $round['quantity'];
+                            }
+                        }
                         $biddingCompany = $round['biddingCompany'] ?? '—';
                         $endTime = $round['endTime'] ?? null;
                         ?>
@@ -298,12 +305,47 @@ $bidStatCards = [
         });
     }
 
+    function resolveReservePrice(round) {
+        if (!round) {
+            return null;
+        }
+
+        const directReserve = round.reservePrice ?? round.reserve_price;
+        const reserveNumber = Number(directReserve);
+        if (Number.isFinite(reserveNumber) && reserveNumber > 0) {
+            return reserveNumber;
+        }
+
+        const starting = Number(round.startingBid ?? round.starting_bid);
+        const quantity = Number(round.quantity);
+
+        if (Number.isFinite(starting) && Number.isFinite(quantity) && quantity > 0 && starting > 0) {
+            return starting * quantity;
+        }
+
+        return null;
+    }
+
+    function getDisplayBidValue(round) {
+        if (!round) {
+            return 0;
+        }
+
+        const highest = Number(round.currentHighestBid ?? round.current_highest_bid);
+        if (Number.isFinite(highest) && highest > 0) {
+            return highest;
+        }
+
+        const reserve = resolveReservePrice(round);
+        return reserve !== null ? reserve : 0;
+    }
+
     // Render a complete table row HTML for a bidding round (used when inserting a new row)
     function renderBiddingRow(round) {
         const lotId = escapeHtml(round.lotId || round.id || '');
         const wasteCategory = escapeHtml(round.wasteCategory || '');
         const quantity = escapeHtml(String(round.quantity || '')) + ' ' + escapeHtml(round.unit || '');
-        const currentBid = formatCurrency(round.currentHighestBid || round.startingBid || 0);
+        const currentBid = formatCurrency(getDisplayBidValue(round));
         const biddingCompany = escapeHtml(round.biddingCompany || '—');
         const timeRemaining = formatTimeRemainingText(round.endTime);
         const status = renderStatusBadge(round.status || 'pending');
@@ -472,8 +514,10 @@ $bidStatCards = [
 
             // Lot ID uniqueness will be enforced server-side; client doesn't provide it
 
-            const endTime = endTimeRaw ? new Date(endTimeRaw) : null;
-            if (endTime && endTime <= new Date()) {
+            const endTimeDate = endTimeRaw ? new Date(endTimeRaw) : null;
+            if (endTimeRaw && (!endTimeDate || Number.isNaN(endTimeDate.getTime()))) {
+                errors.push('End time is invalid');
+            } else if (endTimeDate && endTimeDate <= new Date()) {
                 errors.push('End time must be in the future');
             }
 
@@ -500,13 +544,15 @@ $bidStatCards = [
                 submitBtn.textContent = 'Creating...';
             }
 
+            const normalizedEndTime = toSqlDateTimeLocal(endTimeRaw);
+
             const payload = {
                 // lotId intentionally omitted; server will generate
                 wasteCategory,
                 quantity,
                 unit,
                 startingBid,
-                endTime: endTime ? endTime.toISOString() : null
+                endTime: normalizedEndTime
             };
 
             fetch('/api/bidding/rounds', {
@@ -568,7 +614,7 @@ $bidStatCards = [
                                     <td class="font-medium">${escapeHtml(round.lotId)}</td>
                                     <td>${escapeHtml(round.wasteCategory)}</td>
                                     <td>${escapeHtml(String(round.quantity))} ${escapeHtml(round.unit)}</td>
-                                    <td><div class="cell-with-icon">${formatCurrency(round.currentHighestBid)}</div></td>
+                                    <td><div class="cell-with-icon">${formatCurrency(getDisplayBidValue(round))}</div></td>
                                     <td>${escapeHtml(round.biddingCompany || '')}</td>
                                     <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(round.endTime)}</div></td>
                                     <td>${renderStatusBadge(round.status)}</td>
@@ -626,8 +672,8 @@ $bidStatCards = [
                     const companyCell = row.querySelectorAll('td')[4];
                     if (companyCell && round.awardedCompany) companyCell.textContent = round.awardedCompany;
                     const bidCell = row.querySelectorAll('td')[3];
-                    if (bidCell && round.currentHighestBid !== undefined) {
-                        bidCell.innerHTML = `<div class="cell-with-icon">${formatCurrency(round.currentHighestBid)}</div>`;
+                    if (bidCell) {
+                        bidCell.innerHTML = `<div class="cell-with-icon">${formatCurrency(getDisplayBidValue(round))}</div>`;
                     }
                     const timerCell = row.querySelectorAll('td')[5];
                     if (timerCell) {
@@ -854,9 +900,8 @@ $bidStatCards = [
     }
 
     function formatDateTimeForInput(value) {
-        if (!value) return '';
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return '';
+        const date = parseEndTime(value);
+        if (!date) return '';
 
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -865,6 +910,24 @@ $bidStatCards = [
         const minutes = String(date.getMinutes()).padStart(2, '0');
 
         return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function toSqlDateTimeLocal(value) {
+        if (!value) return null;
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
     // Build edit-only form which allows editing only quantity, startingBid and endTime
@@ -925,6 +988,7 @@ $bidStatCards = [
         // Primary source: form inputs
         let lotId = (formData.get('lotId') || '').toString().trim();
         let wasteCategory = (formData.get('wasteCategory') || '').toString().trim();
+        const endTimeRaw = formData.get('endTime');
 
         // Fallback: try to locate the row containing this form (if the form was built from a row)
         if ((!lotId || !wasteCategory) && form && form.closest) {
@@ -950,7 +1014,7 @@ $bidStatCards = [
             quantity: Number(formData.get('quantity')),
             unit: (formData.get('unit') || 'kg').toString(),
             startingBid: Number(formData.get('startingBid')),
-            endTime: formData.get('endTime') ? new Date(formData.get('endTime')).toISOString() : null,
+            endTime: endTimeRaw ? toSqlDateTimeLocal(endTimeRaw) : null,
         };
     }
 
@@ -964,7 +1028,7 @@ $bidStatCards = [
         if (cells[0]) cells[0].textContent = round.lotId || '';
         if (cells[1]) cells[1].textContent = round.wasteCategory || '';
         if (cells[2]) cells[2].textContent = `${round.quantity || ''} ${round.unit || ''}`;
-        if (cells[3]) cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(round.currentHighestBid || round.startingBid || 0)}</div>`;
+        if (cells[3]) cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(getDisplayBidValue(round))}</div>`;
         if (cells[4]) cells[4].textContent = round.biddingCompany || '—';
         if (cells[5]) cells[5].innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(round.endTime)}</div>`;
         if (cells[6]) cells[6].innerHTML = renderStatusBadge(round.status);
@@ -1030,6 +1094,8 @@ $bidStatCards = [
                         variant: 'primary',
                         onClick: async (close) => {
                             try {
+                                const endTimeField = form.querySelector('input[name="endTime"]');
+                                const rawEndTimeValue = endTimeField ? endTimeField.value : '';
                                 const payload = extractBiddingFormData(form);
                                 console.log('Payload for update:', payload);
 
@@ -1045,13 +1111,13 @@ $bidStatCards = [
                                     return;
                                 }
 
-                                if (!payload.endTime) {
+                                if (!payload.endTime || !rawEndTimeValue) {
                                     showToast('End time is required.', 'error');
                                     return;
                                 }
 
-                                const endTime = new Date(payload.endTime);
-                                if (endTime <= new Date()) {
+                                const endTime = new Date(rawEndTimeValue);
+                                if (Number.isNaN(endTime.getTime()) || endTime <= new Date()) {
                                     showToast('End time must be in the future.', 'error');
                                     return;
                                 }

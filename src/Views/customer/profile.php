@@ -78,9 +78,6 @@ $csrfToken = csrf_token();
       <div class="form-group"><label>Last Name</label>
         <input type="text" value="<?= htmlspecialchars($displayLastName) ?>" disabled>
       </div>
-      <div class="form-group"><label>NIC</label>
-        <input type="text" value="<?= htmlspecialchars($displayNic) ?>" disabled>
-      </div>
     </div>
 
     <div class="pc-card">
