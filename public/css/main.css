@@ -20,8 +20,3 @@
 body {
   font-family: var(--font-family-poppins);
 }
-
-
-html {
-  font-size: 20px; /* Default is 16px */
-}
