@@ -8,7 +8,7 @@ use Core\Database;
 // It's idempotent (uses CREATE TABLE IF NOT EXISTS in the SQL file).
 // Run on first boot or from your deployment process.
 
-$path = __DIR__ . '/../database/create_tables.sql';
+$path = __DIR__ . '/../database/mysql/create_tables.sql';
 if (!is_file($path)) {
     echo "ERROR: schema file not found: $path\n";
     exit(1);

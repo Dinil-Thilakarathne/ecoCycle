@@ -9,7 +9,7 @@ use Core\Database;
 // - Respects SKIP_DB_SEED env var
 // - Prints per-statement status and final row counts for key tables
 
-$path = __DIR__ . '/../database/seeds/seed_dummy_data.sql';
+$path = __DIR__ . '/../database/mysql/seeds/seed_dummy_data.sql';
 if (!is_file($path)) {
     echo "ERROR: seed file not found: $path\n";
     exit(1);
