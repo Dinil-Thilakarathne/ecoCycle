@@ -70,6 +70,91 @@ class PageRouter
                     ]
                 ]);
             });
+
+            // POST /api/bidding/approve - lightweight demo handler
+            $router->post('/bidding/approve', function ($request) {
+                $json = $request->json();
+                $data = is_array($json) ? $json : $request->all();
+                $biddingId = $data['biddingId'] ?? null;
+
+                if (!$biddingId) {
+                    return response()->json(['success' => false, 'error' => 'Missing biddingId'], 400);
+                }
+
+                $dummy = require base_path('config/dummy.php');
+                $found = null;
+                foreach ($dummy['bidding_rounds'] as $round) {
+                    if (($round['id'] ?? '') === $biddingId) {
+                        $found = $round;
+                        break;
+                    }
+                }
+
+                if (!$found) {
+                    return response()->json(['success' => false, 'error' => 'Bidding round not found'], 404);
+                }
+
+                if (($found['status'] ?? '') !== 'completed') {
+                    return response()->json(['success' => false, 'error' => 'Bidding round must be completed before approving'], 400);
+                }
+
+                if (empty($found['biddingCompany']) || empty($found['currentHighestBid'])) {
+                    return response()->json(['success' => false, 'error' => 'No valid winning bid to approve'], 400);
+                }
+
+                // Simulate awarding the lot (no persistent DB in dummy mode)
+                $found['status'] = 'awarded';
+                $found['awardedCompany'] = $found['biddingCompany'];
+                $found['awardedAt'] = date('c');
+
+                return response()->json(['success' => true, 'round' => $found]);
+            });
+
+            // POST /api/bidding/reject - lightweight demo handler
+            $router->post('/bidding/reject', function ($request) {
+                $json = $request->json();
+                $data = is_array($json) ? $json : $request->all();
+                $biddingId = $data['biddingId'] ?? null;
+                $reason = $data['reason'] ?? null;
+
+                if (!$biddingId) {
+                    return response()->json(['success' => false, 'error' => 'Missing biddingId'], 400);
+                }
+
+                $dummy = require base_path('config/dummy.php');
+                $found = null;
+                foreach ($dummy['bidding_rounds'] as $round) {
+                    if (($round['id'] ?? '') === $biddingId) {
+                        $found = $round;
+                        break;
+                    }
+                }
+
+                if (!$found) {
+                    return response()->json(['success' => false, 'error' => 'Bidding round not found'], 404);
+                }
+
+                if (($found['status'] ?? '') !== 'completed') {
+                    return response()->json(['success' => false, 'error' => 'Bidding round must be completed before rejecting'], 400);
+                }
+
+                // Simulate cancelling the round
+                $found['status'] = 'cancelled';
+                if ($reason)
+                    $found['rejectionReason'] = $reason;
+                $found['rejectedAt'] = date('c');
+
+                return response()->json(['success' => true, 'round' => $found]);
+            });
+
+            // Pickup request management
+            $router->put('/pickup-requests/{id}', 'Controllers\Api\PickupRequestController@update');
+            // Vehicle management API
+            $router->get('/vehicles', 'Controllers\Api\VehicleController@index');
+            $router->post('/vehicles', 'Controllers\Api\VehicleController@store');
+            $router->get('/vehicles/{id}', 'Controllers\Api\VehicleController@show');
+            $router->put('/vehicles/{id}', 'Controllers\Api\VehicleController@update');
+            $router->delete('/vehicles/{id}', 'Controllers\Api\VehicleController@destroy');
         });
     }
 }

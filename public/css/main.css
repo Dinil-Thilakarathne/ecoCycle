@@ -1,8 +1,21 @@
-@import url("./base/reset.css");
-@import url("./base/theme.css");
+﻿@layer theme, base, components, utilities, page;
 
-/* @import url("./dashboard.css"); */
-@import url("./components/common.css");
+@import url("./base/reset.css") layer(base);
+@import url("./base/theme.css") layer(base);
+
+@import url("./components/common.css") layer(components);
+@import url("./dashboard.css") layer(components);
+@import url("./components/sidebar.css") layer(components);
+@import url("./components/footer.css") layer(components);
+
+@import url("./landingpage.css") layer(page);
+@import url("./404.css") layer(page);
+
+@import url("./components/atomic.css") layer(utilities);
+/* testing */
+/* @import url("./customer.css");
+@import url("./Collector.css");
+@import url("./company.css"); */
 
 body {
   font-family: var(--font-family-poppins);

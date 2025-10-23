@@ -184,7 +184,7 @@
                 <ul class="page-links">
                     <li><a href="/collector" class="main-dashboard">🏠 Main Dashboard</a></li>
                     <li><a href="/collector/pickups">🚛 Pickup Assignments</a></li>
-                    <li><a href="/collector/routes">🗺️ Route Planning</a></li>
+                    <li><a href="/collector/history">🗺️ Pickup History</a></li>
                     <li><a href="/collector/earnings">💰 Earnings & Payments</a></li>
                     <li><a href="/collector/reports">📈 Collection Reports</a></li>
                     <li><a href="/collector/profile">👤 Collector Profile</a></li>

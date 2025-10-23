@@ -18,10 +18,8 @@ abstract class DashboardController extends BaseController
 
     public function __construct()
     {
-        // Disable authentication for development
-        // $this->ensureAuthenticated();
         $this->setUserContext();
-        $this->setDemoUser();
+        $this->ensureAuthenticated();
     }
 
     /**
@@ -29,35 +27,6 @@ abstract class DashboardController extends BaseController
      */
     protected function setDemoUser(): void
     {
-        // Set demo user data based on user type
-        $demoUsers = [
-            'admin' => [
-                'id' => 1,
-                'name' => 'Admin User',
-                'email' => 'admin@ecocycle.com',
-                'role' => 'admin'
-            ],
-            'customer' => [
-                'id' => 2,
-                'name' => 'John Customer',
-                'email' => 'customer@ecocycle.com',
-                'role' => 'customer'
-            ],
-            'collector' => [
-                'id' => 3,
-                'name' => 'Jane Collector',
-                'email' => 'collector@ecocycle.com',
-                'role' => 'collector'
-            ],
-            'company' => [
-                'id' => 4,
-                'name' => 'ABC Company',
-                'email' => 'company@ecocycle.com',
-                'role' => 'company'
-            ]
-        ];
-
-        $this->user = $demoUsers[$this->userType] ?? $demoUsers['customer'];
     }
 
     /**
@@ -66,7 +35,6 @@ abstract class DashboardController extends BaseController
     protected function ensureAuthenticated(): void
     {
         $this->user = auth();
-
         if (!$this->user) {
             redirect('/login')->send();
             exit;

@@ -10,6 +10,14 @@
   --primary-500: #08682d; /* dark */
   --primary-600: #04421c; /* darker */
 
+  /* teal color palette */
+  --color-teal-200: oklch(91% 0.096 180.426);
+  --color-teal-300: oklch(85.5% 0.138 181.071);
+  --color-teal-400: oklch(77.7% 0.152 181.912);
+  --color-teal-500: oklch(70.4% 0.14 182.503);
+  --color-teal-600: oklch(60% 0.118 184.704);
+  --color-teal-700: oklch(51.1% 0.096 186.391);
+
   /* Neutral Palette */
   --neutral-0: #ffffff;
   --neutral-50: #f9fafb;
@@ -32,6 +40,13 @@
   --danger-light: #fee2e2;
   --info: #3b82f6;
   --info-light: #dbeafe;
+
+  /* Waste stream / material colors */
+  --plastic: #0000ff; /* Plastic */
+  --paper: #008000; /* Paper */
+  --metal: #ffa500; /* Metal */
+  --glass: #ff0000; /* Glass */
+  --organic: #8b5a2b; /* Organic  */
 
   /* Spacing Scale (8px base) */
   --space-1: 0.125rem; /* 2px */
@@ -67,7 +82,10 @@
   --text-3xl: 1.875rem; /* 30px */
   --text-4xl: 2.25rem; /* 36px */
   --text-5xl: 3rem; /* 48px */
-  --text-6xl: 3.75rem; /* 60px */
+  --text-6xl: clamp(1rem, 0.25rem + 5.2vw, 3.75rem); /* 60px */
+  --text-7xl: clamp(1rem, 0.25rem + 5.2vw, 4.5rem); /* 72px */
+  --text-8xl: clamp(1rem, 0.25rem + 5.2vw, 6rem); /* 96px */
+  --text-9xl: clamp(1rem, 0.25rem + 5.2vw, 8rem); /* 128px */
 
   --line-height-tight: 1.25;
   --line-height-snug: 1.375;
@@ -84,15 +102,15 @@
   --font-weight-black: 900;
 
   /* Border Radius */
-  --radius-none: 0;
-  --radius-sm: 0.125rem; /* 2px */
-  --radius-base: 0.25rem; /* 4px */
-  --radius-md: 0.375rem; /* 6px */
-  --radius-lg: 0.5rem; /* 8px */
-  --radius-xl: 0.75rem; /* 12px */
-  --radius-2xl: 1rem; /* 16px */
-  --radius-3xl: 1.5rem; /* 24px */
-  --radius-full: 9999px;
+  --rounded-none: 0;
+  --rounded-sm: 0.125rem; /* 2px */
+  --rounded-base: 0.25rem; /* 4px */
+  --rounded-md: 0.375rem; /* 6px */
+  --rounded-lg: 0.5rem; /* 8px */
+  --rounded-xl: 0.75rem; /* 12px */
+  --rounded-2xl: 1rem; /* 16px */
+  --rounded-3xl: 1.5rem; /* 24px */
+  --rounded-full: 9999px;
 
   /* Shadows */
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);

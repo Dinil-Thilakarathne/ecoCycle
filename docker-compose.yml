@@ -1,0 +1,72 @@
+version: "3.9"
+
+# Production override: removes dev bind mounts & phpMyAdmin, adds Caddy reverse proxy with HTTPS.
+
+services:
+  app:
+    build: .
+    image: ecocycle-app:latest
+    restart: unless-stopped
+    # No source bind mount in prod; code baked into image
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      # DB connection updated for PostgreSQL
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-eco_cycle}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
+    depends_on:
+      - db
+    networks:
+      - web
+      - internal
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-eco_cycle}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMeStrong}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # PostgreSQL init scripts
+      - ./database/postgresql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${APP_DOMAIN:-example.com}
+      EMAIL: ${SSL_EMAIL:-admin@example.com}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - app
+    networks:
+      - web
+
+networks:
+  web:
+  internal:
+    internal: true
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

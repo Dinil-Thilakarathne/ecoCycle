@@ -24,6 +24,47 @@ if (!function_exists('dd')) {
     }
 }
 
+if (!function_exists('material_min_bid')) {
+    /**
+     * Get minimum bid for a material/category
+     *
+     * @param string $type Material key (plastic, paper, metal, glass, organic)
+     * @param mixed $default Default value if not set
+     * @return float
+     */
+    function material_min_bid(string $type, $default = 0): float
+    {
+        return (float) \Core\Config::get("data.minimum_bids.{$type}", $default);
+    }
+}
+
+if (!function_exists('material_color')) {
+    /**
+     * Get hex color for a material/category
+     *
+     * @param string $type Material key
+     * @param string $default Default hex color
+     * @return string
+     */
+    function material_color(string $type, string $default = '#000000'): string
+    {
+        return (string) \Core\Config::get("data.material_colors.{$type}", $default);
+    }
+}
+
+if (!function_exists('format_rs')) {
+    /**
+     * Format a number as Rupees currency string
+     *
+     * @param float|int $amount
+     * @return string
+     */
+    function format_rs($amount): string
+    {
+        return 'Rs. ' . number_format((float) $amount, 2);
+    }
+}
+
 if (!function_exists('dump')) {
     /**
      * Dump variable - for debugging
@@ -36,6 +77,37 @@ if (!function_exists('dump')) {
         echo '<pre>';
         var_dump($var);
         echo '</pre>';
+    }
+}
+
+if (!function_exists('consoleLog')) {
+    /**
+     * Write values to the browser console from PHP.
+     *
+     * Usage: consoleLog('label', $var, $arr);
+     *
+     * @param mixed ...$args
+     * @return void
+     */
+    function consoleLog(...$args): void
+    {
+        // Prepare JS-safe JSON fragments for each argument
+        $parts = [];
+        foreach ($args as $a) {
+            $json = @json_encode($a, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                // Fallback to string representation
+                $json = json_encode((string) $a);
+            }
+            // Prevent closing the script tag if the data contains it
+            $json = str_replace('</script>', '<\/script>', $json);
+            $parts[] = $json;
+        }
+
+        $js = 'console.log(' . implode(', ', $parts) . ');';
+
+        // Echo script tag to log in browser console
+        echo "<script>" . $js . "</script>";
     }
 }
 
@@ -60,15 +132,15 @@ if (!function_exists('app')) {
 
 if (!function_exists('config')) {
     /**
-     * Get configuration value
-     * 
+     * Get configuration value (static access to avoid container recursion)
+     *
      * @param string $key
      * @param mixed $default
      * @return mixed
      */
     function config(string $key, $default = null)
     {
-        return app('config')->get($key, $default);
+        return \Core\Config::get($key, $default);
     }
 }
 
@@ -86,43 +158,7 @@ if (!function_exists('env')) {
     }
 }
 
-if (!function_exists('response')) {
-    /**
-     * Create a response instance (Next.js style)
-     * 
-     * @return \Core\Http\Response
-     */
-    function response()
-    {
-        return new class {
-            public function json($data, $status = 200)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Content-Type', 'application/json');
-                $response->setContent(json_encode($data, JSON_PRETTY_PRINT));
-                return $response;
-            }
-
-            public function html($content, $status = 200)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Content-Type', 'text/html');
-                $response->setContent($content);
-                return $response;
-            }
-
-            public function redirect($url, $status = 302)
-            {
-                $response = new \Core\Http\Response();
-                $response->setStatusCode($status);
-                $response->setHeader('Location', $url);
-                return $response;
-            }
-        };
-    }
-}
+// ...existing code... (removed duplicate anonymous response() helper)
 
 if (!function_exists('base_path')) {
     /**
@@ -133,7 +169,15 @@ if (!function_exists('base_path')) {
      */
     function base_path(string $path = ''): string
     {
-        $basePath = app()->basePath();
+        // In CLI scripts the Application singleton may not be initialized.
+        $app = Core\Application::getInstance();
+        if ($app) {
+            $basePath = $app->basePath();
+        } else {
+            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
+            $basePath = dirname(__DIR__, 2);
+        }
+
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
     }
 }
@@ -176,8 +220,8 @@ if (!function_exists('response')) {
     function response(string $content = '', int $status = 200, array $headers = []): Core\Http\Response
     {
         $response = app('response');
-        $response->setBody($content);
-        $response->setStatus($status);
+        $response->setContent($content);
+        $response->setStatusCode($status);
 
         foreach ($headers as $key => $value) {
             $response->setHeader($key, $value);
@@ -198,7 +242,7 @@ if (!function_exists('redirect')) {
     function redirect(string $url, int $status = 302): Core\Http\Response
     {
         $response = app('response');
-        $response->setStatus($status);
+        $response->setStatusCode($status);
         $response->setHeader('Location', $url);
 
         return $response;
@@ -254,16 +298,17 @@ if (!function_exists('view')) {
      * 
      * @param string $view
      * @param array $data
+     * @param string|null $layout Optional layout path under src/Views (e.g. 'layouts/app')
      * @return Core\Http\Response
      */
-    function view(string $view, array $data = []): Core\Http\Response
+    function view(string $view, array $data = [], ?string $layout = null): Core\Http\Response
     {
         $response = app('response');
 
         // Extract data for view
         extract($data);
 
-        // Start output buffering
+        // Start output buffering for the view content
         ob_start();
 
         // Include the view file
@@ -278,8 +323,24 @@ if (!function_exists('view')) {
         // Get the rendered content
         $content = ob_get_clean();
 
-        // Set the response body
-        $response->setBody($content);
+        // If a layout is requested, render the layout with $content available
+        if ($layout) {
+            ob_start();
+            $layoutPath = app()->basePath() . "/src/Views/{$layout}.php";
+            if (file_exists($layoutPath)) {
+                // $content is in scope for the layout file
+                include $layoutPath;
+                $final = ob_get_clean();
+            } else {
+                // Layout missing — fall back to raw content
+                $final = $content;
+            }
+
+            $response->setContent($final);
+        } else {
+            $response->setContent($content);
+        }
+
         $response->setHeader('Content-Type', 'text/html');
 
         return $response;
@@ -380,11 +441,11 @@ if (!function_exists('abort')) {
     function abort(int $code = 404, string $message = ''): void
     {
         $response = app('response');
-        $response->setStatus($code);
-        $response->setBody($message ?: "Error $code");
+        $response->setStatusCode($code);
+        $response->setContent($message ?: "Error $code");
 
         // Send response and exit
-        echo $response->getBody();
+        echo $response->getContent();
         exit($code);
     }
 }
@@ -439,5 +500,173 @@ if (!function_exists('can_access_dashboard')) {
         }
 
         return $user['role'] === $dashboardType;
+    }
+}
+
+if (!function_exists('getNavigation')) {
+    /**
+     * Get navigation items for a user type
+     * 
+     * @param string $userType The user role (admin, customer, collector, company)
+     * @return array Navigation items
+     */
+    function getNavigation(string $userType): array
+    {
+        return \EcoCycle\Core\Navigation\NavigationConfig::getNavigation($userType);
+    }
+}
+
+if (!function_exists('isActiveNavigation')) {
+    /**
+     * Check if a navigation URL is active
+     * 
+     * @param string $navUrl The navigation URL
+     * @param string|null $currentUrl Current URL (optional, uses REQUEST_URI if not provided)
+     * @return bool Whether the navigation item is active
+     */
+    function isActiveNavigation(string $navUrl, ?string $currentUrl = null): bool
+    {
+        $currentUrl = $currentUrl ?? ($_SERVER['REQUEST_URI'] ?? '');
+        return \EcoCycle\Core\Navigation\NavigationConfig::isActiveUrl($navUrl, $currentUrl);
+    }
+}
+
+if (!function_exists('getBreadcrumbs')) {
+    /**
+     * Get breadcrumb navigation for current page
+     * 
+     * @param string $userType The user role
+     * @param string|null $currentUrl Current URL (optional, uses REQUEST_URI if not provided)
+     * @return array Breadcrumb items
+     */
+    function getBreadcrumbs(string $userType, ?string $currentUrl = null): array
+    {
+        $currentUrl = $currentUrl ?? ($_SERVER['REQUEST_URI'] ?? '');
+        return \EcoCycle\Core\Navigation\NavigationConfig::getBreadcrumbs($userType, $currentUrl);
+    }
+}
+
+if (!function_exists('validateRoutes')) {
+    /**
+     * Validate that all navigation routes have corresponding controller methods
+     * 
+     * @return array Array of missing methods
+     */
+    function validateRoutes(): array
+    {
+        return \EcoCycle\Core\Navigation\RouteConfig::validateRoutes();
+    }
+}
+
+if (!function_exists('listRoutes')) {
+    /**
+     * Get all dashboard routes
+     * 
+     * @return array Array of route definitions
+     */
+    function listRoutes(): array
+    {
+        return \EcoCycle\Core\Navigation\RouteConfig::getAllDashboardRoutes();
+    }
+}
+
+if (!function_exists('getWasteCategories')) {
+    /**
+     * Get waste categories
+     * 
+     * @return array
+     */
+    function getWasteCategories(): array
+    {
+        return \Core\Config::get('data.wasteCategories', []);
+    }
+}
+
+// Dummy data accessors (centralized)
+if (!function_exists('dummy_data')) {
+    /**
+     * Retrieve a segment of dummy data (development only)
+     * @param string|null $key
+     * @return mixed
+     */
+    function dummy_data(?string $key = null)
+    {
+        static $data = null;
+        if ($data === null) {
+            $path = base_path('config/dummy.php');
+            if (file_exists($path)) {
+                $data = require $path;
+            } else {
+                $data = [];
+            }
+        }
+        if ($key === null)
+            return $data;
+        return $data[$key] ?? null;
+    }
+}
+
+// logout the user -> need to redirect to the login page with removing all cache data
+if (!function_exists('logout')) {
+    /**
+     * Logout the current user
+     * 
+     * @return Core\Http\Response
+     */
+    function logout(): Core\Http\Response
+    {
+        $session = session();
+
+        // Best-effort server-side session cleanup. The session manager in this app
+        // may implement clear(), destroy(), regenerateToken(). Call whichever
+        // exist to avoid fatal errors on different session implementations.
+        if (is_object($session)) {
+            if (method_exists($session, 'clear')) {
+                $session->clear();
+            }
+
+            if (method_exists($session, 'destroy')) {
+                // Some session managers provide a destroy method
+                $session->destroy();
+            }
+
+            if (method_exists($session, 'regenerateToken')) {
+                $session->regenerateToken();
+            }
+        }
+
+        // Also attempt native PHP session cleanup in case session manager wraps PHP
+        if (PHP_SAPI !== 'cli') {
+            // If PHP session is active, clear and destroy it
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                // Clear $_SESSION array
+                $_SESSION = [];
+
+                // Destroy session data on server
+                @session_destroy();
+
+                // Remove session cookie from client
+                $sessionName = session_name();
+                if (!empty($sessionName) && ini_get('session.use_cookies')) {
+                    $params = session_get_cookie_params();
+                    setcookie(
+                        $sessionName,
+                        '',
+                        time() - 42000,
+                        $params['path'] ?? '/',
+                        $params['domain'] ?? '',
+                        $params['secure'] ?? false,
+                        $params['httponly'] ?? true
+                    );
+                }
+            }
+        }
+
+        // Prevent caching of authenticated pages
+        $response = redirect('/login');
+        $response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->setHeader('Pragma', 'no-cache');
+
+        return $response;
     }
 }
