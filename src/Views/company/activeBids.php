@@ -1,6 +1,7 @@
 <?php
 $minimumBids = $minimumBids ?? [];
 $availableWasteLots = $availableWasteLots ?? [];
+consoleLog('Available Waste Lots: ' . print_r($availableWasteLots, true));
 $biddingHistory = $biddingHistory ?? [];
 $formErrors = $formErrors ?? [];
 $formSuccess = $formSuccess ?? null;
@@ -114,8 +115,18 @@ $formSuccess = $formSuccess ?? null;
                     <div class="lot-details">
                         <p data-role="lot-quantity"><strong>Quantity:</strong>
                             <?= htmlspecialchars(number_format($lot['quantity'] ?? 0) . ' ' . ($lot['unit'] ?? 'kg')) ?></p>
+                        <?php
+                        $lotCurrentBid = isset($lot['currentHighestBid']) ? (float) $lot['currentHighestBid'] : 0.0;
+                        if ($lotCurrentBid <= 0) {
+                            if (isset($lot['reservePrice']) && $lot['reservePrice'] > 0) {
+                                $lotCurrentBid = (float) $lot['reservePrice'];
+                            } elseif (isset($lot['startingBid'], $lot['quantity'])) {
+                                $lotCurrentBid = (float) $lot['startingBid'] * (float) $lot['quantity'];
+                            }
+                        }
+                        ?>
                         <p data-role="lot-current-bid"><strong>Current Bid:</strong>
-                            <?= htmlspecialchars(format_rs($lot['currentHighestBid'] ?? 0)) ?>
+                            <?= htmlspecialchars(format_rs($lotCurrentBid)) ?>
                         </p>
                     </div>
                     <button type="button" class="btn btn-primary outline" data-action="prefill-bid"
@@ -220,6 +231,35 @@ $formSuccess = $formSuccess ?? null;
                 return 'Rs. 0.00';
             }
             return 'Rs. ' + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function resolveLotReservePrice(lot) {
+            if (!lot) {
+                return null;
+            }
+            const direct = lot.reservePrice ?? lot.reserve_price;
+            const directNumber = Number(direct);
+            if (Number.isFinite(directNumber) && directNumber > 0) {
+                return directNumber;
+            }
+            const starting = Number(lot.startingBid ?? lot.starting_bid);
+            const quantity = Number(lot.quantity);
+            if (Number.isFinite(starting) && Number.isFinite(quantity) && starting > 0 && quantity > 0) {
+                return starting * quantity;
+            }
+            return null;
+        }
+
+        function getLotDisplayBid(lot) {
+            if (!lot) {
+                return 0;
+            }
+            const current = Number(lot.currentHighestBid ?? lot.current_highest_bid);
+            if (Number.isFinite(current) && current > 0) {
+                return current;
+            }
+            const reserve = resolveLotReservePrice(lot);
+            return reserve !== null ? reserve : 0;
         }
 
         function escapeHtml(value) {
@@ -363,7 +403,7 @@ $formSuccess = $formSuccess ?? null;
             if (card) {
                 const bidEl = card.querySelector('[data-role="lot-current-bid"]');
                 if (bidEl) {
-                    bidEl.innerHTML = '<strong>Current Bid:</strong> ' + formatRs(lot.currentHighestBid || 0);
+                    bidEl.innerHTML = '<strong>Current Bid:</strong> ' + formatRs(getLotDisplayBid(lot));
                 }
                 const statusEl = card.querySelector('[data-role="lot-status"]');
                 if (statusEl) {
@@ -445,6 +485,11 @@ $formSuccess = $formSuccess ?? null;
                 return;
             }
 
+            const emptyRow = tbody.querySelector('tr[data-empty="true"]');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
             const existing = tbody.querySelector(`tr[data-bid-id="${cssEscape(String(bid.id))}"]`);
             const html = renderBidRow(bid);
             if (existing) {
@@ -463,6 +508,31 @@ $formSuccess = $formSuccess ?? null;
                 } else {
                     state.history.unshift(bid);
                 }
+            }
+        }
+
+        function removeBidHistoryRow(bidId) {
+            if (!bidId) {
+                return;
+            }
+
+            const tbody = document.querySelector('.activity-card .data-table tbody');
+            if (tbody) {
+                const selector = `tr[data-bid-id="${cssEscape(String(bidId))}"]`;
+                const row = tbody.querySelector(selector);
+                if (row) {
+                    row.remove();
+                }
+                if (!tbody.querySelector('tr')) {
+                    const empty = document.createElement('tr');
+                    empty.innerHTML = '<td colspan="7" style="text-align:center;padding:1rem;color:#6b7280;">No bids found.</td>';
+                    empty.setAttribute('data-empty', 'true');
+                    tbody.appendChild(empty);
+                }
+            }
+
+            if (Array.isArray(state.history)) {
+                state.history = state.history.filter(item => String(item?.id) !== String(bidId));
             }
         }
 
@@ -574,6 +644,19 @@ $formSuccess = $formSuccess ?? null;
                 });
         });
 
+        window.__COMPANY_BIDDING_UPDATERS = window.__COMPANY_BIDDING_UPDATERS || {};
+        Object.assign(window.__COMPANY_BIDDING_UPDATERS, {
+            upsertLotCard,
+            upsertBidHistoryRow,
+            removeBidHistoryRow,
+            resolveLotReservePrice,
+            getLotDisplayBid,
+            cssEscape,
+            toast,
+            updateTotalBid,
+            syncWasteTypeFromLot
+        });
+
         // Initialize form state
         syncWasteTypeFromLot();
         updateTotalBid();
@@ -664,9 +747,16 @@ $formSuccess = $formSuccess ?? null;
                         if (!res.ok || !body || !body.success) {
                             throw new Error((body && body.message) ? body.message : 'Delete failed');
                         }
-                        // Remove row
-                        const row = document.querySelector(`tr[data-bid-id="${CSS.escape(String(bidId))}"]`);
-                        if (row) row.remove();
+                        const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
+                        if (typeof helpers.removeBidHistoryRow === 'function') {
+                            helpers.removeBidHistoryRow(bidId);
+                        } else {
+                            const row = document.querySelector(`tr[data-bid-id="${cssEscape(String(bidId))}"]`);
+                            if (row) row.remove();
+                        }
+                        if (body.lot && typeof helpers.upsertLotCard === 'function') {
+                            helpers.upsertLotCard(body.lot);
+                        }
                         toast('Bid cancelled.', 'success');
                     })
                     .catch(err => {
@@ -701,12 +791,12 @@ $formSuccess = $formSuccess ?? null;
                         const detail = body && body.errors ? Object.values(body.errors).join('\n') : '';
                         throw new Error((body && body.message ? body.message : 'Update failed') + (detail ? '\n' + detail : ''));
                     }
-                    // Update UI row amount
                     const updated = body.bid;
-                    const row = document.querySelector(`tr[data-bid-id="${CSS.escape(String(updated.id))}"]`);
-                    if (row) {
-                        const cell = row.querySelector('.bid-amount-cell');
-                        if (cell) cell.textContent = (updated.amount ? (typeof updated.amount === 'number' ? ('Rs. ' + Number(updated.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })) : updated.amount) : 'Rs. 0.00');
+                    if (updated) {
+                        upsertBidHistoryRow(updated);
+                    }
+                    if (body.lot) {
+                        upsertLotCard(body.lot);
                     }
                     // Ensure modal is closed immediately, then show success toast
                     closeEditModal();
@@ -727,6 +817,17 @@ $formSuccess = $formSuccess ?? null;
         const deleteCancelBtn = document.getElementById('delete-bid-cancel');
         const deleteCloseBtn = document.getElementById('delete-bid-close');
         let pendingDeleteId = null;
+
+        function escapeSelector(value) {
+            const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
+            if (helpers && typeof helpers.cssEscape === 'function') {
+                return helpers.cssEscape(value);
+            }
+            if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                return CSS.escape(value);
+            }
+            return String(value).replace(/[^a-zA-Z0-9_\-]/g, '\\$&');
+        }
 
         function openDeleteModal(bidId) {
             pendingDeleteId = String(bidId);
@@ -770,13 +871,15 @@ $formSuccess = $formSuccess ?? null;
                     if (!res.ok || !body || !body.success) {
                         throw new Error((body && body.message) ? body.message : 'Delete failed');
                     }
-                    // remove row from table and state
-                    const row = document.querySelector(`tr[data-bid-id="${CSS.escape(String(pendingDeleteId))}"]`);
-                    if (row) row.remove();
-                    if (Array.isArray(window.__COMPANY_BIDDING_STATE && window.__COMPANY_BIDDING_STATE.history)) {
-                        try {
-                            window.__COMPANY_BIDDING_STATE.history = window.__COMPANY_BIDDING_STATE.history.filter(b => String(b.id) !== String(pendingDeleteId));
-                        } catch (e) { }
+                    const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
+                    if (typeof helpers.removeBidHistoryRow === 'function') {
+                        helpers.removeBidHistoryRow(pendingDeleteId);
+                    } else {
+                        const row = document.querySelector(`tr[data-bid-id="${escapeSelector(String(pendingDeleteId))}"]`);
+                        if (row) row.remove();
+                    }
+                    if (body.lot && typeof helpers.upsertLotCard === 'function') {
+                        helpers.upsertLotCard(body.lot);
                     }
                     closeDeleteModal();
                     toast('Bid cancelled.', 'success');

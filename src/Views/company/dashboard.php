@@ -17,7 +17,15 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
-      <h2 class="page-header__title">Welcome back, EcoWaste!</h2>
+      <?php
+      // Prefer company profile name if provided, otherwise resolve from auth/session and fall back to 'EcoWaste'
+      $companyProfile = $companyProfile ?? ($companyProfile = null);
+      $profileName = is_array($companyProfile) ? ($companyProfile['name'] ?? null) : null;
+      $companyName = $profileName ?: (auth()['name'] ?? session('user_name') ?? 'EcoWaste');
+      consoleLog('Company Name (resolved): ' . $companyName);
+      $companyName = htmlspecialchars((string) $companyName, ENT_QUOTES, 'UTF-8');
+      ?>
+      <h2 class="page-header__title">Welcome back, <?= $companyName ?>!</h2>
       <p class="page-header__description">Here is your latest update on your Dashboard</p>
     </div>
   </header>
@@ -51,8 +59,7 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
             $safeAmount = htmlspecialchars($data['amount'] ?? '0 kg', ENT_QUOTES, 'UTF-8');
             $safeStatus = htmlspecialchars($data['status'] ?? 'Active', ENT_QUOTES, 'UTF-8');
             ?>
-            <bid-item unwrap type="<?= $safeType ?>" bid="<?= $safeBid ?>" amount="<?= $safeAmount ?>"
-              status="<?= $safeStatus ?>"></bid-item>
+            <bid-item unwrap type="<?= $safeType ?>" bid="<?= $safeBid ?>" amount="<?= $safeAmount ?>"></bid-item>
           <?php endforeach; ?>
         </ul>
       </div>

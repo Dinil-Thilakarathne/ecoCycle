@@ -27,10 +27,10 @@ $purchaseHistory = $purchaseHistory ?? [];
                     <span class="tag <?= strtolower(str_replace(' ', '-', $purchase['status'] ?? 'pending')) ?>"
                         style="position: absolute; top: 15px; right: 20px;"><?= strtoupper($purchase['status'] ?? 'PENDING') ?>
                     </span>
-                    <?php if (($purchase['status'] ?? '') === "Confirmed"): ?>
-                        <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Make
-                            Payment</button>
-                    <?php endif; ?>
+                    <?php ?>
+                    <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Make
+                        Payment</button>
+                    <?php ?>
                 </div>
             <?php endforeach; ?>
         </div>

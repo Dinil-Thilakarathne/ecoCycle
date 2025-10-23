@@ -1,5 +1,6 @@
 <?php
 $company = is_array($companyProfile ?? null) ? $companyProfile : [];
+consoleLog( 'Company Profile Data: ' . print_r( $company, true ) );
 $bankdetails = is_array($bankDetails ?? null) ? $bankDetails : [];
 $wasteTypes = $wasteTypes ?? ($company['waste_types'] ?? []);
 if (!is_array($wasteTypes)) {
