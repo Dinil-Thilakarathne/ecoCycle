@@ -25,10 +25,10 @@ VALUES
 INSERT INTO vehicles (plate_number, type, capacity, status, last_maintenance, next_maintenance, notes, created_at)
 VALUES
   ('ABC-1234','Pickup Truck',2000,'available','2025-08-01','2025-11-01', JSON_OBJECT('legacy_id','VH001'), NOW()),
-  ('XYZ-5678','Van',1500,'in-use','2025-07-15','2025-10-15', JSON_OBJECT('legacy_id','VH002'), NOW()),
+  ('XYZ-5678','Large Truck',5000,'in-use','2025-07-15','2025-10-15', JSON_OBJECT('legacy_id','VH002'), NOW()),
   ('DEF-9012','Pickup Truck',2000,'maintenance','2025-08-10','2025-11-10', JSON_OBJECT('legacy_id','VH003'), NOW()),
   ('GHI-3456','Small Truck',3000,'available','2025-06-20','2025-09-20', JSON_OBJECT('legacy_id','VH004'), NOW()),
-  ('JKL-7890','Van',1200,'in-use','2025-08-05','2025-11-05', JSON_OBJECT('legacy_id','VH005'), NOW());
+  ('JKL-7890','Small Truck',3000,'in-use','2025-08-05','2025-11-05', JSON_OBJECT('legacy_id','VH005'), NOW());
 
 -- Populate temp_vehicle_map with mappings of legacy -> inserted id by matching plate_number
 -- (we stored legacy in notes, but plate_number is unique so we can map by plate)

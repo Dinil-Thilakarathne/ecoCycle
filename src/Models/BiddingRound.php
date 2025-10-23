@@ -86,7 +86,7 @@ class BiddingRound extends BaseModel
         }
 
         $currentRow = $this->db->fetch(
-            "SELECT current_highest_bid FROM {$this->table} WHERE id = ? LIMIT 1",
+            "SELECT current_highest_bid, leading_company_id FROM {$this->table} WHERE id = ? LIMIT 1",
             [$id]
         );
 
@@ -97,12 +97,12 @@ class BiddingRound extends BaseModel
         $updates = $attributes;
         $updates['updated_at'] = date('Y-m-d H:i:s');
 
-        if (isset($attributes['starting_bid'])) {
-            $startingBid = (float) $attributes['starting_bid'];
-            $currentHighest = isset($currentRow['current_highest_bid']) ? (float) $currentRow['current_highest_bid'] : null;
-            if ($currentHighest === null || $startingBid > $currentHighest) {
-                $updates['current_highest_bid'] = $startingBid;
-            }
+        $hasBids = isset($currentRow['current_highest_bid'])
+            && (float) $currentRow['current_highest_bid'] > 0
+            && !empty($currentRow['leading_company_id']);
+
+        if (!$hasBids && (isset($attributes['starting_bid']) || isset($attributes['quantity']))) {
+            $updates['current_highest_bid'] = 0.0;
         }
 
         $this->updateAttributes($id, $updates);
@@ -338,15 +338,30 @@ class BiddingRound extends BaseModel
         }
 
         return array_map(function (array $row): array {
+            $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
+            $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
+            $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
+            $leadingCompanyId = $row['leading_company_id'] ?? null;
+
+            if ($leadingCompanyId === null || $currentHighestBid <= 0) {
+                $currentHighestBid = 0.0;
+            }
+
+            $reservePrice = ($startingBid > 0 && $quantity > 0)
+                ? round($startingBid * $quantity, 2)
+                : null;
+
             return [
                 'id' => $row['id'],
                 'lotId' => $row['lot_id'] ?? $row['id'],
                 'category' => $row['waste_category_name'] ?? 'Unknown',
-                'quantity' => isset($row['quantity']) ? (float) $row['quantity'] : 0.0,
+                'quantity' => $quantity,
                 'unit' => $row['unit'] ?? 'kg',
-                'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
+                'currentHighestBid' => $currentHighestBid,
                 'status' => $row['status'] ?? 'active',
                 'endTime' => $row['end_time'] ?? null,
+                'startingBid' => $startingBid,
+                'reservePrice' => $reservePrice,
             ];
         }, $rows);
     }
@@ -378,16 +393,30 @@ class BiddingRound extends BaseModel
         }
 
         return array_map(function (array $row): array {
+            $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
+            $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
+            $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
+            $leadingCompanyId = $row['leading_company_id'] ?? null;
+
+            if ($leadingCompanyId === null || $currentHighestBid <= 0) {
+                $currentHighestBid = 0.0;
+            }
+
+            $reservePrice = ($startingBid > 0 && $quantity > 0)
+                ? round($startingBid * $quantity, 2)
+                : null;
+
             return [
                 'id' => $row['id'],
                 'lotId' => $row['lot_id'] ?? $row['id'],
                 'category' => $row['waste_category_name'] ?? 'Unknown',
-                'quantity' => isset($row['quantity']) ? (float) $row['quantity'] : 0.0,
+                'quantity' => $quantity,
                 'unit' => $row['unit'] ?? 'kg',
-                'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
+                'currentHighestBid' => $currentHighestBid,
                 'status' => $row['status'] ?? 'active',
                 'endTime' => $row['end_time'] ?? null,
-                'startingBid' => isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0,
+                'startingBid' => $startingBid,
+                'reservePrice' => $reservePrice,
             ];
         }, $rows);
     }
@@ -459,9 +488,19 @@ class BiddingRound extends BaseModel
     private function normalizeRound(array $row): array
     {
         $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
-        $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
         $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : null;
+        $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
         $leadingCompanyId = array_key_exists('leading_company_id', $row) ? $row['leading_company_id'] : null;
+
+        $hasActiveBid = $leadingCompanyId !== null && $currentHighestBid > 0;
+        if (!$hasActiveBid) {
+            $currentHighestBid = 0.0;
+        }
+
+        $reservePrice = null;
+        if ($startingBid !== null && $quantity > 0) {
+            $reservePrice = round($startingBid * $quantity, 2);
+        }
 
         return [
             'id' => $row['id'],
@@ -478,6 +517,7 @@ class BiddingRound extends BaseModel
             'endTime' => $row['end_time'] ?? null,
             'notes' => $row['notes'] ?? null,
             'awardedCompany' => $row['company_name'] ?? '',
+            'reservePrice' => $reservePrice,
         ];
     }
 

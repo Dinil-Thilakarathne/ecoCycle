@@ -16,6 +16,7 @@ class Bid extends BaseModel
 
         $sql = "SELECT
                     b.id,
+                    b.bidding_round_id,
                     b.amount,
                     b.is_winner,
                     b.created_at,
@@ -53,6 +54,7 @@ class Bid extends BaseModel
                     b.amount,
                     b.is_winner,
                     b.created_at,
+                    b.bidding_round_id,
                     br.lot_id,
                     br.quantity,
                     br.unit,
@@ -187,22 +189,69 @@ class Bid extends BaseModel
 
     /**
      * Delete (cancel) a bid belonging to a company.
-     * Returns true on success.
+     * Returns the affected bidding round id on success.
      */
-    public function deleteBid(int $bidId, int $companyId): bool
+    public function deleteBid(int $bidId, int $companyId): ?string
     {
         if ($bidId <= 0 || $companyId <= 0) {
             throw new \DomainException('Invalid delete payload.');
         }
 
-        // Ensure the bid exists and belongs to the company
-        $row = $this->db->fetch("SELECT id, bidding_round_id FROM {$this->table} WHERE id = ? AND company_id = ? LIMIT 1", [$bidId, $companyId]);
-        if (!$row) {
-            throw new \DomainException('Bid not found or you do not have permission to delete it.');
-        }
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
 
-        $this->db->query("DELETE FROM {$this->table} WHERE id = ? AND company_id = ?", [$bidId, $companyId]);
-        return true;
+        try {
+            $row = $this->db->fetch(
+                "SELECT id, bidding_round_id FROM {$this->table} WHERE id = ? AND company_id = ? LIMIT 1 FOR UPDATE",
+                [$bidId, $companyId]
+            );
+
+            if (!$row) {
+                throw new \DomainException('Bid not found or you do not have permission to delete it.');
+            }
+
+            $roundId = (string) $row['bidding_round_id'];
+
+            $roundRow = $this->db->fetch(
+                "SELECT id, starting_bid FROM bidding_rounds WHERE id = ? LIMIT 1 FOR UPDATE",
+                [$roundId]
+            );
+
+            if (!$roundRow) {
+                throw new \DomainException('Associated bidding round could not be found.');
+            }
+
+            $this->db->query("DELETE FROM {$this->table} WHERE id = ? AND company_id = ?", [$bidId, $companyId]);
+
+            $topBid = $this->db->fetch(
+                "SELECT company_id, amount FROM {$this->table} WHERE bidding_round_id = ? ORDER BY amount DESC, created_at DESC LIMIT 1",
+                [$roundId]
+            );
+
+            $highestAmount = 0.0;
+            $leadingCompanyId = null;
+
+            if ($topBid) {
+                $bidAmount = isset($topBid['amount']) ? (float) $topBid['amount'] : 0.0;
+                $highestAmount = round(max(0.0, $bidAmount), 2);
+                $leadingCompanyId = isset($topBid['company_id']) ? (int) $topBid['company_id'] : null;
+            }
+
+            $this->db->query(
+                "UPDATE bidding_rounds SET current_highest_bid = ?, leading_company_id = ?, updated_at = NOW() WHERE id = ?",
+                [$highestAmount, $leadingCompanyId, $roundId]
+            );
+
+            $pdo->commit();
+
+            return $roundId;
+        } catch (\DomainException $e) {
+            $pdo->rollBack();
+            throw $e;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
 
     private function mapCompanyHistoryRow(array $row, int $companyId): array
@@ -211,6 +260,7 @@ class Bid extends BaseModel
         $unit = $row['unit'] ?? 'kg';
         $category = $row['waste_category_name'] ?? 'Unknown';
         $lotId = $row['lot_id'] ?: ('BR-' . $row['id']);
+        $roundId = isset($row['bidding_round_id']) ? (string) $row['bidding_round_id'] : null;
         $amount = isset($row['amount']) ? (float) $row['amount'] : 0.0;
         $createdAt = $row['created_at'] ?? null;
         $roundStatus = $row['round_status'] ?? 'pending';
@@ -238,6 +288,7 @@ class Bid extends BaseModel
             'status' => $status,
             'roundStatus' => $roundStatus,
             'lotId' => $lotId,
+            'roundId' => $roundId,
             'createdAt' => $createdAt,
             'currentHighestBid' => isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0,
             'endTime' => $row['end_time'] ?? null,
