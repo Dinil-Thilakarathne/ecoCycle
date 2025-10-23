@@ -9,7 +9,7 @@ use Core\Database;
 // Seeds the company dashboard demo data defined in database/seeds/seed_company_dashboard_demo.sql.
 // Mirrors scripts/seed_db.php but targets the demo dataset so you can preview UI widgets quickly.
 
-$seedFile = __DIR__ . '/../database/seeds/seed_company_dashboard_demo.sql';
+$seedFile = __DIR__ . '/../database/mysql/seeds/seed_company_dashboard_demo.sql';
 if (!is_file($seedFile)) {
     fwrite(STDERR, "Seed file not found: {$seedFile}\n");
     exit(1);

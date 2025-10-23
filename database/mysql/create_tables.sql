@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `username` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(150) DEFAULT NULL,
   `phone` VARCHAR(50) DEFAULT NULL,
+  `nic` VARCHAR(20) DEFAULT NULL,
   `address` TEXT DEFAULT NULL,
   `bank_account_name` VARCHAR(255) DEFAULT NULL,
   `bank_account_number` VARCHAR(100) DEFAULT NULL,

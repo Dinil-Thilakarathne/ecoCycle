@@ -8,7 +8,7 @@
  */
 
 const BASE_PATH = __DIR__ . '/..';
-const SEED_PATH = BASE_PATH . '/database/seeds/seed_collector_tasks_demo.sql';
+const SEED_PATH = BASE_PATH . '/database/mysql/seeds/seed_collector_tasks_demo.sql';
 
 require BASE_PATH . '/vendor/autoload.php';
 
