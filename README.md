@@ -46,13 +46,54 @@ To provide a sustainable, efficient, and scalable platform that promotes respons
 
 ### Prerequisites
 
-- PHP 7.4 or higher
+- PHP 8.2 or higher
 - Composer
-- A web server (e.g., Apache, Nginx, or built-in PHP server)
-- A database server (MySQL, PostgreSQL, or SQLite)
-- Extensions: PDO, JSON, mbstring, OpenSSL
+- Docker Desktop (recommended) or local PostgreSQL installation
+- Extensions: PDO, pdo_pgsql, JSON, mbstring, OpenSSL
 
-### Installation
+### Installation (Docker - Recommended)
+
+**For consistent development environments across all platforms:**
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/yourusername/digital-waste-management.git
+   cd digital-waste-management
+   ```
+
+2. **Set up environment configuration:**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env file with your application settings
+   ```
+
+3. **Start Docker services:**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Access the application:**
+   Navigate to `http://localhost` in your web browser.
+
+5. **View logs (optional):**
+
+   ```bash
+   docker-compose logs -f
+   ```
+
+**Note:** The Docker setup automatically:
+
+- Creates PostgreSQL database with schema
+- Installs all PHP dependencies
+- Configures web server (Caddy)
+- Seeds initial data
+
+### Installation (Local Development)
+
+**For development without Docker:**
 
 1. **Clone the repository:**
 
@@ -77,15 +118,21 @@ To provide a sustainable, efficient, and scalable platform that promotes respons
 4. **Configure your database settings in `.env`:**
 
    ```env
-   DB_CONNECTION=mysql
+   DB_CONNECTION=pgsql
    DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=ecocycle
-   DB_USERNAME=your_username
+   DB_PORT=5432
+   DB_DATABASE=eco_cycle
+   DB_USERNAME=postgres
    DB_PASSWORD=your_password
    ```
 
-5. **Start the development server:**
+5. **Initialize the database:**
+
+   ```bash
+   psql -U postgres -d eco_cycle < database/postgresql/init/01_create_tables.sql
+   ```
+
+6. **Start the development server:**
 
    ```bash
    composer serve
@@ -93,8 +140,26 @@ To provide a sustainable, efficient, and scalable platform that promotes respons
    php -S localhost:8000 -t public
    ```
 
-6. **Access the application:**
+7. **Access the application:**
    Navigate to `http://localhost:8000` in your web browser.
+
+### Database Migration (MySQL to PostgreSQL)
+
+If you're migrating from MySQL to PostgreSQL, see our comprehensive migration guide:
+
+📖 **[MySQL to PostgreSQL Migration Guide](docs/MIGRATION_GUIDE.md)**
+
+Quick migration steps:
+
+1. Backup your current MySQL database
+2. Update `.env` to use PostgreSQL settings
+3. Run `docker-compose up -d --build`
+4. Verify migration with test scripts
+
+**Additional Resources:**
+
+- [PostgreSQL Quick Reference](docs/postgres-quick-reference.md) - Common commands and syntax
+- [Database Setup Guide](docs/database-setup.md) - Detailed database configuration
 
 ## Framework Architecture
 
