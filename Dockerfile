@@ -14,8 +14,8 @@ LABEL org.opencontainers.image.source="https://github.com/Dinil-Thilakarathne/ec
 # Install system dependencies & PHP extensions
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-     libzip-dev zip unzip git libicu-dev \
-  && docker-php-ext-install pdo_mysql intl \
+     libzip-dev zip unzip git libicu-dev libpq-dev \
+  && docker-php-ext-install pdo_mysql pdo_pgsql intl \
   && a2enmod rewrite headers expires \
   && rm -rf /var/lib/apt/lists/*
 

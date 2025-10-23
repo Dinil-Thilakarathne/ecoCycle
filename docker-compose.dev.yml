@@ -1,0 +1,70 @@
+# Development docker-compose configuration
+# This extends the base docker-compose.yml with development-friendly settings
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ecocycle-app:dev
+    container_name: ecocycle-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      # DB connection
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-eco_cycle}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+    volumes:
+      # Mount source code for live development
+      - ./public:/var/www/html/public:cached
+      - ./src:/var/www/html/src:cached
+      - ./config:/var/www/html/config:cached
+      - ./database:/var/www/html/database:cached
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ecocycle-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: ecocycle-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-eco_cycle}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-root}
+      # Enable logging for development
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Mount init scripts
+      - ./database/postgresql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-eco_cycle}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ecocycle-network
+
+networks:
+  ecocycle-network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
