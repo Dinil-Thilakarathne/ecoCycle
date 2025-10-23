@@ -25,10 +25,10 @@ VALUES
 INSERT INTO vehicles (plate_number, type, capacity, status, last_maintenance, next_maintenance, notes, created_at)
 VALUES
   ('ABC-1234','Pickup Truck',2000,'available','2025-08-01','2025-11-01', JSON_OBJECT('legacy_id','VH001'), NOW()),
-  ('XYZ-5678','Van',1500,'in-use','2025-07-15','2025-10-15', JSON_OBJECT('legacy_id','VH002'), NOW()),
+  ('XYZ-5678','Large Truck',5000,'in-use','2025-07-15','2025-10-15', JSON_OBJECT('legacy_id','VH002'), NOW()),
   ('DEF-9012','Pickup Truck',2000,'maintenance','2025-08-10','2025-11-10', JSON_OBJECT('legacy_id','VH003'), NOW()),
   ('GHI-3456','Small Truck',3000,'available','2025-06-20','2025-09-20', JSON_OBJECT('legacy_id','VH004'), NOW()),
-  ('JKL-7890','Van',1200,'in-use','2025-08-05','2025-11-05', JSON_OBJECT('legacy_id','VH005'), NOW());
+  ('JKL-7890','Small Truck',3000,'in-use','2025-08-05','2025-11-05', JSON_OBJECT('legacy_id','VH005'), NOW());
 
 -- Populate temp_vehicle_map with mappings of legacy -> inserted id by matching plate_number
 -- (we stored legacy in notes, but plate_number is unique so we can map by plate)
@@ -48,12 +48,12 @@ VALUES
 
 -- 4) Users: customers
 -- Insert customers and record mapping legacy id -> new numeric id in temp_user_map
-INSERT INTO users (type, name, email, phone, address, status, total_pickups, total_earnings, created_at, metadata)
+INSERT INTO users (role_id, type, name, email, phone, address, bank_account_name, bank_account_number, bank_name, bank_branch, status, total_pickups, total_earnings, created_at, metadata)
 VALUES
-  ('customer','Alice Johnson','alice@email.com','+1234567890','123 Green St, Eco City','active',15,12550.00, NOW(), JSON_OBJECT('legacy_id','C001')),
-  ('customer','Bob Smith','bob@email.com','+1234567891','456 Recycle Ave, Green Town','active',8,6725.00, NOW(), JSON_OBJECT('legacy_id','C002')),
-  ('customer','Carol Davis','carol@email.com','+1234567892','789 Eco Blvd, Sustainable City','suspended',22,18075.00, NOW(), JSON_OBJECT('legacy_id','C003')),
-  ('customer','David Wilson','david@email.com','+1234567893','321 Green Ave, Eco Valley','pending',0,0.00, NOW(), JSON_OBJECT('legacy_id','C004'));
+  (2, 'customer','Alice Johnson','alice@email.com','+1234567890','123 Green St, Eco City','Alice Johnson','7000112233','Eco Bank','Eco City Branch','active',15,12550.00, NOW(), JSON_OBJECT('legacy_id','C001')),
+  (2, 'customer','Bob Smith','bob@email.com','+1234567891','456 Recycle Ave, Green Town','Bob Smith','7000112234','Eco Bank','Green Town Branch','active',8,6725.00, NOW(), JSON_OBJECT('legacy_id','C002')),
+  (2, 'customer','Carol Davis','carol@email.com','+1234567892','789 Eco Blvd, Sustainable City','Carol Davis','7000112235','Eco Bank','Sustainable City Branch','suspended',22,18075.00, NOW(), JSON_OBJECT('legacy_id','C003')),
+  (2, 'customer','David Wilson','david@email.com','+1234567893','321 Green Ave, Eco Valley','David Wilson','7000112236','Eco Bank','Eco Valley Branch','pending',0,0.00, NOW(), JSON_OBJECT('legacy_id','C004'));
 
 -- Populate temp_user_map for these customers
 INSERT INTO temp_user_map (legacy_id, new_id, user_type)
@@ -62,12 +62,12 @@ FROM users u
 WHERE u.type = 'customer' AND JSON_EXTRACT(u.metadata, '$.legacy_id') IS NOT NULL;
 
 -- 5) Companies
-INSERT INTO users (type, name, email, phone, status, total_bids, total_purchases, created_at, metadata)
+INSERT INTO users (role_id, type, name, email, phone, bank_account_name, bank_account_number, bank_name, bank_branch, status, total_bids, total_purchases, created_at, metadata)
 VALUES
-  ('company','GreenTech Co.','contact@greentech.com','+1234567892','active',45,32, NOW(), JSON_OBJECT('legacy_id','CO001')),
-  ('company','EcoRecycle Ltd.','info@ecorecycle.com','+1234567893','pending',12,0, NOW(), JSON_OBJECT('legacy_id','CO002')),
-  ('company','WasteWorks Inc.','admin@wasteworks.com','+1234567894','active',28,19, NOW(), JSON_OBJECT('legacy_id','CO003')),
-  ('company','RecyclePro Solutions','hello@recyclepro.com','+1234567895','suspended',15,8, NOW(), JSON_OBJECT('legacy_id','CO004'));
+  (4, 'company','GreenTech Co.','contact@greentech.com','+1234567892','GreenTech Co.','910000111','National Bank','Eco City HQ','active',45,32, NOW(), JSON_OBJECT('legacy_id','CO001')),
+  (4, 'company','EcoRecycle Ltd.','info@ecorecycle.com','+1234567893','EcoRecycle Ltd.','910000112','National Bank','Green Town Branch','pending',12,0, NOW(), JSON_OBJECT('legacy_id','CO002')),
+  (4, 'company','WasteWorks Inc.','admin@wasteworks.com','+1234567894','WasteWorks Inc.','910000113','National Bank','Sustainable City Branch','active',28,19, NOW(), JSON_OBJECT('legacy_id','CO003')),
+  (4, 'company','RecyclePro Solutions','hello@recyclepro.com','+1234567895','RecyclePro Solutions','910000114','National Bank','Eco Valley Branch','suspended',15,8, NOW(), JSON_OBJECT('legacy_id','CO004'));
 
 INSERT INTO temp_user_map (legacy_id, new_id, user_type)
 SELECT JSON_UNQUOTE(JSON_EXTRACT(u.metadata, '$.legacy_id')), u.id, u.type
@@ -76,21 +76,25 @@ WHERE u.type = 'company' AND JSON_EXTRACT(u.metadata, '$.legacy_id') IS NOT NULL
 
 -- 6) Collectors (link vehicle_id via temp_vehicle_map)
 -- For collectors, find new vehicle id using temp_vehicle_map
-INSERT INTO users (type, name, email, phone, vehicle_id, status, total_pickups, created_at, metadata)
+INSERT INTO users (type, name, email, phone, bank_account_name, bank_account_number, bank_name, bank_branch, vehicle_id, status, total_pickups, created_at, metadata)
 SELECT 'collector', c.name, c.email, c.phone,
+       c.name,
+       c.bankAccountNumber,
+       c.bankName,
+       c.bankBranch,
        tv.new_id AS vehicle_id,
        c.status,
        c.todayPickups,
        NOW(),
        JSON_OBJECT('legacy_id', c.id)
 FROM (
-  SELECT 'COL001' AS id, 'Mike Wilson' AS name, 'mike@company.com' AS email, '+1234567894' AS phone, 'VH001' AS vehicleId, 'active' AS status, 6 AS todayPickups
+  SELECT 'COL001' AS id, 'Mike Wilson' AS name, 'mike@company.com' AS email, '+1234567894' AS phone, 'VH001' AS vehicleId, 'active' AS status, 6 AS todayPickups, '7000998877' AS bankAccountNumber, 'Eco Bank' AS bankName, 'Central Branch' AS bankBranch
   UNION ALL
-  SELECT 'COL002','Sarah Brown','sarah@company.com','+1234567895','VH002','offline',0
+  SELECT 'COL002','Sarah Brown','sarah@company.com','+1234567895','VH002','offline',0,'7000998878','Eco Bank','Downtown Branch'
   UNION ALL
-  SELECT 'COL003','Tom Garcia','tom@company.com','+1234567896','VH003','active',4
+  SELECT 'COL003','Tom Garcia','tom@company.com','+1234567896','VH003','active',4,'7000998879','Eco Bank','Uptown Branch'
   UNION ALL
-  SELECT 'COL004','Lisa Martinez','lisa@company.com','+1234567897','VH004','pending',0
+  SELECT 'COL004','Lisa Martinez','lisa@company.com','+1234567897','VH004','pending',0,'7000998880','Eco Bank','Harbor Branch'
 ) AS c
 LEFT JOIN temp_vehicle_map tv ON tv.legacy_id = c.vehicleId;
 

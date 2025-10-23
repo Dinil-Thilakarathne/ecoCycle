@@ -11,7 +11,7 @@
 
   @media screen and (min-width: 1024px) {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* grid-template-columns: 1fr 1fr; */
     padding: var(--space-12) var(--space-16);
   }
 }
@@ -29,6 +29,7 @@
 
   @media screen and (min-width: 768px) {
     padding: var(--space-24) var(--space-40);
+    min-width: 720px;
   }
 }
 
@@ -280,6 +281,40 @@
 
   @media screen and (max-width: 1024px) {
     display: none;
+  }
+}
+
+/* Register page tweaks: hide page image and center form */
+.auth-login-page.register-page {
+  grid-template-columns: 1fr;
+}
+.auth-login-page.register-page .page_image {
+  display: none;
+}
+
+.auth-login-page.register-page .login-content {
+  margin: 0 auto;
+  max-width: 900px;
+}
+
+/* Form grid: single column on small screens, two columns on large */
+.auth-login-page .form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media screen and (min-width: 1024px) {
+  .auth-login-page .form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+  }
+  /* Make role-specific fields span full width to avoid cramped layouts */
+  .auth-login-page .form-grid .role-fields {
+    grid-column: 1 / -1;
+  }
+  .auth-login-page .form-grid .role-fields__group {
+    grid-column: 1 / -1;
   }
 }
 

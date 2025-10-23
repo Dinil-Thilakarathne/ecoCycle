@@ -160,7 +160,17 @@ class Container
         try {
             $reflection = new ReflectionClass($className);
         } catch (\ReflectionException $e) {
-            throw new \Exception("Class {$className} not found");
+            // Fallback: attempt to require class file from src/ directory using PSR-like mapping
+            $possible = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . str_replace('\\', DIRECTORY_SEPARATOR, $className) . '.php';
+            if (file_exists($possible)) {
+                require_once $possible;
+            }
+
+            try {
+                $reflection = new ReflectionClass($className);
+            } catch (\ReflectionException $e2) {
+                throw new \Exception("Class {$className} not found");
+            }
         }
 
         if (!$reflection->isInstantiable()) {

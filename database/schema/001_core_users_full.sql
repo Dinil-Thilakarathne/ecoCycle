@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
   role_id TINYINT UNSIGNED NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   username VARCHAR(100) NULL UNIQUE,
+  nic VARCHAR(30) NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   profile_image_path VARCHAR(255) NULL,
   status ENUM('active','pending','suspended') DEFAULT 'active',
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX idx_users_role ON users(role_id);
 CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_nic ON users(nic);
 
 /* =============================================
    USER PROFILES (OPTIONAL)

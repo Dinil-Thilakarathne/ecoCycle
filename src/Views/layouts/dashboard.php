@@ -32,7 +32,6 @@ if (!$notificationsUrl) {
                 <img src="/assets/logo-icon.png" class="mobile-logo" />
             </div>
             <nav class="nav-menu-container">
-                <h3 class="nav-menu__header">Dashboards</h3>
                 <ul class="nav-menu">
                     <?php
                     foreach ($navigation as $item):

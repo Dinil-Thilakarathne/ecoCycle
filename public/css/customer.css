@@ -1,3 +1,174 @@
+/* Customer profile page layout mirrors company profile styling */
+.profile-page {
+  position: relative;
+}
+
+.profile-page .p-info-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.profile-page .pc-card {
+  background: var(--neutral-0);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.profile-page .pc-card h3 {
+  margin-bottom: 15px;
+}
+
+.profile-page .profile-picture {
+  margin-bottom: 15px;
+}
+
+.profile-page .profile-picture img {
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+}
+
+.profile-page .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.profile-page .form-group label {
+  font-weight: 600;
+  color: var(--neutral-600);
+}
+
+.profile-page input[disabled],
+.profile-page textarea[disabled] {
+  background: var(--neutral-0);
+  border: 1px solid var(--neutral-400);
+  color: var(--neutral-800);
+  padding: 8px;
+  border-radius: 6px;
+  resize: none;
+  width: 100%;
+}
+
+.profile-page textarea {
+  min-height: 90px;
+}
+
+.profile-page .bank-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-page .waste-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-page .form-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.p-btn-delete {
+  display: inline-block;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--rounded-xl);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border: 1px solid;
+  margin-bottom: 10px;
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  background: #052e19;
+  color: #e6ffed;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
+  font-weight: 600;
+  z-index: 1200;
+}
+
+.form-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  z-index: 9999;
+  padding: 30px 15px;
+}
+
+.form-modal:target {
+  display: flex;
+}
+
+.form-modal-content {
+  background: var(--neutral-0);
+  padding: 25px;
+  border-radius: 20px;
+  width: min(600px, 95%);
+  position: relative;
+}
+
+.form-modal .close {
+  position: absolute;
+  right: 18px;
+  top: 12px;
+  font-size: 24px;
+  text-decoration: none;
+  color: var(--neutral-800);
+}
+
+.error-box {
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.error-box ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 960px) {
+  .profile-page .p-info-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .form-modal-content {
+    padding: 20px;
+  }
+}
 /* unified button base removed - use components/common.css for .btn, .btn-primary, .btn-secondary */
 /* === BASE CLASSES FOR COMMON STYLES === */
 .card-base {
@@ -16,7 +187,8 @@
 .analytics-container {
   max-width: 1200px;
   margin-left: auto;
-  justify-content: center;}
+  justify-content: center;
+}
 /* button variants removed - refer to components/common.css */
 
 .tab-btn.active {
@@ -147,7 +319,6 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
@@ -237,7 +408,6 @@
   margin: 0;
   accent-color: #22c55e;
 }
-
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -725,7 +895,7 @@
 
 .dashboard-page {
   padding: var(--space-8);
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -949,8 +1119,12 @@
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.6);
-  justify-content: center;
+}
+
+.modal-open {
+  display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .modal-content {
@@ -960,6 +1134,11 @@
   width: 400px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   position: relative;
+  margin: 5% auto;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  width: 100%;
 }
 
 .modal-content h2 {
@@ -984,8 +1163,50 @@
   color: #000;
 }
 
-/* pickup_styles.css */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9ecef;
+}
 
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.close {
+  color: #adb5bd;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.close:hover {
+  color: #495057;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-form {
+  padding: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* pickup_styles.css */
 
 .new-request-btn {
   background-color: #22c55e;
@@ -1095,9 +1316,11 @@
 .card {
   border: 1px solid #e2e8f0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1rem;
   transition: all 0.2s ease;
+  padding: var(--space-12);
 }
 .stat-card:hover,
 .card:hover {
@@ -1121,27 +1344,6 @@
 /* button-specific variants removed - use components/common.css or page-scoped classes */
 
 /* Modal Styles */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.modal-content {
-  background-color: white;
-  margin: 5% auto;
-  padding: 0;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
 
 .modal-header {
   display: flex;
@@ -1493,71 +1695,6 @@
   }
 
   /* Invoice/table-row and button variant styles removed - canonical styles live in components/common.css */
-
-  /* Modal Styles */
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-  }
-
-  .modal-content {
-    background: white;
-    margin: 5% auto;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 24px;
-    border-bottom: 1px solid #e9ecef;
-  }
-
-  .modal-header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #212529;
-  }
-
-  .close {
-    color: #adb5bd;
-    font-size: 24px;
-    font-weight: bold;
-    cursor: pointer;
-    line-height: 1;
-  }
-
-  .close:hover {
-    color: #495057;
-  }
-
-  .modal-body {
-    padding: 24px;
-  }
-
-  .modal-form {
-    padding: 24px;
-  }
-
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #e9ecef;
-  }
 
   /* Plan Options */
   .plan-options {

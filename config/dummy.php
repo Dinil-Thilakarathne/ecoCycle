@@ -150,8 +150,8 @@ return [
         [
             'id' => 'VH002',
             'plateNumber' => 'XYZ-5678',
-            'type' => 'Van',
-            'capacity' => 1500,
+            'type' => 'Large Truck',
+            'capacity' => 5000,
             'status' => 'in-use',
             'lastMaintenance' => '2025-07-15',
             'nextMaintenance' => '2025-10-15',
@@ -177,8 +177,8 @@ return [
         [
             'id' => 'VH005',
             'plateNumber' => 'JKL-7890',
-            'type' => 'Van',
-            'capacity' => 1200,
+            'type' => 'Small Truck',
+            'capacity' => 3000,
             'status' => 'in-use',
             'lastMaintenance' => '2025-08-05',
             'nextMaintenance' => '2025-11-05',

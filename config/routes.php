@@ -20,6 +20,106 @@ PageRouter::registerPageRoutes($router);
 // Auto-register API routes (like Next.js api/ folder)  
 PageRouter::registerApiRoutes($router);
 
+$router->get('/api/vehicles', 'Controllers\Api\VehicleController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/vehicles/{id}', 'Controllers\Api\VehicleController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/vehicles', 'Controllers\Api\VehicleController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/vehicles/{id}', 'Controllers\Api\VehicleController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/bidding/approve', 'Controllers\Api\BiddingController@approve', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/bidding/reject', 'Controllers\Api\BiddingController@reject', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/company/bids', 'Controllers\Api\Company\BidController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+$router->put('/api/company/bids/{id}', 'Controllers\Api\Company\BidController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+$router->delete('/api/company/bids/{id}', 'Controllers\Api\Company\BidController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+// Customer pickup request APIs
+$router->get('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->post('/api/customer/pickup-requests', 'Controllers\Api\Customer\PickupRequestController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->put('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\PickupRequestController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\PickupRequestController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
@@ -32,6 +132,7 @@ $router->post('/login', 'AuthController@login');
 $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
+$router->get('/forget-password', 'AuthController@showForgetPassword');
 
 // Auto-register all dashboard routes based on NavigationConfig
 // This ensures consistency between navigation and routes
@@ -72,6 +173,13 @@ $router->post('/customer/profile', 'Controllers\Customer\ProfileController@updat
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CustomerOnly'
+]);
+
+// Collector profile management
+$router->post('/collector/profile', 'Controllers\Collector\ProfileController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly'
 ]);
 
 // Error handling routes

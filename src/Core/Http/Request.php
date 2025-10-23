@@ -64,6 +64,13 @@ class Request
     protected array $files;
 
     /**
+     * Route parameters extracted from the matched route
+     *
+     * @var array
+     */
+    protected array $routeParameters = [];
+
+    /**
      * Create new Request instance
      * 
      * @param string $uri
@@ -83,11 +90,52 @@ class Request
     ) {
         $this->uri = $uri;
         $this->method = strtoupper($method);
-        $this->headers = $headers;
+        // Normalize header keys to lowercase for case-insensitive lookups
+        $normalized = [];
+        foreach ($headers as $k => $v) {
+            $normalized[strtolower((string) $k)] = $v;
+        }
+        $this->headers = $normalized;
         $this->query = $query;
         $this->body = $body;
         $this->files = $files;
         $this->parameters = array_merge($query, $body);
+    }
+
+    /**
+     * Set parameters resolved from the route path
+     *
+     * @param array $parameters
+     * @return void
+     */
+    public function setRouteParameters(array $parameters): void
+    {
+        $this->routeParameters = $parameters;
+        if (!empty($parameters)) {
+            $this->parameters = array_merge($this->parameters, $parameters);
+        }
+    }
+
+    /**
+     * Get a specific route parameter
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function route(string $key, $default = null)
+    {
+        return $this->routeParameters[$key] ?? $default;
+    }
+
+    /**
+     * Get all route parameters
+     *
+     * @return array
+     */
+    public function routeParameters(): array
+    {
+        return $this->routeParameters;
     }
 
     /**
@@ -217,7 +265,8 @@ class Request
      */
     public function header(string $key, $default = null)
     {
-        return $this->headers[$key] ?? $default;
+        $lookup = strtolower($key);
+        return $this->headers[$lookup] ?? $default;
     }
 
     /**
@@ -278,6 +327,19 @@ class Request
         }
 
         return null;
+    }
+
+    /**
+     * Merge additional data into the request body parameters.
+     */
+    public function mergeBody(array $data): void
+    {
+        if (empty($data)) {
+            return;
+        }
+
+        $this->body = array_merge($this->body, $data);
+        $this->parameters = array_merge($this->parameters, $data);
     }
 
     /**

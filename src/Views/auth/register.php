@@ -170,7 +170,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
 
 ?>
 
-<section class="main-section auth-login-page">
+<section class="main-section auth-login-page register-page">
     <div class="login-content">
         <div class="content-top">
             <h1>Create an account</h1>
@@ -204,19 +204,20 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                 </div>
             </noscript>
 
-            <form-input unwrap label="<?= htmlspecialchars($selectedNameLabel, ENT_QUOTES, 'UTF-8') ?>" name="name" placeholder="<?= htmlspecialchars($selectedNamePlaceholder, ENT_QUOTES, 'UTF-8') ?>" value="<?= $old('name') ?>"
-                required></form-input>
+            <div class="form-grid">
+                <form-input unwrap label="<?= htmlspecialchars($selectedNameLabel, ENT_QUOTES, 'UTF-8') ?>" name="name" placeholder="<?= htmlspecialchars($selectedNamePlaceholder, ENT_QUOTES, 'UTF-8') ?>" value="<?= $old('name') ?>"
+                    required></form-input>
 
-            <form-input unwrap label="Email" name="email" type="email" placeholder="email@example.com"
-                value="<?= $old('email') ?>" required></form-input>
+                <form-input unwrap label="Email" name="email" type="email" placeholder="email@example.com"
+                    value="<?= $old('email') ?>" required></form-input>
 
-            <form-input unwrap label="Password" name="password" type="password" placeholder="Choose a password"
-                required></form-input>
+                <form-input unwrap label="Password" name="password" type="password" placeholder="Choose a password"
+                    required></form-input>
 
-            <form-input unwrap label="Confirm password" name="password_confirm" type="password" placeholder="Repeat password"
-                required></form-input>
+                <form-input unwrap label="Confirm password" name="password_confirm" type="password" placeholder="Repeat password"
+                    required></form-input>
 
-            <div class="role-fields" data-role-fields-wrapper>
+                <div class="role-fields" data-role-fields-wrapper>
                 <?php foreach ($roleConfig as $roleKey => $config): ?>
                     <?php $isActiveRole = $roleKey === $selectedRole; ?>
                     <div class="role-fields__group<?= $isActiveRole ? ' is-active' : '' ?>" data-role-fields-group data-role="<?= htmlspecialchars($roleKey, ENT_QUOTES, 'UTF-8') ?>"<?= $isActiveRole ? '' : ' style="display:none;"' ?>>
@@ -227,6 +228,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
+                </div>
             </div>
 
             <p id="registerError" role="status" aria-live="polite" style="color:var(--danger);"
@@ -316,6 +318,12 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                                 var isGroupActive = group.dataset.role === role;
                                 group.style.display = isGroupActive ? '' : 'none';
                                 group.classList.toggle('is-active', isGroupActive);
+
+                                // Ensure only inputs for the active role submit values.
+                                var inputs = group.querySelectorAll('input, textarea, select');
+                                inputs.forEach(function (el) {
+                                    el.disabled = !isGroupActive;
+                                });
                             });
                         }
 

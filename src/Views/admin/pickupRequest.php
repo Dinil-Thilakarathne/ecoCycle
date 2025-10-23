@@ -1,21 +1,17 @@
 <?php
-// Centralized dummy data
-$dummy = require base_path('config/dummy.php');
-$pickupRequests = $dummy['pickup_requests'];
-$collectors = $dummy['collectors'];
-$timeSlots = $dummy['time_slots'];
+$pickupRequests = $pickupRequests ?? [];
+$pickupRequests = is_array($pickupRequests) ? $pickupRequests : [];
+$collectors = is_array($collectors ?? null) ? $collectors : [];
+$timeSlots = $timeSlots ?? [];
+$selectedTimeSlot = $selectedTimeSlot ?? 'all';
+$filteredRequests = $filteredPickupRequests ?? $pickupRequests;
+$filteredRequests = is_array($filteredRequests) ? array_values($filteredRequests) : [];
 
-// Get selected time slot from URL parameter
-$selectedTimeSlot = $_GET['time_slot'] ?? 'all';
-
-// Filter requests by time slot if selected
-$filteredRequests = $pickupRequests;
-if ($selectedTimeSlot !== 'all') {
-    $filteredRequests = array_filter($pickupRequests, function ($request) use ($selectedTimeSlot) {
-        return $request['timeSlot'] === $selectedTimeSlot;
-    });
+if (empty($timeSlots)) {
+    $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 }
-
+?>
+<?php
 // Expose client-side pickup data for modal lookups (use full dataset to allow lookups even when filtered)
 ?>
 <script>
@@ -24,6 +20,167 @@ if ($selectedTimeSlot !== 'all') {
 <script>
     // Expose collectors list for edit modal
     window.__COLLECTORS = <?php echo json_encode($collectors, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+
+<script>
+    const PICKUP_API_BASE = '/api/pickup-requests';
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (char) {
+            switch (char) {
+                case '&': return '&amp;';
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                case '\'': return '&#039;';
+                default: return char;
+            }
+        });
+    }
+
+    function pickupRowSelector(id) {
+        const raw = String(id ?? '');
+        const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(raw) : raw.replace(/(?=["'\\])/g, '\\');
+        return `tr[data-id="${escaped}"]`;
+    }
+
+    async function pickupApiRequest(url, options = {}) {
+        const opts = Object.assign({ headers: {} }, options);
+        opts.headers = Object.assign({ Accept: 'application/json' }, opts.headers || {});
+
+        if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+            opts.headers['Content-Type'] = opts.headers['Content-Type'] || 'application/json';
+            opts.body = JSON.stringify(opts.body);
+        }
+
+        const response = await fetch(url, opts);
+        let payload = null;
+
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = null;
+        }
+
+        if (!response.ok || (payload && payload.success === false)) {
+            const message = payload && payload.message ? payload.message : `Request failed (${response.status})`;
+            const detail = payload && payload.errors ? Object.values(payload.errors).join('\n') : '';
+            throw new Error(detail ? `${message}\n${detail}` : message);
+        }
+
+        return payload || {};
+    }
+
+    function renderPickupStatusBadge(status) {
+        const value = String(status ?? '').toLowerCase();
+        if (value === 'pending') {
+            return '<div class="tag pending">Pending</div>';
+        }
+        if (value === 'assigned') {
+            return '<div class="tag assigned">Assigned</div>';
+        }
+        if (value === 'completed') {
+            return '<div class="tag completed">Completed</div>';
+        }
+        if (value === 'cancelled') {
+            return '<div class="tag cancelled">Cancelled</div>';
+        }
+        const fallback = status ?? 'Unknown';
+        return '<div class="tag">' + escapeHtml(fallback) + '</div>';
+    }
+
+    function syncPickupCache(pickup) {
+        if (!pickup || pickup.id === undefined) {
+            return;
+        }
+
+        if (!Array.isArray(window.__PICKUP_DATA)) {
+            window.__PICKUP_DATA = [];
+        }
+
+        const targetId = String(pickup.id).toLowerCase();
+        const index = window.__PICKUP_DATA.findIndex(function (item) {
+            return String(item.id).toLowerCase() === targetId;
+        });
+
+        if (index >= 0) {
+            window.__PICKUP_DATA[index] = pickup;
+        } else {
+            window.__PICKUP_DATA.push(pickup);
+        }
+    }
+
+    function updatePickupRow(pickup) {
+        if (!pickup || pickup.id === undefined) {
+            return;
+        }
+
+        const row = document.querySelector(pickupRowSelector(pickup.id));
+        if (!row) {
+            return;
+        }
+
+        const statusCell = row.querySelector('[data-field="status"]') || row.querySelectorAll('td')[5];
+        if (statusCell) {
+            statusCell.innerHTML = renderPickupStatusBadge(pickup.status);
+        }
+
+        const collectorCell = row.querySelector('[data-field="collector"]') || row.querySelectorAll('td')[6];
+        if (collectorCell) {
+            if (pickup.collectorName) {
+                collectorCell.textContent = pickup.collectorName;
+            } else {
+                collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
+            }
+        }
+
+        const badgeGroup = row.querySelector('.badge-group');
+        if (badgeGroup && Array.isArray(pickup.wasteCategories)) {
+            badgeGroup.innerHTML = '';
+            pickup.wasteCategories.forEach(function (category) {
+                const badge = document.createElement('div');
+                badge.className = 'tag secondary';
+                badge.textContent = category;
+                badgeGroup.appendChild(badge);
+            });
+        }
+    }
+
+    function refreshPickupDetailModal(pickup) {
+        const modal = document.getElementById('pickup-detail-modal');
+        if (!modal || !modal.classList.contains('open')) {
+            return;
+        }
+
+        const setText = function (selector, value) {
+            const element = modal.querySelector(selector);
+            if (!element) {
+                return;
+            }
+            const label = element.previousElementSibling;
+            if (value === null || value === undefined || String(value).trim() === '') {
+                element.textContent = '';
+                element.style.display = 'none';
+                if (label) {
+                    label.style.display = 'none';
+                }
+            } else {
+                element.textContent = String(value);
+                element.style.display = '';
+                if (label) {
+                    label.style.display = '';
+                }
+            }
+        };
+
+        setText('.pd-id', pickup.id ?? '');
+        setText('.pd-customer', pickup.customerName ?? '');
+        setText('.pd-address', pickup.address ?? '');
+        setText('.pd-waste', Array.isArray(pickup.wasteCategories) ? pickup.wasteCategories.join(', ') : '');
+        setText('.pd-timeslot', pickup.timeSlot ?? '');
+        setText('.pd-status', pickup.status ? String(pickup.status).charAt(0).toUpperCase() + String(pickup.status).slice(1) : '');
+        setText('.pd-collector', pickup.collectorName ?? '');
+    }
 </script>
 
 <!-- Pickup Detail Modal -->
@@ -146,91 +303,72 @@ if ($selectedTimeSlot !== 'all') {
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    function saveEdit() {
+    async function saveEdit() {
         const modal = document.getElementById('pickup-edit-modal');
         if (!modal) return;
+
         const pickupId = modal.getAttribute('data-editing-id');
-        const sel = document.getElementById('pe-collector-select');
-        const collectorId = sel.value || '';
-        // Update in-memory store
-        const idx = (window.__PICKUP_DATA || []).findIndex(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase());
-        let newStatus = '';
-        if (idx !== -1) {
-            // update collector info
-            window.__PICKUP_DATA[idx].collectorId = collectorId;
-            window.__PICKUP_DATA[idx].collectorName = collectorId ? ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name : '';
+        if (!pickupId) return;
 
-            // Decide status: if previously completed, keep completed; otherwise assigned <-> pending
-            const prev = (window.__PICKUP_DATA[idx].status || '').toString().toLowerCase();
-            if (prev === 'completed') {
-                newStatus = 'completed';
+        const select = document.getElementById('pe-collector-select');
+        const collectorIdValue = select ? select.value : '';
+        const payload = {};
+
+        if (collectorIdValue === '') {
+            payload.collectorId = null;
+        } else {
+            payload.collectorId = collectorIdValue;
+        }
+
+        const currentRecord = (window.__PICKUP_DATA || []).find(function (item) {
+            return String(item.id).toLowerCase() === String(pickupId).toLowerCase();
+        });
+
+        if (currentRecord && String(currentRecord.status || '').toLowerCase() === 'completed') {
+            payload.status = 'completed';
+        }
+
+        const saveButton = modal.querySelector('.btn.btn-primary');
+        const originalLabel = saveButton ? saveButton.textContent : '';
+
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving...';
+        }
+
+        try {
+            const response = await pickupApiRequest(`${PICKUP_API_BASE}/${encodeURIComponent(pickupId)}`, {
+                method: 'PUT',
+                body: payload,
+            });
+
+            const updated = response.pickup;
+            if (!updated) {
+                throw new Error('Server returned an empty response.');
+            }
+
+            syncPickupCache(updated);
+            updatePickupRow(updated);
+            refreshPickupDetailModal(updated);
+
+            closeEditModal();
+
+            if (typeof showToast === 'function') {
+                showToast('Pickup updated successfully.', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to update pickup request', error);
+            if (typeof showToast === 'function') {
+                showToast(error.message || 'Failed to update pickup request.', 'error');
             } else {
-                newStatus = collectorId ? 'assigned' : 'pending';
-                window.__PICKUP_DATA[idx].status = newStatus;
+                alert(error.message || 'Failed to update pickup request.');
+            }
+        } finally {
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = originalLabel;
             }
         }
-
-        // Update the table row DOM (collector and status)
-        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
-        if (row) {
-            // Collector cell (index 6)
-            const collectorCell = row.querySelectorAll('td')[6];
-            if (collectorCell) {
-                if (collectorId) {
-                    const name = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
-                    collectorCell.textContent = name;
-                } else {
-                    collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
-                }
-            }
-
-            // Status cell (index 5)
-            const statusCell = row.querySelectorAll('td')[5];
-            if (statusCell && newStatus) {
-                const makeBadge = (st) => {
-                    switch ((st || '').toString().toLowerCase()) {
-                        case 'pending': return '<div class="tag pending">Pending</div>';
-                        case 'assigned': return '<div class="tag assigned">Assigned</div>';
-                        case 'completed': return '<div class="tag completed">Completed</div>';
-                        default: return '<div class="tag">' + String(st) + '</div>';
-                    }
-                };
-                statusCell.innerHTML = makeBadge(newStatus);
-            }
-        }
-
-        // If detail modal is open, update its fields too
-        const detailModal = document.getElementById('pickup-detail-modal');
-        if (detailModal && detailModal.classList.contains('open')) {
-            const pdCollector = detailModal.querySelector('.pd-collector');
-            const pdStatus = detailModal.querySelector('.pd-status');
-            if (pdCollector) {
-                if (collectorId) {
-                    pdCollector.textContent = ((window.__COLLECTORS || []).find(c => c.id === collectorId) || {}).name || '';
-                    pdCollector.style.display = '';
-                    const lbl = pdCollector.previousElementSibling;
-                    if (lbl) lbl.style.display = '';
-                } else {
-                    pdCollector.textContent = '';
-                    pdCollector.style.display = 'none';
-                    const lbl = pdCollector.previousElementSibling;
-                    if (lbl) lbl.style.display = 'none';
-                }
-            }
-            if (pdStatus && newStatus) {
-                // plain text is fine in the detail modal
-                pdStatus.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-                pdStatus.style.display = '';
-                const lbl = pdStatus.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-            }
-        }
-
-        // Close modal
-        closeEditModal();
-
-        // UX: console note
-        console.log(`Pickup ${pickupId} collector set to '${collectorId}' and status set to '${newStatus}'`);
     }
 
     // Close edit modal when clicking backdrop or close button
@@ -307,23 +445,24 @@ function getStatusBadge($status)
                     </thead>
                     <tbody>
                         <?php foreach ($filteredRequests as $request): ?>
-                            <tr data-id="<?= htmlspecialchars($request['id']) ?>">
-                                <td class="font-medium"><?= htmlspecialchars($request['id']) ?></td>
+                            <tr data-id="<?= htmlspecialchars($request['id'] ?? '') ?>">
+                                <td class="font-medium"><?= htmlspecialchars($request['id'] ?? '') ?></td>
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-user"></i>
-                                        <?= htmlspecialchars($request['customerName']) ?>
+                                        <?= htmlspecialchars($request['customerName'] ?? '') ?>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-map-marker-alt"></i>
-                                        <span class="cell-truncate"><?= htmlspecialchars($request['address']) ?></span>
+                                        <span
+                                            class="cell-truncate"><?= htmlspecialchars($request['address'] ?? '') ?></span>
                                     </div>
                                 </td>
-                                <td>
+                                <td data-field="wasteCategories">
                                     <div class="badge-group">
-                                        <?php foreach ($request['wasteCategories'] as $category): ?>
+                                        <?php foreach ((array) ($request['wasteCategories'] ?? []) as $category): ?>
                                             <div class="tag secondary"><?= htmlspecialchars($category) ?></div>
                                         <?php endforeach; ?>
                                     </div>
@@ -331,12 +470,12 @@ function getStatusBadge($status)
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-clock"></i>
-                                        <?= htmlspecialchars($request['timeSlot']) ?>
+                                        <?= htmlspecialchars($request['timeSlot'] ?? '') ?>
                                     </div>
                                 </td>
-                                <td><?= getStatusBadge($request['status']) ?></td>
-                                <td>
-                                    <?php if ($request['collectorName']): ?>
+                                <td data-field="status"><?= getStatusBadge($request['status'] ?? 'pending') ?></td>
+                                <td data-field="collector">
+                                    <?php if (!empty($request['collectorName'])): ?>
                                         <?= htmlspecialchars($request['collectorName']) ?>
                                     <?php else: ?>
                                         <span style="color: var(--neutral-500);">Unassigned</span>
@@ -346,11 +485,13 @@ function getStatusBadge($status)
                                     <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
 
                                         <!-- Icon-only action buttons: view and edit -->
-                                        <button class="icon-button" onclick="viewDetails(this, '<?= $request['id'] ?>')"
+                                        <button class="icon-button"
+                                            onclick="viewDetails(this, '<?= htmlspecialchars($request['id'] ?? '') ?>')"
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
-                                        <button class="icon-button" onclick="openEditModal(this, '<?= $request['id'] ?>')"
+                                        <button class="icon-button"
+                                            onclick="openEditModal(this, '<?= htmlspecialchars($request['id'] ?? '') ?>')"
                                             title="Edit / Assign Collector">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>

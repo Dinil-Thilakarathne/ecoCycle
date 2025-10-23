@@ -12,12 +12,15 @@ $faq = [
 $searchTerm = isset($_GET['search']) ? strtolower(trim($_GET['search'])) : '';
 $selectedTopic = isset($_GET['topic']) ? $_GET['topic'] : '';
 
-// Filter results
-$filteredFaq = array_filter($faq, function ($item) use ($searchTerm, $selectedTopic) {
-    $matchesTopic = $selectedTopic ? $item['topic'] === $selectedTopic : true;
-    $matchesSearch = $searchTerm ? (strpos(strtolower($item['question']), $searchTerm) !== false || strpos(strtolower($item['answer']), $searchTerm) !== false) : true;
-    return $matchesTopic && $matchesSearch;
-});
+// Filter results only if topic is selected
+$filteredFaq = [];
+if ($selectedTopic) {
+    $filteredFaq = array_filter($faq, function ($item) use ($searchTerm, $selectedTopic) {
+        $matchesTopic = $item['topic'] === $selectedTopic;
+        $matchesSearch = $searchTerm ? (strpos(strtolower($item['question']), $searchTerm) !== false || strpos(strtolower($item['answer']), $searchTerm) !== false) : true;
+        return $matchesTopic && $matchesSearch;
+    });
+}
 
 // Help categories
 $helpCategories = [
@@ -55,17 +58,29 @@ $helpCategories = [
         </div>
 
         <!-- FAQ Section -->
-        <h2 style="font-size: 20px; font-weight: bold;">Frequently Asked Questions...</h2>
-        <div class="faq">
-            <?php if (empty($filteredFaq)): ?>
-                <p>No results found.</p>
-            <?php else: ?>
-                <?php foreach($filteredFaq as $item): ?>
-                <details>
-                    <summary><?= htmlspecialchars($item['question']) ?></summary>
-                    <p><?= htmlspecialchars($item['answer']) ?></p>
-                </details>
-                <?php endforeach; ?>
-            <?php endif; ?>
+        <?php if ($selectedTopic): ?>
+            <h2 style="font-size: 20px; font-weight: bold;"><?= htmlspecialchars($selectedTopic) ?> FAQs</h2>
+            <div class="faq">
+                <?php if (empty($filteredFaq)): ?>
+                    <p>No results found.</p>
+                <?php else: ?>
+                    <?php foreach($filteredFaq as $item): ?>
+                    <details>
+                        <summary><?= htmlspecialchars($item['question']) ?></summary>
+                        <p><?= htmlspecialchars($item['answer']) ?></p>
+                    </details>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Contact Section -->
+        <div class="contact-support">
+            <h2 style="font-size: 20px; font-weight: bold;">Still need help...?</h2>
+            <p style="font-size: 17px;"><i>If you can’t find help, contact our support team:</i></p><br>
+            <ul>
+                <li><b>Email:</b> <a href="mailto:support@ecocycle.com">support@ecocycle.com</a></li>
+                <li><b>Phone:</b> 011 2345 678 /  011 2345 114 (Everyday 8am - 10pm)</li>
+            </ul>
         </div>
 </main>

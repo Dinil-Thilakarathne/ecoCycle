@@ -45,15 +45,15 @@ class NavigationConfig
                 ['title' => 'Dashboard', 'url' => '/customer', 'icon' => 'home', 'description' => 'Your dashboard overview'],
                 ['title' => 'Pickup Request', 'url' => '/customer/pickup', 'icon' => 'calendar', 'description' => 'Schedule waste pickup'],
                 ['title' => 'Payment', 'url' => '/customer/payment', 'icon' => 'history', 'description' => 'do payment'],
-                ['title' => 'notification', 'url' => '/customer/notification', 'icon' => 'bell', 'description' => 'See notifications'],
-                ['title' => 'analytics', 'url' => '/customer/analytics', 'icon' => 'book', 'description' => 'see progress'],
+                ['title' => 'Analytics', 'url' => '/customer/analytics', 'icon' => 'book', 'description' => 'see progress'],
                 ['title' => 'Profile', 'url' => '/customer/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
+                ['title' => 'Notification', 'url' => '/customer/notification', 'icon' => 'bell', 'description' => 'See notifications'],
             ],
             'collector' => [
                 ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'tachometer-alt', 'description' => 'Collector dashboard'],
                 ['title' => 'Daily Tasks', 'url' => '/collector/tasks', 'icon' => 'truck', 'description' => 'Manage pickups'],
-               /* ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],*/
-                ['title' => 'Reports', 'url' => '/collector/analytics', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
+                /* ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],*/
+                ['title' => 'Analytics', 'url' => '/collector/analytics', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
                 ['title' => 'Notifications', 'url' => '/collector/notification', 'icon' => 'bell', 'description' => 'See notifications'],
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
             ],
@@ -65,7 +65,7 @@ class NavigationConfig
                 // Matches: src/Views/company/purchases.php -> route: /company/purchases
                 ['title' => 'Purchases', 'url' => '/company/purchases', 'icon' => 'cart-shopping', 'description' => 'Your purchases and orders'],
                 // Matches: src/Views/company/reports.php -> route: /company/reports
-                ['title' => 'Reports', 'url' => '/company/reports', 'icon' => 'chart-line', 'description' => 'Analytics and reports'],
+                ['title' => 'Analytics', 'url' => '/company/reports', 'icon' => 'chart-line', 'description' => 'Analytics and reports'],
                 // Matches: src/Views/company/helpCenter.php -> route: /company/helpCenter
                 ['title' => 'Help & Support', 'url' => '/company/help-center', 'icon' => 'life-ring', 'description' => 'Help center and support'],
                 // Matches: src/Views/company/profile.php -> route: /company/profile

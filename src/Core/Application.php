@@ -245,6 +245,11 @@ class Application
      */
     protected function executeRoute(array $route, Request $request): Response
     {
+        // Merge route parameters into the request for easy access within controllers
+        if (method_exists($request, 'setRouteParameters')) {
+            $request->setRouteParameters($route['parameters'] ?? []);
+        }
+
         // Build middleware pipeline so each middleware receives a $next that returns a Response.
         $middlewareStack = $route['middleware'] ?? [];
 

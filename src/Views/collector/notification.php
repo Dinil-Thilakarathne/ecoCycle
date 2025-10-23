@@ -95,7 +95,8 @@ $read = array_filter($collectorNotifications, fn($n) => $n['isRead'] && !$n['isA
 $archived = array_filter($collectorNotifications, fn($n) => $n['isArchived']);
 
 // Functions
-function renderNotifications($list, $filter = 'all') {
+function renderNotifications($list, $filter = 'all')
+{
     if (empty($list)) {
         echo "<tr><td colspan='5' style='text-align:center;'>No notifications found</td></tr>";
         return;
@@ -128,30 +129,39 @@ function renderNotifications($list, $filter = 'all') {
 <div>
     <div class="page-header">
         <div class="page-header__content">
-            <h2 class="page-header__title"><i class="fa-solid fa-bell"></i> Notifications for <?= htmlspecialchars($collectorId) ?></h2>
+            <h2 class="page-header__title">Notifications</h2>
             <p class="page-header__description">View and manage your notifications</p>
         </div>
     </div>
 
-   
+
     <?php if ($msg): ?>
-        <div class="alert alert-success" style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
+        <div class="alert alert-success"
+            style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
             <?= htmlspecialchars($msg) ?>
         </div>
     <?php endif; ?>
 
     <div class="tabs">
         <div class="tabs-list">
-            <button class="tabs-trigger active" onclick="showTab('total')" id="total-tab">Total (<?= count($total) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('unread')" id="unread-tab">Unread (<?= count($unread) ?>)</button>
+            <button class="tabs-trigger active" onclick="showTab('total')" id="total-tab">Total
+                (<?= count($total) ?>)</button>
+            <button class="tabs-trigger" onclick="showTab('unread')" id="unread-tab">Unread
+                (<?= count($unread) ?>)</button>
             <button class="tabs-trigger" onclick="showTab('read')" id="read-tab">Read (<?= count($read) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('archived')" id="archived-tab">Archived (<?= count($archived) ?>)</button>
+            <button class="tabs-trigger" onclick="showTab('archived')" id="archived-tab">Archived
+                (<?= count($archived) ?>)</button>
         </div>
 
         <div class="tabs-content active" id="total-content">
             <table class="table">
                 <thead>
-                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                    <tr>
+                        <th>Notification</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
                 <tbody><?php renderNotifications($total); ?></tbody>
             </table>
@@ -160,7 +170,13 @@ function renderNotifications($list, $filter = 'all') {
         <div class="tabs-content" id="unread-content">
             <table class="table">
                 <thead>
-                    <tr><th>Notification</th><th>Type</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                    <tr>
+                        <th>Notification</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
                 <tbody><?php renderNotifications($unread); ?></tbody>
             </table>
@@ -169,7 +185,12 @@ function renderNotifications($list, $filter = 'all') {
         <div class="tabs-content" id="read-content">
             <table class="table">
                 <thead>
-                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                    <tr>
+                        <th>Notification</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
                 <tbody><?php renderNotifications($read); ?></tbody>
             </table>
@@ -178,7 +199,12 @@ function renderNotifications($list, $filter = 'all') {
         <div class="tabs-content" id="archived-content">
             <table class="table">
                 <thead>
-                    <tr><th>Notification</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                    <tr>
+                        <th>Notification</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
                 <tbody><?php renderNotifications($archived); ?></tbody>
             </table>
@@ -187,11 +213,10 @@ function renderNotifications($list, $filter = 'all') {
 </div>
 
 <script>
-function showTab(tab) {
-    document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
-    document.getElementById(tab + '-content').classList.add('active');
-    document.getElementById(tab + '-tab').classList.add('active');
-}
+    function showTab(tab) {
+        document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
+        document.getElementById(tab + '-content').classList.add('active');
+        document.getElementById(tab + '-tab').classList.add('active');
+    }
 </script>
-
