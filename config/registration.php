@@ -96,12 +96,11 @@ return [
                     'label' => 'Preferred vehicle type',
                     'type' => 'select',
                     'options' => [
-                        'truck' => 'Small truck',
-                        'van' => 'Van',
-                        'three_wheeler' => 'Three-wheeler',
-                        'bike' => 'Bike',
+                        'Pickup Truck' => 'Pickup Truck',
+                        'Small Truck' => 'Small Truck',
+                        'Large Truck' => 'Large Truck',
                     ],
-                    'rules' => ['required', 'in:truck,van,three_wheeler,bike'],
+                    'rules' => ['required', 'in:Pickup Truck,Small Truck,Large Truck'],
                     'store' => 'metadata',
                 ],
                 [

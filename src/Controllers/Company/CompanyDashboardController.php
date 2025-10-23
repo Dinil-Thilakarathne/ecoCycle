@@ -39,11 +39,14 @@ class CompanyDashboardController extends DashboardController
      */
     public function index(): Response
     {
+        $profile = $this->getCompanyProfile();
+
         $data = [
             'pageTitle' => 'Company Dashboard',
             'availableWaste' => $this->getWasteOverview(),
             'highestBids' => $this->getHighestBids(),
             'recentBidActivity' => $this->getBiddingHistory(5),
+            'companyProfile' => $profile,
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -255,7 +258,7 @@ class CompanyDashboardController extends DashboardController
             'phone' => $profile['phone'] ?? '',
             'website' => $metadata['website'] ?? '',
             'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
-            'profile_picture' => $profile['profileImagePath'] ?? 'assets/img/default-company.png',
+            'profile_picture' => $profile['profileImagePath'] ?? '/assets/avatar.png',
             'waste_types' => $wasteTypes,
             'verification' => $verification,
             'bank_details' => $bankDetails,
