@@ -51,14 +51,22 @@ class Database
 
     private function connect(): void
     {
-        if ($this->driver !== 'mysql') {
-            throw new \RuntimeException('Currently only mysql driver is implemented in Core\\Database wrapper.');
+        $dsn = '';
+        switch ($this->driver) {
+            case 'mysql':
+                if ($this->socket) {
+                    $dsn = "mysql:unix_socket={$this->socket};dbname={$this->db};charset={$this->charset}";
+                } else {
+                    $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->db};charset={$this->charset}";
+                }
+                break;
+            case 'pgsql':
+                $dsn = "pgsql:host={$this->host};port={$this->port};dbname={$this->db}";
+                break;
+            default:
+                throw new \RuntimeException("Unsupported database driver: {$this->driver}");
         }
-        if ($this->socket) {
-            $dsn = "mysql:unix_socket={$this->socket};dbname={$this->db};charset={$this->charset}";
-        } else {
-            $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->db};charset={$this->charset}";
-        }
+
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
@@ -110,7 +118,7 @@ class Database
     {
         try {
             $db = new self($connection);
-            // Lightweight query (MySQL specific)
+            // Driver-agnostic lightweight query
             $db->query('SELECT 1');
             return ['ok' => true, 'error' => null];
         } catch (\Throwable $e) {
