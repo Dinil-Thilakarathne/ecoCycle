@@ -201,6 +201,24 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 <script>
     const VEHICLE_API_BASE = '/api/vehicles';
     const VEHICLE_STATUS_OPTIONS = ['available', 'in-use', 'maintenance', 'removed'];
+    const VEHICLE_TYPE_CAPACITY = Object.freeze({
+        'Pickup Truck': 2000,
+        'Small Truck': 3000,
+        'Large Truck': 5000,
+    });
+    const VEHICLE_TYPE_OPTIONS = Object.keys(VEHICLE_TYPE_CAPACITY);
+
+    function getTodayDateString() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function isValidVehicleType(type) {
+        return VEHICLE_TYPE_OPTIONS.includes(type);
+    }
 
     function showToast(message, type = 'info') {
         if (typeof window.__createToast === 'function') {
@@ -235,6 +253,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
     }
 
+    function modeIsCreate(values) {
+        return !values || !values.id;
+    }
+
     function renderStatusBadge(status) {
         const normalized = (status || '').toLowerCase();
         if (normalized === 'available') {
@@ -251,6 +273,30 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
 
         return '<div class="tag">' + escapeHtml(status || 'Unknown') + '</div>';
+    }
+
+    function applyCapacityForType(typeSelect, capacityInput) {
+        if (!typeSelect || !capacityInput) {
+            return;
+        }
+
+        const selectedType = typeSelect.value || '';
+        const hasDefinedCapacity = isValidVehicleType(selectedType);
+        const definedCapacity = hasDefinedCapacity ? VEHICLE_TYPE_CAPACITY[selectedType] : undefined;
+
+        capacityInput.readOnly = true;
+
+        if (typeof definedCapacity === 'number') {
+            capacityInput.value = definedCapacity;
+            capacityInput.style.backgroundColor = '#f3f4f6';
+            capacityInput.style.color = '#4b5563';
+            capacityInput.placeholder = '';
+        } else {
+            capacityInput.value = '';
+            capacityInput.style.backgroundColor = '#fef2f2';
+            capacityInput.style.color = '#b91c1c';
+            capacityInput.placeholder = 'Select a valid vehicle type';
+        }
     }
 
     function validatePlateNumber(plateNumber) {
@@ -327,18 +373,38 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         };
 
         const values = Object.assign({}, defaults, initialValues);
-        const statusOptions = VEHICLE_STATUS_OPTIONS.map((status) => {
-            const selected = status === values.status ? 'selected' : '';
-            return `<option value="${status}" ${selected}>${statusLabel(status)}</option>`;
-        }).join('');
-
-        const vehicleTypes = ['Van', 'Pickup Truck', 'Small Truck', 'Large Truck'];
+        const selectedType = isValidVehicleType(values.type) ? values.type : '';
+        const unsupportedType = Boolean(values.type) && !selectedType;
+        const today = getTodayDateString();
         const typeOptions = ['<option value="">Select Type</option>']
-            .concat(vehicleTypes.map((type) => {
-                const selected = type === values.type ? 'selected' : '';
+            .concat(VEHICLE_TYPE_OPTIONS.map((type) => {
+                const selected = type === selectedType ? 'selected' : '';
                 return `<option value="${escapeHtml(type)}" ${selected}>${escapeHtml(type)}</option>`;
             }))
             .join('');
+        const typeNotice = unsupportedType
+            ? `<small style="color:#b91c1c;display:block;margin-top:0.35rem;">Previously set to ${escapeHtml(values.type)}. Please choose a supported vehicle type.</small>`
+            : '';
+        const capacityValue = selectedType ? VEHICLE_TYPE_CAPACITY[selectedType] : '';
+        const isCreate = modeIsCreate(values);
+        const statusField = isCreate
+            ? `
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Status</label>
+                    <input type="text" name="status" value="available" readonly
+                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;background-color:#f3f4f6;color:#4b5563;" />
+                    <small style="color:#6b7280;display:block;margin-top:0.25rem;">Status defaults to Available on creation.</small>
+                </div>`
+            : `
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Status</label>
+                    <select name="status" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
+                        ${VEHICLE_STATUS_OPTIONS.map((status) => {
+                const selected = status === values.status ? 'selected' : '';
+                return `<option value="${status}" ${selected}>${statusLabel(status)}</option>`;
+            }).join('')}
+                    </select>
+                </div>`;
 
         const form = document.createElement('form');
         form.innerHTML = `
@@ -356,29 +422,26 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <select name="type" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
                         ${typeOptions}
                     </select>
+                    ${typeNotice}
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Capacity (kg)</label>
                     <input type="number" name="capacity" min="100" max="20000" required step="100"
-                        value="${escapeHtml(values.capacity ?? '')}"
+                        value="${capacityValue !== '' ? escapeHtml(String(capacityValue)) : ''}"
                         style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
+                    <small style="color:#6b7280;display:block;margin-top:0.25rem;">Capacity auto-fills per vehicle type.</small>
                 </div>
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Status</label>
-                    <select name="status" required style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
-                        ${statusOptions}
-                    </select>
-                </div>
+                ${statusField}
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Last Maintenance</label>
-                        <input type="date" name="lastMaintenance"
+                        <input type="date" name="lastMaintenance" max="${today}"
                             value="${escapeHtml(values.lastMaintenance || '')}"
                             style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Next Maintenance</label>
-                        <input type="date" name="nextMaintenance"
+                        <input type="date" name="nextMaintenance" min="${today}"
                             value="${escapeHtml(values.nextMaintenance || '')}"
                             style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                     </div>
@@ -391,6 +454,50 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             formatPlateNumberInput(this);
         });
 
+        const typeSelect = form.querySelector('select[name="type"]');
+        const capacityInput = form.querySelector('input[name="capacity"]');
+        const statusInput = form.querySelector('input[name="status"]');
+        const lastMaintenanceInput = form.querySelector('input[name="lastMaintenance"]');
+        const nextMaintenanceInput = form.querySelector('input[name="nextMaintenance"]');
+
+        applyCapacityForType(typeSelect, capacityInput);
+        typeSelect.addEventListener('change', function () {
+            applyCapacityForType(typeSelect, capacityInput);
+        });
+
+        if (statusInput) {
+            statusInput.readOnly = isCreate;
+            if (isCreate) {
+                statusInput.style.backgroundColor = '#f3f4f6';
+                statusInput.style.color = '#4b5563';
+                statusInput.value = 'available';
+            } else {
+                statusInput.style.backgroundColor = '#fff';
+                statusInput.style.color = '#111827';
+            }
+        }
+
+        if (nextMaintenanceInput) {
+            const today = getTodayDateString();
+            const updateNextMaintenanceMin = () => {
+                const lastValue = lastMaintenanceInput ? lastMaintenanceInput.value : '';
+                let minDate = today;
+                if (lastValue && lastValue > minDate) {
+                    minDate = lastValue;
+                }
+                nextMaintenanceInput.min = minDate;
+                if (nextMaintenanceInput.value && nextMaintenanceInput.value < minDate) {
+                    nextMaintenanceInput.value = minDate;
+                }
+            };
+
+            updateNextMaintenanceMin();
+
+            if (lastMaintenanceInput) {
+                lastMaintenanceInput.addEventListener('change', updateNextMaintenanceMin);
+            }
+        }
+
         form.addEventListener('submit', function (event) {
             event.preventDefault();
         });
@@ -401,14 +508,21 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
     function extractVehicleFormData(form) {
         const formData = new FormData(form);
         const plateNumber = (formData.get('plateNumber') || '').toString().toUpperCase();
+        const type = (formData.get('type') || '').toString();
+        const capacityRaw = formData.get('capacity');
+        const capacity = capacityRaw === null || capacityRaw === '' ? null : Number(capacityRaw);
+        const statusRaw = formData.get('status');
+        const status = statusRaw === null ? null : statusRaw.toString().toLowerCase();
+        const lastMaintenanceRaw = formData.get('lastMaintenance');
+        const nextMaintenanceRaw = formData.get('nextMaintenance');
 
         return {
             plateNumber,
-            type: (formData.get('type') || '').toString(),
-            capacity: Number(formData.get('capacity')),
-            status: (formData.get('status') || 'available').toString(),
-            lastMaintenance: (formData.get('lastMaintenance') || '') || null,
-            nextMaintenance: (formData.get('nextMaintenance') || '') || null,
+            type,
+            capacity,
+            status: status || 'available',
+            lastMaintenance: lastMaintenanceRaw ? lastMaintenanceRaw.toString() : null,
+            nextMaintenance: nextMaintenanceRaw ? nextMaintenanceRaw.toString() : null,
         };
     }
 
@@ -590,14 +704,46 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
     async function handleVehicleSave({ mode, vehicleId, form, close }) {
         try {
             const payload = extractVehicleFormData(form);
+            const today = getTodayDateString();
+            payload.type = (payload.type || '').trim();
+            payload.status = payload.status ? payload.status.trim().toLowerCase() : payload.status;
 
             if (!validatePlateNumber(payload.plateNumber)) {
                 showToast('Please use the format ABC-1234 for plate numbers.', 'error');
                 return;
             }
 
+            if (!payload.type || !isValidVehicleType(payload.type)) {
+                showToast('Please select a valid vehicle type.', 'error');
+                return;
+            }
+
+            payload.capacity = VEHICLE_TYPE_CAPACITY[payload.type];
+
             if (!Number.isFinite(payload.capacity) || payload.capacity <= 0) {
                 showToast('Capacity must be a positive number.', 'error');
+                return;
+            }
+
+            if (payload.lastMaintenance && payload.lastMaintenance > today) {
+                showToast('Last maintenance date cannot be in the future.', 'error');
+                return;
+            }
+
+            if (payload.nextMaintenance && payload.nextMaintenance < today) {
+                showToast('Next maintenance date cannot be in the past.', 'error');
+                return;
+            }
+
+            if (payload.lastMaintenance && payload.nextMaintenance && payload.nextMaintenance < payload.lastMaintenance) {
+                showToast('Next maintenance date must be on or after the last maintenance date.', 'error');
+                return;
+            }
+
+            if (mode === 'create') {
+                payload.status = 'available';
+            } else if (!payload.status || !VEHICLE_STATUS_OPTIONS.includes(payload.status)) {
+                showToast('Please select a valid status.', 'error');
                 return;
             }
 
