@@ -1,0 +1,830 @@
+{
+  "info": {
+    "name": "ecoCycle API Collection",
+    "description": "Complete API collection for ecoCycle waste management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost",
+      "type": "string"
+    },
+    {
+      "key": "vehicle_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "round_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pickup_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level pre-request script",
+          "const sessionId = pm.environment.get('session_id');",
+          "if (!sessionId && !pm.request.url.path.includes('login')) {",
+          "    console.warn('⚠️ No session found. Please login first.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level tests",
+          "pm.test(\"Response time is acceptable\", function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+          "});",
+          "",
+          "// Log response for debugging",
+          "if (pm.response.code >= 400) {",
+          "    console.error('❌ Error Response:', pm.response.json());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"User role is admin\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.user.role).to.eql('admin');",
+                  "});",
+                  "",
+                  "// Save session cookie",
+                  "var cookies = pm.cookies.get('PHPSESSID');",
+                  "if (cookies) {",
+                  "    pm.environment.set('session_id', cookies);",
+                  "    console.log('✅ Session ID saved:', cookies.substring(0, 10) + '...');",
+                  "}",
+                  "",
+                  "// Save CSRF token if available",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.csrf_token) {",
+                  "    pm.environment.set('csrf_token', jsonData.csrf_token);",
+                  "    console.log('✅ CSRF token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ecocycle.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"User role is customer\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.user.role).to.eql('customer');",
+                  "});",
+                  "",
+                  "// Save session",
+                  "var cookies = pm.cookies.get('PHPSESSID');",
+                  "if (cookies) {",
+                  "    pm.environment.set('session_id', cookies);",
+                  "    console.log('✅ Customer session saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@ecocycle.com\",\n  \"password\": \"customer123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"User role is company\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.user.role).to.eql('company');",
+                  "});",
+                  "",
+                  "// Save session",
+                  "var cookies = pm.cookies.get('PHPSESSID');",
+                  "if (cookies) {",
+                  "    pm.environment.set('session_id', cookies);",
+                  "    console.log('✅ Company session saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"company@ecocycle.com\",\n  \"password\": \"company123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"customer\",\n  \"phone\": \"+94771234567\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["register"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Vehicles",
+      "item": [
+        {
+          "name": "List All Vehicles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has vehicles array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('vehicles');",
+                  "    pm.expect(jsonData.vehicles).to.be.an('array');",
+                  "    ",
+                  "    if (jsonData.vehicles.length > 0) {",
+                  "        pm.environment.set('vehicle_id', jsonData.vehicles[0].id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/vehicles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vehicles"]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vehicles", "{{vehicle_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Vehicle created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.vehicle).to.have.property('id');",
+                  "    pm.environment.set('vehicle_id', jsonData.vehicle.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plateNumber\": \"ABC-1234\",\n  \"type\": \"Large Truck\",\n  \"lastMaintenance\": \"2025-10-20\",\n  \"nextMaintenance\": \"2026-01-20\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vehicles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vehicles"]
+            }
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"maintenance\",\n  \"nextMaintenance\": \"2026-02-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vehicles", "{{vehicle_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vehicles", "{{vehicle_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Bidding Rounds",
+      "item": [
+        {
+          "name": "Create Bidding Round",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Round created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.round).to.have.property('id');",
+                  "    pm.environment.set('round_id', jsonData.round.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wasteCategory\": \"Plastic\",\n  \"quantity\": 500.5,\n  \"unit\": \"kg\",\n  \"startingBid\": 1000,\n  \"endTime\": \"2025-10-30 18:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bidding/rounds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "rounds"]
+            }
+          }
+        },
+        {
+          "name": "Get Round Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bidding/rounds/{{round_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "rounds", "{{round_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Round",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 600,\n  \"endTime\": \"2025-10-31 18:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bidding/rounds/{{round_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "rounds", "{{round_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Round",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Insufficient waste collected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bidding/rounds/{{round_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "rounds", "{{round_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Approve Round",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"biddingId\": \"{{round_id}}\",\n  \"companyId\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bidding/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject Round",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"biddingId\": \"{{round_id}}\",\n  \"reason\": \"Bids below expected value\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bidding/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bidding", "reject"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer - Pickup Requests",
+      "item": [
+        {
+          "name": "List My Pickups",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has data array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/customer/pickup-requests?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api", "customer", "pickup-requests"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Pickup Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Pickup created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.environment.set('pickup_id', jsonData.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": \"123 Main St, Colombo\",\n  \"timeSlot\": \"morning\",\n  \"scheduledAt\": \"2025-10-26 09:00:00\",\n  \"wasteCategories\": [\n    {\n      \"id\": 1,\n      \"quantity\": 5.5,\n      \"unit\": \"kg\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/customer/pickup-requests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "customer", "pickup-requests"]
+            }
+          }
+        },
+        {
+          "name": "Update Pickup Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timeSlot\": \"afternoon\",\n  \"scheduledAt\": \"2025-10-27 14:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/customer/pickup-requests/{{pickup_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "customer", "pickup-requests", "{{pickup_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Pickup Request",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/customer/pickup-requests/{{pickup_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "customer", "pickup-requests", "{{pickup_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collector - Pickup Status",
+      "item": [
+        {
+          "name": "Update to In Progress",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in progress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/collector/pickup-requests/{{pickup_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "collector",
+                "pickup-requests",
+                "{{pickup_id}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update to Completed",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/collector/pickup-requests/{{pickup_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "collector",
+                "pickup-requests",
+                "{{pickup_id}}",
+                "status"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company - Bids",
+      "item": [
+        {
+          "name": "Place Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Bid placed successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.bid).to.have.property('id');",
+                  "    pm.environment.set('bid_id', jsonData.bid.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roundId\": \"{{round_id}}\",\n  \"bidPerUnit\": 25.50,\n  \"wasteAmount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/company/bids",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "bids"]
+            }
+          }
+        },
+        {
+          "name": "Update Bid",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidPerUnit\": 27.00,\n  \"wasteAmount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/company/bids/{{bid_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "bids", "{{bid_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Bid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/bids/{{bid_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "bids", "{{bid_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Development & Debug",
+      "item": [
+        {
+          "name": "System Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/test",
+              "host": ["{{base_url}}"],
+              "path": ["test"]
+            }
+          }
+        },
+        {
+          "name": "List All Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes/list",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "list"]
+            }
+          }
+        },
+        {
+          "name": "Database Ping",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/debug/db/ping.json",
+              "host": ["{{base_url}}"],
+              "path": ["debug", "db", "ping.json"]
+            }
+          }
+        },
+        {
+          "name": "List Users (Debug)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/debug/db/users",
+              "host": ["{{base_url}}"],
+              "path": ["debug", "db", "users"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
