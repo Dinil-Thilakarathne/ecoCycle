@@ -126,13 +126,23 @@ $router->get('/', 'Controllers\NavigationController@index');
 // Dashboard navigation page
 $router->get('/dashboards', 'Controllers\NavigationController@index');
 
-// Authentication routes
+// Authentication routes (Web - returns HTML)
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
 $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/forget-password', 'AuthController@showForgetPassword');
+
+// API Authentication routes (Returns JSON only)
+$router->post('/api/auth/login', 'Controllers\Api\AuthController@login');
+$router->post('/api/auth/logout', 'Controllers\Api\AuthController@logout', [
+    'Middleware\AuthMiddleware'
+]);
+$router->post('/api/auth/register', 'Controllers\Api\AuthController@register');
+$router->get('/api/auth/me', 'Controllers\Api\AuthController@me', [
+    'Middleware\AuthMiddleware'
+]);
 
 // Auto-register all dashboard routes based on NavigationConfig
 // This ensures consistency between navigation and routes
