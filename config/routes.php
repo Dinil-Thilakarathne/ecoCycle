@@ -50,6 +50,11 @@ $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', 
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->get('/api/bidding/rounds', 'Controllers\Api\BiddingController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 $router->get('/api/bidding/rounds/{id}', 'Controllers\Api\BiddingController@show', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
