@@ -41,7 +41,8 @@ class Database
         $conn = $connections[$connName];
         $this->driver = $conn['driver'] ?? 'mysql';
         $this->host = $conn['host'] ?? '127.0.0.1';
-        $this->port = (string) ($conn['port'] ?? '3306');
+        $defaultPort = $this->driver === 'pgsql' ? '5432' : '3306';
+        $this->port = (string) ($conn['port'] ?? $defaultPort);
         $this->db = $conn['database'] ?? '';
         $this->user = $conn['username'] ?? '';
         $this->pass = $conn['password'] ?? '';
@@ -108,6 +109,21 @@ class Database
     public function lastInsertId(): string|false
     {
         return $this->pdo()->lastInsertId();
+    }
+
+    public function getDriver(): string
+    {
+        return $this->driver;
+    }
+
+    public function isPgsql(): bool
+    {
+        return $this->driver === 'pgsql';
+    }
+
+    public function isMysql(): bool
+    {
+        return $this->driver === 'mysql';
     }
 
     /**
