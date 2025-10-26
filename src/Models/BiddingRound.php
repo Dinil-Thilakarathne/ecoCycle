@@ -228,9 +228,9 @@ class BiddingRound extends BaseModel
                 FROM {$this->table} br
                 LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
                 WHERE br.status = 'active'
-                GROUP BY wc.id, wc.name, unit
-                HAVING total_quantity IS NOT NULL
-                ORDER BY total_quantity DESC";
+                GROUP BY wc.id, wc.name, COALESCE(br.unit, 'kg')
+                HAVING SUM(br.quantity) IS NOT NULL
+                ORDER BY SUM(br.quantity) DESC";
 
         $rows = $this->db->fetchAll($sql);
         if (!$rows) {

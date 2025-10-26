@@ -191,17 +191,17 @@ class PickupRequest extends BaseModel
         $params = [];
 
         foreach ($filtered as $column => $value) {
-            $setParts[] = "`{$column}` = ?";
+            $setParts[] = "{$column} = ?";
             $params[] = $value;
         }
 
         if (!array_key_exists('updated_at', $filtered)) {
-            $setParts[] = "`updated_at` = NOW()";
+            $setParts[] = "updated_at = CURRENT_TIMESTAMP";
         }
 
         $params[] = $id;
 
-        $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1';
+        $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $setParts) . ' WHERE id = ?';
 
         return $this->db->query($sql, $params);
     }
@@ -229,31 +229,31 @@ class PickupRequest extends BaseModel
             $params = [];
 
             if (array_key_exists('address', $payload)) {
-                $fields[] = '`address` = ?';
+                $fields[] = 'address = ?';
                 $params[] = $payload['address'];
             }
 
             if (array_key_exists('timeSlot', $payload)) {
-                $fields[] = '`time_slot` = ?';
+                $fields[] = 'time_slot = ?';
                 $params[] = $payload['timeSlot'];
             }
 
             if (array_key_exists('scheduledAt', $payload)) {
                 // Allow clearing the scheduledAt by sending null or empty string
                 if ($payload['scheduledAt'] === '' || $payload['scheduledAt'] === null) {
-                    $fields[] = '`scheduled_at` = NULL';
+                    $fields[] = 'scheduled_at = NULL';
                 } else {
-                    $fields[] = '`scheduled_at` = ?';
+                    $fields[] = 'scheduled_at = ?';
                     $params[] = $payload['scheduledAt'];
                 }
             }
 
             if (!empty($fields)) {
-                $fields[] = '`updated_at` = NOW()';
+                $fields[] = 'updated_at = CURRENT_TIMESTAMP';
                 $params[] = $id;
                 $params[] = $customerId;
 
-                $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $fields) . ' WHERE id = ? AND customer_id = ? LIMIT 1';
+                $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $fields) . ' WHERE id = ? AND customer_id = ?';
                 $this->db->query($sql, $params);
             }
 
@@ -279,7 +279,7 @@ class PickupRequest extends BaseModel
         }
 
         return $this->db->query(
-            "UPDATE {$this->table} SET status = ?, updated_at = NOW() WHERE id = ? AND collector_id = ? LIMIT 1",
+            "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
             [$status, $id, $collectorId]
         );
     }
@@ -300,7 +300,7 @@ class PickupRequest extends BaseModel
         }
 
         return $this->db->query(
-            "UPDATE {$this->table} SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND customer_id = ? LIMIT 1",
+            "UPDATE {$this->table} SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND customer_id = ?",
             [$id, $customerId]
         );
     }

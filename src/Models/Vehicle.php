@@ -35,7 +35,7 @@ class Vehicle extends BaseModel
     public function create(array $data): array
     {
         $sql = "INSERT INTO {$this->table} (plate_number, type, capacity, status, last_maintenance, next_maintenance, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
 
         $params = [
             $data['plate_number'] ?? null,
@@ -47,8 +47,13 @@ class Vehicle extends BaseModel
             $data['notes'] ?? null,
         ];
 
-        $this->db->query($sql, $params);
-        $id = (int) $this->db->lastInsertId();
+        if ($this->db->isPgsql()) {
+            $row = $this->db->fetch($sql . ' RETURNING id', $params);
+            $id = $row && isset($row['id']) ? (int) $row['id'] : 0;
+        } else {
+            $this->db->query($sql, $params);
+            $id = (int) $this->db->lastInsertId();
+        }
 
         return $this->find($id) ?? [];
     }
