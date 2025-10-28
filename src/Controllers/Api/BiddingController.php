@@ -1,0 +1,529 @@
+<?php
+
+namespace Controllers\Api;
+
+use Controllers\BaseController;
+use Core\Http\Request;
+use Core\Http\Response;
+use Models\BiddingRound;
+use Models\WasteCategory;
+
+class BiddingController extends BaseController
+{
+    private BiddingRound $rounds;
+    private WasteCategory $categories;
+
+    public function __construct()
+    {
+        $this->rounds = new BiddingRound();
+        $this->categories = new WasteCategory();
+    }
+
+    public function index(Request $request): Response
+    {
+        try {
+            $rounds = $this->rounds->listAll();
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to load bidding rounds', 500, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::json([
+            'success' => true,
+            'rounds' => $rounds,
+        ]);
+    }
+
+    public function store(Request $request): Response
+    {
+        $this->mergeJsonBody($request);
+        $validation = $this->validateStorePayload($request);
+
+        if (isset($validation['errors'])) {
+            return Response::errorJson('Validation failed', 422, $validation['errors']);
+        }
+
+        try {
+            $round = $this->rounds->createRound($validation['payload']);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to create bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Bidding round created successfully',
+            'round' => $round,
+        ], 201);
+    }
+
+    public function show(Request $request): Response
+    {
+        $id = $this->resolveRouteId($request);
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 400);
+        }
+
+        try {
+            $round = $this->rounds->findById($id);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to load bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$round) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        return Response::json([
+            'success' => true,
+            'round' => $round,
+        ]);
+    }
+
+    public function update(Request $request): Response
+    {
+        $id = $this->resolveRouteId($request);
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 400);
+        }
+
+        try {
+            $existing = $this->rounds->findById($id);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to load bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$existing) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        if (strtolower((string) ($existing['status'] ?? '')) !== 'active') {
+            return Response::errorJson('Only active bidding rounds can be updated', 422);
+        }
+
+        // Prevent updating if there are existing bids or a leading company has been set
+        $roundId = (string) ($existing['id'] ?? '');
+        $hasLeadingCompany = $this->rounds->hasLeadingCompanyById($roundId);
+        $hasBids = $this->rounds->hasBids($roundId);
+
+        if ($hasLeadingCompany || $hasBids) {
+            return Response::errorJson('Cannot edit bidding round: bids already placed or a leading company exists', 422);
+        }
+
+        $this->mergeJsonBody($request);
+
+        // Restrict allowed update fields server-side: only quantity, startingBid and endTime
+        // Normalize incoming keys that may be camelCase from the client
+        $allowed = ['quantity', 'startingBid', 'endTime', 'starting_bid', 'end_time'];
+        $filtered = [];
+        foreach ($request->json() ?? [] as $k => $v) {
+            if (in_array($k, $allowed, true)) {
+                $filtered[$k] = $v;
+            }
+        }
+
+        // Merge filtered values back into request body for validation helpers
+        if (!empty($filtered) && method_exists($request, 'mergeBody')) {
+            $request->mergeBody($filtered);
+        }
+
+        $validation = $this->validateUpdatePayload($request, $existing);
+        if (isset($validation['errors'])) {
+            return Response::errorJson('Validation failed', 422, $validation['errors']);
+        }
+
+        $payload = $validation['payload'];
+        if (empty($payload)) {
+            return Response::json([
+                'success' => true,
+                'message' => 'No changes detected',
+                'round' => $existing,
+            ]);
+        }
+
+        try {
+            $round = $this->rounds->updateRound($id, $payload);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to update bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$round) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Bidding round updated',
+            'round' => $round,
+        ]);
+    }
+
+    public function destroy(Request $request): Response
+    {
+        $id = $this->resolveRouteId($request);
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 400);
+        }
+
+        try {
+            $existing = $this->rounds->findById($id);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to load bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$existing) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        if (strtolower((string) ($existing['status'] ?? '')) !== 'active') {
+            return Response::errorJson('Only active bidding rounds can be cancelled', 422);
+        }
+
+        $roundId = (string) ($existing['id'] ?? '');
+        $hasLeadingCompany = $this->rounds->hasLeadingCompanyById($roundId);
+        $hasBids = $this->rounds->hasBids($roundId);
+
+        if ($hasLeadingCompany || $hasBids) {
+            return Response::errorJson('Cannot cancel bidding round: companies have already placed bids or a leading company exists', 422);
+        }
+
+        $this->mergeJsonBody($request);
+        $reason = $this->extractString($request, 'reason');
+
+        try {
+            $round = $this->rounds->cancelRound($id, $reason);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to cancel bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$round) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Bidding round cancelled',
+            'round' => $round,
+        ]);
+    }
+
+    public function approve(Request $request): Response
+    {
+        $this->mergeJsonBody($request);
+        $id = $this->extractString($request, 'biddingId');
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 422, ['biddingId' => 'This field is required.']);
+        }
+
+        $companyId = $this->extractInt($request, 'companyId');
+
+        try {
+            $round = $this->rounds->approveRound($id, $companyId);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to approve bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$round) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Bidding round approved',
+            'round' => $round,
+        ]);
+    }
+
+    public function reject(Request $request): Response
+    {
+        $this->mergeJsonBody($request);
+        $id = $this->extractString($request, 'biddingId');
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 422, ['biddingId' => 'This field is required.']);
+        }
+
+        $reason = $this->extractString($request, 'reason');
+
+        try {
+            $round = $this->rounds->rejectRound($id, $reason);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to reject bidding round', 500, ['detail' => $e->getMessage()]);
+        }
+
+        if (!$round) {
+            return Response::errorJson('Bidding round not found', 404);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Bidding round rejected',
+            'round' => $round,
+        ]);
+    }
+
+    private function mergeJsonBody(Request $request): void
+    {
+        $json = $request->json();
+        if (!is_array($json) || !method_exists($request, 'mergeBody')) {
+            return;
+        }
+
+        $request->mergeBody($json);
+    }
+
+    private function resolveRouteId(Request $request): ?string
+    {
+        $id = $request->route('id');
+        if ($id === null || $id === '') {
+            $id = $request->get('id');
+        }
+
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return trim((string) $id);
+    }
+
+    private function validateStorePayload(Request $request): array
+    {
+        $errors = [];
+
+        // Lot ID will be generated by the system if not provided. If provided, still validate.
+        $lotId = $this->extractString($request, 'lotId');
+        if ($lotId !== null && $lotId !== '') {
+            if (strlen($lotId) > 64) {
+                $errors['lotId'] = 'Lot ID must be 64 characters or fewer.';
+            } elseif ($this->rounds->existsByLotId($lotId)) {
+                $errors['lotId'] = 'Lot ID already exists.';
+            }
+        } else {
+            // generate one later when building payload
+            $lotId = null;
+        }
+
+        $categoryId = null;
+        $categoryName = $this->extractString($request, 'wasteCategory');
+        $categoryIdInput = $this->extractInt($request, 'wasteCategoryId');
+        if ($categoryIdInput !== null) {
+            $categoryId = $categoryIdInput;
+        } elseif ($categoryName !== null && $categoryName !== '') {
+            $category = $this->categories->findByName($categoryName);
+            if ($category) {
+                $categoryId = $category['id'];
+            }
+        }
+
+        if ($categoryId === null) {
+            $errors['wasteCategory'] = 'Valid waste category is required.';
+        }
+
+        $quantity = $this->extractNumeric($request, 'quantity');
+        if ($quantity === null || $quantity <= 0) {
+            $errors['quantity'] = 'Quantity must be greater than zero.';
+        }
+
+        $unit = $this->extractString($request, 'unit');
+        if ($unit === null || $unit === '') {
+            $unit = 'kg';
+        }
+
+        $allowedUnits = ['kg', 'tons', 'tonnes', 'lb'];
+        if (!in_array(strtolower($unit), $allowedUnits, true)) {
+            $errors['unit'] = 'Invalid unit provided.';
+        }
+
+        $startingBid = $this->extractNumeric($request, 'startingBid');
+        if ($startingBid === null || $startingBid < 0) {
+            $errors['startingBid'] = 'Starting bid must be zero or greater.';
+        }
+
+        $endTimeRaw = $this->extractString($request, 'endTime');
+        if ($endTimeRaw === null || $endTimeRaw === '') {
+            $errors['endTime'] = 'End time is required.';
+        }
+
+        $endTime = null;
+        if (!isset($errors['endTime'])) {
+            $timestamp = strtotime($endTimeRaw);
+            if ($timestamp === false) {
+                $errors['endTime'] = 'End time is invalid.';
+            } elseif ($timestamp <= time()) {
+                $errors['endTime'] = 'End time must be in the future.';
+            } else {
+                $endTime = date('Y-m-d H:i:s', $timestamp);
+            }
+        }
+
+        if (!empty($errors)) {
+            return ['errors' => $errors];
+        }
+
+        $now = time();
+        $status = ($endTime !== null && strtotime($endTime) > $now) ? 'active' : 'completed';
+
+        // If lotId is not supplied, generate a new one
+        if ($lotId === null) {
+            $lotId = $this->rounds->generateLotId();
+        }
+
+        return [
+            'payload' => [
+                'lot_id' => $lotId,
+                'waste_category_id' => $categoryId,
+                'quantity' => round($quantity, 2),
+                'unit' => strtolower($unit) === 'tonnes' ? 'tons' : strtolower($unit),
+                'starting_bid' => round($startingBid, 2),
+                'current_highest_bid' => 0.0,
+                'status' => $status,
+                'end_time' => $endTime,
+            ],
+        ];
+    }
+
+    private function validateUpdatePayload(Request $request, array $existing): array
+    {
+        $errors = [];
+        $payload = [];
+
+        if ($request->has('lotId')) {
+            $lotId = $this->extractString($request, 'lotId');
+            if ($lotId === null || $lotId === '') {
+                $errors['lotId'] = 'Lot ID is required.';
+            } else {
+                $currentLot = (string) ($existing['lotId'] ?? '');
+                if (strcasecmp($lotId, $currentLot) !== 0 && $this->rounds->existsByLotIdExcept($lotId, $existing['id'])) {
+                    $errors['lotId'] = 'Lot ID already exists.';
+                }
+                $payload['lot_id'] = $lotId;
+            }
+        }
+
+        $categoryId = null;
+        if ($request->has('wasteCategoryId')) {
+            $categoryId = $this->extractInt($request, 'wasteCategoryId');
+            if ($categoryId === null || !$this->categories->exists($categoryId)) {
+                $errors['wasteCategory'] = 'Valid waste category is required.';
+            }
+        } elseif ($request->has('wasteCategory')) {
+            $categoryName = $this->extractString($request, 'wasteCategory');
+            if ($categoryName === null || $categoryName === '') {
+                $errors['wasteCategory'] = 'Waste category is required.';
+            } else {
+                $category = $this->categories->findByName($categoryName);
+                if (!$category) {
+                    $errors['wasteCategory'] = 'Waste category is invalid.';
+                } else {
+                    $categoryId = $category['id'];
+                }
+            }
+        }
+
+        if ($categoryId !== null) {
+            $payload['waste_category_id'] = $categoryId;
+        }
+
+        if ($request->has('quantity')) {
+            $quantity = $this->extractNumeric($request, 'quantity');
+            if ($quantity === null || $quantity <= 0) {
+                $errors['quantity'] = 'Quantity must be greater than zero.';
+            } else {
+                $payload['quantity'] = round($quantity, 2);
+            }
+        }
+
+        if ($request->has('unit')) {
+            $unit = $this->extractString($request, 'unit');
+            if ($unit === null || $unit === '') {
+                $errors['unit'] = 'Unit is required.';
+            } else {
+                $allowedUnits = ['kg', 'tons', 'tonnes', 'lb'];
+                $normalized = strtolower($unit);
+                if (!in_array($normalized, $allowedUnits, true)) {
+                    $errors['unit'] = 'Invalid unit provided.';
+                } else {
+                    $payload['unit'] = $normalized === 'tonnes' ? 'tons' : $normalized;
+                }
+            }
+        }
+
+        if ($request->has('startingBid')) {
+            $startingBid = $this->extractNumeric($request, 'startingBid');
+            if ($startingBid === null || $startingBid < 0) {
+                $errors['startingBid'] = 'Starting bid must be zero or greater.';
+            } else {
+                $payload['starting_bid'] = round($startingBid, 2);
+            }
+        }
+
+        if ($request->has('endTime')) {
+            $endTimeRaw = $this->extractString($request, 'endTime');
+            if ($endTimeRaw === null || $endTimeRaw === '') {
+                $errors['endTime'] = 'End time is required.';
+            } else {
+                $timestamp = strtotime($endTimeRaw);
+                if ($timestamp === false) {
+                    $errors['endTime'] = 'End time is invalid.';
+                } elseif ($timestamp <= time()) {
+                    $errors['endTime'] = 'End time must be in the future.';
+                } else {
+                    $payload['end_time'] = date('Y-m-d H:i:s', $timestamp);
+                }
+            }
+        }
+
+        if ($request->has('notes')) {
+            $notesRaw = $request->get('notes');
+            if ($notesRaw === null) {
+                $payload['notes'] = null;
+            } else {
+                $notes = trim((string) $notesRaw);
+                $payload['notes'] = $notes === '' ? null : $notes;
+            }
+        }
+
+        if (!empty($errors)) {
+            return ['errors' => $errors];
+        }
+
+        return ['payload' => $payload];
+    }
+
+    private function extractString(Request $request, string $key): ?string
+    {
+        $value = $request->get($key);
+        if ($value === null) {
+            return null;
+        }
+
+        $string = trim((string) $value);
+        return $string;
+    }
+
+    private function extractInt(Request $request, string $key): ?int
+    {
+        $value = $request->get($key);
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $int = (int) $value;
+        return $int > 0 ? $int : null;
+    }
+
+    private function extractNumeric(Request $request, string $key): ?float
+    {
+        $value = $request->get($key);
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value;
+    }
+}
