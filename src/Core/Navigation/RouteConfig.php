@@ -213,3 +213,45 @@ class RouteConfig
         return $stubs;
     }
 }
+
+    $router->get('/api/analytics/dashboard',
+    'Controllers\\Api\\Analytics\\AnalyticsController@dashboard',
+    [
+        'Middleware\\AuthMiddleware',
+        'Middleware\\Roles\\AdminOnly'
+    ]
+);
+
+$router->get('/api/reports/waste-collection',
+    'Controllers\\Api\\Analytics\\ReportController@wasteCollection',
+    [
+        'Middleware\\AuthMiddleware',
+        'Middleware\\Roles\\AdminOnly'
+    ]
+);
+
+$router->get('/api/reports/bidding',
+    'Controllers\\Api\\Analytics\\ReportController@bidding',
+    [
+        'Middleware\\AuthMiddleware',
+        'Middleware\\Roles\\AdminOnly'
+    ]
+);
+
+$router->get('/api/reports/revenue',
+    'Controllers\\Api\\Analytics\\ReportController@revenue',
+    [
+        'Middleware\\AuthMiddleware',
+        'Middleware\\Roles\\AdminOnly'
+    ]
+);
+
+$router->post('/api/reports/export',
+    'Controllers\\Api\\Analytics\\ReportController@export',
+    [
+        'Middleware\\AuthMiddleware',
+        'Middleware\\CsrfMiddleware',
+        'Middleware\\Roles\\AdminOnly'
+    ]
+);
+
