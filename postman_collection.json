@@ -774,6 +774,84 @@
       ]
     },
     {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Admin - Record Payment/Payout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientId\": 42,\n  \"amount\": 15000,\n  \"type\": \"payout\",\n  \"status\": \"completed\",\n  \"txnId\": \"TXN-2025-1101\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments"]
+            }
+          }
+        },
+        {
+          "name": "Admin - Get Payment Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments/PAY-EXAMPLE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "PAY-EXAMPLE"]
+            }
+          }
+        },
+        {
+          "name": "Customer - List Payouts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/customer/payments?status=completed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "customer", "payments"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Company - List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/invoices?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "invoices"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Development & Debug",
       "item": [
         {
