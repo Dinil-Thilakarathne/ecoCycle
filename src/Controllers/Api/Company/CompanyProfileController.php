@@ -17,24 +17,16 @@ class CompanyProfileController extends BaseController
 
     public function update(Request $request): Response
     {
-        $companyId = $request->user()->id;
-        $payload = $request->all();
-
-        // Handle profile picture upload
-        if (!empty($_FILES['profile_picture']['tmp_name'])) {
-            $file = $_FILES['profile_picture'];
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = 'uploads/profiles/' . uniqid() . '.' . $ext;
-
-            // if (!move_uploaded_file($file['tmp_name'], $filename)) {
-            //     return Response::errorJson('Failed to upload profile picture', 500);
-            // }
-
-            $payload['profile_picture'] = $filename;
+        $user = auth();
+        if (!$user || empty($user['id'])) {
+            return Response::errorJson('Unauthenticated company user.', 401);
         }
 
+        // Demo-only
+        $payload = ['name' => 'Demo Company Update'];
+
         try {
-            $this->model->updateProfile($companyId, $payload);
+            $this->model->updateProfile((int) $user['id'], $payload);
             return Response::json([
                 'success' => true,
                 'message' => 'Profile updated',
