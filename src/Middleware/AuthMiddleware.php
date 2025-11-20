@@ -1,25 +1,37 @@
 <?php
+
 namespace Middleware;
 
 use Core\Http\Request;
 use Core\Http\Response;
 
+/**
+ * Authentication Middleware
+ * 
+ * Ensures that only authenticated users can access protected routes.
+ * 
+ * @package Middleware
+ * @author Digital Waste Management Team
+ * @version 1.0.0
+ */
 class AuthMiddleware
 {
     /**
      * Handle the incoming request
-     *
+     * 
      * @param Request $request
      * @param callable $next
      * @return Response
      */
     public function handle(Request $request, callable $next): Response
     {
+        // Get session instance
         $session = app('session');
 
+        // Check if the user is authenticated
         if (!$session->isAuthenticated()) {
-            // If the request expects JSON, return JSON error
-            if ($request->expectsJson() || $request->isAjax()) {
+            // If request expects JSON, return JSON error
+            if ($request->expectsJson()) {
                 return Response::errorJson('Unauthenticated', 401);
             }
 
@@ -27,16 +39,7 @@ class AuthMiddleware
             return Response::redirect('/login');
         }
 
-        // IMPORTANT: call $next and return its response
-        $response = $next($request);
-
-        // Make sure it is a Response object
-        if (!$response instanceof Response) {
-            throw new \RuntimeException(
-                'Next middleware or controller must return an instance of Core\Http\Response'
-            );
-        }
-
-        return $response;
+        // Proceed to the next middleware or request handler
+        return $next($request);
     }
 }
