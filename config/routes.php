@@ -331,3 +331,11 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     // Redirect to dashboard
     return redirect("/{$role}");
 });
+
+$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@update', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+
