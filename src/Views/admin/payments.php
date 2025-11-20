@@ -193,81 +193,14 @@ function getStatusTag($status)
             .replace(/'/g, '&#39;');
     }
 
-    function createModal({ title, content, buttons = [], width = '520px' }) {
-        const backdrop = document.createElement('div');
-        backdrop.className = 'simple-modal-backdrop';
-        backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
-
-        const dialog = document.createElement('div');
-        dialog.style.cssText = `background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:min(${width},100%);max-width:${width};padding:1.75rem;display:flex;flex-direction:column;gap:1.5rem;`;
-
-        const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;';
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = title;
-        titleEl.style.cssText = 'margin:0;font-size:1.25rem;font-weight:600;color:#111827;';
-        const closeButton = document.createElement('button');
-        closeButton.type = 'button';
-        closeButton.innerHTML = '&times;';
-        closeButton.style.cssText = 'border:none;background:transparent;font-size:1.75rem;line-height:1;color:#6b7280;cursor:pointer;padding:0 0 0.25rem 0;';
-
-        const body = document.createElement('div');
-        body.style.cssText = 'max-height:60vh;overflow:auto;';
-        body.appendChild(content);
-
-        const footer = document.createElement('div');
-        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.75rem;';
-
-        function closeModal() {
-            backdrop.remove();
+    function openModal(options = {}) {
+        if (window.Modal && typeof window.Modal.open === 'function') {
+            return window.Modal.open(options);
         }
 
-        closeButton.addEventListener('click', closeModal);
-        backdrop.addEventListener('click', function (event) {
-            if (event.target === backdrop) {
-                closeModal();
-            }
-        });
-
-        buttons.forEach((buttonConfig) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = buttonConfig.label;
-
-            const variant = buttonConfig.variant || 'secondary';
-            let styles = 'padding:0.6rem 1.25rem;border-radius:6px;font-weight:600;border:none;cursor:pointer;';
-            if (variant === 'primary') {
-                styles += 'background:#16a34a;color:#fff;';
-            } else if (variant === 'danger') {
-                styles += 'background:#dc2626;color:#fff;';
-            } else {
-                styles += 'background:#6b7280;color:#fff;';
-            }
-            btn.style.cssText = styles;
-
-            btn.addEventListener('click', function () {
-                if (typeof buttonConfig.onClick === 'function') {
-                    buttonConfig.onClick(closeModal, btn);
-                } else {
-                    closeModal();
-                }
-            });
-
-            footer.appendChild(btn);
-        });
-
-        header.appendChild(titleEl);
-        header.appendChild(closeButton);
-        dialog.appendChild(header);
-        dialog.appendChild(body);
-        dialog.appendChild(footer);
-        backdrop.appendChild(dialog);
-        document.body.appendChild(backdrop);
-
-        return {
-            close: closeModal,
-            element: backdrop,
-        };
+        console.error('ModalManager is unavailable. Ensure the modal script is loaded.');
+        showToast('Modal component is unavailable right now.', 'error');
+        return null;
     }
 
     async function paymentApi(path, { method = 'GET', body } = {}) {
@@ -328,6 +261,11 @@ function getStatusTag($status)
     function renderTypeCell(type) {
         const normalized = (type || '').toLowerCase();
         return `<div class="cell-with-icon">${paymentIcons[normalized] || escapeHtml(type || 'Unknown')}</div>`;
+    }
+
+    function getFieldValue(container, selector) {
+        const element = container ? container.querySelector(selector) : null;
+        return element ? element.value : '';
     }
 
     function updatePaymentRow(row, record) {
@@ -420,7 +358,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Method</label>
-                    <select id="paymentMethod" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-payment-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select payment method</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="cash">Cash</option>
@@ -431,13 +369,13 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Reference Number</label>
-                    <input type="text" id="referenceNumber" placeholder="Enter reference or transaction number" 
+                    <input type="text" data-payment-field="reference" placeholder="Enter reference or transaction number" 
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Notes (Optional)</label>
-                    <textarea id="paymentNotes" rows="3" placeholder="Add any additional notes about this payment..."
+                    <textarea data-payment-field="notes" rows="3" placeholder="Add any additional notes about this payment..."
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit;font-size:0.95rem;"></textarea>
                 </div>
 
@@ -452,31 +390,31 @@ function getStatusTag($status)
             </div>
         `;
 
-        createModal({
+        openModal({
             title: 'Process Payment',
+            size: 'md',
             content: container,
-            buttons: [
+            actions: [
                 {
                     label: 'Cancel',
-                    variant: 'secondary',
-                    onClick: (close) => close()
+                    variant: 'plain'
                 },
                 {
                     label: 'Process Payment',
                     variant: 'primary',
-                    onClick: async (close, buttonEl) => {
-                        const paymentMethod = document.getElementById('paymentMethod').value;
-                        const referenceNumber = document.getElementById('referenceNumber').value;
-                        const notes = document.getElementById('paymentNotes').value;
+                    dismiss: false,
+                    loadingLabel: 'Processing...',
+                    onClick: async ({ body, close, setLoading }) => {
+                        const paymentMethod = getFieldValue(body, '[data-payment-field="method"]');
+                        const referenceNumber = getFieldValue(body, '[data-payment-field="reference"]');
+                        const notes = getFieldValue(body, '[data-payment-field="notes"]');
 
                         if (!paymentMethod) {
                             showToast('Please select a payment method', 'error');
                             return;
                         }
 
-                        buttonEl.disabled = true;
-                        const originalLabel = buttonEl.textContent;
-                        buttonEl.textContent = 'Processing...';
+                        setLoading(true);
 
                         try {
                             const payload = {
@@ -499,13 +437,11 @@ function getStatusTag($status)
                         } catch (error) {
                             showToast(error.message || 'Payment processing failed', 'error');
                         } finally {
-                            buttonEl.disabled = false;
-                            buttonEl.textContent = originalLabel;
+                            setLoading(false);
                         }
                     }
                 }
-            ],
-            width: '540px'
+            ]
         });
     }
 
@@ -559,17 +495,16 @@ function getStatusTag($status)
             list.appendChild(gatewayBlock);
         }
 
-        createModal({
+        openModal({
             title: 'Payment Details',
+            size: 'md',
             content: list,
-            buttons: [
+            actions: [
                 {
                     label: 'Close',
-                    variant: 'secondary',
-                    onClick: (close) => close()
+                    variant: 'plain'
                 }
-            ],
-            width: '520px'
+            ]
         });
     }
 
@@ -588,7 +523,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Type</label>
-                    <select id="batchPaymentType" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-batch-field="type" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select payment type</option>
                         <option value="all">All Pending</option>
                         <option value="payout">Payouts Only</option>
@@ -598,7 +533,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Processing Method</label>
-                    <select id="batchMethod" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-batch-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select method</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="bulk_payout">Bulk Payout Service</option>
@@ -608,13 +543,13 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Reference</label>
-                    <input type="text" id="batchReference" placeholder="Enter batch reference number" 
+                    <input type="text" data-batch-field="reference" placeholder="Enter batch reference number" 
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Processing Date</label>
-                    <input type="date" id="processingDate" value="${new Date().toISOString().split('T')[0]}"
+                    <input type="date" data-batch-field="date" value="${new Date().toISOString().split('T')[0]}"
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
@@ -643,23 +578,24 @@ function getStatusTag($status)
             </div>
         `;
 
-        createModal({
+        openModal({
             title: 'Batch Payment Processing',
+            size: 'lg',
             content: container,
-            buttons: [
+            actions: [
                 {
                     label: 'Cancel',
-                    variant: 'secondary',
-                    onClick: (close) => close()
+                    variant: 'plain'
                 },
                 {
                     label: 'Process Batch',
                     variant: 'primary',
-                    onClick: (close) => {
-                        const paymentType = document.getElementById('batchPaymentType').value;
-                        const batchMethod = document.getElementById('batchMethod').value;
-                        const batchReference = document.getElementById('batchReference').value;
-                        const processingDate = document.getElementById('processingDate').value;
+                    dismiss: false,
+                    onClick: ({ body, close }) => {
+                        const paymentType = getFieldValue(body, '[data-batch-field="type"]');
+                        const batchMethod = getFieldValue(body, '[data-batch-field="method"]');
+                        const batchReference = getFieldValue(body, '[data-batch-field="reference"]');
+                        const processingDate = getFieldValue(body, '[data-batch-field="date"]');
 
                         if (!paymentType) {
                             showToast('Please select a payment type', 'error');
@@ -688,8 +624,7 @@ function getStatusTag($status)
                         close();
                     }
                 }
-            ],
-            width: '560px'
+            ]
         });
     }
 </script>
