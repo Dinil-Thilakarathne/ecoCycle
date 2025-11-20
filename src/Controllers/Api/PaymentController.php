@@ -19,6 +19,7 @@ class PaymentController extends BaseController
         $this->service = new PaymentService($this->payments);
     }
 
+
     public function store(Request $request): Response
     {
         $this->mergeJsonBody($request);
@@ -39,7 +40,20 @@ class PaymentController extends BaseController
         return Response::json([
             'message' => 'Payment recorded',
             'data' => $record,
-        ], 201);
+        ]);
+    }
+
+    public function showAll(Request $request): Response
+    {
+
+        // $record = $this->payments->findById($id);
+        $records = $this->payments->findAll();
+
+        if (!$records) {
+            return Response::errorJson('Payment not found', 404);
+        }
+
+        return Response::json(['data' => $records]);
     }
 
     public function show(Request $request): Response
