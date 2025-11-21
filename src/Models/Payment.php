@@ -55,6 +55,65 @@ class Payment extends BaseModel
         return $this->findById($payload['id']) ?? [];
     }
 
+    public function update(string $id, array $data): bool
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return false;
+        }
+
+        $fields = [];
+        $params = [];
+
+        if (array_key_exists('txnId', $data)) {
+            $fields[] = 'txn_id = ?';
+            $params[] = $data['txnId'];
+        }
+        if (array_key_exists('type', $data)) {
+            $fields[] = 'type = ?';
+            $params[] = $data['type'];
+        }
+        if (array_key_exists('amount', $data)) {
+            $fields[] = 'amount = ?';
+            $params[] = (float) $data['amount'];
+        }
+        if (array_key_exists('recipientId', $data)) {
+            $fields[] = 'recipient_id = ?';
+            $params[] = $data['recipientId'];
+        }
+        if (array_key_exists('recipientName', $data)) {
+            $fields[] = 'recipient_name = ?';
+            $params[] = $data['recipientName'];
+        }
+        if (array_key_exists('status', $data)) {
+            $fields[] = 'status = ?';
+            $params[] = $data['status'];
+        }
+        if (array_key_exists('date', $data)) {
+            $fields[] = 'date = ?';
+            $params[] = $data['date'];
+        }
+        if (array_key_exists('gatewayResponse', $data)) {
+            $fields[] = 'gateway_response = ?';
+            $val = $data['gatewayResponse'];
+            if (is_array($val)) {
+                $val = json_encode($val, JSON_UNESCAPED_UNICODE);
+            }
+            $params[] = $val;
+        }
+
+        if (empty($fields)) {
+            return true; // Nothing to update
+        }
+
+        $fields[] = 'updated_at = NOW()';
+        
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
+        $params[] = $id;
+
+        return $this->db->query($sql, $params);
+    }
+
     public function listRecent(int $limit = 50): array
     {
         $limit = max(1, (int) $limit);
