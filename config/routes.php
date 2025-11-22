@@ -330,6 +330,7 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
 
     // Redirect to dashboard
     return redirect("/{$role}");
+});
 
 // -----------------------------------------------------
 // Analytics & Reporting API Routes
@@ -360,4 +361,10 @@ $router->post('/api/reports/export', 'Controllers\Api\ReportsController@export',
     'Middleware\Roles\AdminOnly',
 ]);
 
-});
+// notification routes 
+
+// example
+$router->get('/api/notifications', 'Controllers\Api\NotificationController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
