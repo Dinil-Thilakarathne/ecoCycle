@@ -1,4 +1,4 @@
-# ecoCycle API Documentation
+rou# ecoCycle API Documentation
 
 **Version:** 1.0.0  
 **Last Updated:** October 24, 2025  
