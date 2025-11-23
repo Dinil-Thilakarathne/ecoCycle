@@ -366,5 +366,21 @@ $router->post('/api/reports/export', 'Controllers\Api\ReportsController@export',
 // example
 $router->get('/api/notifications', 'Controllers\Api\NotificationController@index', [
     'Middleware\AuthMiddleware',
+]);
+
+$router->post('/api/notifications', 'Controllers\Api\NotificationController@store', [
+    'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/notifications/{id}/read', 'Controllers\Api\NotificationController@markAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/notifications/read-all', 'Controllers\Api\NotificationController@markAllAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
 ]);
