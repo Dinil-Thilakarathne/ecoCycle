@@ -27,10 +27,9 @@ $purchaseHistory = $purchaseHistory ?? [];
                     <span class="tag <?= strtolower(str_replace(' ', '-', $purchase['status'] ?? 'pending')) ?>"
                         style="position: absolute; top: 15px; right: 20px;"><?= strtoupper($purchase['status'] ?? 'PENDING') ?>
                     </span>
-                    <?php ?>
-                    <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Make
-                        Payment</button>
-                    <?php ?>
+                    <a href="#paymentModal" class="btn btn-primary outline" style="width: 100%; margin-top: 15px;">Make
+                        Payment</a>
+
                 </div>
             <?php endforeach; ?>
         </div>
@@ -81,3 +80,130 @@ $purchaseHistory = $purchaseHistory ?? [];
         </table>
     </div>
 </main>
+
+<!-- Payment Modal -->
+<div id="paymentModal" class="form-modal">
+    <div class="form-modal-content">
+        <a href="#" class="closePayment" style="float:right;font-size:22px;">&times;</a>
+
+        <h2 style="font-size:22px;font-weight:bold;">Make Payment</h2>
+
+        <div id="paymentPurchaseDetails"></div>
+        <br>
+
+        <form id="paymentForm">
+            <input type="hidden" name="purchase_id" id="purchase_id">
+
+            <div class="form-group">
+                <label>Select Payment Method</label>
+                <select name="payment_method" id="payment_method" required>
+                    <option value="">-- Select Method --</option>
+                    <option value="card">Credit / Debit Card</option>
+                    <option value="bank">Bank Transfer</option>
+                </select>
+            </div>
+
+            <!-- Dynamic payment inputs -->
+            <div id="paymentFields"></div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">Confirm Payment</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+
+        document.querySelectorAll(".btn.btn-primary.outline").forEach(btn => {
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                document.getElementById("paymentModal").style.display = "block";
+            });
+        });
+
+        document.querySelector(".closePayment").onclick = function () {
+            document.getElementById("paymentModal").style.display = "none";
+        };
+    });
+
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+
+        // OPEN MODAL + FILL DETAILS
+        document.querySelectorAll(".btn.btn-primary.outline").forEach(btn => {
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                const purchaseBox = this.closest(".purchase-box");
+
+                const purchaseId = purchaseBox.querySelector("p:nth-child(2)").innerText.replace("ID: ", "").trim();
+                const amount = purchaseBox.querySelector("p:nth-child(3)").innerText.replace("Amount: ", "").trim();
+                const price = purchaseBox.querySelector(".price").innerText.trim();
+                const type = purchaseBox.querySelector("h3").innerText.trim();
+                const pickupDate = purchaseBox.querySelector("p:nth-child(5)").innerText.replace("Pickup Date: ", "").trim();
+
+                // Fill modal fields
+                document.getElementById("purchase_id").value = purchaseId;
+
+                document.getElementById("paymentPurchaseDetails").innerHTML = `
+        <p><strong>Purchase ID:</strong> ${purchaseId}</p>
+        <p><strong>Waste Type:</strong> ${type}</p>
+        <p><strong>Amount:</strong> ${amount}</p>
+        <p><strong>Total Price:</strong> ${price}</p>
+        <p><strong>Pickup Date:</strong> ${pickupDate}</p>
+      `;
+
+                // Show modal
+                document.getElementById("paymentModal").style.display = "flex";
+            });
+        });
+
+        // CLOSE MODAL
+        document.querySelector(".closePayment").onclick = function () {
+            document.getElementById("paymentModal").style.display = "none";
+        };
+
+
+        // Payment method dynamic fields
+        const methodSelect = document.getElementById("payment_method");
+        const fieldsContainer = document.getElementById("paymentFields");
+
+        methodSelect.addEventListener("change", function () {
+            const value = this.value;
+
+            if (value === "card") {
+                fieldsContainer.innerHTML = `
+        <div class="form-group">
+          <label>Card Number</label>
+          <input type="text" name="card_number" maxlength="16" required>
+        </div>
+        <div class="form-group">
+          <label>Expiry</label>
+          <input type="month" name="expiry" required>
+        </div>
+        <div class="form-group">
+          <label>Name in the card</label>
+          <input type="text" name="user_name" maxlength="4" required>
+        </div>
+
+      `;
+            } else if (value === "bank") {
+                fieldsContainer.innerHTML = `
+        <div class="form-group">
+          <label>Bank Account Number</label>
+          <input type="text" name="account_number" required>
+        </div>
+        <div class="form-group">
+          <label>Bank Name</label>
+          <input type="text" name="bank_name" required>
+        </div>
+      `;
+            } else {
+                fieldsContainer.innerHTML = "";
+            }
+        });
+
+    });
+</script>

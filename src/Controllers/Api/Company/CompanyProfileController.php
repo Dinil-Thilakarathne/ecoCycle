@@ -5,7 +5,7 @@ use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
 use Models\CompanyModel;
-use Models\User;
+
 class CompanyProfileController extends BaseController
 {
     private CompanyModel $model;
@@ -144,7 +144,6 @@ class CompanyProfileController extends BaseController
             return Response::errorJson('Password change failed: ' . $e->getMessage(), 500);
         }
     }
-
 
 
 }
