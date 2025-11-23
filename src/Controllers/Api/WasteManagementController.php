@@ -6,17 +6,14 @@ use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
 use Models\WasteCategory;
-use Services\WasteCategory\WasteCategoryService;
 
 class WasteCategoryController extends BaseController
 {
     private WasteCategory $categories;
-    private WasteCategoryService $service;
 
     public function __construct()
     {
         $this->categories = new WasteCategory();
-        $this->service = new WasteCategoryService($this->categories);
     }
 
     // GET /api/waste-categories
@@ -33,16 +30,18 @@ class WasteCategoryController extends BaseController
     public function store(Request $request): Response
     {
         $this->mergeJsonBody($request);
-        $payload = $this->validatePayload($request);
 
+        $payload = $this->validatePayload($request);
         if (isset($payload['errors'])) {
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
         try {
-            $record = $this->service->createCategory($payload['data']);
+            $record = $this->categories->create($payload['data']);
         } catch (\Throwable $e) {
-            return Response::errorJson('Failed to create category', 500, ['detail' => $e->getMessage()]);
+            return Response::errorJson('Failed to create category', 500, [
+                'detail' => $e->getMessage()
+            ]);
         }
 
         return Response::json([
@@ -66,15 +65,21 @@ class WasteCategoryController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
+        $exists = $this->categories->findById((int)$id);
+        if (!$exists) {
+            return Response::errorJson('Category not found', 404);
+        }
+
         try {
-            $record = $this->service->updateCategory((int)$id, $payload['data']);
+            $this->categories->update((int)$id, $payload['data']);
         } catch (\Throwable $e) {
-            return Response::errorJson('Failed to update category', 500, ['detail' => $e->getMessage()]);
+            return Response::errorJson('Failed to update category', 500, [
+                'detail' => $e->getMessage()
+            ]);
         }
 
         return Response::json([
-            'message' => 'Category updated',
-            'data' => $record
+            'message' => 'Category updated'
         ]);
     }
 
@@ -86,10 +91,17 @@ class WasteCategoryController extends BaseController
             return Response::errorJson('Category ID is required', 400);
         }
 
+        $exists = $this->categories->findById((int)$id);
+        if (!$exists) {
+            return Response::errorJson('Category not found', 404);
+        }
+
         try {
-            $this->service->deleteCategory((int)$id);
+            $this->categories->delete((int)$id);
         } catch (\Throwable $e) {
-            return Response::errorJson('Failed to delete category', 500, ['detail' => $e->getMessage()]);
+            return Response::errorJson('Failed to delete category', 500, [
+                'detail' => $e->getMessage()
+            ]);
         }
 
         return Response::json([
@@ -134,11 +146,13 @@ class WasteCategoryController extends BaseController
             return ['errors' => $errors];
         }
 
-        return ['data' => [
-            'name' => $data['name'] ?? null,
-            'description' => $data['description'] ?? null,
-            'basePrice' => isset($data['basePrice']) ? (float)$data['basePrice'] : null,
-        ]];
+        return [
+            'data' => [
+                'name' => $data['name'] ?? null,
+                'description' => $data['description'] ?? null,
+                'basePrice' => isset($data['basePrice']) ? (float)$data['basePrice'] : null,
+            ]
+        ];
     }
 
     private function mergeJsonBody(Request $request): void
