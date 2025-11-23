@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Controllers\BaseController;
 
-class ReportsController extends Controller
+class ReportsController extends BaseController
 {
     public function wasteCollection()
     {
