@@ -269,4 +269,9 @@ class Notification extends BaseModel
         
         return (int) ($result['count'] ?? 0);
     }
+
+    public function getAll()
+    {
+        return $this->db->fetchAll("SELECT * FROM {$this->table}");
+    }
 }

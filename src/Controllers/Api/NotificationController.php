@@ -5,30 +5,34 @@ namespace Controllers\Api;
 use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
+use Core\Validator;
 use Models\Notification;
 
 class NotificationController extends BaseController
 {
     private Notification $model;
 
-    public function __construct(\Core\Container $container)
+    public function __construct()
     {
-        parent::__construct($container);
         $this->model = new Notification();
     }
 
     /**
      * List notifications for the authenticated user
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $user = $this->auth();
+        $user = auth();
         if (!$user) {
             return $this->error('Unauthorized', 401);
         }
 
-        $limit = (int) $this->input('limit', 20);
-        $notifications = $this->model->forUser($user['id'], $limit);
+        $limit = (int) $request->input('limit', 20);
+        if($user['role'] === 'admin') {
+            $notifications = $this->model->getAll();
+        }else{
+            $notifications = $this->model->forUser($user['id'], $limit);
+        }
         $unreadCount = $this->model->getUnreadCount($user['id']);
 
         return $this->json([
@@ -40,19 +44,25 @@ class NotificationController extends BaseController
     /**
      * Create a new notification (Admin only or internal use)
      */
-    public function store(): Response
+    public function store(Request $request): Response
     {
         // Assuming only admins or system can create notifications via API for now
         // Or maybe this is an internal API. 
         // Let's add a basic check if needed, but for now I'll leave it open or rely on middleware in routes.
         
-        $data = $this->validate([
+        $validator = Validator::make($request->all(), [
             'title' => 'required|string',
             'message' => 'required|string',
             'type' => 'string',
             'recipient_group' => 'string',
             'recipients' => 'array'
         ]);
+
+        if ($validator->fails()) {
+            return $this->json(['errors' => $validator->getErrors()], 422);
+        }
+
+        $data = $validator->getValidatedData();
 
         $id = $this->model->create($data);
 
@@ -64,7 +74,7 @@ class NotificationController extends BaseController
      */
     public function markAsRead(int $id): Response
     {
-        $user = $this->auth();
+        $user = auth();
         if (!$user) {
             return $this->error('Unauthorized', 401);
         }
@@ -79,7 +89,7 @@ class NotificationController extends BaseController
      */
     public function markAllAsRead(): Response
     {
-        $user = $this->auth();
+        $user = auth();
         if (!$user) {
             return $this->error('Unauthorized', 401);
         }
@@ -94,7 +104,7 @@ class NotificationController extends BaseController
      */
     public function unreadCount(): Response
     {
-        $user = $this->auth();
+        $user = auth();
         if (!$user) {
             return $this->error('Unauthorized', 401);
         }
