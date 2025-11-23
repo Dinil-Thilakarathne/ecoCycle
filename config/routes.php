@@ -330,34 +330,41 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
 
     // Redirect to dashboard
     return redirect("/{$role}");
+});
 
-// -----------------------------------------------------
+// ---------------------------------------------
 // Analytics & Reporting API Routes
-// -----------------------------------------------------
+// ---------------------------------------------
 
+// Role-specific analytics dashboard
 $router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@dashboard', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportsController@wasteCollection', [
+// Waste collection report
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/bidding', 'Controllers\Api\ReportsController@bidding', [
+// Bidding analytics report
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/revenue', 'Controllers\Api\ReportsController@revenue', [
+// Revenue reports
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->post('/api/reports/export', 'Controllers\Api\ReportsController@export', [
+
+// Export report (CSV / PDF)
+$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-});
+
