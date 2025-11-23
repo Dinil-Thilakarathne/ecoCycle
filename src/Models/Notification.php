@@ -64,16 +64,32 @@ class Notification extends BaseModel
 
         $limit = max(1, (int) $limit);
 
-        $rows = $this->db->fetchAll(
-            "SELECT *
-             FROM {$this->table}
-             WHERE recipient_group IN ('company','companies')
-                OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
-                OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
-             ORDER BY COALESCE(sent_at, created_at) DESC
-             LIMIT {$limit}",
-            [$companyId, $companyId]
-        );
+        if ($this->db->isPgsql()) {
+            $rows = $this->db->fetchAll(
+                "SELECT *
+                 FROM {$this->table}
+                 WHERE recipient_group IN ('company','companies')
+                    OR EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                        WHERE value = ? OR value = ?
+                    )
+                 ORDER BY COALESCE(sent_at, created_at) DESC
+                 LIMIT {$limit}",
+                [(string) $companyId, 'company:' . $companyId]
+            );
+        } else {
+            $rows = $this->db->fetchAll(
+                "SELECT *
+                 FROM {$this->table}
+                 WHERE recipient_group IN ('company','companies')
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                 ORDER BY COALESCE(sent_at, created_at) DESC
+                 LIMIT {$limit}",
+                [$companyId, $companyId]
+            );
+        }
 
         if (!$rows) {
             return [];

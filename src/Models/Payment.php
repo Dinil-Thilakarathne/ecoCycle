@@ -9,7 +9,7 @@ class Payment extends BaseModel
     public function listRecent(int $limit = 50): array
     {
         $limit = max(1, (int) $limit);
-        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY `date` DESC, created_at DESC LIMIT {$limit}");
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY date DESC, created_at DESC LIMIT {$limit}");
         if (!$rows) {
             return [];
         }
@@ -52,7 +52,7 @@ class Payment extends BaseModel
         $row = $this->db->fetch(
             "SELECT SUM(amount) AS total
              FROM {$this->table}
-             WHERE type = 'payment' AND status = 'completed' AND `date` >= ? AND `date` < ?",
+            WHERE type = 'payment' AND status = 'completed' AND date >= ? AND date < ?",
             [$start, $end]
         );
         return isset($row['total']) ? (float) $row['total'] : 0.0;
@@ -68,7 +68,7 @@ class Payment extends BaseModel
         $rows = $this->db->fetchAll(
             "SELECT * FROM {$this->table}
              WHERE recipient_id = ?
-             ORDER BY COALESCE(`date`, created_at) DESC
+             ORDER BY COALESCE(date, created_at) DESC
              LIMIT {$limit}",
             [$companyId]
         );

@@ -54,8 +54,7 @@ temp/
 vendor
 .reload-signal
 
-/docs
+# /docs
 
 dev_test.php
-Api/
 public/uploads/
