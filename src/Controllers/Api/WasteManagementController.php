@@ -7,7 +7,7 @@ use Core\Http\Request;
 use Core\Http\Response;
 use Models\WasteCategory;
 
-class WasteCategoryController extends BaseController
+class WasteManagementController extends BaseController
 {
     private WasteCategory $categories;
 
