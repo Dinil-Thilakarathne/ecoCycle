@@ -125,6 +125,27 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\Roles\CollectorOnly',
 ]);
 
+$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments/{id}', 'Controllers\Api\PaymentController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/customer/payments', 'Controllers\Api\PaymentController@customerPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
