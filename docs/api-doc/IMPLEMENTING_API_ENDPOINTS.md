@@ -171,6 +171,135 @@ Error handling and UI update pattern
 - Check HTTP status codes and `json.success`/`json.error` fields as used by your controller.
 - Show friendly messages for 4xx/5xx responses.
 
+---
+
+## Using the Payment APIs inside the Admin Payments view
+
+The admin payments dashboard (`src/Views/admin/payments.php`) already receives `$payments` and `$paymentSummary` from `AdminDashboardController@payments()`. You can layer the new Payment API endpoints on top of that server-rendered table to handle actions such as “Process” and “View Details.”
+
+### 1. Embed the CSRF token once
+
+```php
+<?php $csrfToken = csrf_token(); ?>
+<script>
+    const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
+</script>
+```
+
+### 2. Tag each rendered row with the identifiers you need later
+
+```php
+<tr
+        data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
+        data-recipient-id="<?= htmlspecialchars((string) ($payment['recipientId'] ?? '')) ?>"
+        data-recipient-name="<?= htmlspecialchars($payment['recipient'] ?? '') ?>"
+        data-amount="<?= htmlspecialchars(number_format((float) ($payment['amount'] ?? 0), 2, '.', '')) ?>"
+        data-type="<?= htmlspecialchars($payment['type'] ?? '') ?>">
+```
+
+Those attributes allow your JavaScript handlers to build API payloads without scraping visible table text.
+
+### 3. Create tiny helpers around the Payment API endpoints
+
+```js
+async function paymentApi(path, { method = "GET", body } = {}) {
+  const response = await fetch(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(method !== "GET" ? { "X-CSRF-TOKEN": csrfToken } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: "same-origin",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      payload.message || `Payment API failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+const recordPayment = (data) =>
+  paymentApi("/api/payments", { method: "POST", body: data });
+const fetchPaymentDetails = (id) =>
+  paymentApi(`/api/payments/${encodeURIComponent(id)}`);
+```
+
+`recordPayment` maps to **POST `/api/payments`** (admin only) and `fetchPaymentDetails` uses **GET `/api/payments/{id}`**.
+
+### 4. Wire the helpers to the existing buttons
+
+**Process button (per row)**
+
+```js
+function processPayment(paymentId) {
+  const row = document.querySelector(
+    `tr[data-payment-id="${CSS.escape(paymentId)}"]`
+  );
+  if (!row) return;
+
+  const defaults = {
+    recipientId: Number(row.dataset.recipientId || 0),
+    amount: Number(row.dataset.amount || 0),
+    type: row.dataset.type || "payout",
+    recipient: row.dataset.recipientName || "Unknown recipient",
+  };
+
+  openPaymentModal(
+    defaults,
+    async ({ paymentMethod, referenceNumber, notes }) => {
+      const payload = {
+        recipientId: defaults.recipientId,
+        amount: defaults.amount,
+        type: defaults.type,
+        status: "completed",
+        txnId: referenceNumber || undefined,
+        gatewayResponse: {
+          method: paymentMethod,
+          notes,
+        },
+      };
+
+      const { data } = await recordPayment(payload);
+      updatePaymentRow(row, data);
+      showToast("Payment recorded successfully", "success");
+    }
+  );
+}
+```
+
+- `openPaymentModal` can reuse the existing modal markup in `payments.php`; just invoke the callback when the user confirms.
+- `updatePaymentRow` updates the DOM (status badge, timestamp, button state) using the record returned by the API.
+
+**View Details button**
+
+```js
+async function viewPaymentDetails(paymentId) {
+  try {
+    const { data } = await fetchPaymentDetails(paymentId);
+    openPaymentDetailsModal(data);
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+```
+
+- Replace the existing “View Details” button handler with `viewPaymentDetails('<id>')`.
+- `openPaymentDetailsModal` can be a slim modal that renders the JSON you receive (`txnId`, `gatewayResponse.method`, etc.).
+
+### 5. When to refresh the table
+
+`AdminDashboardController@payments()` still prepares the initial `$payments`. After you record a new payout via the API you can either:
+
+- Update the row in place (preferred for instant feedback), or
+- Call `window.location.reload()` once the toast confirms success if you want to re-render from the server’s latest data.
+
+This hybrid approach keeps the first paint server-rendered (fast) while still letting admins use the Payment APIs for real-time operations.
+
 Example: Full `ExampleController` implementation
 
 ```php

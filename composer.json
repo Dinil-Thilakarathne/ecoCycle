@@ -31,7 +31,8 @@
       "EcoCycle\\Core\\": "src/Core/",
       "Controllers\\": "src/Controllers/",
       "Models\\": "src/Models/",
-      "Middleware\\": "src/Middleware/"
+      "Middleware\\": "src/Middleware/",
+      "Services\\": "src/Services/"
     },
     "files": [
       "src/helpers.php"

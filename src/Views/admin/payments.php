@@ -2,6 +2,7 @@
 $payments = $payments ?? [];
 $payments = is_array($payments) ? $payments : [];
 $summary = $paymentSummary ?? [];
+$csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 
 $totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 1000.0;
 $totalPayments = isset($summary['total_payments']) ? (float) $summary['total_payments'] : 0.0;
@@ -112,7 +113,13 @@ function getStatusTag($status)
                 </thead>
                 <tbody>
                     <?php foreach ($payments as $payment): ?>
-                        <tr>
+                        <tr class="payment-row"
+                            data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
+                            data-recipient-id="<?= htmlspecialchars((string) ($payment['recipientId'] ?? '')) ?>"
+                            data-recipient-name="<?= htmlspecialchars($payment['recipient'] ?? $payment['recipientName'] ?? '') ?>"
+                            data-amount="<?= htmlspecialchars(number_format((float) ($payment['amount'] ?? 0), 2, '.', '')) ?>"
+                            data-type="<?= htmlspecialchars($payment['type'] ?? '') ?>"
+                            data-status="<?= htmlspecialchars($payment['status'] ?? '') ?>">
                             <td class="font-medium"><?= htmlspecialchars($payment['id'] ?? '') ?></td>
                             <td>
                                 <div class="cell-with-icon">
@@ -138,7 +145,8 @@ function getStatusTag($status)
                                         Process
                                     </button>
                                 <?php else: ?>
-                                    <button class="btn btn-sm btn-outline">
+                                    <button class="btn btn-sm btn-outline"
+                                        onclick="viewPaymentDetails('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
                                         View Details
                                     </button>
                                 <?php endif; ?>
@@ -159,6 +167,14 @@ function getStatusTag($status)
 </div>
 
 <script>
+    const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
+
+    const paymentIcons = {
+        payout: '<i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i> Payout',
+        payment: '<i class="fa-solid fa-arrow-trend-up" style="color: #16a34a;"></i> Payment',
+        refund: '<i class="fa-solid fa-rotate-left" style="color: #0ea5e9;"></i> Refund'
+    };
+
     function showToast(message, type = 'info') {
         if (typeof window.__createToast === 'function') {
             window.__createToast(message, type, 5000);
@@ -177,108 +193,142 @@ function getStatusTag($status)
             .replace(/'/g, '&#39;');
     }
 
-    function createModal({ title, content, buttons = [], width = '520px' }) {
-        const backdrop = document.createElement('div');
-        backdrop.className = 'simple-modal-backdrop';
-        backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
-
-        const dialog = document.createElement('div');
-        dialog.style.cssText = `background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:min(${width},100%);max-width:${width};padding:1.75rem;display:flex;flex-direction:column;gap:1.5rem;`;
-
-        const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;';
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = title;
-        titleEl.style.cssText = 'margin:0;font-size:1.25rem;font-weight:600;color:#111827;';
-        const closeButton = document.createElement('button');
-        closeButton.type = 'button';
-        closeButton.innerHTML = '&times;';
-        closeButton.style.cssText = 'border:none;background:transparent;font-size:1.75rem;line-height:1;color:#6b7280;cursor:pointer;padding:0 0 0.25rem 0;';
-
-        const body = document.createElement('div');
-        body.style.cssText = 'max-height:60vh;overflow:auto;';
-        body.appendChild(content);
-
-        const footer = document.createElement('div');
-        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.75rem;';
-
-        function closeModal() {
-            backdrop.remove();
+    function openModal(options = {}) {
+        if (window.Modal && typeof window.Modal.open === 'function') {
+            return window.Modal.open(options);
         }
 
-        closeButton.addEventListener('click', closeModal);
-        backdrop.addEventListener('click', function (event) {
-            if (event.target === backdrop) {
-                closeModal();
-            }
+        console.error('ModalManager is unavailable. Ensure the modal script is loaded.');
+        showToast('Modal component is unavailable right now.', 'error');
+        return null;
+    }
+
+    async function paymentApi(path, { method = 'GET', body } = {}) {
+        const response = await fetch(path, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(method !== 'GET' ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+            },
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'same-origin',
         });
 
-        buttons.forEach((buttonConfig) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = buttonConfig.label;
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch (error) {
+            // ignore JSON parse errors; payload remains {}
+        }
 
-            const variant = buttonConfig.variant || 'secondary';
-            let styles = 'padding:0.6rem 1.25rem;border-radius:6px;font-weight:600;border:none;cursor:pointer;';
-            if (variant === 'primary') {
-                styles += 'background:#16a34a;color:#fff;';
-            } else if (variant === 'danger') {
-                styles += 'background:#dc2626;color:#fff;';
-            } else {
-                styles += 'background:#6b7280;color:#fff;';
-            }
-            btn.style.cssText = styles;
+        if (!response.ok) {
+            const message = payload && payload.message ? payload.message : `Payment API failed (${response.status})`;
+            throw new Error(message);
+        }
 
-            btn.addEventListener('click', function () {
-                if (typeof buttonConfig.onClick === 'function') {
-                    buttonConfig.onClick(closeModal);
-                } else {
-                    closeModal();
-                }
-            });
+        return payload;
+    }
 
-            footer.appendChild(btn);
-        });
+    const recordPayment = (data) => paymentApi('/api/payments', { method: 'POST', body: data });
+    const fetchPaymentDetails = (id) => paymentApi(`/api/payments/${encodeURIComponent(id)}`);
 
-        header.appendChild(titleEl);
-        header.appendChild(closeButton);
-        dialog.appendChild(header);
-        dialog.appendChild(body);
-        dialog.appendChild(footer);
-        backdrop.appendChild(dialog);
-        document.body.appendChild(backdrop);
+    function findPaymentRow(paymentId) {
+        if (!paymentId) {
+            return null;
+        }
+        return document.querySelector(`tr[data-payment-id="${CSS.escape(paymentId)}"]`);
+    }
 
-        return {
-            close: closeModal,
-            element: backdrop,
-        };
+    function formatCurrency(amount) {
+        const value = typeof amount === 'number' ? amount : parseFloat(amount || '0');
+        return `Rs ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function renderStatusBadge(status) {
+        const normalized = (status || '').toLowerCase();
+        if (normalized === 'completed') {
+            return '<div class="tag completed">Completed</div>';
+        }
+        if (normalized === 'pending') {
+            return '<div class="tag pending">Pending</div>';
+        }
+        if (normalized === 'failed') {
+            return '<div class="tag danger">Failed</div>';
+        }
+        return `<div class="tag secondary">${escapeHtml(status || 'N/A')}</div>`;
+    }
+
+    function renderTypeCell(type) {
+        const normalized = (type || '').toLowerCase();
+        return `<div class="cell-with-icon">${paymentIcons[normalized] || escapeHtml(type || 'Unknown')}</div>`;
+    }
+
+    function getFieldValue(container, selector) {
+        const element = container ? container.querySelector(selector) : null;
+        return element ? element.value : '';
+    }
+
+    function updatePaymentRow(row, record) {
+        if (!row || !record) {
+            return;
+        }
+
+        const cells = row.querySelectorAll('td');
+        const amountNumber = typeof record.amount === 'number' ? record.amount : parseFloat(record.amount || '0');
+        const status = record.status || 'completed';
+
+        row.dataset.paymentId = record.id || '';
+        row.dataset.recipientId = record.recipientId || record.recipient_id || '';
+        row.dataset.recipientName = record.recipient || record.recipientName || record.recipient_name || '';
+        row.dataset.amount = amountNumber.toFixed(2);
+        row.dataset.type = record.type || '';
+        row.dataset.status = status;
+
+        if (cells[0]) {
+            cells[0].textContent = record.id || '';
+        }
+        if (cells[1]) {
+            cells[1].innerHTML = renderTypeCell(record.type || 'payment');
+        }
+        if (cells[2]) {
+            cells[2].textContent = formatCurrency(amountNumber);
+        }
+        if (cells[3]) {
+            cells[3].textContent = record.recipient || record.recipientName || '';
+        }
+        if (cells[4]) {
+            cells[4].textContent = record.date || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        }
+        if (cells[5]) {
+            cells[5].innerHTML = renderStatusBadge(status);
+        }
+        if (cells[6]) {
+            cells[6].innerHTML = `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${escapeHtml(record.id || '')}')">View Details</button>`;
+        }
     }
 
     function processPayment(paymentId) {
-        console.log('Processing payment ' + paymentId);
+        const row = findPaymentRow(paymentId);
+        if (!row) {
+            showToast('Unable to locate the selected payment row.', 'error');
+            return;
+        }
 
-        // Find payment data from the table row
-        const row = document.querySelector(`tr:has(td.font-medium:first-child)`);
-        let paymentData = {
+        const dataset = row.dataset || {};
+        const recipientId = Number(dataset.recipientId || '0');
+        const amountValue = Number(dataset.amount || '0');
+
+        if (!recipientId) {
+            showToast('Recipient information is missing for this payment.', 'error');
+            return;
+        }
+
+        const paymentData = {
             id: paymentId,
-            type: 'Unknown',
-            amount: '0.00',
-            recipient: 'Unknown'
+            type: dataset.type || 'payout',
+            amount: amountValue,
+            recipient: dataset.recipientName || 'Unknown recipient'
         };
-
-        // Try to extract data from the row if available
-        const rows = document.querySelectorAll('.data-table tbody tr');
-        rows.forEach(r => {
-            const idCell = r.querySelector('td.font-medium');
-            if (idCell && idCell.textContent.trim() === paymentId) {
-                const cells = r.querySelectorAll('td');
-                if (cells.length >= 4) {
-                    paymentData.type = cells[1].textContent.trim();
-                    paymentData.amount = cells[2].textContent.trim();
-                    paymentData.recipient = cells[3].textContent.trim();
-                }
-            }
-        });
 
         const container = document.createElement('div');
         container.innerHTML = `
@@ -296,7 +346,7 @@ function getStatusTag($status)
                             </div>
                             <div>
                                 <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Amount</span>
-                                <strong style="color:#16a34a;font-size:1.1rem;">${escapeHtml(paymentData.amount)}</strong>
+                                <strong style="color:#16a34a;font-size:1.1rem;">${escapeHtml(formatCurrency(paymentData.amount))}</strong>
                             </div>
                         </div>
                         <div>
@@ -308,7 +358,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Method</label>
-                    <select id="paymentMethod" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-payment-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select payment method</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="cash">Cash</option>
@@ -319,13 +369,13 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Reference Number</label>
-                    <input type="text" id="referenceNumber" placeholder="Enter reference or transaction number" 
+                    <input type="text" data-payment-field="reference" placeholder="Enter reference or transaction number" 
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Notes (Optional)</label>
-                    <textarea id="paymentNotes" rows="3" placeholder="Add any additional notes about this payment..."
+                    <textarea data-payment-field="notes" rows="3" placeholder="Add any additional notes about this payment..."
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit;font-size:0.95rem;"></textarea>
                 </div>
 
@@ -340,45 +390,121 @@ function getStatusTag($status)
             </div>
         `;
 
-        createModal({
+        openModal({
             title: 'Process Payment',
+            size: 'md',
             content: container,
-            buttons: [
+            actions: [
                 {
                     label: 'Cancel',
-                    variant: 'secondary',
-                    onClick: (close) => close()
+                    variant: 'plain'
                 },
                 {
                     label: 'Process Payment',
                     variant: 'primary',
-                    onClick: (close) => {
-                        const paymentMethod = document.getElementById('paymentMethod').value;
-                        const referenceNumber = document.getElementById('referenceNumber').value;
-                        const notes = document.getElementById('paymentNotes').value;
+                    dismiss: false,
+                    loadingLabel: 'Processing...',
+                    onClick: async ({ body, close, setLoading }) => {
+                        const paymentMethod = getFieldValue(body, '[data-payment-field="method"]');
+                        const referenceNumber = getFieldValue(body, '[data-payment-field="reference"]');
+                        const notes = getFieldValue(body, '[data-payment-field="notes"]');
 
                         if (!paymentMethod) {
                             showToast('Please select a payment method', 'error');
                             return;
                         }
 
-                        // Here you would typically make an API call to process the payment
-                        console.log('Processing payment with:', {
-                            paymentId,
-                            paymentMethod,
-                            referenceNumber,
-                            notes
-                        });
+                        setLoading(true);
 
-                        showToast('Payment processed successfully!', 'success');
-                        close();
+                        try {
+                            const payload = {
+                                recipientId,
+                                amount: amountValue,
+                                type: paymentData.type || 'payout',
+                                status: 'completed',
+                                txnId: referenceNumber || undefined,
+                                gatewayResponse: {
+                                    method: paymentMethod,
+                                    notes: notes || undefined,
+                                    sourcePaymentId: paymentId
+                                }
+                            };
 
-                        // In a real application, you would update the UI to reflect the processed payment
-                        // For now, we'll just show a success message
+                            const { data } = await recordPayment(payload);
+                            updatePaymentRow(row, data || {});
+                            showToast('Payment recorded successfully', 'success');
+                            close();
+                        } catch (error) {
+                            showToast(error.message || 'Payment processing failed', 'error');
+                        } finally {
+                            setLoading(false);
+                        }
                     }
                 }
-            ],
-            width: '540px'
+            ]
+        });
+    }
+
+    async function viewPaymentDetails(paymentId) {
+        if (!paymentId) {
+            showToast('Missing payment identifier', 'error');
+            return;
+        }
+
+        try {
+            const { data } = await fetchPaymentDetails(paymentId);
+            openPaymentDetailsModal(data || {});
+        } catch (error) {
+            showToast(error.message || 'Failed to load payment details', 'error');
+        }
+    }
+
+    function openPaymentDetailsModal(record) {
+        const entries = [
+            { label: 'Transaction ID', value: record.id || 'N/A' },
+            { label: 'Reference', value: record.txnId || '—' },
+            { label: 'Type', value: (record.type || '').toUpperCase() },
+            { label: 'Amount', value: formatCurrency(record.amount || 0) },
+            { label: 'Recipient', value: record.recipient || record.recipientName || 'N/A' },
+            { label: 'Status', value: (record.status || '').toUpperCase() },
+            { label: 'Date', value: record.date || 'N/A' }
+        ];
+
+        const list = document.createElement('div');
+        list.style.cssText = 'display:grid;gap:1rem;';
+        entries.forEach(entry => {
+            const block = document.createElement('div');
+            block.classList.add('payment-detail-entry');
+            block.innerHTML = `
+                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">${escapeHtml(entry.label)}</span>
+                <strong style="color:#111827;">${escapeHtml(entry.value)}</strong>
+            `;
+            list.appendChild(block);
+        });
+
+        if (record.gatewayResponse) {
+            const gateway = typeof record.gatewayResponse === 'object'
+                ? JSON.stringify(record.gatewayResponse, null, 2)
+                : String(record.gatewayResponse);
+            const gatewayBlock = document.createElement('div');
+            gatewayBlock.classList.add('payment-gateway-response');
+            gatewayBlock.innerHTML = `
+                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Gateway Response</span>
+                <pre style="background:#f3f4f6;padding:0.75rem;border-radius:8px;overflow:auto;white-space:pre-wrap;">${escapeHtml(gateway)}</pre>
+            `;
+            list.appendChild(gatewayBlock);
+        }
+
+        openModal({
+            title: 'Payment Details',
+            size: 'md',
+            content: list,
+            actions: [
+                {
+                    label: 'Close',
+                    variant: 'plain'
+                }
+            ]
         });
     }
 
@@ -397,7 +523,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Type</label>
-                    <select id="batchPaymentType" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-batch-field="type" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select payment type</option>
                         <option value="all">All Pending</option>
                         <option value="payout">Payouts Only</option>
@@ -407,7 +533,7 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Processing Method</label>
-                    <select id="batchMethod" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+                    <select data-batch-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
                         <option value="">Select method</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="bulk_payout">Bulk Payout Service</option>
@@ -417,13 +543,13 @@ function getStatusTag($status)
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Reference</label>
-                    <input type="text" id="batchReference" placeholder="Enter batch reference number" 
+                    <input type="text" data-batch-field="reference" placeholder="Enter batch reference number" 
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Processing Date</label>
-                    <input type="date" id="processingDate" value="${new Date().toISOString().split('T')[0]}"
+                    <input type="date" data-batch-field="date" value="${new Date().toISOString().split('T')[0]}"
                         style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
                 </div>
 
@@ -452,23 +578,24 @@ function getStatusTag($status)
             </div>
         `;
 
-        createModal({
+        openModal({
             title: 'Batch Payment Processing',
+            size: 'lg',
             content: container,
-            buttons: [
+            actions: [
                 {
                     label: 'Cancel',
-                    variant: 'secondary',
-                    onClick: (close) => close()
+                    variant: 'plain'
                 },
                 {
                     label: 'Process Batch',
                     variant: 'primary',
-                    onClick: (close) => {
-                        const paymentType = document.getElementById('batchPaymentType').value;
-                        const batchMethod = document.getElementById('batchMethod').value;
-                        const batchReference = document.getElementById('batchReference').value;
-                        const processingDate = document.getElementById('processingDate').value;
+                    dismiss: false,
+                    onClick: ({ body, close }) => {
+                        const paymentType = getFieldValue(body, '[data-batch-field="type"]');
+                        const batchMethod = getFieldValue(body, '[data-batch-field="method"]');
+                        const batchReference = getFieldValue(body, '[data-batch-field="reference"]');
+                        const processingDate = getFieldValue(body, '[data-batch-field="date"]');
 
                         if (!paymentType) {
                             showToast('Please select a payment type', 'error');
@@ -493,14 +620,11 @@ function getStatusTag($status)
                             processingDate
                         });
 
-                        showToast('Batch payment processing initiated!', 'success');
+                        showToast('Batch payment processing is not yet wired to the API. Please process individually for now.', 'info');
                         close();
-
-                        // In a real application, you would update the UI to reflect the processed payments
                     }
                 }
-            ],
-            width: '560px'
+            ]
         });
     }
 </script>

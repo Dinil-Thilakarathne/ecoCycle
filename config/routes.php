@@ -125,6 +125,27 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\Roles\CollectorOnly',
 ]);
 
+$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments/{id}', 'Controllers\Api\PaymentController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/customer/payments', 'Controllers\Api\PaymentController@customerPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
@@ -355,3 +376,39 @@ $router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyP
     // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\CompanyOnly'
 ]);
+// ---------------------------------------------
+// Analytics & Reporting API Routes
+// ---------------------------------------------
+
+// Role-specific analytics dashboard
+$router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@dashboard', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Waste collection report
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Bidding analytics report
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Revenue reports
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
+// Export report (CSV / PDF)
+$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
