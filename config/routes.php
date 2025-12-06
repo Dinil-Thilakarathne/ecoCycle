@@ -353,6 +353,29 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     return redirect("/{$role}");
 });
 
+$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@updateProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProfileController@deleteProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@createBankDetails', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyProfileController@changePassword', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
 // ---------------------------------------------
 // Analytics & Reporting API Routes
 // ---------------------------------------------
