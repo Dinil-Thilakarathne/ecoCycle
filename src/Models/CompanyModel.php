@@ -49,7 +49,7 @@ class CompanyModel extends BaseModel
         return $this->db->query($sql, [$companyId]);
     }
 
-    public function createBankDetails(int $userId, array $data): bool
+    public function updateBankDetails(int $userId, array $data): bool
     {
         if ($userId <= 0) {
             throw new \InvalidArgumentException('Invalid user id provided.');

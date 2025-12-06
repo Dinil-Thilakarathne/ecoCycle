@@ -1,6 +1,6 @@
 <?php
 $company = is_array($companyProfile ?? null) ? $companyProfile : [];
-$bankdetails = is_array($bankDetails ?? null) ? $bankDetails : [];
+$bankDetails = is_array($bankDetails ?? null) ? $bankDetails : [];
 $wasteTypes = $wasteTypes ?? ($company['waste_types'] ?? []);
 if (!is_array($wasteTypes))
   $wasteTypes = [];
@@ -148,16 +148,16 @@ $csrf = app('session')->token();
     
     <form method="POST" enctype="multipart/form-data" action="/api/company/profile/bankDetails">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" name="bank_name" value="<?= htmlspecialchars($company['bank_name'] ?? '') ?>">
+        <input type="text" name="bank_name" value="<?= htmlspecialchars($bankDetails['bank_name'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" name="bank_account_number" value="<?= htmlspecialchars($company['bank_account_number'] ?? '') ?>">
+        <input type="text" name="bank_account_number" value="<?= htmlspecialchars($bankDetails['bank_account_number'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">User's Name</label>
-        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($company['bank_account_name'] ?? '') ?>">
+        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bankDetails['bank_account_name'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">Bank Branch</label>
-        <input type="text" name="bank_branch" value="<?= htmlspecialchars($company['bank_branch'] ?? 'apple') ?>">
+        <input type="text" name="bank_branch" value="<?= htmlspecialchars($bankDetails['bank_branch'] ?? '') ?>">
       </div>
       <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>

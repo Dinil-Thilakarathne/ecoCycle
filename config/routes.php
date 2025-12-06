@@ -344,7 +344,7 @@ $router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProf
     'Middleware\Roles\CompanyOnly'
 ]);
 
-$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@createBankDetails', [
+$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@updateteBankDetails', [
     'Middleware\AuthMiddleware',
     // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\CompanyOnly'
