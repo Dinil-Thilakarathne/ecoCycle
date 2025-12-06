@@ -1,4 +1,4 @@
-# ecoCycle API Documentation
+rou# ecoCycle API Documentation
 
 **Version:** 1.0.0  
 **Last Updated:** October 24, 2025  
@@ -18,6 +18,9 @@
    - [Customer APIs](#customer-apis)
    - [Collector APIs](#collector-apis)
    - [Company APIs](#company-apis)
+
+- [Payment APIs](#payment-apis)
+
 6. [Testing Guide](#testing-guide)
 7. [Future Development](#future-development)
 
@@ -1672,20 +1675,186 @@ curl -X POST http://localhost/api/bidding/approve \
 
 ---
 
+## Payment APIs
+
+### 1. Record Payment (Admin)
+
+**Endpoint:** `POST /api/payments`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Create a manual ledger entry for company payments or customer payouts. This is typically used by finance teams after an offline transfer is confirmed.
+
+**Request Body:**
+
+```json
+{
+  "recipientId": 42,
+  "amount": 15000,
+  "type": "payout",
+  "status": "completed",
+  "txnId": "TXN-2025-1101",
+  "date": "2025-11-01 10:15:00",
+  "gatewayResponse": {
+    "method": "bank_transfer",
+    "reference": "UB1234567"
+  }
+}
+```
+
+**Field Specs:**
+
+| Field             | Type     | Required | Notes                                                                |
+| ----------------- | -------- | -------- | -------------------------------------------------------------------- |
+| `recipientId`     | integer  | ✅       | User receiving funds/owing invoice                                   |
+| `amount`          | decimal  | ✅       | Must be > 0 (auto rounded to 2 decimals)                             |
+| `type`            | string   | ✅       | `payment`, `payout`, or `refund` (default `payout`)                  |
+| `status`          | string   | ✅       | `pending`, `processing`, `completed`, `failed` (default `completed`) |
+| `txnId`           | string   | ❌       | External transaction reference                                       |
+| `date`            | datetime | ❌       | Defaults to current timestamp                                        |
+| `gatewayResponse` | object   | ❌       | Stored as JSON for auditing                                          |
+
+**Success Response (201):**
+
+```json
+{
+  "message": "Payment recorded",
+  "data": {
+    "id": "PAY-8F3ACD12",
+    "txnId": "TXN-2025-1101",
+    "type": "payout",
+    "amount": 15000,
+    "recipient": "John Collector",
+    "recipientName": "John Collector",
+    "recipientId": 42,
+    "status": "completed",
+    "date": "2025-11-01 10:15:00",
+    "gatewayResponse": {
+      "method": "bank_transfer",
+      "reference": "UB1234567"
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X POST http://localhost/api/payments \\
+  -b admin-cookies.txt \\
+  -H "Content-Type: application/json" \\
+  -H "X-CSRF-Token: $(csrf_token)" \\
+  -d '{
+    "recipientId": 42,
+    "amount": 15000,
+    "type": "payout",
+    "status": "completed"
+  }'
+```
+
+---
+
+### 2. Get Payment Details (Admin)
+
+**Endpoint:** `GET /api/payments/{id}`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Retrieve a single payment/payout entry by id. Useful for reconciliations and support tickets.
+
+**Success Response (200):**
+
+```json
+{
+  "data": {
+    "id": "PAY-8F3ACD12",
+    "txnId": "TXN-2025-1101",
+    "type": "payout",
+    "amount": 15000,
+    "recipientId": 42,
+    "recipient": "John Collector",
+    "status": "completed",
+    "date": "2025-11-01 10:15:00",
+    "gatewayResponse": {
+      "method": "bank_transfer",
+      "reference": "UB1234567"
+    }
+  }
+}
+```
+
+**Errors:**
+
+- `400` – Missing payment id
+- `404` – Record not found
+
+---
+
+### 3. List Customer Payments
+
+**Endpoint:** `GET /api/customer/payments`  
+**Authentication:** Required  
+**Role:** Customer only
+
+**Description:** Customers can review all payouts processed to their account. Results are sorted by newest first (max 50 records).
+
+**Query Parameters:**
+
+| Param    | Type   | Description                                                      |
+| -------- | ------ | ---------------------------------------------------------------- |
+| `status` | string | Optional filter (`pending`, `processing`, `completed`, `failed`) |
+
+**Success Response (200):**
+
+```json
+{
+  "data": [
+    {
+      "id": "PAY-12ABEF45",
+      "type": "payout",
+      "amount": 7500,
+      "status": "completed",
+      "date": "2025-10-28 14:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 4. List Company Invoices
+
+**Endpoint:** `GET /api/company/invoices`  
+**Authentication:** Required  
+**Role:** Company only
+
+**Description:** Companies can track pending or completed invoices owed to ecoCycle. Supports optional status filter and returns up to 50 latest items.
+
+**Query Parameters:** identical to customer endpoint.
+
+**Success Response (200):**
+
+```json
+{
+  "data": [
+    {
+      "id": "PAY-44CDEE11",
+      "type": "payment",
+      "amount": 32000,
+      "status": "pending",
+      "date": "2025-11-02 09:30:00"
+    }
+  ]
+}
+```
+
+---
+
 ## Future Development
 
 ### Planned Features (Phase 2)
 
 #### 1. Enhanced APIs
-
-**Payment Processing APIs**
-
-```
-POST   /api/payments              - Process payment to customer
-GET    /api/payments/{id}         - Get payment details
-GET    /api/customer/payments     - List customer payments
-GET    /api/company/invoices      - Company invoice history
-```
 
 **Notification APIs**
 

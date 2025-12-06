@@ -77,6 +77,15 @@ All endpoints require session authentication (except login/register)
 | PUT    | `/api/company/bids/{id}` | Update bid  |
 | DELETE | `/api/company/bids/{id}` | Delete bid  |
 
+### 💸 Payment APIs
+
+| Method | Endpoint                 | Role     | Description                  |
+| ------ | ------------------------ | -------- | ---------------------------- |
+| POST   | `/api/payments`          | Admin    | Record manual payment/payout |
+| GET    | `/api/payments/{id}`     | Admin    | Fetch payment details        |
+| GET    | `/api/customer/payments` | Customer | List customer payouts        |
+| GET    | `/api/company/invoices`  | Company  | List company invoices        |
+
 ---
 
 ## Common Request Examples
