@@ -89,7 +89,7 @@
 }
 
 /*active bids , dashboard , purchases */
-.tag {
+/*.tag {
   &.active,
   &.completed,
   &.available {
@@ -119,7 +119,7 @@
     color: var(--info);
     border: 1px solid var(--info);
   }
-}
+}*/
 
 /*feedback*/
 .feedback {
@@ -534,6 +534,7 @@ span.unverified {
   align-items: center;
   overflow-y: scroll;
   z-index: 99999;
+  display: flex !important;
 }
 
 .form-modal:target {
@@ -546,7 +547,7 @@ span.unverified {
   border-radius: 20px;
   width: 600px;
   position: relative;
-  margin-top: 175px;
+  margin-top:0;
 }
 
 .form-group {

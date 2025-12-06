@@ -10,6 +10,7 @@ import "./bid-item.js";
 import "./alert-box.js";
 import "./form-input.js";
 import "./profile-image-input.js";
+import "./modal-manager.js";
 
 // Example: future components
 // import './ui-button.js';

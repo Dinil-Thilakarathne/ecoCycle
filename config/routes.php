@@ -125,6 +125,33 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\Roles\CollectorOnly',
 ]);
 
+$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments/{id}', 'Controllers\Api\PaymentController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/customer/payments', 'Controllers\Api\PaymentController@customerPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
@@ -332,31 +359,60 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     return redirect("/{$role}");
 });
 
-// -----------------------------------------------------
-// Analytics & Reporting API Routes
-// -----------------------------------------------------
+$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@updateProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
 
+$router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProfileController@deleteProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@createBankDetails', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyProfileController@changePassword', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+// ---------------------------------------------
+// Analytics & Reporting API Routes
+// ---------------------------------------------
+
+// Role-specific analytics dashboard
 $router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@dashboard', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportsController@wasteCollection', [
+// Waste collection report
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/bidding', 'Controllers\Api\ReportsController@bidding', [
+// Bidding analytics report
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/reports/revenue', 'Controllers\Api\ReportsController@revenue', [
+// Revenue reports
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->post('/api/reports/export', 'Controllers\Api\ReportsController@export', [
+
+// Export report (CSV / PDF)
+$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
@@ -384,3 +440,4 @@ $router->put('/api/notifications/read-all', 'Controllers\Api\NotificationControl
 $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
     'Middleware\AuthMiddleware',
 ]);
+
