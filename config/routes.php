@@ -417,6 +417,20 @@ $router->post('/api/reports/export', 'Controllers\Api\ReportingController@export
     'Middleware\Roles\AdminOnly',
 ]);
 
+// ---------------------------------------------
+// Waste Management API Routes
+// ---------------------------------------------
+
+// Waste Category Management Routes
+$router->get('/api/waste-categories', 'Controllers\Api\WasteManagementController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/waste-categories', 'Controllers\Api\WasteManagementController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
 // notification routes 
 
 // example
@@ -441,3 +455,17 @@ $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationCon
     'Middleware\AuthMiddleware',
 ]);
 
+$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
