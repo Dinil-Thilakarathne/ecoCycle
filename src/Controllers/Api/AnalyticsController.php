@@ -2,20 +2,17 @@
 
 namespace Controllers\Api;
 
-use Core\Http\Response;
-use Models\AnalyticsModel;
+use Controllers\BaseController;
 
-class AnalyticsController
+class AnalyticsController extends BaseController
 {
-    // GET /api/analytics/dashboard
     public function dashboard()
     {
-        $model = new AnalyticsModel();
-        $data = $model->getDashboardAnalytics();
-
-        return Response::json([
-            'status' => 'success',
-            'data' => $data
+        return response()->json([
+            'role' => 'admin',
+            'total_users' => 120,
+            'active_bids' => 34,
+            'monthly_revenue' => 56000
         ]);
     }
 }

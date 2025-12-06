@@ -127,7 +127,13 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
 
 $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
     'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
@@ -353,6 +359,29 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     return redirect("/{$role}");
 });
 
+$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@updateProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProfileController@deleteProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@createBankDetails', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyProfileController@changePassword', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
 // ---------------------------------------------
 // Analytics & Reporting API Routes
 // ---------------------------------------------
@@ -401,6 +430,29 @@ $router->get('/api/waste-categories', 'Controllers\Api\WasteManagementController
 $router->post('/api/waste-categories', 'Controllers\Api\WasteManagementController@store', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
+]);
+// notification routes 
+
+// example
+$router->get('/api/notifications', 'Controllers\Api\NotificationController@index', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->post('/api/notifications', 'Controllers\Api\NotificationController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/notifications/{id}/read', 'Controllers\Api\NotificationController@markAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/notifications/read-all', 'Controllers\Api\NotificationController@markAllAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
 ]);
 
 $router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
