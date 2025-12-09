@@ -534,7 +534,6 @@ span.unverified {
   align-items: center;
   overflow-y: scroll;
   z-index: 99999;
-  display: flex !important;
 }
 
 .form-modal:target {
