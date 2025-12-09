@@ -74,7 +74,7 @@ class CompanyProfileController extends BaseController
         }
     }
 
-    public function createBankDetails(Request $request): Response
+    public function updateBankDetails(Request $request): Response
     {
         $user = auth();
         if (!$user || empty($user['id'])) {
@@ -89,7 +89,7 @@ class CompanyProfileController extends BaseController
         ];
 
         try {
-            $this->model->createBankDetails((int) $user['id'], $payload);
+            $this->model->updateBankDetails((int) $user['id'], $payload);
 
             session()->flash('success','Bank details updated successfully');
 
