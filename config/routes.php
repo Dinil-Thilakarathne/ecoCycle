@@ -259,9 +259,21 @@ $router->get('/test', function () {
         'utilities' => [
             'routes_list' => '/routes/list',
             'routes_validate' => '/routes/validate',
-            'diagnostic' => '/diagnostic'
+            'diagnostic' => '/diagnostic',
+            'api_debug_routes' => '/api/debug/routes'
         ]
     ]);
+});
+
+// Debug route to list all registered routes
+$router->get('/api/debug/routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+         $routes = $router->getRoutes();
+    } else {
+         $routes = [];
+    }
+   
+    return view('debug/routes', ['routes' => $routes]);
 });
 
 // Route diagnostic page
