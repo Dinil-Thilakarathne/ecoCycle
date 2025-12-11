@@ -486,3 +486,16 @@ $router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementCo
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+
+// user managemnet api routes
+$router->get('/api/users/{id}', 'Controllers\Api\UserController@findById', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/users', 'Controllers\Api\UserController@findAll', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+    
