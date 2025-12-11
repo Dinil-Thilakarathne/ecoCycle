@@ -71,4 +71,6 @@ class WasteCategory extends BaseModel
         $row = $this->db->fetch("SELECT id FROM {$this->table} WHERE id = ? LIMIT 1", [$id]);
         return (bool) $row;
     }
+
+    
 }

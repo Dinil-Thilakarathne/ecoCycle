@@ -1,63 +1,13 @@
 <?php
-// Sample feedback data (replace with database query in production)
-$collectorFeedback = [
-    [
-        'id' => 'CF001',
-        'collectorName' => 'John Smith',
-        'date' => '2025-08-20',
-        'feedback' => 'Very punctual and efficient service.',
-        'rating' => 5,
-        'status' => 'positive',
-    ],
-    [
-        'id' => 'CF002',
-        'collectorName' => 'Sarah Johnson',
-        'date' => '2025-08-18',
-        'feedback' => 'Arrived late and missed some pickups.',
-        'rating' => 2,
-        'status' => 'review',
-    ],
-    [
-        'id' => 'CF003',
-        'collectorName' => 'Mike Wilson',
-        'date' => '2025-08-17',
-        'feedback' => 'Friendly and reliable, good communication.',
-        'rating' => 4,
-        'status' => 'positive',
-    ],
-];
-
-// Helper function for rating stars
-function renderStars($count)
-{
-    $stars = '';
-    for ($i = 0; $i < $count; $i++) {
-        $stars .= '<i class="fa-solid fa-star filled"></i>';
-    }
-    for ($i = $count; $i < 5; $i++) {
-        $stars .= '<i class="fa-regular fa-star"></i>';
-    }
-    return $stars;
-}
-
-// Helper for status badge
-function getFeedbackBadge($status)
-{
-    switch ($status) {
-        case 'positive':
-            return '<span class="status success"><i class="fa-solid fa-circle-check"></i> Positive</span>';
-        case 'review':
-            return '<span class="status danger"><i class="fa-solid fa-circle-exclamation"></i> Needs Review</span>';
-        default:
-            return '<span class="status secondary">' . htmlspecialchars($status) . '</span>';
-    }
-}
+// Feedback data will be fetched via JavaScript API call
+// This ensures real-time data from the database
+$collectorFeedback = []; // Will be populated by JavaScript
 ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div>
     <!-- Page Header -->
-       <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
+    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
         <div data-header-action style="display: flex; gap: var(--space-2);">
             <button class="btn btn-primary" onclick="addFeedback()">
                 <i class="fa-solid fa-comment-dots" style="margin-right: 8px;"></i>
@@ -66,119 +16,48 @@ function getFeedbackBadge($status)
         </div>
     </page-header>
 
+    <!-- Metrics Cards -->
     <div class="feature-cards">
-    <div class="feature-card">
-      <div class="feature-card__header">
-        <div class="feature-card__title">Average Ratings</div>
-        <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
-      </div>
-      <div class="feature-card__body">4.7</div>
-      <div class="feature-card__footer">
-        <span class="desc">Based on customer feedback</span>
-      </div>
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <div class="feature-card__title">Average Ratings</div>
+                <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
+            </div>
+            <div class="feature-card__body" id="avgRatingValue">-</div>
+            <div class="feature-card__footer">
+                <span class="desc">Based on customer feedback</span>
+            </div>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <div class="feature-card__title">Pending Reports</div>
+                <div class="feature-card__icon"><i class="fa-solid fa-flag"></i></div>
+            </div>
+            <div class="feature-card__body" id="pendingReportsValue">-</div>
+            <div class="feature-card__footer">
+                <span class="desc">Need Attention</span>
+            </div>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <div class="feature-card__title">Total Feedbacks</div>
+                <div class="feature-card__icon"><i class="fa-solid fa-comment"></i></div>
+            </div>
+            <div class="feature-card__body" id="totalFeedbackValue">-</div>
+            <div class="feature-card__footer">
+                <span class="desc">Received from customers</span>
+            </div>
+        </div>
     </div>
 
-    <div class="feature-card">
-      <div class="feature-card__header">
-        <div class="feature-card__title">Pending Reports</div>
-        <div class="feature-card__icon"><i class="fa-solid fa-flag"></i></div>
-      </div>
-      <div class="feature-card__body">3</div>
-      <div class="feature-card__footer">
-        <span class="desc">Need Attention</span>
-      </div>
+    <!-- Waste Collection Chart -->
+    <div class="pc-card">
+        <h3 style="font-size: 20px; font-weight: bold;">Monthly Waste Collection by Type (kg)</h3>
+        <canvas id="wasteChart" style="max-height: 380px;"></canvas>
     </div>
 
-    <div class="feature-card">
-      <div class="feature-card__header">
-        <div class="feature-card__title">Total Feedbacks</div>
-        <div class="feature-card__icon"><i class="fa-solid fa-comment"></i></div>
-      </div>
-      <div class="feature-card__body">3</div>
-      <div class="feature-card__footer">
-        <span class="desc">Recieved from customers</span>
-      </div>
-    </div>
-  </div>
-
-
-<!-- Waste Collection Chart -->
-<div class="pc-card">
-  <h3 style="font-size: 20px; font-weight: bold;">Monthly Waste Collection by Type (kg)</h3>
-  <canvas id="wasteChart" style="max-height: 380px;"></canvas>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const ctx = document.getElementById('wasteChart').getContext('2d');
-
-const wasteChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: ['January', 'February', 'March', 'April', 'May', 'June'], // Months
-        datasets: [
-            {
-                label: 'Organic',
-                data: [400, 450, 300, 500, 550, 480],
-                backgroundColor: ' #8b5a2b'
-            },
-            {
-                label: 'Glass',
-                data: [200, 220, 180, 250, 270, 230],
-                backgroundColor:' #ff0000'
-            },
-            {
-                label: 'Paper',
-                data: [300, 350, 280, 400, 420, 390],
-                backgroundColor: '#008000'
-            },
-            {
-                label: 'Metal',
-                data: [150, 180, 120, 200, 210, 170],
-                backgroundColor: '#ffa500'
-            },
-            {
-                label: 'Plastic',
-                data: [250, 300, 220, 350, 370, 310],
-                backgroundColor: '#0000ff'
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: { font: { size: 13 } }
-            },
-            tooltip: {
-                mode: 'index',
-                intersect: false
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                title: {
-                    display: true,
-                    text: 'Kilograms (kg)',
-                    font: { size: 14 }
-                }
-            },
-            x: {
-                title: {
-                    display: true,
-                    text: 'Months',
-                    font: { size: 14 }
-                }
-            }
-        }
-    }
-});
-</script>
-
-
-  
     <!-- Feedback Table -->
     <div class="activity-card">
         <div class="activity-card__header">
@@ -193,30 +72,19 @@ const wasteChart = new Chart(ctx, {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th><i class="fa-solid fa-user"></i> Costomer</th>
+                            <th><i class="fa-solid fa-user"></i> Collector</th>
                             <th><i class="fa-solid fa-calendar-day"></i> Date</th>
                             <th><i class="fa-solid fa-message"></i> Feedback</th>
                             <th><i class="fa-solid fa-star"></i> Rating</th>
+                            <th><i class="fa-solid fa-list"></i> Status</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach ($collectorFeedback as $fb): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($fb['collectorName']) ?></td>
-                                <td><?= htmlspecialchars($fb['date']) ?></td>
-                                <td><?= htmlspecialchars($fb['feedback']) ?></td>
-                                <td><?= renderStars($fb['rating']) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-
-                        <?php if (empty($collectorFeedback)): ?>
-                            <tr>
-                                <td colspan="6"
-                                    style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">
-                                    No feedback records found.
-                                </td>
-                            </tr>
-                        <?php endif; ?>
+                    <tbody id="feedbackTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: var(--space-16);">
+                                <span class="loading">Loading feedback data...</span>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -225,16 +93,183 @@ const wasteChart = new Chart(ctx, {
 </div>
 
 <script>
+    // Helper function for rating stars
+    function renderStars(count) {
+        let stars = '';
+        for (let i = 0; i < count; i++) {
+            stars += '<i class="fa-solid fa-star filled"></i>';
+        }
+        for (let i = count; i < 5; i++) {
+            stars += '<i class="fa-regular fa-star"></i>';
+        }
+        return stars;
+    }
+
+    // Helper for status badge
+    function getFeedbackBadge(status) {
+        const badgeMap = {
+            'positive': '<span class="status success"><i class="fa-solid fa-circle-check"></i> Positive</span>',
+            'review': '<span class="status danger"><i class="fa-solid fa-circle-exclamation"></i> Needs Review</span>',
+            'active': '<span class="status info"><i class="fa-solid fa-circle-info"></i> Active</span>',
+            'flagged': '<span class="status warning"><i class="fa-solid fa-flag"></i> Flagged</span>',
+            'archived': '<span class="status secondary"><i class="fa-solid fa-archive"></i> Archived</span>'
+        };
+        return badgeMap[status] || `<span class="status secondary">${status}</span>`;
+    }
+
+    // Load analytics data from API
+    async function loadAnalyticsData() {
+        try {
+            // Load metrics
+            const metricsResponse = await fetch('/api/analytics/metrics', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (metricsResponse.ok) {
+                const metricsData = await metricsResponse.json();
+                const metrics = metricsData.data.feedback_metrics;
+
+                // Update metric cards
+                document.getElementById('avgRatingValue').textContent = metrics.average_rating.toFixed(1);
+                document.getElementById('pendingReportsValue').textContent = metrics.pending_review_count;
+                document.getElementById('totalFeedbackValue').textContent = metrics.total_feedback;
+
+                // Load waste stats for chart
+                loadWasteChart(metricsData.data.waste_collection);
+            }
+
+            // Load feedback
+            const feedbackResponse = await fetch('/api/analytics/collector-feedback?limit=50', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (feedbackResponse.ok) {
+                const feedbackData = await feedbackResponse.json();
+                const tableBody = document.getElementById('feedbackTableBody');
+
+                if (feedbackData.data && feedbackData.data.length > 0) {
+                    tableBody.innerHTML = feedbackData.data.map(fb => `
+                        <tr>
+                            <td>${escapeHtml(fb.collector_name || 'Unknown')}</td>
+                            <td>${new Date(fb.created_at).toLocaleDateString()}</td>
+                            <td>${escapeHtml(fb.feedback || '-')}</td>
+                            <td>${renderStars(fb.rating)}</td>
+                            <td>${getFeedbackBadge(fb.status)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No feedback records found.</td></tr>';
+                }
+            }
+        } catch (error) {
+            console.error('Error loading analytics data:', error);
+            document.getElementById('feedbackTableBody').innerHTML = `
+                <tr><td colspan="5" style="text-align: center; color: red;">Error loading feedback data</td></tr>
+            `;
+        }
+    }
+
+    // Load and render waste collection chart
+    function loadWasteChart(wasteData) {
+        // Organize waste data by month and type
+        const monthlyData = {};
+        const categories = new Set();
+
+        (wasteData || []).forEach(item => {
+            if (item.total_collected) {
+                const month = new Date(item.month).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+                if (!monthlyData[month]) monthlyData[month] = {};
+                monthlyData[month][item.name] = parseFloat(item.total_collected);
+                categories.add(item.name);
+            }
+        });
+
+        const months = Object.keys(monthlyData).slice(-6);
+        const colors = {
+            'Organic': '#8b5a2b',
+            'Glass': '#ff0000',
+            'Paper': '#008000',
+            'Metal': '#ffa500',
+            'Plastic': '#0000ff'
+        };
+
+        const datasets = Array.from(categories).map(category => ({
+            label: category,
+            data: months.map(month => monthlyData[month][category] || 0),
+            backgroundColor: colors[category] || '#cccccc'
+        }));
+
+        const ctx = document.getElementById('wasteChart').getContext('2d');
+        if (window.wasteChartInstance) window.wasteChartInstance.destroy();
+
+        window.wasteChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months.length > 0 ? months : ['No Data'],
+                datasets: datasets.length > 0 ? datasets : [{
+                    label: 'No Data',
+                    data: [0],
+                    backgroundColor: '#cccccc'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top', labels: { font: { size: 13 } } },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Kilograms (kg)', font: { size: 14 } } },
+                    x: { title: { display: true, text: 'Months', font: { size: 14 } } }
+                }
+            }
+        });
+    }
+
+    // Utility: escape HTML special characters
+    function escapeHtml(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Add new feedback
     function addFeedback() {
-        alert('Open feedback form - in production, this would allow adding a new feedback record.');
+        const collectorId = prompt('Enter collector ID:');
+        if (!collectorId) return;
+
+        const rating = prompt('Rating (1-5):');
+        if (!rating || rating < 1 || rating > 5) {
+            alert('Invalid rating');
+            return;
+        }
+
+        const feedback = prompt('Feedback message:');
+        if (!feedback) return;
+
+        fetch('/api/analytics/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+            credentials: 'include',
+            body: JSON.stringify({ collector_id: collectorId, rating: rating, feedback: feedback })
+        })
+            .then(r => r.json())
+            .then(d => {
+                alert('Feedback added successfully');
+                loadAnalyticsData();
+            })
+            .catch(e => alert('Error: ' + e.message));
     }
-    function viewFeedback(id) {
-        alert('Viewing feedback details for ' + id);
+
+    // Get CSRF token (placeholder - implement based on your framework)
+    function getCsrfToken() {
+        // Extract from meta tag or cookies
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     }
-    function approveFeedback(id) {
-        alert('Approved feedback for ' + id);
-    }
-    function rejectFeedback(id) {
-        alert('Rejected feedback for ' + id);
-    }
+
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', loadAnalyticsData);
 </script>

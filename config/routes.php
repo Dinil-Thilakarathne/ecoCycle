@@ -342,6 +342,31 @@ $router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@da
     'Middleware\Roles\AdminOnly',
 ]);
 
+// Collector feedback and ratings
+$router->get('/api/analytics/collector-feedback', 'Controllers\Api\AnalyticsController@getCollectorFeedback', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Waste collection statistics
+$router->get('/api/analytics/waste-stats', 'Controllers\Api\AnalyticsController@getWasteStats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Comprehensive analytics metrics
+$router->get('/api/analytics/metrics', 'Controllers\Api\AnalyticsController@getMetrics', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Add new feedback entry
+$router->post('/api/analytics/feedback', 'Controllers\Api\AnalyticsController@addFeedback', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 // Waste collection report
 $router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
     'Middleware\AuthMiddleware',
