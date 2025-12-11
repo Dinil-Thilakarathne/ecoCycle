@@ -32,7 +32,7 @@ class UserController extends BaseController
         }
 
         // Validate user exists
-        $user = $this->userModel->findById((int)$userId);
+        $user = $this->userModel->findById((int) $userId);
         if (!$user) {
             return Response::errorJson('User not found', 404);
         }
@@ -40,11 +40,11 @@ class UserController extends BaseController
         // Perform suspension
         try {
             // Update status to 'suspended'
-            $success = $this->userModel->setStatus((int)$userId, 'suspended');
-            
+            $success = $this->userModel->setStatus((int) $userId, 'suspended');
+
             if ($success) {
                 // Return success response with updated user data
-                $updatedUser = $this->userModel->findById((int)$userId);
+                $updatedUser = $this->userModel->findById((int) $userId);
                 return Response::json([
                     'success' => true,
                     'message' => 'User suspended successfully',
@@ -56,5 +56,33 @@ class UserController extends BaseController
         } catch (\Exception $e) {
             return Response::errorJson('An error occurred while suspending user', 500, ['error' => $e->getMessage()]);
         }
+    }
+
+    public function findbyId(Request $request): Response
+    {
+        $userId = $request->route('id');
+
+        if (!is_numeric($userId) || !$userId) {
+            return Response::errorJson('Invalid user ID', 400);
+        }
+
+        $user = $this->userModel->findById((int) $userId);
+
+        if (!$user) {
+            return Response::errorJson('User not found', 404);
+        }
+
+        return Response::json($user);
+    }
+
+    public function findAll(Request $request): Response
+    {
+        $users = $this->userModel->findAll();
+
+        if (!$users) {
+            return Response::errorJson('No users found', 404);
+        }
+
+        return Response::json($users);
     }
 }
