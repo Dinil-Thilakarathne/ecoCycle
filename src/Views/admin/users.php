@@ -188,11 +188,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customer')"
-                                                    title="Approve User">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $customer['id'] ?>', 'customer')"
                                                     title="Suspend User">
@@ -245,11 +241,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $company['id'] ?>', 'company')"
-                                                    title="Approve Company">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $company['id'] ?>', 'company')"
                                                     title="Suspend Company">
@@ -300,11 +292,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $collector['id'] ?>', 'collector')"
-                                                    title="Approve Collector">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $collector['id'] ?>', 'collector')"
                                                     title="Suspend Collector">
@@ -490,57 +478,9 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         modal.setAttribute('aria-hidden', 'false');
     }
 
-    function approveUser(userId, userType) {
-        if (confirm(`Are you sure you want to approve this ${userType}?`)) {
-            console.log(`Approving ${userType} ${userId}`);
-            alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${userId} has been approved. In a real application, this would update the user status and send a notification email.`);
 
-            // You would make an AJAX request here:
-            /*
-            fetch('/api/users/approve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: userId,
-                    userType: userType
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed to approve user');
-                }
-            });
-            */
-        }
-    }
 
-    function suspendUser(userId, userType) {
-        const reason = prompt(`Please enter the reason for suspending this ${userType}:`);
-        if (reason && reason.trim()) {
-            console.log(`Suspending ${userType} ${userId} for reason: ${reason}`);
-            alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${userId} has been suspended. Reason: ${reason}. In a real application, this would update the user status and send a notification.`);
 
-            // You would make an AJAX request here:
-            /*
-            fetch('/api/users/suspend', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: userId,
-                    userType: userType,
-                    reason: reason
-                })
-            });
-            */
-        }
-    }
 
     // Initialize search functionality and restore tab from URL on page load
     document.addEventListener('DOMContentLoaded', function () {
@@ -673,4 +613,116 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
             </div>
         </div>
     </div>
-<?php endif; ?>
+    <?php endif; ?>
+    
+    <!-- Suspend User Modal -->
+    <div id="suspend-user-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true" style="display: none;">
+        <div class="user-modal__dialog">
+            <button class="close" id="suspend-modal-close" aria-label="Close">&times;</button>
+            <h3>Suspend User</h3>
+            <div style="padding: 20px;">
+                <p>Please enter the reason for suspending this user:</p>
+                <div style="margin-bottom: 20px;">
+                    <textarea id="suspend-reason" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;" placeholder="Reason for suspension..."></textarea>
+                    <div id="suspend-error" style="color: #ef4444; font-size: 0.875rem; margin-top: 5px; display: none;">Reason is required</div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" id="suspend-cancel-btn" class="btn btn-secondary" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px;">Cancel</button>
+                    <button type="button" id="suspend-confirm-btn" class="btn btn-danger" style="padding: 8px 16px; background: #ef4444; color: white; border: none; cursor: pointer; border-radius: 4px;">Suspend User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Suspension Modal Logic
+        let suspendTargetId = null;
+        let suspendTargetType = null;
+        
+        const suspendModal = document.getElementById('suspend-user-modal');
+        const suspendReasonInput = document.getElementById('suspend-reason');
+        const suspendError = document.getElementById('suspend-error');
+        
+        function suspendUser(userId, userType) {
+            suspendTargetId = userId;
+            suspendTargetType = userType;
+            
+            // Reset form
+            suspendReasonInput.value = '';
+            suspendError.style.display = 'none';
+            
+            // Show modal
+            if (suspendModal) {
+                suspendModal.style.display = 'flex';
+                suspendModal.classList.add('open');
+                suspendModal.setAttribute('aria-hidden', 'false');
+                suspendReasonInput.focus();
+            }
+        }
+        
+        function closeSuspendModal() {
+            if (suspendModal) {
+                suspendModal.style.display = 'none';
+                suspendModal.classList.remove('open');
+                suspendModal.setAttribute('aria-hidden', 'true');
+            }
+            suspendTargetId = null;
+            suspendTargetType = null;
+        }
+        
+        document.getElementById('suspend-modal-close')?.addEventListener('click', closeSuspendModal);
+        document.getElementById('suspend-cancel-btn')?.addEventListener('click', closeSuspendModal);
+        
+        document.getElementById('suspend-confirm-btn')?.addEventListener('click', function() {
+            const reason = suspendReasonInput.value.trim();
+            
+            if (!reason) {
+                suspendError.style.display = 'block';
+                return;
+            }
+            
+            if (!suspendTargetId) return;
+            
+            const btn = this;
+            const originalText = btn.textContent;
+            btn.textContent = 'Suspending...';
+            btn.disabled = true;
+            
+            fetch('/api/users/suspend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: suspendTargetId,
+                    reason: reason
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) {
+                        toast(`${capitalize(suspendTargetType)} suspended successfully.`, 'success');
+                    }
+                    // location.reload();
+                } else {
+                    alert(data.error || 'Failed to suspend user');
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while suspending the user.');
+                btn.textContent = originalText;
+                btn.disabled = false;
+            });
+        });
+
+        // Close modal on outside click
+        window.addEventListener('click', function(e) {
+            if (e.target === suspendModal) {
+                closeSuspendModal();
+            }
+        });
+    </script>
