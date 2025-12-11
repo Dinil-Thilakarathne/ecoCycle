@@ -132,7 +132,13 @@ $router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
 
 $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
     'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
@@ -264,9 +270,21 @@ $router->get('/test', function () {
         'utilities' => [
             'routes_list' => '/routes/list',
             'routes_validate' => '/routes/validate',
-            'diagnostic' => '/diagnostic'
+            'diagnostic' => '/diagnostic',
+            'api_debug_routes' => '/api/debug/routes'
         ]
     ]);
+});
+
+// Debug route to list all registered routes
+$router->get('/api/debug/routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+         $routes = $router->getRoutes();
+    } else {
+         $routes = [];
+    }
+   
+    return view('debug/routes', ['routes' => $routes]);
 });
 
 // Route diagnostic page
@@ -363,3 +381,114 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     // Redirect to dashboard
     return redirect("/{$role}");
 });
+
+$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@updateProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProfileController@deleteProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@updateteBankDetails', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
+$router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyProfileController@changePassword', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+// ---------------------------------------------
+// Analytics & Reporting API Routes
+// ---------------------------------------------
+
+// Role-specific analytics dashboard
+$router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@dashboard', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Waste collection report
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Bidding analytics report
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Revenue reports
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
+// Export report (CSV / PDF)
+$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// ---------------------------------------------
+// Waste Management API Routes
+// ---------------------------------------------
+
+// Waste Category Management Routes
+$router->get('/api/waste-categories', 'Controllers\Api\WasteManagementController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/waste-categories', 'Controllers\Api\WasteManagementController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+// notification routes 
+
+// example
+$router->get('/api/notifications', 'Controllers\Api\NotificationController@index', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->post('/api/notifications', 'Controllers\Api\NotificationController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/notifications/{id}/read', 'Controllers\Api\NotificationController@markAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/notifications/read-all', 'Controllers\Api\NotificationController@markAllAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);

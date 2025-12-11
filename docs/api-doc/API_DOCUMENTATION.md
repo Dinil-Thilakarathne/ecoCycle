@@ -1,4 +1,4 @@
-# ecoCycle API Documentation
+rou# ecoCycle API Documentation
 
 **Version:** 1.0.0  
 **Last Updated:** October 24, 2025  
@@ -1672,6 +1672,433 @@ curl -X POST http://localhost/api/bidding/approve \
 
 - **Cause**: Missing CSRF token for POST/PUT/DELETE
 - **Solution**: Include `X-CSRF-Token` header
+
+---
+
+## Waste Category Management APIs
+
+### Overview
+
+The Waste Category Management APIs allow administrators to manage waste types and their associated pricing tiers. These endpoints provide full CRUD (Create, Read, Update, Delete) operations for waste categories, which are foundational to bidding rounds and waste collection workflows.
+
+### 1. List All Waste Categories (Admin)
+
+**Endpoint:** `GET /api/waste-categories`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Retrieve all active waste categories with their pricing information.
+
+**Query Parameters:**
+
+| Parameter | Type   | Required | Default | Notes                                  |
+| --------- | ------ | -------- | ------- | -------------------------------------- |
+| `limit`   | integer | ❌       | 50      | Number of records to return            |
+| `offset`  | integer | ❌       | 0       | Pagination offset                      |
+| `sort`    | string  | ❌       | `name`  | Sort field: `name`, `basePrice`, etc   |
+| `order`   | string  | ❌       | `asc`   | Sort direction: `asc` or `desc`        |
+
+**Success Response (200):**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Plastic",
+      "description": "All types of plastic waste including bottles, bags, and containers",
+      "basePrice": 50.00,
+      "category_icon": "♻️",
+      "hazardous": false,
+      "created_at": "2025-10-15 08:30:00",
+      "updated_at": "2025-10-15 08:30:00"
+    },
+    {
+      "id": 2,
+      "name": "Organic Waste",
+      "description": "Food scraps, garden waste, and biodegradable materials",
+      "basePrice": 30.00,
+      "category_icon": "🌱",
+      "hazardous": false,
+      "created_at": "2025-10-15 08:30:00",
+      "updated_at": "2025-10-15 08:30:00"
+    },
+    {
+      "id": 3,
+      "name": "Electronic Waste",
+      "description": "E-waste including phones, computers, and electronic devices",
+      "basePrice": 120.00,
+      "category_icon": "💻",
+      "hazardous": true,
+      "created_at": "2025-10-15 08:30:00",
+      "updated_at": "2025-10-15 08:30:00"
+    }
+  ],
+  "pagination": {
+    "total": 8,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost/api/waste-categories \
+  -b admin-cookies.txt \
+  -H "Content-Type: application/json"
+```
+
+---
+
+### 2. Create Waste Category (Admin)
+
+**Endpoint:** `POST /api/waste-categories`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Create a new waste category. This must be done before creating bidding rounds for that waste type.
+
+**Request Body:**
+
+```json
+{
+  "name": "Glass",
+  "description": "Glass bottles, jars, and clear glass waste",
+  "basePrice": 40.00,
+  "category_icon": "🔷",
+  "hazardous": false
+}
+```
+
+**Field Specs:**
+
+| Field           | Type    | Required | Constraints                                             |
+| --------------- | ------- | -------- | ------------------------------------------------------- |
+| `name`          | string  | ✅       | 1-100 chars, unique, no special chars except spaces    |
+| `description`   | string  | ✅       | 10-500 chars, descriptive of waste type               |
+| `basePrice`     | decimal | ✅       | > 0, max 2 decimal places                              |
+| `category_icon` | string  | ❌       | Single emoji or icon representation                    |
+| `hazardous`     | boolean | ❌       | Default: false. Marks dangerous waste types            |
+
+**Validation Errors (422):**
+
+```json
+{
+  "message": "Validation failed",
+  "errors": {
+    "name": "Name is required.",
+    "description": "Description is required.",
+    "basePrice": "Base price must be greater than zero."
+  }
+}
+```
+
+**Success Response (201):**
+
+```json
+{
+  "message": "Category created",
+  "data": {
+    "id": 9,
+    "name": "Glass",
+    "description": "Glass bottles, jars, and clear glass waste",
+    "basePrice": 40.00,
+    "category_icon": "🔷",
+    "hazardous": false,
+    "created_at": "2025-11-29 14:22:00",
+    "updated_at": "2025-11-29 14:22:00"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X POST http://localhost/api/waste-categories \
+  -b admin-cookies.txt \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $(csrf_token)" \
+  -d '{
+    "name": "Glass",
+    "description": "Glass bottles, jars, and clear glass waste",
+    "basePrice": 40.00,
+    "category_icon": "🔷",
+    "hazardous": false
+  }'
+```
+
+---
+
+### 3. Get Category Details (Admin)
+
+**Endpoint:** `GET /api/waste-categories/{id}`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Retrieve detailed information about a specific waste category.
+
+**URL Parameters:**
+
+| Parameter | Type    | Required | Notes                         |
+| --------- | ------- | -------- | ----------------------------- |
+| `id`      | integer | ✅       | Waste category ID             |
+
+**Success Response (200):**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Plastic",
+    "description": "All types of plastic waste including bottles, bags, and containers",
+    "basePrice": 50.00,
+    "category_icon": "♻️",
+    "hazardous": false,
+    "bidding_rounds": 12,
+    "total_collected_kg": 4523.50,
+    "created_at": "2025-10-15 08:30:00",
+    "updated_at": "2025-10-15 08:30:00"
+  }
+}
+```
+
+**Not Found Response (404):**
+
+```json
+{
+  "message": "Category not found",
+  "error": "Invalid category ID"
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost/api/waste-categories/1 \
+  -b admin-cookies.txt
+```
+
+---
+
+### 4. Update Waste Category (Admin)
+
+**Endpoint:** `PUT /api/waste-categories/{id}`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Update an existing waste category. Only provided fields are updated (partial update).
+
+**Request Body (Partial Update Allowed):**
+
+```json
+{
+  "basePrice": 55.00,
+  "description": "Updated description for plastic waste"
+}
+```
+
+**Field Specs:**
+
+| Field           | Type    | Required | Constraints                       |
+| --------------- | ------- | -------- | --------------------------------- |
+| `name`          | string  | ❌       | 1-100 chars if provided           |
+| `description`   | string  | ❌       | 10-500 chars if provided          |
+| `basePrice`     | decimal | ❌       | > 0, max 2 decimals if provided   |
+| `category_icon` | string  | ❌       | Emoji/icon if provided            |
+| `hazardous`     | boolean | ❌       | Boolean if provided               |
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Category updated",
+  "data": {
+    "id": 1,
+    "name": "Plastic",
+    "description": "Updated description for plastic waste",
+    "basePrice": 55.00,
+    "category_icon": "♻️",
+    "hazardous": false,
+    "updated_at": "2025-11-29 14:25:00"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X PUT http://localhost/api/waste-categories/1 \
+  -b admin-cookies.txt \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $(csrf_token)" \
+  -d '{
+    "basePrice": 55.00,
+    "description": "Updated description for plastic waste"
+  }'
+```
+
+---
+
+### 5. Delete Waste Category (Admin)
+
+**Endpoint:** `DELETE /api/waste-categories/{id}`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Delete a waste category. This operation may fail if the category is referenced by active bidding rounds or pickups.
+
+**URL Parameters:**
+
+| Parameter | Type    | Required | Notes      |
+| --------- | ------- | -------- | ---------- |
+| `id`      | integer | ✅       | Category ID|
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Category deleted"
+}
+```
+
+**Conflict Response (409):**
+
+```json
+{
+  "message": "Cannot delete category",
+  "error": "Category is referenced by 5 active bidding rounds. Archive or update them first."
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X DELETE http://localhost/api/waste-categories/9 \
+  -b admin-cookies.txt \
+  -H "X-CSRF-Token: $(csrf_token)"
+```
+
+---
+
+### 6. Get Pricing Tiers (Admin)
+
+**Endpoint:** `GET /api/waste-categories/pricing`  
+**Authentication:** Required  
+**Role:** Admin only
+
+**Description:** Retrieve all waste categories with dynamic pricing tiers based on quantity brackets. Useful for displaying pricing information to collectors and companies.
+
+**Query Parameters:**
+
+| Parameter    | Type    | Required | Notes                              |
+| ------------ | ------- | -------- | ---------------------------------- |
+| `include_stats` | boolean | ❌       | Include collection statistics     |
+
+**Success Response (200):**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Plastic",
+      "basePrice": 50.00,
+      "pricing_tiers": [
+        {
+          "min_kg": 0,
+          "max_kg": 100,
+          "price_per_kg": 50.00,
+          "discount_percent": 0
+        },
+        {
+          "min_kg": 100,
+          "max_kg": 500,
+          "price_per_kg": 47.50,
+          "discount_percent": 5
+        },
+        {
+          "min_kg": 500,
+          "max_kg": null,
+          "price_per_kg": 45.00,
+          "discount_percent": 10
+        }
+      ],
+      "stats": {
+        "total_collected": 4523.50,
+        "avg_per_round": 376.96,
+        "active_rounds": 12
+      }
+    },
+    {
+      "id": 2,
+      "name": "Organic Waste",
+      "basePrice": 30.00,
+      "pricing_tiers": [
+        {
+          "min_kg": 0,
+          "max_kg": 200,
+          "price_per_kg": 30.00,
+          "discount_percent": 0
+        },
+        {
+          "min_kg": 200,
+          "max_kg": 1000,
+          "price_per_kg": 27.00,
+          "discount_percent": 10
+        }
+      ],
+      "stats": {
+        "total_collected": 8932.00,
+        "avg_per_round": 447.60,
+        "active_rounds": 20
+      }
+    }
+  ]
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost/api/waste-categories/pricing?include_stats=true" \
+  -b admin-cookies.txt
+```
+
+---
+
+### Waste Category Workflow Example
+
+Here's a typical workflow for managing waste categories:
+
+```bash
+# 1. List all existing categories
+curl -X GET http://localhost/api/waste-categories -b admin-cookies.txt
+
+# 2. Create a new waste category
+curl -X POST http://localhost/api/waste-categories \
+  -b admin-cookies.txt \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $TOKEN" \
+  -d '{
+    "name": "Metal",
+    "description": "Scrap metal, aluminum cans, and metal waste",
+    "basePrice": 75.00,
+    "hazardous": false
+  }'
+
+# 3. Update pricing if needed
+curl -X PUT http://localhost/api/waste-categories/9 \
+  -b admin-cookies.txt \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $TOKEN" \
+  -d '{"basePrice": 80.00}'
+
+# 4. View pricing tiers
+curl -X GET "http://localhost/api/waste-categories/pricing?include_stats=true" \
+  -b admin-cookies.txt
+```
 
 ---
 

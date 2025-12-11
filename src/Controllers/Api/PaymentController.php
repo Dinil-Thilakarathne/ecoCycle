@@ -49,7 +49,20 @@ class PaymentController extends BaseController
         return Response::json([
             'message' => 'Payment recorded',
             'data' => $record,
-        ], 201);
+        ]);
+    }
+
+    public function showAll(Request $request): Response
+    {
+
+        // $record = $this->payments->findById($id);
+        $records = $this->payments->findAll();
+
+        if (!$records) {
+            return Response::errorJson('Payment not found', 404);
+        }
+
+        return Response::json(['data' => $records]);
     }
 
     public function update(Request $request): Response

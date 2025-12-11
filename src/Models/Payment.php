@@ -17,6 +17,16 @@ class Payment extends BaseModel
         return $row ? $this->mapRow($row) : null;
     }
 
+    public function findAll(): array
+    {
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY date DESC, created_at DESC");
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(fn(array $row): array => $this->mapRow($row), $rows);
+    }
+
     public function record(array $data): array
     {
         $payload = [
