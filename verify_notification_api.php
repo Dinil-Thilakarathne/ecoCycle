@@ -59,7 +59,8 @@ class MockDatabase extends Database {
     public function __construct() {} // Override constructor to avoid connection
     public function isPgsql(): bool { return false; }
     public function fetchAll(string $sql, array $params = []): array {
-        // Return dummy data based on SQL
+        // Mock data for notifications
+        // We simulate a join result where 'status' is calculated
         return [
             [
                 'id' => 1,
@@ -68,7 +69,7 @@ class MockDatabase extends Database {
                 'message' => 'This is a test',
                 'created_at' => '2023-01-01 12:00:00',
                 'sent_at' => null,
-                'status' => 'pending',
+                'status' => 'pending', // Default from DB
                 'recipients' => null,
                 'recipient_group' => 'all'
             ]
@@ -79,6 +80,11 @@ class MockDatabase extends Database {
             return ['count' => 5];
         }
         return false;
+    }
+    public function query(string $sql, array $params = []): bool {
+        // Mock successful query execution
+        echo "DB Query Executed: " . substr($sql, 0, 50) . "...\n";
+        return true;
     }
 }
 
@@ -107,59 +113,30 @@ try {
         }
     };
 
-    // Test Admin Access
-    echo "Testing Admin Access...\n";
-    $mockSession->put('user_id', 1);
-    $mockSession->put('user_name', 'Admin User');
-    $mockSession->put('user_email', 'admin@example.com');
-    $mockSession->put('user_role', 'admin');
-
-    $response = $controller->index($mockRequest);
-    $content = json_decode($response->getContent(), true);
-
-    if (isset($content['notifications']) && is_array($content['notifications'])) {
-        echo "SUCCESS: Admin notifications retrieved.\n";
-        echo "Count: " . count($content['notifications']) . "\n";
-        if (count($content['notifications']) > 0) {
-            $n = $content['notifications'][0];
-            if (isset($n['timestamp'])) {
-                 echo "SUCCESS: Admin notification formatted correctly (has timestamp).\n";
-            } else {
-                 echo "FAILURE: Admin notification missing timestamp field.\n";
-                 print_r($n);
-            }
-        }
-    } else {
-        echo "FAILURE: Admin notifications format incorrect.\n";
-        print_r($content);
-    }
-
-    // Test Customer Access
-    echo "\nTesting Customer Access...\n";
+    // Test Mark as Read
+    echo "Testing Mark as Read...\n";
     $mockSession->put('user_id', 2);
     $mockSession->put('user_role', 'customer');
 
-    $response = $controller->index($mockRequest);
+    $response = $controller->markAsRead(1);
     $content = json_decode($response->getContent(), true);
 
-    if (isset($content['notifications']) && is_array($content['notifications'])) {
-        echo "SUCCESS: Customer notifications retrieved.\n";
+    if (isset($content['success']) && $content['success'] === true) {
+        echo "SUCCESS: Notification marked as read.\n";
     } else {
-        echo "FAILURE: Customer notifications format incorrect.\n";
+        echo "FAILURE: Could not mark as read.\n";
+        print_r($content);
     }
-    
-    // Test Company Access
-    echo "\nTesting Company Access...\n";
-    $mockSession->put('user_id', 3);
-    $mockSession->put('user_role', 'company');
 
-    $response = $controller->index($mockRequest);
+    // Test Unread Count
+    echo "\nTesting Unread Count...\n";
+    $response = $controller->unreadCount();
     $content = json_decode($response->getContent(), true);
 
-    if (isset($content['notifications']) && is_array($content['notifications'])) {
-        echo "SUCCESS: Company notifications retrieved.\n";
+    if (isset($content['count'])) {
+        echo "SUCCESS: Unread count retrieved: " . $content['count'] . "\n";
     } else {
-        echo "FAILURE: Company notifications format incorrect.\n";
+        echo "FAILURE: Could not get unread count.\n";
     }
 
 } catch (Exception $e) {

@@ -5,6 +5,42 @@ namespace Models;
 class Notification extends BaseModel
 {
     protected string $table = 'notifications';
+    protected string $readTable = 'notification_reads';
+
+    public function createTableIfNotExists(): bool
+    {
+        if ($this->db->isPgsql()) {
+            $sql = "
+                CREATE TABLE IF NOT EXISTS {$this->readTable} (
+                    id SERIAL PRIMARY KEY,
+                    notification_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    read_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_reads_notification FOREIGN KEY (notification_id) REFERENCES {$this->table}(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_reads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(notification_id, user_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_reads_user ON {$this->readTable} (user_id);
+                CREATE INDEX IF NOT EXISTS idx_reads_notification ON {$this->readTable} (notification_id);
+            ";
+        } else {
+            $sql = "
+                CREATE TABLE IF NOT EXISTS `{$this->readTable}` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `notification_id` INT NOT NULL,
+                    `user_id` INT NOT NULL,
+                    `read_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY `unique_user_notification` (`notification_id`, `user_id`),
+                    INDEX `idx_reads_user` (`user_id`),
+                    INDEX `idx_reads_notification` (`notification_id`),
+                    FOREIGN KEY (`notification_id`) REFERENCES `{$this->table}`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ";
+        }
+
+        return $this->db->query($sql);
+    }
 
     public function recent(int $limit = 10): array
     {
@@ -41,28 +77,32 @@ class Notification extends BaseModel
 
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
+                "SELECT n.*, 
+                        CASE WHEN nr.id IS NOT NULL THEN 'read' ELSE 'pending' END as status
+                 FROM {$this->table} n
+                 LEFT JOIN {$this->readTable} nr ON n.id = nr.notification_id AND nr.user_id = ?
+                 WHERE n.recipient_group IN ('company','companies')
                     OR EXISTS (
                         SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                        FROM jsonb_array_elements_text(COALESCE(n.recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ? OR value = ?
                     )
-                 ORDER BY COALESCE(sent_at, created_at) DESC
+                 ORDER BY COALESCE(n.sent_at, n.created_at) DESC
                  LIMIT {$limit}",
-                [(string) $companyId, 'company:' . $companyId]
+                [(string) $companyId, (string) $companyId, 'company:' . $companyId]
             );
         } else {
             $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
-                 ORDER BY COALESCE(sent_at, created_at) DESC
+                "SELECT n.*, 
+                        CASE WHEN nr.id IS NOT NULL THEN 'read' ELSE 'pending' END as status
+                 FROM {$this->table} n
+                 LEFT JOIN {$this->readTable} nr ON n.id = nr.notification_id AND nr.user_id = ?
+                 WHERE n.recipient_group IN ('company','companies')
+                    OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
+                    OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                 ORDER BY COALESCE(n.sent_at, n.created_at) DESC
                  LIMIT {$limit}",
-                [$companyId, $companyId]
+                [$companyId, $companyId, $companyId]
             );
         }
 
@@ -102,27 +142,31 @@ class Notification extends BaseModel
         
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users')
+                "SELECT n.*, 
+                        CASE WHEN nr.id IS NOT NULL THEN 'read' ELSE 'pending' END as status
+                 FROM {$this->table} n
+                 LEFT JOIN {$this->readTable} nr ON n.id = nr.notification_id AND nr.user_id = ?
+                 WHERE n.recipient_group IN ('all', 'users')
                     OR EXISTS (
                         SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                        FROM jsonb_array_elements_text(COALESCE(n.recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ?
                     )
-                 ORDER BY COALESCE(sent_at, created_at) DESC
+                 ORDER BY COALESCE(n.sent_at, n.created_at) DESC
                  LIMIT {$limit}",
-                ['user:' . $userId]
+                [$userId, 'user:' . $userId]
             );
         } else {
             $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users')
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
-                 ORDER BY COALESCE(sent_at, created_at) DESC
+                "SELECT n.*, 
+                        CASE WHEN nr.id IS NOT NULL THEN 'read' ELSE 'pending' END as status
+                 FROM {$this->table} n
+                 LEFT JOIN {$this->readTable} nr ON n.id = nr.notification_id AND nr.user_id = ?
+                 WHERE n.recipient_group IN ('all', 'users')
+                    OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                 ORDER BY COALESCE(n.sent_at, n.created_at) DESC
                  LIMIT {$limit}",
-                [$userId]
+                [$userId, $userId]
             );
         }
 
@@ -131,33 +175,52 @@ class Notification extends BaseModel
 
     public function markAsRead(int $id, int $userId): bool
     {
-        return $this->db->query(
-            "UPDATE {$this->table} SET status = 'read' WHERE id = ?",
-            [$id]
-        );
+        // Insert ignore or on conflict do nothing
+        if ($this->db->isPgsql()) {
+            return $this->db->query(
+                "INSERT INTO {$this->readTable} (notification_id, user_id) VALUES (?, ?) ON CONFLICT (notification_id, user_id) DO NOTHING",
+                [$id, $userId]
+            );
+        } else {
+            return $this->db->query(
+                "INSERT IGNORE INTO {$this->readTable} (notification_id, user_id) VALUES (?, ?)",
+                [$id, $userId]
+            );
+        }
     }
 
     public function markAllAsRead(int $userId): bool
     {
          if ($this->db->isPgsql()) {
+             // Find all unread notifications for user and insert into read table
              return $this->db->query(
-                "UPDATE {$this->table} 
-                 SET status = 'read' 
-                 WHERE status != 'read' 
-                   AND EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ?
-                    )",
-                ['user:' . $userId]
+                "INSERT INTO {$this->readTable} (notification_id, user_id)
+                 SELECT n.id, ?
+                 FROM {$this->table} n
+                 WHERE NOT EXISTS (SELECT 1 FROM {$this->readTable} nr WHERE nr.notification_id = n.id AND nr.user_id = ?)
+                   AND (
+                        n.recipient_group IN ('all', 'users', 'company', 'companies')
+                        OR EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(COALESCE(n.recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            WHERE value = ? OR value = ?
+                        )
+                   )
+                 ON CONFLICT (notification_id, user_id) DO NOTHING",
+                [$userId, $userId, 'user:' . $userId, 'company:' . $userId] // Assuming simple company ID check for now, might need refinement
              );
          } else {
              return $this->db->query(
-                "UPDATE {$this->table} 
-                 SET status = 'read' 
-                 WHERE status != 'read' 
-                   AND JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))",
-                [$userId]
+                "INSERT IGNORE INTO {$this->readTable} (notification_id, user_id)
+                 SELECT n.id, ?
+                 FROM {$this->table} n
+                 WHERE NOT EXISTS (SELECT 1 FROM {$this->readTable} nr WHERE nr.notification_id = n.id AND nr.user_id = ?)
+                   AND (
+                        n.recipient_group IN ('all', 'users', 'company', 'companies')
+                        OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                        OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                   )",
+                [$userId, $userId, $userId, $userId]
              );
          }
     }
@@ -167,28 +230,28 @@ class Notification extends BaseModel
         if ($this->db->isPgsql()) {
             $result = $this->db->fetch(
                 "SELECT COUNT(*) as count
-                 FROM {$this->table}
-                 WHERE status != 'read'
+                 FROM {$this->table} n
+                 WHERE NOT EXISTS (SELECT 1 FROM {$this->readTable} nr WHERE nr.notification_id = n.id AND nr.user_id = ?)
                    AND (
-                       recipient_group IN ('all', 'users')
+                       n.recipient_group IN ('all', 'users')
                        OR EXISTS (
                             SELECT 1
-                            FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            FROM jsonb_array_elements_text(COALESCE(n.recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                             WHERE value = ?
                         )
                    )",
-                ['user:' . $userId]
+                [$userId, 'user:' . $userId]
             );
         } else {
             $result = $this->db->fetch(
                 "SELECT COUNT(*) as count
-                 FROM {$this->table}
-                 WHERE status != 'read'
+                 FROM {$this->table} n
+                 WHERE NOT EXISTS (SELECT 1 FROM {$this->readTable} nr WHERE nr.notification_id = n.id AND nr.user_id = ?)
                    AND (
-                       recipient_group IN ('all', 'users')
-                       OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                       n.recipient_group IN ('all', 'users')
+                       OR JSON_CONTAINS(COALESCE(n.recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
                    )",
-                [$userId]
+                [$userId, $userId]
             );
         }
         

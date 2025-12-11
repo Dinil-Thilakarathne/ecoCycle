@@ -221,4 +221,19 @@ class BaseController
 
         return $response;
     }
+    /**
+     * Return a success JSON response
+     */
+    protected function success(string $message, array $data = [], int $status = 200): Response
+    {
+        return $this->json(array_merge(['success' => true, 'message' => $message], $data), $status);
+    }
+
+    /**
+     * Return an error JSON response
+     */
+    protected function error(string $message, int $status = 400, array $data = []): Response
+    {
+        return $this->json(array_merge(['success' => false, 'error' => $message], $data), $status);
+    }
 }
