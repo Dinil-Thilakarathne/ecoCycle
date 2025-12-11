@@ -45,6 +45,11 @@ $router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->post('/api/users/suspend', 'Controllers\Api\UserController@suspend', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
