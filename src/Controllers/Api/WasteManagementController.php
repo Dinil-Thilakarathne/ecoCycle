@@ -37,6 +37,12 @@ class WasteManagementController extends BaseController
         }
 
         try {
+            // Prevent duplicate names
+            $existing = $this->categories->findByName($payload['data']['name'] ?? '');
+            if ($existing) {
+                return Response::errorJson('Category already exists', 409);
+            }
+
             $record = $this->categories->create($payload['data']);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create category', 500, [
@@ -47,7 +53,7 @@ class WasteManagementController extends BaseController
         return Response::json([
             'message' => 'Category created',
             'data' => $record
-        ]);
+        ], 201);
     }
 
     // PUT /api/waste-categories/{id}

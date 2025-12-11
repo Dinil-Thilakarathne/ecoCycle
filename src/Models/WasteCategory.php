@@ -73,6 +73,36 @@ class WasteCategory extends BaseModel
     }
 
     /**
+     * Create a new waste category
+     * Maps incoming payload keys to DB columns and returns the created record
+     *
+     * @param array $data
+     * @return array
+     */
+    public function create(array $data): array
+    {
+        $sql = "INSERT INTO {$this->table} (name, color, default_minimum_bid, unit, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+
+        // Map incoming keys: controller uses 'basePrice' so map it to default_minimum_bid
+        $params = [
+            $data['name'] ?? null,
+            $data['color'] ?? null,
+            isset($data['basePrice']) ? (float)$data['basePrice'] : ($data['defaultMinimumBid'] ?? null),
+            $data['unit'] ?? 'kg',
+        ];
+
+        if ($this->db->isPgsql()) {
+            $row = $this->db->fetch($sql . ' RETURNING id', $params);
+            $id = $row && isset($row['id']) ? (int) $row['id'] : 0;
+        } else {
+            $this->db->query($sql, $params);
+            $id = (int) $this->db->lastInsertId();
+        }
+
+        return $this->findById($id) ?? [];
+    }
+
+    /**
      * Get pricing tiers for all waste categories
      * Includes dynamic pricing brackets based on quantity thresholds
      * 
