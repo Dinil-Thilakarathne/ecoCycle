@@ -188,11 +188,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $customer['id'] ?>', 'customer')"
-                                                    title="Approve User">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $customer['id'] ?>', 'customer')"
                                                     title="Suspend User">
@@ -245,11 +241,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $company['id'] ?>', 'company')"
-                                                    title="Approve Company">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $company['id'] ?>', 'company')"
                                                     title="Suspend Company">
@@ -300,11 +292,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
-                                                <button class="icon-button approve"
-                                                    onclick="approveUser('<?= $collector['id'] ?>', 'collector')"
-                                                    title="Approve Collector">
-                                                    <i class="fa-solid fa-user-check"></i>
-                                                </button>
+
                                                 <button class="icon-button suspend"
                                                     onclick="suspendUser('<?= $collector['id'] ?>', 'collector')"
                                                     title="Suspend Collector">
@@ -380,8 +368,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
 
     // User management functions
     function viewUser(el, userType) {
-        // Populate and open the modal by looking up the full record in window.__USER_DATA
-        // Falls back to reading visible table cells when the store doesn't have the record.
+        // Populate by looking up the full record in window.__USER_DATA
         if (!el || !el.closest) return;
         const row = el.closest('tr');
         if (!row) return;
@@ -401,145 +388,78 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
             }
         } catch (err) {
             console.warn('user lookup failed', err);
-            user = null;
         }
 
-        // Fallback: read visible table cells (name/email/phone etc.)
-        const cells = row.querySelectorAll('td');
-        const fallback = {
-            id: id,
-            name: (cells[0] && cells[0].textContent.trim()) || '',
-            email: (cells[1] && cells[1].textContent.trim()) || '',
-            phone: (cells[2] && cells[2].textContent.trim()) || '',
-            // attempt to parse commonly present numeric columns where applicable
-            totalPickups: (cells[3] && cells[3].textContent.trim()) || '',
-            totalEarnings: (cells[4] && cells[4].textContent.replace(/[^0-9.\-]/g, '').trim()) || '0',
-            status: (cells[5] && cells[5].textContent.trim()) || ''
-        };
-
-        const src = user || fallback;
-
-        // Fill modal fields
-        const modal = document.getElementById('user-detail-modal');
-        if (!modal) return;
-        const setOrHide = (selector, text, opts = {}) => {
-            const elm = modal.querySelector(selector);
-            if (!elm) return;
-            const label = elm.previousElementSibling; // should be the <div><strong>Label</strong></div>
-
-            // Normalize text
-            const value = (text === null || text === undefined) ? '' : String(text).trim();
-
-            // Decide visibility: hide when value is empty or a single dash
-            const hide = (value === '' || value === '-');
-
-            if (hide) {
-                if (label) label.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                if (label) label.style.display = '';
-                elm.style.display = '';
-                elm.textContent = value;
-            }
-        };
-        // Define all possible selectors and field groups per user type
-        const allSelectors = ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-vehicle', '.ud-totalpickups', '.ud-totalearnings', '.ud-totalbids', '.ud-totalpurchases'];
-
-        const allowedByType = {
-            customer: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-address', '.ud-status', '.ud-totalpickups', '.ud-totalearnings'],
-            company: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-totalbids', '.ud-totalpurchases'],
-            collector: ['.ud-id', '.ud-name', '.ud-email', '.ud-phone', '.ud-status', '.ud-vehicle', '.ud-totalpickups']
-        };
-
-        // Hide everything first
-        allSelectors.forEach(sel => {
-            const e = modal.querySelector(sel);
-            if (e) {
-                const lbl = e.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                e.style.display = 'none';
-            }
-        });
-        // Populate and show only allowed selectors for this user type
-        const allowed = allowedByType[rowType] || [];
-        if (allowed.includes('.ud-id')) setOrHide('.ud-id', src.id || '');
-        if (allowed.includes('.ud-name')) setOrHide('.ud-name', src.name || '');
-        if (allowed.includes('.ud-email')) setOrHide('.ud-email', src.email || '');
-        if (allowed.includes('.ud-phone')) setOrHide('.ud-phone', src.phone || '');
-        if (allowed.includes('.ud-address')) setOrHide('.ud-address', src.address || '');
-        if (allowed.includes('.ud-status')) setOrHide('.ud-status', src.status ? (src.status.charAt(0).toUpperCase() + src.status.slice(1)) : '');
-        if (allowed.includes('.ud-vehicle')) setOrHide('.ud-vehicle', src.vehicleId || src.vehicle || '');
-        if (allowed.includes('.ud-totalpickups')) setOrHide('.ud-totalpickups', src.totalPickups || src.todayPickups || src.totalPickups);
-
-        // Earnings formatted
-        const earningsRaw = src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : (src.totalEarnings || src.totalEarnings === 0 ? src.totalEarnings : src.totalEarnings || src.totalEarnings);
-        const earningsVal = parseFloat(earningsRaw || fallback.totalEarnings || 0);
-        if (allowed.includes('.ud-totalearnings')) {
-            if (!isNaN(earningsVal)) {
-                setOrHide('.ud-totalearnings', 'Rs ' + earningsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-            } else {
-                setOrHide('.ud-totalearnings', fallback.totalEarnings || '0');
-            }
+        // Fallback or use found user
+        const src = user || {};
+        // Merge fallback data from table cells if user not found or incomplete
+        if (!user) {
+            const cells = row.querySelectorAll('td');
+            src.id = id;
+            src.name = (cells[0] && cells[0].textContent.trim()) || '';
+            src.email = (cells[1] && cells[1].textContent.trim()) || '';
+            src.phone = (cells[2] && cells[2].textContent.trim()) || '';
+            // add other fields as needed for fallback
         }
+        
+        // Define fields to show
+        const allFields = [
+            { key: 'id', label: 'ID', types: ['all'] },
+            { key: 'name', label: 'Name', types: ['all'] },
+            { key: 'email', label: 'Email', types: ['all'] },
+            { key: 'phone', label: 'Phone', types: ['all'] },
+            { key: 'address', label: 'Address', types: ['customer'] },
+            { key: 'status', label: 'Status', types: ['all'], format: v => v ? (v.charAt(0).toUpperCase() + v.slice(1)) : '-' },
+            { key: 'vehicleId', label: 'Vehicle ID', types: ['collector'], altKeys: ['vehicle'] },
+            { key: 'totalPickups', label: 'Total Pickups', types: ['customer', 'collector'], altKeys: ['todayPickups'] },
+            { key: 'totalEarnings', label: 'Total Earnings', types: ['customer'], format: v => 'Rs ' + parseFloat(v||0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+            { key: 'totalBids', label: 'Total Bids', types: ['company'] },
+            { key: 'totalPurchases', label: 'Total Purchases', types: ['company'] }
+        ];
 
-        if (allowed.includes('.ud-totalbids')) setOrHide('.ud-totalbids', src.totalBids || '0');
-        if (allowed.includes('.ud-totalpurchases')) setOrHide('.ud-totalpurchases', src.totalPurchases || '0');
+        const content = document.createElement('div');
+        content.className = 'user-modal__grid'; // Keep existing grid class if styles compatible, or use inline
+        // If existing CSS class isn't available globally, we can set inline styles
+        content.style.display = 'grid';
+        content.style.gridTemplateColumns = '1fr 2fr';
+        content.style.gap = '8px 16px';
+        content.style.fontSize = '0.9rem';
 
-        // Open modal
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    }
+        allFields.forEach(field => {
+            if (!field.types.includes('all') && !field.types.includes(rowType)) return;
 
-    function approveUser(userId, userType) {
-        if (confirm(`Are you sure you want to approve this ${userType}?`)) {
-            console.log(`Approving ${userType} ${userId}`);
-            alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${userId} has been approved. In a real application, this would update the user status and send a notification email.`);
-
-            // You would make an AJAX request here:
-            /*
-            fetch('/api/users/approve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: userId,
-                    userType: userType
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed to approve user');
+            let val = src[field.key];
+            if ((val === undefined || val === null) && field.altKeys) {
+                for (const k of field.altKeys) {
+                    if (src[k] !== undefined && src[k] !== null) {
+                        val = src[k];
+                        break;
+                    }
                 }
-            });
-            */
-        }
-    }
+            }
+            
+            if (!val && val !== 0) val = '-'; // Show dash for empty
 
-    function suspendUser(userId, userType) {
-        const reason = prompt(`Please enter the reason for suspending this ${userType}:`);
-        if (reason && reason.trim()) {
-            console.log(`Suspending ${userType} ${userId} for reason: ${reason}`);
-            alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${userId} has been suspended. Reason: ${reason}. In a real application, this would update the user status and send a notification.`);
+            if (field.format) val = field.format(val);
 
-            // You would make an AJAX request here:
-            /*
-            fetch('/api/users/suspend', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: userId,
-                    userType: userType,
-                    reason: reason
-                })
-            });
-            */
-        }
+            const labelEl = document.createElement('div');
+            labelEl.style.fontWeight = '600';
+            labelEl.style.color = '#374151';
+            labelEl.textContent = field.label;
+
+            const valEl = document.createElement('div');
+            valEl.style.color = '#111827';
+            valEl.textContent = String(val);
+
+            content.appendChild(labelEl);
+            content.appendChild(valEl);
+        });
+
+        Modal.open({
+            title: 'User Details',
+            content: content,
+            actions: [{ label: 'Close', variant: 'outline', dismiss: true }]
+        });
     }
 
     // Initialize search functionality and restore tab from URL on page load
@@ -553,9 +473,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         try {
             const params = new URL(window.location.href).searchParams;
             tabFromUrl = params.get('tab');
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) { }
 
         if (!tabFromUrl && window.location.hash) {
             const m = window.location.hash.match(/tab=([^&]+)/);
@@ -565,6 +483,21 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         // Default to 'customers' if nothing provided
         const initialTab = tabFromUrl || 'customers';
         showTab(initialTab, /* updateUrl= */ false);
+
+        // Check if server requested a specific user view (SSR support)
+        // We do this by checking if we have PHP injected variables
+        // But since we removed the PHP modal code, we can check logic or just rely on client actions.
+        // If you want to auto-open based on URL params logic from PHP step 98:
+        // We can replicate that logic here if needed, finding the row and clicking it.
+        const urlParams = new URL(window.location.href).searchParams;
+        if (urlParams.has('view') && urlParams.has('id')) {
+             const v = urlParams.get('view');
+             const i = urlParams.get('id');
+             // Attempt to find row
+             const selector = `tr[data-user-type="${v}"][data-id="${i}"] .icon-button[title="View Details"]`;
+             const btn = document.querySelector(selector);
+             if (btn) btn.click();
+        }
     });
 
     // Capitalize helper
@@ -573,104 +506,72 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
-    // Modal close handlers
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('user-detail-modal');
-        if (!modal) return;
+    function suspendUser(userId, userType) {
+        const container = document.createElement('div');
+        container.innerHTML = `
+            <div style="margin-bottom: 1rem;">
+                <p style="margin-bottom: 0.5rem;">Please enter the reason for suspending this user:</p>
+                <textarea class="form-control" rows="4" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Reason for suspension..."></textarea>
+                <div class="error-msg" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;">Reason is required</div>
+            </div>
+        `;
 
-        if (e.target.matches('#user-detail-modal .close') || e.target.matches('#user-detail-modal')) {
-            modal.classList.remove('open');
+        Modal.open({
+            title: 'Suspend User',
+            content: container,
+            actions: [
+                { label: 'Cancel', variant: 'outline', dismiss: true },
+                {
+                    label: 'Suspend User',
+                    variant: 'primary', // Assumes css for danger/primary mapped or use styling
+                    dismiss: false,
+                    loadingLabel: 'Suspending...',
+                    onClick: async ({ body, close, setLoading }) => {
+                        const textarea = body.querySelector('textarea');
+                        const errorMsg = body.querySelector('.error-msg');
+                        const reason = textarea.value.trim();
 
-            // Remove view/id from URL without reloading
-            try {
-                const url = new URL(window.location.href);
-                if (url.searchParams.has('view') || url.searchParams.has('id')) {
-                    url.searchParams.delete('view');
-                    url.searchParams.delete('id');
-                    window.history.replaceState(null, '', url.toString());
+                        if (!reason) {
+                            errorMsg.style.display = 'block';
+                            return;
+                        } else {
+                            errorMsg.style.display = 'none';
+                        }
+
+                        setLoading(true);
+
+                        try {
+                            const response = await fetch('/api/users/suspend', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    userId: userId,
+                                    reason: reason
+                                })
+                            });
+                            
+                            const data = await response.json();
+
+                            if (data.success) {
+                                if (window.toast) toast(`${capitalize(userType)} suspended successfully.`, 'success');
+                                else alert(`${capitalize(userType)} suspended successfully.`);
+                                close();
+                                // Optional: reload or update UI
+                                // location.reload(); 
+                            } else {
+                                alert(data.error || 'Failed to suspend user');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('An error occurred while suspending the user.');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
                 }
-            } catch (err) {
-                // ignore
-            }
-        }
-    });
+            ]
+        });
+    }
 </script>
-
-<!-- User Detail Modal Component -->
-<?php if (!empty($modalUser)): ?>
-    <?php
-    $mu = $modalUser;
-    $muId = $mu['id'] ?? '';
-    $muName = $mu['name'] ?? '';
-    $muEmail = $mu['email'] ?? '';
-    $muPhone = $mu['phone'] ?? '';
-    $muAddress = $mu['address'] ?? '';
-    $muStatus = $mu['status'] ?? '';
-    $muVehicle = $mu['vehicleId'] ?? '';
-    $muTotalPickups = $mu['totalPickups'] ?? ($mu['todayPickups'] ?? '0');
-    $muTotalEarnings = $mu['totalEarnings'] ?? '0';
-    $muTotalBids = $mu['totalBids'] ?? '0';
-    $muTotalPurchases = $mu['totalPurchases'] ?? '0';
-    ?>
-    <div id="user-detail-modal" class="user-modal open" role="dialog" aria-modal="true" aria-hidden="false">
-        <div class="user-modal__dialog">
-            <button class="close" aria-label="Close">&times;</button>
-            <h3>User Details</h3>
-            <div class="user-modal__grid">
-                <div><strong>ID</strong></div>
-                <div class="ud-id"><?= htmlspecialchars($muId) ?></div>
-                <div><strong>Name</strong></div>
-                <div class="ud-name"><?= htmlspecialchars($muName) ?></div>
-                <div><strong>Email</strong></div>
-                <div class="ud-email"><?= htmlspecialchars($muEmail) ?></div>
-                <div><strong>Phone</strong></div>
-                <div class="ud-phone"><?= htmlspecialchars($muPhone) ?></div>
-                <div><strong>Address</strong></div>
-                <div class="ud-address"><?= htmlspecialchars($muAddress ?: '-') ?></div>
-                <div><strong>Status</strong></div>
-                <div class="ud-status"><?= htmlspecialchars(ucfirst($muStatus ?: '-')) ?></div>
-                <div><strong>Vehicle ID</strong></div>
-                <div class="ud-vehicle"><?= htmlspecialchars($muVehicle ?: '-') ?></div>
-                <div><strong>Total Pickups</strong></div>
-                <div class="ud-totalpickups"><?= htmlspecialchars($muTotalPickups) ?></div>
-                <div><strong>Total Earnings</strong></div>
-                <div class="ud-totalearnings"><?= '$' . number_format((float) $muTotalEarnings, 2) ?></div>
-                <div><strong>Total Bids</strong></div>
-                <div class="ud-totalbids"><?= htmlspecialchars($muTotalBids) ?></div>
-                <div><strong>Total Purchases</strong></div>
-                <div class="ud-totalpurchases"><?= htmlspecialchars($muTotalPurchases) ?></div>
-            </div>
-        </div>
-    </div>
-<?php else: ?>
-    <div id="user-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
-        <div class="user-modal__dialog">
-            <button class="close" aria-label="Close">&times;</button>
-            <h3>User Details</h3>
-            <div class="user-modal__grid">
-                <div><strong>ID</strong></div>
-                <div class="ud-id"></div>
-                <div><strong>Name</strong></div>
-                <div class="ud-name"></div>
-                <div><strong>Email</strong></div>
-                <div class="ud-email"></div>
-                <div><strong>Phone</strong></div>
-                <div class="ud-phone"></div>
-                <div><strong>Address</strong></div>
-                <div class="ud-address"></div>
-                <div><strong>Status</strong></div>
-                <div class="ud-status"></div>
-                <div><strong>Vehicle ID</strong></div>
-                <div class="ud-vehicle"></div>
-                <div><strong>Total Pickups</strong></div>
-                <div class="ud-totalpickups"></div>
-                <div><strong>Total Earnings</strong></div>
-                <div class="ud-totalearnings"></div>
-                <div><strong>Total Bids</strong></div>
-                <div class="ud-totalbids"></div>
-                <div><strong>Total Purchases</strong></div>
-                <div class="ud-totalpurchases"></div>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>

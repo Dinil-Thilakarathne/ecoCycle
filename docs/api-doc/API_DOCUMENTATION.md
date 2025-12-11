@@ -13,13 +13,16 @@ rou# ecoCycle API Documentation
 3. [Response Format](#response-format)
 4. [Error Handling](#error-handling)
 5. [API Endpoints](#api-endpoints)
+
    - [Authentication APIs](#authentication-apis)
    - [Admin APIs](#admin-apis)
    - [Customer APIs](#customer-apis)
    - [Collector APIs](#collector-apis)
    - [Company APIs](#company-apis)
-
-- [Payment APIs](#payment-apis)
+   - [Payment APIs](#payment-apis)
+   - [Analytics & Reporting APIs](#analytics--reporting-apis)
+   - [Notification APIs](#notification-apis)
+   - [Profile Management APIs](#profile-management-apis)
 
 6. [Testing Guide](#testing-guide)
 7. [Future Development](#future-development)
@@ -282,6 +285,128 @@ curl -X POST http://localhost/register \
 ```bash
 curl -X POST http://localhost/logout \
   -H "Cookie: PHPSESSID=your_session_id"
+```
+
+---
+
+### 4. API Login
+
+**Endpoint:** `POST /api/auth/login`
+**Authentication:** Not required
+**Role:** Public
+
+**Description:** Authenticate user via API and receive JSON response.
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "name": "John Doe",
+      "role": "customer"
+    }
+  }
+}
+```
+
+---
+
+### 5. API Register
+
+**Endpoint:** `POST /api/auth/register`
+**Authentication:** Not required
+**Role:** Public
+
+**Description:** Register a new user account via API.
+
+**Request Body:**
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "password_confirmation": "password123",
+  "role": "customer",
+  "phone": "+94771234567",
+  "address": "123 Main St, Colombo"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Registration successful",
+  "data": {
+    "user": {
+      "id": 5,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "customer"
+    }
+  }
+}
+```
+
+---
+
+### 6. API Logout
+
+**Endpoint:** `POST /api/auth/logout`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** End user session via API.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### 7. Get Current User
+
+**Endpoint:** `GET /api/auth/me`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** Get details of the currently authenticated user.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "name": "John Doe",
+      "role": "customer"
+    }
+  }
+}
 ```
 
 ---
@@ -1691,12 +1816,12 @@ The Waste Category Management APIs allow administrators to manage waste types an
 
 **Query Parameters:**
 
-| Parameter | Type   | Required | Default | Notes                                  |
-| --------- | ------ | -------- | ------- | -------------------------------------- |
-| `limit`   | integer | ❌       | 50      | Number of records to return            |
-| `offset`  | integer | ❌       | 0       | Pagination offset                      |
-| `sort`    | string  | ❌       | `name`  | Sort field: `name`, `basePrice`, etc   |
-| `order`   | string  | ❌       | `asc`   | Sort direction: `asc` or `desc`        |
+| Parameter | Type    | Required | Default | Notes                                |
+| --------- | ------- | -------- | ------- | ------------------------------------ |
+| `limit`   | integer | ❌       | 50      | Number of records to return          |
+| `offset`  | integer | ❌       | 0       | Pagination offset                    |
+| `sort`    | string  | ❌       | `name`  | Sort field: `name`, `basePrice`, etc |
+| `order`   | string  | ❌       | `asc`   | Sort direction: `asc` or `desc`      |
 
 **Success Response (200):**
 
@@ -1707,7 +1832,7 @@ The Waste Category Management APIs allow administrators to manage waste types an
       "id": 1,
       "name": "Plastic",
       "description": "All types of plastic waste including bottles, bags, and containers",
-      "basePrice": 50.00,
+      "basePrice": 50.0,
       "category_icon": "♻️",
       "hazardous": false,
       "created_at": "2025-10-15 08:30:00",
@@ -1717,7 +1842,7 @@ The Waste Category Management APIs allow administrators to manage waste types an
       "id": 2,
       "name": "Organic Waste",
       "description": "Food scraps, garden waste, and biodegradable materials",
-      "basePrice": 30.00,
+      "basePrice": 30.0,
       "category_icon": "🌱",
       "hazardous": false,
       "created_at": "2025-10-15 08:30:00",
@@ -1727,7 +1852,7 @@ The Waste Category Management APIs allow administrators to manage waste types an
       "id": 3,
       "name": "Electronic Waste",
       "description": "E-waste including phones, computers, and electronic devices",
-      "basePrice": 120.00,
+      "basePrice": 120.0,
       "category_icon": "💻",
       "hazardous": true,
       "created_at": "2025-10-15 08:30:00",
@@ -1766,7 +1891,7 @@ curl -X GET http://localhost/api/waste-categories \
 {
   "name": "Glass",
   "description": "Glass bottles, jars, and clear glass waste",
-  "basePrice": 40.00,
+  "basePrice": 40.0,
   "category_icon": "🔷",
   "hazardous": false
 }
@@ -1774,13 +1899,13 @@ curl -X GET http://localhost/api/waste-categories \
 
 **Field Specs:**
 
-| Field           | Type    | Required | Constraints                                             |
-| --------------- | ------- | -------- | ------------------------------------------------------- |
-| `name`          | string  | ✅       | 1-100 chars, unique, no special chars except spaces    |
-| `description`   | string  | ✅       | 10-500 chars, descriptive of waste type               |
-| `basePrice`     | decimal | ✅       | > 0, max 2 decimal places                              |
-| `category_icon` | string  | ❌       | Single emoji or icon representation                    |
-| `hazardous`     | boolean | ❌       | Default: false. Marks dangerous waste types            |
+| Field           | Type    | Required | Constraints                                         |
+| --------------- | ------- | -------- | --------------------------------------------------- |
+| `name`          | string  | ✅       | 1-100 chars, unique, no special chars except spaces |
+| `description`   | string  | ✅       | 10-500 chars, descriptive of waste type             |
+| `basePrice`     | decimal | ✅       | > 0, max 2 decimal places                           |
+| `category_icon` | string  | ❌       | Single emoji or icon representation                 |
+| `hazardous`     | boolean | ❌       | Default: false. Marks dangerous waste types         |
 
 **Validation Errors (422):**
 
@@ -1804,7 +1929,7 @@ curl -X GET http://localhost/api/waste-categories \
     "id": 9,
     "name": "Glass",
     "description": "Glass bottles, jars, and clear glass waste",
-    "basePrice": 40.00,
+    "basePrice": 40.0,
     "category_icon": "🔷",
     "hazardous": false,
     "created_at": "2025-11-29 14:22:00",
@@ -1841,9 +1966,9 @@ curl -X POST http://localhost/api/waste-categories \
 
 **URL Parameters:**
 
-| Parameter | Type    | Required | Notes                         |
-| --------- | ------- | -------- | ----------------------------- |
-| `id`      | integer | ✅       | Waste category ID             |
+| Parameter | Type    | Required | Notes             |
+| --------- | ------- | -------- | ----------------- |
+| `id`      | integer | ✅       | Waste category ID |
 
 **Success Response (200):**
 
@@ -1853,11 +1978,11 @@ curl -X POST http://localhost/api/waste-categories \
     "id": 1,
     "name": "Plastic",
     "description": "All types of plastic waste including bottles, bags, and containers",
-    "basePrice": 50.00,
+    "basePrice": 50.0,
     "category_icon": "♻️",
     "hazardous": false,
     "bidding_rounds": 12,
-    "total_collected_kg": 4523.50,
+    "total_collected_kg": 4523.5,
     "created_at": "2025-10-15 08:30:00",
     "updated_at": "2025-10-15 08:30:00"
   }
@@ -1894,20 +2019,20 @@ curl -X GET http://localhost/api/waste-categories/1 \
 
 ```json
 {
-  "basePrice": 55.00,
+  "basePrice": 55.0,
   "description": "Updated description for plastic waste"
 }
 ```
 
 **Field Specs:**
 
-| Field           | Type    | Required | Constraints                       |
-| --------------- | ------- | -------- | --------------------------------- |
-| `name`          | string  | ❌       | 1-100 chars if provided           |
-| `description`   | string  | ❌       | 10-500 chars if provided          |
-| `basePrice`     | decimal | ❌       | > 0, max 2 decimals if provided   |
-| `category_icon` | string  | ❌       | Emoji/icon if provided            |
-| `hazardous`     | boolean | ❌       | Boolean if provided               |
+| Field           | Type    | Required | Constraints                     |
+| --------------- | ------- | -------- | ------------------------------- |
+| `name`          | string  | ❌       | 1-100 chars if provided         |
+| `description`   | string  | ❌       | 10-500 chars if provided        |
+| `basePrice`     | decimal | ❌       | > 0, max 2 decimals if provided |
+| `category_icon` | string  | ❌       | Emoji/icon if provided          |
+| `hazardous`     | boolean | ❌       | Boolean if provided             |
 
 **Success Response (200):**
 
@@ -1918,7 +2043,7 @@ curl -X GET http://localhost/api/waste-categories/1 \
     "id": 1,
     "name": "Plastic",
     "description": "Updated description for plastic waste",
-    "basePrice": 55.00,
+    "basePrice": 55.0,
     "category_icon": "♻️",
     "hazardous": false,
     "updated_at": "2025-11-29 14:25:00"
@@ -1951,9 +2076,9 @@ curl -X PUT http://localhost/api/waste-categories/1 \
 
 **URL Parameters:**
 
-| Parameter | Type    | Required | Notes      |
-| --------- | ------- | -------- | ---------- |
-| `id`      | integer | ✅       | Category ID|
+| Parameter | Type    | Required | Notes       |
+| --------- | ------- | -------- | ----------- |
+| `id`      | integer | ✅       | Category ID |
 
 **Success Response (200):**
 
@@ -1992,9 +2117,9 @@ curl -X DELETE http://localhost/api/waste-categories/9 \
 
 **Query Parameters:**
 
-| Parameter    | Type    | Required | Notes                              |
-| ------------ | ------- | -------- | ---------------------------------- |
-| `include_stats` | boolean | ❌       | Include collection statistics     |
+| Parameter       | Type    | Required | Notes                         |
+| --------------- | ------- | -------- | ----------------------------- |
+| `include_stats` | boolean | ❌       | Include collection statistics |
 
 **Success Response (200):**
 
@@ -2004,29 +2129,29 @@ curl -X DELETE http://localhost/api/waste-categories/9 \
     {
       "id": 1,
       "name": "Plastic",
-      "basePrice": 50.00,
+      "basePrice": 50.0,
       "pricing_tiers": [
         {
           "min_kg": 0,
           "max_kg": 100,
-          "price_per_kg": 50.00,
+          "price_per_kg": 50.0,
           "discount_percent": 0
         },
         {
           "min_kg": 100,
           "max_kg": 500,
-          "price_per_kg": 47.50,
+          "price_per_kg": 47.5,
           "discount_percent": 5
         },
         {
           "min_kg": 500,
           "max_kg": null,
-          "price_per_kg": 45.00,
+          "price_per_kg": 45.0,
           "discount_percent": 10
         }
       ],
       "stats": {
-        "total_collected": 4523.50,
+        "total_collected": 4523.5,
         "avg_per_round": 376.96,
         "active_rounds": 12
       }
@@ -2034,24 +2159,24 @@ curl -X DELETE http://localhost/api/waste-categories/9 \
     {
       "id": 2,
       "name": "Organic Waste",
-      "basePrice": 30.00,
+      "basePrice": 30.0,
       "pricing_tiers": [
         {
           "min_kg": 0,
           "max_kg": 200,
-          "price_per_kg": 30.00,
+          "price_per_kg": 30.0,
           "discount_percent": 0
         },
         {
           "min_kg": 200,
           "max_kg": 1000,
-          "price_per_kg": 27.00,
+          "price_per_kg": 27.0,
           "discount_percent": 10
         }
       ],
       "stats": {
-        "total_collected": 8932.00,
-        "avg_per_round": 447.60,
+        "total_collected": 8932.0,
+        "avg_per_round": 447.6,
         "active_rounds": 20
       }
     }
@@ -2277,30 +2402,283 @@ curl -X POST http://localhost/api/payments \\
 
 ---
 
+---
+
+## Analytics & Reporting APIs
+
+### 1. Analytics Dashboard
+
+**Endpoint:** `GET /api/analytics/dashboard`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Get high-level analytics for the admin dashboard.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_users": 150,
+    "active_bids": 5,
+    "waste_collected_total": 5000.5,
+    "revenue_total": 250000.0
+  }
+}
+```
+
+---
+
+### 2. Waste Collection Report
+
+**Endpoint:** `GET /api/reports/waste-collection`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Get detailed reports on waste collection.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "category": "Plastic",
+      "total_weight": 1200.5,
+      "month": "October 2025"
+    },
+    {
+      "category": "Paper",
+      "total_weight": 800.0,
+      "month": "October 2025"
+    }
+  ]
+}
+```
+
+---
+
+### 3. Bidding Report
+
+**Endpoint:** `GET /api/reports/bidding`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Get reports on bidding activities.
+
+---
+
+### 4. Revenue Report
+
+**Endpoint:** `GET /api/reports/revenue`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Get revenue reports.
+
+---
+
+### 5. Export Report
+
+**Endpoint:** `POST /api/reports/export`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Export reports to CSV or PDF.
+
+**Request Body:**
+
+```json
+{
+  "report_type": "waste_collection",
+  "format": "csv",
+  "date_range": {
+    "start": "2025-01-01",
+    "end": "2025-10-31"
+  }
+}
+```
+
+---
+
+## Notification APIs
+
+### 1. List Notifications
+
+**Endpoint:** `GET /api/notifications`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** Get a list of notifications for the current user.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "Bid Accepted",
+      "message": "Your bid for Lot #123 has been accepted.",
+      "read": false,
+      "created_at": "2025-10-24 10:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Create Notification (Admin)
+
+**Endpoint:** `POST /api/notifications`
+**Authentication:** Required
+**Role:** Admin only
+
+**Description:** Send a notification to a user.
+
+**Request Body:**
+
+```json
+{
+  "user_id": 5,
+  "title": "System Update",
+  "message": "System maintenance scheduled for tonight."
+}
+```
+
+---
+
+### 3. Mark as Read
+
+**Endpoint:** `PUT /api/notifications/{id}/read`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** Mark a specific notification as read.
+
+---
+
+### 4. Mark All as Read
+
+**Endpoint:** `PUT /api/notifications/read-all`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** Mark all notifications for the user as read.
+
+---
+
+### 5. Unread Count
+
+**Endpoint:** `GET /api/notifications/unread-count`
+**Authentication:** Required
+**Role:** Any authenticated user
+
+**Description:** Get the count of unread notifications.
+
+---
+
+## Profile Management APIs
+
+### 1. Update Customer Profile
+
+**Endpoint:** `POST /customer/profile`
+**Authentication:** Required
+**Role:** Customer only
+
+**Description:** Update customer profile details.
+
+**Request Body:**
+
+```json
+{
+  "name": "Jane Doe",
+  "phone": "+94779876543",
+  "address": "456 New St, Kandy"
+}
+```
+
+---
+
+### 2. Update Collector Profile
+
+**Endpoint:** `POST /collector/profile`
+**Authentication:** Required
+**Role:** Collector only
+
+**Description:** Update collector profile details.
+
+---
+
+### 3. Update Company Profile
+
+**Endpoint:** `POST /api/company/profile/update`
+**Authentication:** Required
+**Role:** Company only
+
+**Description:** Update company profile information.
+
+---
+
+### 4. Update Bank Details
+
+**Endpoint:** `POST /api/company/profile/bankDetails`
+**Authentication:** Required
+**Role:** Company only
+
+**Description:** Update bank account details for payouts.
+
+**Request Body:**
+
+```json
+{
+  "bank_name": "Commercial Bank",
+  "account_number": "1234567890",
+  "branch": "Colombo 03"
+}
+```
+
+---
+
+### 5. Change Password
+
+**Endpoint:** `POST /api/company/profile/password`
+**Authentication:** Required
+**Role:** Company only
+
+**Description:** Change user password.
+
+**Request Body:**
+
+```json
+{
+  "current_password": "oldpassword",
+  "new_password": "newpassword123",
+  "new_password_confirmation": "newpassword123"
+}
+```
+
+---
+
+### 6. Delete Profile
+
+**Endpoint:** `GET /api/company/profile/delete`
+**Authentication:** Required
+**Role:** Company only
+
+**Description:** Request to delete the company profile.
+
+---
+
 ## Future Development
 
 ### Planned Features (Phase 2)
 
-#### 1. Enhanced APIs
-
-**Notification APIs**
-
-```
-GET    /api/notifications         - List user notifications
-PUT    /api/notifications/{id}    - Mark as read
-POST   /api/notifications/subscribe - Push notification subscription
-DELETE /api/notifications/{id}    - Delete notification
-```
-
-**Analytics & Reporting APIs**
-
-```
-GET    /api/analytics/dashboard   - Role-specific analytics
-GET    /api/reports/waste-collection - Collection reports
-GET    /api/reports/bidding       - Bidding analytics
-GET    /api/reports/revenue       - Revenue reports
-POST   /api/reports/export        - Export data (CSV/PDF)
-```
+#### 1. Future Implementations
 
 **Real-time Features**
 
