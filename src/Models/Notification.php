@@ -12,32 +12,7 @@ class Notification extends BaseModel
         $rows = $this->db->fetchAll(
             "SELECT * FROM {$this->table} ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}"
         );
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function systemAlerts(): array
@@ -91,32 +66,7 @@ class Notification extends BaseModel
             );
         }
 
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function create(array $data): int
@@ -176,32 +126,7 @@ class Notification extends BaseModel
             );
         }
 
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function markAsRead(int $id, int $userId): bool
@@ -270,8 +195,40 @@ class Notification extends BaseModel
         return (int) ($result['count'] ?? 0);
     }
 
-    public function getAll()
+    public function getAll(int $limit = 100): array
     {
-        return $this->db->fetchAll("SELECT * FROM {$this->table}");
+        $limit = max(1, (int) $limit);
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}");
+        return $this->formatRows($rows);
+    }
+
+    private function formatRows($rows): array
+    {
+        if (!$rows || !is_array($rows)) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            $recipients = [];
+            if (!empty($row['recipients'])) {
+                $decoded = json_decode($row['recipients'], true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $recipients = $decoded;
+                }
+            }
+            if (empty($recipients) && !empty($row['recipient_group'])) {
+                $recipients = [$row['recipient_group']];
+            }
+
+            return [
+                'id' => $row['id'],
+                'type' => $row['type'] ?? 'info',
+                'title' => $row['title'] ?? '',
+                'message' => $row['message'] ?? '',
+                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
+                'status' => $row['status'] ?? 'pending',
+                'recipients' => $recipients,
+            ];
+        }, $rows);
     }
 }

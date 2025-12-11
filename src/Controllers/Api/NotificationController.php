@@ -12,9 +12,9 @@ class NotificationController extends BaseController
 {
     private Notification $model;
 
-    public function __construct()
+    public function __construct(?Notification $model = null)
     {
-        $this->model = new Notification();
+        $this->model = $model ?: new Notification();
     }
 
     /**
@@ -29,8 +29,10 @@ class NotificationController extends BaseController
 
         $limit = (int) $request->input('limit', 20);
         if($user['role'] === 'admin') {
-            $notifications = $this->model->getAll();
-        }else{
+            $notifications = $this->model->getAll($limit);
+        } elseif ($user['role'] === 'company') {
+            $notifications = $this->model->forCompany($user['id'], $limit);
+        } else {
             $notifications = $this->model->forUser($user['id'], $limit);
         }
         $unreadCount = $this->model->getUnreadCount($user['id']);
