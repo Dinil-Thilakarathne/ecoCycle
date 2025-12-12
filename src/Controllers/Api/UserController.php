@@ -85,4 +85,81 @@ class UserController extends BaseController
 
         return Response::json($users);
     }
+    public function assignVehicle(Request $request): Response
+    {
+        // Require JSON input
+        $input = $request->json();
+        if (!is_array($input)) {
+            return Response::errorJson('Invalid JSON payload', 400);
+        }
+
+        $userId = $input['userId'] ?? null;
+        $vehicleId = $input['vehicleId'] ?? null;
+
+        if (empty($userId)) {
+            return Response::errorJson('User ID is required', 400);
+        }
+
+        // Validate user exists
+        $user = $this->userModel->findById((int) $userId);
+        if (!$user) {
+            return Response::errorJson('User not found', 404);
+        }
+
+        $vehicleModel = new \Models\Vehicle();
+
+        try {
+            // Check if user already has a vehicle
+            $currentVehicleId = $user['vehicleId'] ?? ($user['vehicle_id'] ?? null);
+
+            // Logic 1: Unassigning (vehicleId is null/empty)
+            if (empty($vehicleId)) {
+                if ($currentVehicleId) {
+                    // Mark old vehicle as available
+                    $vehicleModel->markStatus((int) $currentVehicleId, 'available');
+                    // Remove vehicle from user
+                    $this->userModel->updateUser((int) $userId, ['vehicle_id' => null]);
+                }
+                return Response::json(['message' => 'Vehicle unassigned successfully']);
+            }
+
+            // Logic 2: Assigning a new vehicle
+            $newVehicleId = (int) $vehicleId;
+
+            // If functionality is "change vehicle", handle old one first
+            if ($currentVehicleId && (int) $currentVehicleId !== $newVehicleId) {
+                $vehicleModel->markStatus((int) $currentVehicleId, 'available');
+            }
+
+            // Check new vehicle availability
+            $vehicle = $vehicleModel->find($newVehicleId);
+            if (!$vehicle) {
+                return Response::errorJson('Vehicle not found', 404);
+            }
+
+            // If we are re-assigning the SAME vehicle, do nothing or ensure it's in-use
+            if ($currentVehicleId && (int) $currentVehicleId === $newVehicleId) {
+                // Ensure status is correct just in case
+                $vehicleModel->markStatus($newVehicleId, 'in-use');
+                return Response::json(['message' => 'Vehicle already assigned to this user']);
+            }
+
+            if (($vehicle['status'] ?? '') !== 'available') {
+                return Response::errorJson('Vehicle is not available for assignment', 409);
+            }
+
+            // Assign new vehicle
+            $vehicleModel->markStatus($newVehicleId, 'in-use');
+            $this->userModel->updateUser((int) $userId, ['vehicle_id' => $newVehicleId]);
+
+            return Response::json([
+                'success' => true,
+                'message' => 'Vehicle assigned successfully',
+                'vehicle' => $vehicle
+            ]);
+
+        } catch (\Exception $e) {
+            return Response::errorJson('An error occurred while assigning vehicle', 500, ['error' => $e->getMessage()]);
+        }
+    }
 }

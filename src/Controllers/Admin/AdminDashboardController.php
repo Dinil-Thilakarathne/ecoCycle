@@ -143,7 +143,9 @@ class AdminDashboardController extends DashboardController
             'collectors' => $collectors,
         ];
 
-        return $this->renderDashboard('users', $data);
+        return $this->renderDashboard('users', $data + [
+            'vehicles' => (new Vehicle())->listAll(),
+        ]);
     }
 
     /**
@@ -152,10 +154,12 @@ class AdminDashboardController extends DashboardController
     public function vehicles(): Response
     {
         $vehicles = (new Vehicle())->listAll();
+        $collectors = (new User())->listByType('collector');
 
         $data = [
             'pageTitle' => 'Vehicle Management',
             'vehicles' => $vehicles,
+            'collectors' => $collectors,
         ];
 
         return $this->renderDashboard('vehicles', $data);
