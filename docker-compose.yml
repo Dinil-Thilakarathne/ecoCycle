@@ -67,7 +67,7 @@ services:
 networks:
   web:
   internal:
-    internal: true
+    # internal: true
 
 volumes:
   db_data:
