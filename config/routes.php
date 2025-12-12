@@ -45,10 +45,31 @@ $router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->get('/api/vehicles/available', 'Controllers\Api\VehicleController@listAvailable', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->post('/api/vehicles/assign-self', 'Controllers\Api\VehicleController@assignSelf', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+$router->post('/api/vehicles/release-self', 'Controllers\Api\VehicleController@releaseSelf', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+
 $router->post('/api/users/suspend', 'Controllers\Api\UserController@suspend', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+$router->post('/api/users/assign-vehicle', 'Controllers\Api\UserController@assignVehicle', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 
 $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
     'Middleware\AuthMiddleware',
@@ -273,11 +294,11 @@ $router->get('/test', function () {
 // Debug route to list all registered routes
 $router->get('/api/debug/routes', function () use ($router) {
     if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
-         $routes = $router->getRoutes();
+        $routes = $router->getRoutes();
     } else {
-         $routes = [];
+        $routes = [];
     }
-   
+
     return view('debug/routes', ['routes' => $routes]);
 });
 
@@ -498,4 +519,3 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
-    
