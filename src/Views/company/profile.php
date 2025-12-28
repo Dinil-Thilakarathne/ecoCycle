@@ -1,13 +1,29 @@
 <?php
 $company = is_array($companyProfile ?? null) ? $companyProfile : [];
+
+if (isset($company['metadata'])) {
+    if (is_string($company['metadata'])) {
+        $metadata = json_decode($company['metadata'], true) ?? [];
+    } elseif (is_array($company['metadata'])) {
+        $metadata = $company['metadata'];
+    } else {
+        $metadata = [];
+    }
+} else {
+    $metadata = [];
+}
+
+$wasteTypes = $metadata['waste_types'] ?? [];
+if (!is_array($wasteTypes)) {
+    $wasteTypes = [];
+}
+
 $bankDetails = is_array($bankDetails ?? null) ? $bankDetails : [];
-$wasteTypes = $wasteTypes ?? ($company['waste_types'] ?? []);
-if (!is_array($wasteTypes))
-  $wasteTypes = [];
 $errors = $errors ?? [];
 $showToast = $showToast ?? false;
 $csrf = app('session')->token();
 ?>
+
 
 <main class="content">
 
@@ -30,13 +46,13 @@ $csrf = app('session')->token();
         <input type="text" value="<?= htmlspecialchars($company['name'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Type</label>
-        <input type="text" value="<?= htmlspecialchars($company['type'] ?? 'N/A') ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($metadata['type'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Registration</label>
-        <input type="text" value="<?= htmlspecialchars($company['reg_number'] ?? 'N/A') ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($metadata['reg_number'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Description</label>
-        <textarea disabled><?= htmlspecialchars($company['description'] ?? '') ?></textarea>
+        <textarea disabled><?= htmlspecialchars($metadata['description'] ?? '') ?></textarea>
       </div>
     </div>
 
@@ -57,7 +73,7 @@ $csrf = app('session')->token();
         <input type="tel" value="011-1234567" disabled>
       </div>
       <div class="form-group"><label>Website</label>
-        <input type="text" value="<?= htmlspecialchars($company['website'] ?? '') ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($metadata['website'] ?? '') ?>" disabled>
       </div>
       <div class="form-group"><label>Address</label>
         <textarea disabled><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
@@ -90,8 +106,8 @@ $csrf = app('session')->token();
   <div class="pc-card">
     <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
     <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
-    <p><button class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button></p>
-    <p><a class="p-btn-delete" href="/api/company/profile/delete">Delete Account</a></p>
+    <a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a>
+
   </div>
 
 </main>
@@ -103,7 +119,8 @@ $csrf = app('session')->token();
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
     <div id="profileMessage"></div>
 
-    <form method="POST" enctype="multipart/form-data" action="/api/company/profile/update">
+    <form method="POST" enctype="multipart/form-data" action="/api/profile/update">
+      <input type="hidden" name="_token" value="<?= app('session')->token() ?>">
 
       <div class="form-group"><label>Profile Picture</label>
         <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
@@ -112,13 +129,13 @@ $csrf = app('session')->token();
         <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Type</label>
-        <input type="text" name="type" value="<?= htmlspecialchars($company['type'] ?? '') ?>">
+        <input type="text" name="type" value="<?= htmlspecialchars($metadata['type'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Registration</label>
-        <input type="text" name="reg_number" value="<?= htmlspecialchars($company['reg_number'] ?? '') ?>">
+        <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Description</label>
-        <textarea name="description"><?= htmlspecialchars($company['description'] ?? '') ?></textarea>
+        <textarea name="description"><?= htmlspecialchars($metadata['description'] ?? '') ?></textarea>
       </div>
       <div class="form-group"><label>Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>">
@@ -128,13 +145,13 @@ $csrf = app('session')->token();
           value="<?= htmlspecialchars($company['phone'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Website</label>
-        <input type="text" name="website" value="<?= htmlspecialchars($company['website'] ?? '') ?>">
+        <input type="text" name="website" value="<?= htmlspecialchars($metadata['website'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Address</label>
         <textarea name="address"><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
       </div>
       <div class="form-group"><label>Waste Types</label>
-        <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(', ', $wasteTypes)) ?>">
+        <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(', ', $wasteTypes)) ?>" placeholder="Plastic, Organic, Metal, Glass, Paper" required>
       </div>
 
       <button type="submit" class="btn btn-primary outline" style="width:100%;">Save Changes</button>
@@ -148,18 +165,18 @@ $csrf = app('session')->token();
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
     
-    <form method="POST" enctype="multipart/form-data" action="/api/company/profile/bankDetails">
+    <form method="POST" enctype="multipart/form-data" action="/api/profile/bankDetails">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" name="bank_name" value="<?= htmlspecialchars($bankDetails['bank_name'] ?? '') ?>">
+        <input type="text" name="bank_name" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" name="bank_account_number" value="<?= htmlspecialchars($bankDetails['bank_account_number'] ?? '') ?>">
+        <input type="text" name="bank_account_number" value="<?= htmlspecialchars($bankDetails['account_number'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">User's Name</label>
-        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bankDetails['bank_account_name'] ?? '') ?>">
+        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bankDetails['user'] ?? '') ?>">
       </div>
       <div class="form-group"><label class="form-lable">Bank Branch</label>
-        <input type="text" name="bank_branch" value="<?= htmlspecialchars($bankDetails['bank_branch'] ?? '') ?>">
+        <input type="text" name="bank_branch" value="<?= htmlspecialchars($bankDetails['branch'] ?? '') ?>">
       </div>
       <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>
@@ -172,7 +189,7 @@ $csrf = app('session')->token();
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Change Password</h2>
     
-    <form method="POST" enctype="multipart/form-data" action="/api/company/profile/password">
+    <form method="POST" enctype="multipart/form-data" action="/api/profile/password">
       <div class="form-group"><label>New Password</label>
         <input type="password" name="password" placeholder="Leave empty to keep current" required>
       </div>
@@ -186,7 +203,7 @@ $csrf = app('session')->token();
 
 <!-- Toast Notification -->
 <?php if ($showToast): ?>
-  <div class="toast">✅ Profile updated successfully!</div>
+  <div class="toast">Profile updated successfully!</div>
 <?php endif; ?>
 
 <script>
@@ -198,4 +215,21 @@ $csrf = app('session')->token();
     }
 
   })();
+</script>
+
+<script>
+function confirmDeleteProfile(event) {
+    event.preventDefault();
+
+    const confirmDelete = confirm(
+        "Are you sure you want to delete your account?\n\n" +
+        "This action is PERMANENT and cannot be undone."
+    );
+
+    if (confirmDelete) {
+        window.location.href = event.currentTarget.href;
+    }
+
+    return false;
+}
 </script>
