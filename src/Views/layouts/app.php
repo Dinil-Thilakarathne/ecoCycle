@@ -30,6 +30,8 @@
             <link rel="stylesheet" href="/css/company.css">
         <?php elseif (isset($userType) && $userType === 'customer'): ?>
             <link rel="stylesheet" href="/css/customer.css">
+        <?php elseif (isset($userType) && $userType === 'admin'): ?>
+            <link rel="stylesheet" href="/css/admin.css">
         <?php endif; ?>
     <?php endif; ?>
 
