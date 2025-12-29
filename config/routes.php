@@ -373,26 +373,22 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
 
 $router->post('/api/profile/update', 'Controllers\Api\profileController@updateProfile', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    //'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
 $router->get('/api/profile/delete', 'Controllers\Api\profileController@deleteProfile', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    //'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
 $router->post('/api/profile/bankDetails', 'Controllers\Api\profileController@updateBankDetails', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    //'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
 $router->post('/api/profile/password', 'Controllers\Api\profileController@changePassword', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    //'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 // ---------------------------------------------
 // Analytics & Reporting API Routes

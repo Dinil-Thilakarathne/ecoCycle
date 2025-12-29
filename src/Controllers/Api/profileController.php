@@ -62,6 +62,7 @@ class profileController extends BaseController
         switch ($role) {
             case 'company':
                 $payload['metadata'] = [
+                    'companyName' => trim($request->input('companyName', '')),
                     'type'         => trim($request->input('type', '')),
                     'reg_number'   => trim($request->input('reg_number', '')),
                     'description'  => trim($request->input('description', '')),
