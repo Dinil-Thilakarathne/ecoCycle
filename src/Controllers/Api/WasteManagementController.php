@@ -65,13 +65,13 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
-        $exists = $this->categories->findById((int)$id);
+        $exists = $this->categories->findById((int) $id);
         if (!$exists) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
-            $this->categories->update((int)$id, $payload['data']);
+            $this->categories->update((int) $id, $payload['data']);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update category', 500, [
                 'detail' => $e->getMessage()
@@ -91,13 +91,13 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Category ID is required', 400);
         }
 
-        $exists = $this->categories->findById((int)$id);
+        $exists = $this->categories->findById((int) $id);
         if (!$exists) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
-            $this->categories->delete((int)$id);
+            $this->categories->delete((int) $id);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to delete category', 500, [
                 'detail' => $e->getMessage()
@@ -130,15 +130,10 @@ class WasteManagementController extends BaseController
             }
         }
 
-        if (!$isUpdate || isset($data['description'])) {
-            if (empty($data['description'])) {
-                $errors['description'] = 'Description is required.';
-            }
-        }
-
-        if (!$isUpdate || isset($data['basePrice'])) {
-            if (!isset($data['basePrice']) || (float)$data['basePrice'] <= 0) {
-                $errors['basePrice'] = 'Base price must be greater than zero.';
+        // Price validation
+        if (isset($data['pricePerUnit'])) {
+            if (!is_numeric($data['pricePerUnit']) || (float) $data['pricePerUnit'] < 0) {
+                $errors['pricePerUnit'] = 'Price must be a positive number.';
             }
         }
 
@@ -146,13 +141,18 @@ class WasteManagementController extends BaseController
             return ['errors' => $errors];
         }
 
-        return [
-            'data' => [
-                'name' => $data['name'] ?? null,
-                'description' => $data['description'] ?? null,
-                'basePrice' => isset($data['basePrice']) ? (float)$data['basePrice'] : null,
-            ]
-        ];
+        // Map frontend camelCase to DB snake_case
+        $mapped = [];
+        if (isset($data['name']))
+            $mapped['name'] = $data['name'];
+        if (isset($data['unit']))
+            $mapped['unit'] = $data['unit'] ?: 'kg';
+        if (isset($data['color']))
+            $mapped['color'] = $data['color'];
+        if (isset($data['pricePerUnit']))
+            $mapped['price_per_unit'] = (float) $data['pricePerUnit'];
+
+        return ['data' => $mapped];
     }
 
     private function mergeJsonBody(Request $request): void
@@ -166,7 +166,8 @@ class WasteManagementController extends BaseController
     private function resolveRouteId(Request $request): ?string
     {
         $id = $request->route('id');
-        if (!$id) $id = $request->get('id');
-        return $id ? (string)$id : null;
+        if (!$id)
+            $id = $request->get('id');
+        return $id ? (string) $id : null;
     }
 }

@@ -8,7 +8,7 @@ class WasteCategory extends BaseModel
 
     public function listAll(): array
     {
-        $rows = $this->db->fetchAll("SELECT id, name, color, unit FROM {$this->table} ORDER BY name ASC");
+        $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit FROM {$this->table} ORDER BY name ASC");
         if (!$rows) {
             return [];
         }
@@ -19,6 +19,7 @@ class WasteCategory extends BaseModel
                 'name' => (string) ($row['name'] ?? ''),
                 'color' => $row['color'] ?? null,
                 'unit' => $row['unit'] ?? 'kg',
+                'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
             ];
         }, $rows);
     }
@@ -26,7 +27,7 @@ class WasteCategory extends BaseModel
     public function findById(int $id): ?array
     {
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit FROM {$this->table} WHERE id = ? LIMIT 1",
+            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE id = ? LIMIT 1",
             [$id]
         );
 
@@ -39,6 +40,7 @@ class WasteCategory extends BaseModel
             'name' => (string) ($row['name'] ?? ''),
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
+            'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
         ];
     }
 
@@ -50,7 +52,7 @@ class WasteCategory extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
             [$trimmed]
         );
 
@@ -63,7 +65,16 @@ class WasteCategory extends BaseModel
             'name' => (string) ($row['name'] ?? ''),
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
+            'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
         ];
+    }
+
+    public function updatePrice(int $id, float $price): bool
+    {
+        return $this->db->query(
+            "UPDATE {$this->table} SET price_per_unit = ?, updated_at = NOW() WHERE id = ?",
+            [$price, $id]
+        );
     }
 
     public function exists(int $id): bool

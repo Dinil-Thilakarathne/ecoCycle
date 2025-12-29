@@ -195,9 +195,6 @@ class AdminDashboardController extends DashboardController
         return $this->renderDashboard('settings', $data);
     }
 
-    /**
-     * Bidding management page
-     */
     public function bidding(): Response
     {
         $biddingModel = new BiddingRound();
@@ -220,6 +217,32 @@ class AdminDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('biddingManagement', $data);
+    }
+
+    /**
+     * Waste Categories & Pricing page
+     */
+    public function wasteCategories(): Response
+    {
+        $db = new Database();
+        // Fetch categories with the new price_per_unit column
+        // Note: Make sure the DB migration has been applied!
+        try {
+            $categories = $db->fetchAll("SELECT * FROM waste_categories ORDER BY name ASC");
+        } catch (\Throwable $e) {
+            // Fallback for when migration hasn't run yet
+            $categories = $db->fetchAll("SELECT id, name, unit, color FROM waste_categories ORDER BY name ASC");
+            foreach ($categories as &$cat) {
+                $cat['price_per_unit'] = 0.00;
+            }
+        }
+
+        $data = [
+            'pageTitle' => 'Waste Pricing',
+            'categories' => $categories,
+        ];
+
+        return $this->renderDashboard('waste_categories', $data);
     }
 
     /**
