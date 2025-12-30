@@ -633,10 +633,10 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
                         <td>
                             ${canEdit || canCancel || normalizedStatus === 'completed'
-                            ${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
+                                ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
                                    ${normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : ''}
-                                   ${(canCancel || normalizedStatus === 'completed') ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}
-                        : '<span style="color:#64748b;">-</span>'}
+                                   ${(canCancel || normalizedStatus === 'completed') ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}`
+                                : '<span style="color:#64748b;">-</span>'}
                         </td>
                     </tr>
                 `;
