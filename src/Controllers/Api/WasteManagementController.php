@@ -6,14 +6,17 @@ use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
 use Models\WasteCategory;
+use Services\WasteCategoryEventService;
 
 class WasteManagementController extends BaseController
 {
     private WasteCategory $categories;
+    private WasteCategoryEventService $eventService;
 
     public function __construct()
     {
         $this->categories = new WasteCategory();
+        $this->eventService = new WasteCategoryEventService();
     }
 
     // GET /api/waste-categories
@@ -37,7 +40,16 @@ class WasteManagementController extends BaseController
         }
 
         try {
+            // Prevent duplicate names
+            $existing = $this->categories->findByName($payload['data']['name'] ?? '');
+            if ($existing) {
+                return Response::errorJson('Category already exists', 409);
+            }
+
             $record = $this->categories->create($payload['data']);
+
+            // Broadcast creation event
+            $this->eventService->broadcastCreated($record);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create category', 500, [
                 'detail' => $e->getMessage()
@@ -47,7 +59,7 @@ class WasteManagementController extends BaseController
         return Response::json([
             'message' => 'Category created',
             'data' => $record
-        ]);
+        ], 201);
     }
 
     // PUT /api/waste-categories/{id}
@@ -65,13 +77,19 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
-        $exists = $this->categories->findById((int)$id);
-        if (!$exists) {
+        $oldData = $this->categories->findById((int)$id);
+        if (!$oldData) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
             $this->categories->update((int)$id, $payload['data']);
+
+            // Get updated record
+            $updatedRecord = $this->categories->findById((int)$id);
+
+            // Broadcast update event
+            $this->eventService->broadcastUpdated($updatedRecord, $oldData);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update category', 500, [
                 'detail' => $e->getMessage()
@@ -98,6 +116,9 @@ class WasteManagementController extends BaseController
 
         try {
             $this->categories->delete((int)$id);
+
+            // Broadcast deletion event
+            $this->eventService->broadcastDeleted((int)$id);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to delete category', 500, [
                 'detail' => $e->getMessage()
