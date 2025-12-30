@@ -188,6 +188,17 @@
   padding: var(--space-3);
   font-size: var(--text-sm);
   background: var(--neutral-0);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.request-form input:focus,
+.request-form select:focus,
+.request-form textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-50);
 }
 
 .form-group textarea {
@@ -203,45 +214,15 @@
 
 .form-actions {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-/* --------------------------------------------------------------------------
- * Pickup & Rate modal tweaks (reuse profile edit modal styles)
- * - Keep markup unchanged, use existing utilities where possible
- * - Ensure action buttons are small and appear on one line like profile edit
- */
-.modal .modal-content {
-  /* same shell as profile form modal */
-  width: min(640px, 95vw);
-  padding: var(--space-6);
-}
-
-.modal .request-form .form-group textarea {
-  /* slightly shorter textareas for compact popup layout */
-  min-height: 72px;
-}
-
-.modal .form-actions {
-  /* override column layout inside modals to make buttons inline */
   flex-direction: row;
   justify-content: flex-end;
-  align-items: center;
   gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 
-.modal .form-actions .btn {
-  /* keep small, consistent sizing */
-  min-width: 90px;
-}
-
-/* readonly inputs (collector name when auto-assigned) should look visually locked */
-.request-form input[readonly],
-.request-form textarea[readonly] {
-  background: var(--neutral-100);
-  color: var(--neutral-700);
-  cursor: not-allowed;
+.form-actions .btn {
+  width: auto;
+  min-width: 100px;
 }
 
 .p-btn-delete {
@@ -440,6 +421,8 @@
   box-shadow: 0 35px 60px rgba(15, 23, 42, 0.25);
   display: flex;
   flex-direction: column;
+  padding: var(--space-8);
+  /* Increased from implicit/inherited amounts if any */
 }
 
 .modal-overlay .modal-header,
@@ -510,10 +493,36 @@
 .checkbox-grid label {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
+  background: var(--neutral-0);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--rounded-lg);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  font-weight: var(--font-weight-medium);
+  color: var(--neutral-600);
+}
+
+.checkbox-grid label:hover {
   background: var(--neutral-50);
-  border-radius: var(--rounded-full);
-  padding: 0.45rem 0.85rem;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.checkbox-grid label:has(input:checked),
+.checkbox-grid label.checked {
+  background: var(--success-light);
+  border-color: var(--primary);
+  color: var(--primary-600);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.checkbox-grid label input {
+  accent-color: var(--primary);
+  width: 1.1em;
+  height: 1.1em;
 }
 
 /* Notification detail modal */
@@ -602,7 +611,7 @@
   transition: all var(--transition-fast);
 }
 
-.plan-option input:checked + .plan-label {
+.plan-option input:checked+.plan-label {
   border-color: var(--primary);
   background: var(--success-light);
 }
@@ -625,6 +634,7 @@
  * Responsive tweaks
  * -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+
   .section,
   .table-section,
   .billing-content,
@@ -649,6 +659,7 @@
 }
 
 @media (max-width: 520px) {
+
   .form-modal-content,
   .modal-overlay .modal-content,
   .modal .modal-content {
@@ -656,4 +667,3 @@
     border-radius: var(--rounded-2xl);
   }
 }
-

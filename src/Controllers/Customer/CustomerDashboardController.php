@@ -198,6 +198,15 @@ class CustomerDashboardController extends DashboardController
             $wasteCategories = [];
         }
 
+        if (empty($wasteCategories)) {
+            $wasteCategories = [
+                ['id' => 1, 'name' => 'Plastic'],
+                ['id' => 2, 'name' => 'Glass'],
+                ['id' => 3, 'name' => 'Paper'],
+                ['id' => 6, 'name' => 'Organic']
+            ];
+        }
+
         return [
             'timeSlots' => $timeSlots,
             'pickupRequests' => array_values($pickupRequests),

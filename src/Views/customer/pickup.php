@@ -302,7 +302,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+            <div class="form-actions">
                 <button type="button" onclick="hideNewRequestForm()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-primary">Submit Request</button>
             </div>
@@ -347,7 +347,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <input type="text" id="rate_description" name="description" placeholder="Short note (optional)">
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+            <div class="form-actions">
                 <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline btn-sm">Cancel</button>
                 <button type="submit" class="btn btn-primary btn-sm">Submit Rating</button>
             </div>
@@ -395,7 +395,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+            <div class="form-actions">
                 <button type="button" onclick="hideEditRequestForm()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-primary">Update Request</button>
             </div>
@@ -432,6 +432,28 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 console.log(message);
             }
         }
+
+        // Helper to update checkbox visual state
+        function updateCheckboxState(checkbox) {
+            const label = checkbox.closest('label');
+            if (label) {
+                if (checkbox.checked) {
+                    label.classList.add('checked');
+                } else {
+                    label.classList.remove('checked');
+                }
+            }
+        }
+
+        // Delegate change event for checkboxes in grids
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('.checkbox-grid input[type="checkbox"]')) {
+                updateCheckboxState(e.target);
+            }
+        });
+
+        // Initialize checkbox states on load
+        document.querySelectorAll('.checkbox-grid input[type="checkbox"]').forEach(updateCheckboxState);
 
         // Simple confirm modal that returns a Promise<boolean>
         function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
