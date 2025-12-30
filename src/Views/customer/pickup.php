@@ -244,6 +244,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                         <button class="action-btn delete" data-action="cancel"
                                             data-id="<?= e((string) $request['id']) ?>">Cancel</button>
                                     <?php endif; ?>
+                                <?php elseif ($normalizedStatus === 'completed'): ?>
+                                    <button class="action-btn view" data-action="rate"
+                                        data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>">Rate</button>
                                 <?php else: ?>
                                     <span style="color:#64748b;">-</span>
                                 <?php endif; ?>
@@ -253,9 +256,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 <?php endif; ?>
             </tbody>
         </table>
-    </div>
-    <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary btn-rate" onclick="showRateCollectorForm()">Rate a collector</button>
     </div>
 </div>
 
@@ -345,8 +345,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 </div>
             </div>
             <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
-                <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline">Cancel</button>
-                <button type="submit" class="btn btn-primary">Submit Rating</button>
+                <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline btn-sm">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Submit Rating</button>
             </div>
         </form>
     </div>
@@ -610,7 +610,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                             ${canEdit || canCancel
                         ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
                                    ${canCancel ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}`
-                        : '<span style="color:#64748b;">-</span>'}
+                        : (normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : '<span style="color:#64748b;">-</span>')}
                         </td>
                     </tr>
                 `;
@@ -663,13 +663,50 @@ if (!function_exists('customer_pickup_format_datetime')) {
             }
         }
 
-        function showRateCollectorForm() {
+        function showRateCollectorForm(requestId) {
             if (!rateModal) return;
-            // Pre-fill date with today
+            const collectorInput = document.getElementById('rate_collector');
+            const custNameInput = document.getElementById('rate_customer_name');
+            const addr = document.getElementById('rate_address');
             const dateInput = document.getElementById('rate_date');
+
+            if (typeof requestId === 'undefined' || requestId === null || requestId === '') {
+                // Global rate button - allow editing collector name
+                if (collectorInput) {
+                    collectorInput.value = '';
+                    collectorInput.readOnly = false;
+                }
+                if (addr) addr.value = defaultAddress || '';
+                if (dateInput) {
+                    const today = new Date();
+                    dateInput.value = today.toISOString().split('T')[0];
+                }
+                rateModal.classList.add('modal-open');
+                return;
+            }
+
+            // Rate for a specific request - prefill and lock collector name
+            const idStr = String(requestId ?? '');
+            const request = state.requests.find((r) => String(r.id) === idStr);
+            if (!request) {
+                // fallback to generic behavior
+                showRateCollectorForm();
+                return;
+            }
+
+            if (collectorInput) {
+                collectorInput.value = request.collectorName || '';
+                collectorInput.readOnly = !!(request.collectorName && String(request.collectorName).trim() !== '');
+            }
+            if (custNameInput) {
+                custNameInput.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
+            }
+            if (addr) {
+                addr.value = request.address || defaultAddress || '';
+            }
             if (dateInput) {
-                const today = new Date();
-                dateInput.value = today.toISOString().split('T')[0];
+                const d = request.scheduledAt ? new Date(String(request.scheduledAt).replace(' ', 'T')) : new Date();
+                dateInput.value = formatDateForInput(d);
             }
             rateModal.classList.add('modal-open');
         }
@@ -684,6 +721,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (custName) custName.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
             const addr = document.getElementById('rate_address');
             if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
+            const collectorInput = document.getElementById('rate_collector');
+            if (collectorInput) collectorInput.readOnly = false;
         }
 
         function showEditRequestForm(requestId) {
@@ -974,6 +1013,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     showEditRequestForm(requestId);
                 } else if (action === 'cancel') {
                     cancelRequest(requestId);
+                } else if (action === 'rate') {
+                    showRateCollectorForm(requestId);
                 }
             });
 
