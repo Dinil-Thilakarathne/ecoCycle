@@ -241,14 +241,14 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                             data-id="<?= e((string) $request['id']) ?>">Edit</button>
                                     <?php endif; ?>
 
-                                    <?php if ($canCancel || $normalizedStatus === 'completed'): ?>
-                                        <button class="action-btn delete" data-action="cancel"
-                                            data-id="<?= e((string) $request['id']) ?>">Cancel</button>
-                                    <?php endif; ?>
-
                                     <?php if ($normalizedStatus === 'completed'): ?>
                                         <button class="action-btn view" data-action="rate"
                                             data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>">Rate</button>
+                                    <?php endif; ?>
+
+                                    <?php if ($canCancel || $normalizedStatus === 'completed'): ?>
+                                        <button class="action-btn delete" data-action="cancel"
+                                            data-id="<?= e((string) $request['id']) ?>">Cancel</button>
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <span style="color:#64748b;">-</span>
@@ -344,7 +344,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 </div>
                 <div class="form-group">
                     <label for="rate_description">Description</label>
-                    <input type="text" id="rate_description" name="description" placeholder="Short note (optional)">
+                    <textarea id="rate_description" name="description" rows="2" placeholder="Short note (optional)"></textarea>
                 </div>
             </div>
             <div class="form-actions">
@@ -633,9 +633,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
                         <td>
                             ${canEdit || canCancel || normalizedStatus === 'completed'
-                        ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
+                            ${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
+                                   ${normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : ''}
                                    ${(canCancel || normalizedStatus === 'completed') ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}
-                                   ${normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : ''}`
                         : '<span style="color:#64748b;">-</span>'}
                         </td>
                     </tr>
@@ -686,6 +686,12 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const form = document.getElementById('newRequestForm');
             if (form) {
                 form.reset();
+                // Reset waste category visual states
+                const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    updateCheckboxState(cb);
+                });
             }
         }
 
