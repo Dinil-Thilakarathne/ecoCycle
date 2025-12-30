@@ -235,18 +235,21 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                 </span>
                             </td>
                             <td>
-                                <?php if ($canEdit || $canCancel): ?>
+                                <?php if ($canEdit || $canCancel || $normalizedStatus === 'completed'): ?>
                                     <?php if ($canEdit): ?>
                                         <button class="action-btn view" data-action="edit"
                                             data-id="<?= e((string) $request['id']) ?>">Edit</button>
                                     <?php endif; ?>
-                                    <?php if ($canCancel): ?>
+
+                                    <?php if ($canCancel || $normalizedStatus === 'completed'): ?>
                                         <button class="action-btn delete" data-action="cancel"
                                             data-id="<?= e((string) $request['id']) ?>">Cancel</button>
                                     <?php endif; ?>
-                                <?php elseif ($normalizedStatus === 'completed'): ?>
-                                    <button class="action-btn view" data-action="rate"
-                                        data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>">Rate</button>
+
+                                    <?php if ($normalizedStatus === 'completed'): ?>
+                                        <button class="action-btn view" data-action="rate"
+                                            data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>">Rate</button>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span style="color:#64748b;">-</span>
                                 <?php endif; ?>
@@ -607,10 +610,11 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         <td>${escapeHtml(collector)}</td>
                         <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
                         <td>
-                            ${canEdit || canCancel
+                            ${canEdit || canCancel || normalizedStatus === 'completed'
                         ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
-                                   ${canCancel ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}`
-                        : (normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : '<span style="color:#64748b;">-</span>')}
+                                   ${(canCancel || normalizedStatus === 'completed') ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}
+                                   ${normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : ''}`
+                        : '<span style="color:#64748b;">-</span>'}
                         </td>
                     </tr>
                 `;

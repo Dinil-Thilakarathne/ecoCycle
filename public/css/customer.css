@@ -207,6 +207,43 @@
   gap: var(--space-3);
 }
 
+/* --------------------------------------------------------------------------
+ * Pickup & Rate modal tweaks (reuse profile edit modal styles)
+ * - Keep markup unchanged, use existing utilities where possible
+ * - Ensure action buttons are small and appear on one line like profile edit
+ */
+.modal .modal-content {
+  /* same shell as profile form modal */
+  width: min(640px, 95vw);
+  padding: var(--space-6);
+}
+
+.modal .request-form .form-group textarea {
+  /* slightly shorter textareas for compact popup layout */
+  min-height: 72px;
+}
+
+.modal .form-actions {
+  /* override column layout inside modals to make buttons inline */
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.modal .form-actions .btn {
+  /* keep small, consistent sizing */
+  min-width: 90px;
+}
+
+/* readonly inputs (collector name when auto-assigned) should look visually locked */
+.request-form input[readonly],
+.request-form textarea[readonly] {
+  background: var(--neutral-100);
+  color: var(--neutral-700);
+  cursor: not-allowed;
+}
+
 .p-btn-delete {
   background: var(--danger-light);
   color: var(--danger);
