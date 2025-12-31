@@ -19,6 +19,15 @@ class PaymentController extends BaseController
         $this->service = new PaymentService($this->payments);
     }
 
+    public function index(Request $request): Response
+    {
+        $limit = $request->query('limit') ? (int) $request->query('limit') : 50;
+        $records = $this->payments->listRecent($limit);
+
+        return Response::json([
+            'data' => $records,
+        ]);
+    }
 
     public function store(Request $request): Response
     {
@@ -54,6 +63,39 @@ class PaymentController extends BaseController
         }
 
         return Response::json(['data' => $records]);
+    }
+
+    public function update(Request $request): Response
+    {
+        $id = $this->resolveRouteId($request);
+        if ($id === null) {
+            return Response::errorJson('Payment id is required', 400);
+        }
+
+        $this->mergeJsonBody($request);
+        $data = $request->all();
+
+        // Extract updateable fields
+        $updateData = [];
+        if (isset($data['status'])) $updateData['status'] = $data['status'];
+        if (isset($data['type'])) $updateData['type'] = $data['type'];
+        if (isset($data['amount'])) $updateData['amount'] = $data['amount'];
+        if (isset($data['recipientId'])) $updateData['recipientId'] = $data['recipientId'];
+        if (isset($data['txnId'])) $updateData['txnId'] = $data['txnId'];
+        if (isset($data['gatewayResponse'])) $updateData['gatewayResponse'] = $data['gatewayResponse'];
+
+        try {
+            $record = $this->service->updatePayment($id, $updateData);
+        } catch (\InvalidArgumentException $e) {
+            return Response::errorJson($e->getMessage(), 422);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to update payment', 500, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::json([
+            'message' => 'Payment updated',
+            'data' => $record,
+        ]);
     }
 
     public function show(Request $request): Response
