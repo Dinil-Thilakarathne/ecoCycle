@@ -12,32 +12,7 @@ class Notification extends BaseModel
         $rows = $this->db->fetchAll(
             "SELECT * FROM {$this->table} ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}"
         );
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function systemAlerts(): array
@@ -91,32 +66,7 @@ class Notification extends BaseModel
             );
         }
 
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function create(array $data): int
@@ -142,7 +92,7 @@ class Notification extends BaseModel
         return (int) $this->db->lastInsertId();
     }
 
-    public function forUser(int $userId, int $limit = 20): array
+    public function forUser(int $userId, string $role, int $limit = 20): array
     {
         if ($userId <= 0) {
             return [];
@@ -150,11 +100,14 @@ class Notification extends BaseModel
 
         $limit = max(1, (int) $limit);
         
+        // Map singular role to plural group name if needed, or check both
+        $roleGroup = $role . 's'; // e.g. customer -> customers
+
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users')
+                 WHERE recipient_group IN ('all', 'users', ?, ?)
                     OR EXISTS (
                         SELECT 1
                         FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
@@ -162,46 +115,21 @@ class Notification extends BaseModel
                     )
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                ['user:' . $userId]
+                [$role, $roleGroup, 'user:' . $userId]
             );
         } else {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users')
+                 WHERE recipient_group IN ('all', 'users', ?, ?)
                     OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$userId]
+                [$role, $roleGroup, $userId]
             );
         }
 
-        if (!$rows) {
-            return [];
-        }
-
-        return array_map(function (array $row): array {
-            $recipients = [];
-            if (!empty($row['recipients'])) {
-                $decoded = json_decode($row['recipients'], true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $recipients = $decoded;
-                }
-            }
-            if (empty($recipients) && !empty($row['recipient_group'])) {
-                $recipients = [$row['recipient_group']];
-            }
-
-            return [
-                'id' => $row['id'],
-                'type' => $row['type'] ?? 'info',
-                'title' => $row['title'] ?? '',
-                'message' => $row['message'] ?? '',
-                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
-                'status' => $row['status'] ?? 'pending',
-                'recipients' => $recipients,
-            ];
-        }, $rows);
+        return $this->formatRows($rows);
     }
 
     public function markAsRead(int $id, int $userId): bool
@@ -237,22 +165,24 @@ class Notification extends BaseModel
          }
     }
 
-    public function getUnreadCount(int $userId): int
+    public function getUnreadCount(int $userId, string $role = ''): int
     {
+        $roleGroup = $role ? $role . 's' : '';
+
         if ($this->db->isPgsql()) {
             $result = $this->db->fetch(
                 "SELECT COUNT(*) as count
                  FROM {$this->table}
                  WHERE status != 'read'
                    AND (
-                       recipient_group IN ('all', 'users')
+                       recipient_group IN ('all', 'users', ?, ?)
                        OR EXISTS (
                             SELECT 1
                             FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                             WHERE value = ?
                         )
                    )",
-                ['user:' . $userId]
+                [$role, $roleGroup, 'user:' . $userId]
             );
         } else {
             $result = $this->db->fetch(
@@ -260,18 +190,50 @@ class Notification extends BaseModel
                  FROM {$this->table}
                  WHERE status != 'read'
                    AND (
-                       recipient_group IN ('all', 'users')
+                       recipient_group IN ('all', 'users', ?, ?)
                        OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
                    )",
-                [$userId]
+                [$role, $roleGroup, $userId]
             );
         }
         
         return (int) ($result['count'] ?? 0);
     }
 
-    public function getAll()
+    public function getAll(int $limit = 100): array
     {
-        return $this->db->fetchAll("SELECT * FROM {$this->table}");
+        $limit = max(1, (int) $limit);
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}");
+        return $this->formatRows($rows);
+    }
+
+    private function formatRows($rows): array
+    {
+        if (!$rows || !is_array($rows)) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            $recipients = [];
+            if (!empty($row['recipients'])) {
+                $decoded = json_decode($row['recipients'], true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $recipients = $decoded;
+                }
+            }
+            if (empty($recipients) && !empty($row['recipient_group'])) {
+                $recipients = [$row['recipient_group']];
+            }
+
+            return [
+                'id' => $row['id'],
+                'type' => $row['type'] ?? 'info',
+                'title' => $row['title'] ?? '',
+                'message' => $row['message'] ?? '',
+                'timestamp' => $row['sent_at'] ?? $row['created_at'] ?? null,
+                'status' => $row['status'] ?? 'pending',
+                'recipients' => $recipients,
+            ];
+        }, $rows);
     }
 }

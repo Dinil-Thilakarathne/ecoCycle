@@ -145,6 +145,13 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\Roles\CustomerOnly',
 ]);
 
+// Customer collector ratings
+$router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
