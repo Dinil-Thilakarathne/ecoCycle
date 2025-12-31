@@ -69,12 +69,43 @@ class WasteCategory extends BaseModel
         ];
     }
 
+    public function update(int $id, array $data): bool
+    {
+        $fields = [];
+        $params = [];
+
+        if (isset($data['name'])) {
+            $fields[] = 'name = ?';
+            $params[] = $data['name'];
+        }
+        if (isset($data['unit'])) {
+            $fields[] = 'unit = ?';
+            $params[] = $data['unit'];
+        }
+        if (isset($data['color'])) {
+            $fields[] = 'color = ?';
+            $params[] = $data['color'];
+        }
+        if (isset($data['price_per_unit'])) {
+            $fields[] = 'price_per_unit = ?';
+            $params[] = (float) $data['price_per_unit'];
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $fields[] = 'updated_at = CURRENT_TIMESTAMP';
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
+        $params[] = $id;
+
+        return $this->db->query($sql, $params);
+    }
+
     public function updatePrice(int $id, float $price): bool
     {
-        return $this->db->query(
-            "UPDATE {$this->table} SET price_per_unit = ?, updated_at = NOW() WHERE id = ?",
-            [$price, $id]
-        );
+        return $this->update($id, ['price_per_unit' => $price]);
     }
 
     public function exists(int $id): bool
@@ -98,7 +129,7 @@ class WasteCategory extends BaseModel
         $params = [
             $data['name'] ?? null,
             $data['color'] ?? null,
-            isset($data['basePrice']) ? (float)$data['basePrice'] : ($data['defaultMinimumBid'] ?? null),
+            isset($data['basePrice']) ? (float) $data['basePrice'] : ($data['defaultMinimumBid'] ?? null),
             $data['unit'] ?? 'kg',
         ];
 
@@ -122,7 +153,7 @@ class WasteCategory extends BaseModel
     public function getPricingTiers(): array
     {
         $categories = $this->listAll();
-        
+
         if (empty($categories)) {
             return [];
         }
@@ -143,7 +174,7 @@ class WasteCategory extends BaseModel
         $basePrices = [];
         if ($basePricesRow) {
             foreach ($basePricesRow as $row) {
-                $basePrices[$row['id']] = (float)($row['basePrice'] ?? 50.00);
+                $basePrices[$row['id']] = (float) ($row['basePrice'] ?? 50.00);
             }
         }
 
@@ -183,7 +214,7 @@ class WasteCategory extends BaseModel
     public function getPricingTierById(int $categoryId): ?array
     {
         $allTiers = $this->getPricingTiers();
-        
+
         foreach ($allTiers as $tier) {
             if ($tier['id'] === $categoryId) {
                 return $tier;
@@ -204,7 +235,7 @@ class WasteCategory extends BaseModel
     public function calculatePrice(int $categoryId, float $quantityKg): ?array
     {
         $tier = $this->getPricingTierById($categoryId);
-        
+
         if (!$tier) {
             return null;
         }
@@ -246,7 +277,7 @@ class WasteCategory extends BaseModel
     public function getCategoryStats(int $categoryId): ?array
     {
         $category = $this->findById($categoryId);
-        
+
         if (!$category) {
             return null;
         }
@@ -265,9 +296,9 @@ class WasteCategory extends BaseModel
         return [
             'category' => $category,
             'statistics' => [
-                'total_collections' => (int)($stats['total_collections'] ?? 0),
-                'total_collected_kg' => (float)($stats['total_collected_kg'] ?? 0),
-                'avg_per_collection' => round((float)($stats['avg_per_collection'] ?? 0), 2),
+                'total_collections' => (int) ($stats['total_collections'] ?? 0),
+                'total_collected_kg' => (float) ($stats['total_collected_kg'] ?? 0),
+                'avg_per_collection' => round((float) ($stats['avg_per_collection'] ?? 0), 2),
             ],
             'pricing_info' => $this->getPricingTierById($categoryId),
         ];

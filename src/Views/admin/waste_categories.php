@@ -53,8 +53,8 @@ $categories = $categories ?? [];
                                 <td><?= htmlspecialchars($cat['unit'] ?? 'kg') ?></td>
                                 <td>
                                     <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.85rem;">
-                                                <?= htmlspecialchars($cat['color'] ?? 'N/A') ?>
-                                            </code>
+                                                                <?= htmlspecialchars($cat['color'] ?? 'N/A') ?>
+                                                            </code>
                                 </td>
                                 <td>
                                     <span style="font-weight:600;color:var(--primary-600);">
@@ -62,15 +62,21 @@ $categories = $categories ?? [];
                                     </span>
                                 </td>
                                 <td style="text-align:right;">
-                                    <button class="btn btn-sm btn-outline" onclick="editCategory(<?= htmlspecialchars(json_encode([
-                                        'id' => $cat['id'],
-                                        'name' => $cat['name'],
-                                        'unit' => $cat['unit'] ?? 'kg',
-                                        'color' => $cat['color'] ?? '#000000',
-                                        'price' => $cat['price_per_unit'] ?? 0
-                                    ])) ?>)">
-                                        Edit
-                                    </button>
+                                    <div class="action-buttons" style="justify-content: flex-end;">
+                                        <button class="icon-button" title="Edit" onclick="editCategory(<?= htmlspecialchars(json_encode([
+                                            'id' => $cat['id'],
+                                            'name' => $cat['name'],
+                                            'unit' => $cat['unit'] ?? 'kg',
+                                            'color' => $cat['color'] ?? '#000000',
+                                            'price' => $cat['price_per_unit'] ?? 0
+                                        ])) ?>)">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </button>
+                                        <button class="icon-button danger" title="Delete"
+                                            onclick="deleteCategory(<?= htmlspecialchars($cat['id']) ?>)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

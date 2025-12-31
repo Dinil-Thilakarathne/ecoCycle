@@ -97,7 +97,7 @@ function getFormContent(data = {}) {
                 <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#166534;">Purchase Price (Per Unit)</label>
                 <div style="position:relative;">
                     <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:#166534;font-weight:bold;">Rs</span>
-                    <input type="number" step="0.01" id="cat_price" value="${escapeHtml(
+                    <input type="number" step="0.01" min="0" id="cat_price" value="${escapeHtml(
                       price
                     )}" 
                         style="width:100%;padding:0.5rem 0.5rem 0.5rem 2.5rem;border:1px solid #16a34a;border-radius:0.375rem;color:#166534;font-weight:bold;">
@@ -198,4 +198,35 @@ function openWasteCategoryModal(existingData = null) {
 // Global exposure for edit button
 window.editCategory = function (data) {
   openWasteCategoryModal(data);
+};
+
+// Global exposure for delete button
+window.deleteCategory = async function (id) {
+  if (
+    !confirm(
+      "Are you sure you want to delete this category? This action cannot be undone."
+    )
+  ) {
+    return;
+  }
+
+  try {
+    await apiRequest(`/api/waste-categories/${id}`, "DELETE");
+    showToast("Category deleted successfully", "success");
+    // Remove row from table
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) {
+      row.remove();
+
+      // Check if table is empty
+      const tbody = document.querySelector(".data-table tbody");
+      if (tbody && tbody.children.length === 0) {
+        window.location.reload();
+      }
+    } else {
+      setTimeout(() => window.location.reload(), 1000);
+    }
+  } catch (err) {
+    showToast(err.message, "error");
+  }
 };
