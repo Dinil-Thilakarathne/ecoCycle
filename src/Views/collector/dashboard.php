@@ -109,8 +109,8 @@
     </div>
   </activity-card>
 
-  <!-- 🆕 Bidding Section -->
-  <activity-card title="Bidding Amount Summary " description="Current highest bids for each material for 1 kg">
+  <!-- Amount per unit Section -->
+  <activity-card title="Amount Per Weight Unit " description="Current highest bids for each material for 1 kg">
     <div class="goal">
       <div class="goal-header">
         <span style="display: flex; align-items: center; gap: var(--space-2);">
