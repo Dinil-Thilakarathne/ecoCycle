@@ -76,6 +76,18 @@ class PickupRequestController extends BaseController
             return Response::errorJson('Pickup request not found or cannot be updated', 404);
         }
 
+        // [FUTURE] Wallet Integration
+        // When status is 'completed', we should calculate the total value of the pickup
+        // (based on waste weights * price per unit) and credit the customer's wallet.
+        // currently, the Pricing Engine is not implemented (Phase 2).
+        /*
+        if ($normalizedStatus === 'completed') {
+             // $totalValue = $this->pricingEngine->calculate($id);
+             // $wallet = new \Models\WalletTransaction();
+             // $wallet->logTransaction($record['customer_id'], $totalValue, 'credit', 'pickup', $id, 'Pickup Completed');
+        }
+        */
+
         $fresh = $this->pickupRequest->find($id);
 
         return Response::json([
