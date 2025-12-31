@@ -1,222 +1,148 @@
 <?php
-// Get parameters
-$collectorId = $_GET['collector'] ?? 'COL001';
-$action = $_GET['action'] ?? null;
-$notificationId = $_GET['id'] ?? null;
-$msg = $_GET['msg'] ?? null; // message parameter
+// Variables passed from controller:
+// - $notifications: array of notification rows (may be empty)
+// - $filter, $action, $notificationId, $authUser
 
-// Example notifications
-$notifications = [
-    [
-        'id' => 'N001',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Request Confirmed',
-        'message' => 'Your pickup request PR001 has been confirmed.',
-        'timestamp' => '2024-01-10',
-        'isRead' => false,
-        'isArchived' => false,
-        'priority' => 'high',
-    ],
-    [
-        'id' => 'N002',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Completed',
-        'message' => 'Your pickup PR002 has been completed successfully.',
-        'timestamp' => '2024-01-08',
-        'isRead' => false,
-        'isArchived' => false,
-        'priority' => 'normal',
-    ],
-    [
-        'id' => 'N003',
-        'collector_id' => 'COL001',
-        'title' => 'Payment Processed',
-        'message' => 'Your payment of Rs 127.50 has been processed.',
-        'timestamp' => '2024-01-07',
-        'isRead' => true,
-        'isArchived' => false,
-        'priority' => 'normal',
-    ],
-    [
-        'id' => 'N004',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Reminder',
-        'message' => 'Reminder: Your scheduled pickup is tomorrow.',
-        'timestamp' => '2024-01-14',
-        'isRead' => true,
-        'isArchived' => false,
-        'priority' => 'low',
-    ],
-    [
-        'id' => 'N005',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Cancelled',
-        'message' => 'Your pickup request PR005 has been cancelled.',
-        'timestamp' => '2024-01-03',
-        'isRead' => true,
-        'isArchived' => true,
-        'priority' => 'high',
-    ],
-];
+$notifications = is_array($notifications ?? null) ? $notifications : [];
+$filter = $filter ?? 'all';
+$action = $action ?? null;
+$notificationId = $notificationId ?? null;
 
-// Handle actions
-if ($action === 'mark_read' && $notificationId) {
-    foreach ($notifications as &$notification) {
-        if ($notification['id'] === $notificationId) {
-            $notification['isRead'] = true;
-            break;
-        }
-    }
-    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+marked+as+read");
-    exit;
+// Normalize notifications to a uniform shape used by the view
+$normalized = array_map(function ($n) {
+    $timestamp = $n['timestamp'] ?? ($n['sent_at'] ?? $n['created_at'] ?? null);
+    $isRead = $n['is_read'] ?? ($n['isRead'] ?? false);
+    $priority = $n['priority'] ?? ($n['status'] ?? 'normal');
+    $category = $n['category'] ?? ($n['type'] ?? 'general');
+    return [
+        'id' => (string) ($n['id'] ?? ''),
+        'title' => $n['title'] ?? '',
+        'message' => $n['message'] ?? ($n['data']['message'] ?? ''),
+        'timestamp' => $timestamp,
+        'isRead' => (bool) $isRead,
+        'priority' => $priority,
+        'category' => $category,
+    ];
+}, $notifications);
+
+// Calculate stats
+$totalNotifications = count($normalized);
+$unreadNotifications = count(array_filter($normalized, fn($x) => !$x['isRead'])) ;
+$todayNotifications = count(array_filter($normalized, fn($n) => date('Y-m-d', strtotime($n['timestamp'] ?? '1970-01-01')) === date('Y-m-d')));
+
+function timeAgo($timestamp) {
+    if (!$timestamp) return '';
+    $time = time() - strtotime($timestamp);
+    if ($time < 60) return 'Just now';
+    if ($time < 3600) return floor($time/60) . ' minutes ago';
+    if ($time < 86400) return floor($time/3600) . ' hours ago';
+    if ($time < 2592000) return floor($time/86400) . ' days ago';
+    return date('M j, Y', strtotime($timestamp));
 }
 
-if ($action === 'mark_all_read') {
-    foreach ($notifications as &$notification) {
-        $notification['isRead'] = true;
+function getStatusClass($priority, $isRead) {
+    if (!$isRead) return 'status-unread';
+    switch($priority) {
+        case 'high': return 'status-high';
+        case 'normal': return 'status-normal';
+        case 'low': return 'status-low';
+        default: return 'status-normal';
     }
-    header("Location: notifications-page.php?collector=$collectorId&msg=All+notifications+marked+as+read");
-    exit;
 }
 
-if ($action === 'delete' && $notificationId) {
-    $notifications = array_filter($notifications, fn($n) => $n['id'] !== $notificationId);
-    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+deleted");
-    exit;
-}
-
-// Filter only this collector's notifications
-$collectorNotifications = array_filter($notifications, fn($n) => $n['collector_id'] === $collectorId);
-
-// Categorize
-$total = $collectorNotifications;
-$unread = array_filter($collectorNotifications, fn($n) => !$n['isRead'] && !$n['isArchived']);
-$read = array_filter($collectorNotifications, fn($n) => $n['isRead'] && !$n['isArchived']);
-$archived = array_filter($collectorNotifications, fn($n) => $n['isArchived']);
-
-// Functions
-function renderNotifications($list, $filter = 'all')
-{
-    if (empty($list)) {
-        echo "<tr><td colspan='5' style='text-align:center;'>No notifications found</td></tr>";
-        return;
-    }
-
-    foreach ($list as $n) {
-        echo "<tr>
-            <td><strong>{$n['title']}</strong><br><small>{$n['message']}</small></td>
-            <td>" . date('M j, Y', strtotime($n['timestamp'])) . "</td>
-            <td>" . ($n['isRead'] ? 'Read' : 'Unread') . "</td>
-            <td>";
-
-        if (!$n['isRead']) {
-            echo "<a href='?action=mark_read&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                    class='btn btn-sm btn-info'>Mark Read</a> ";
-        }
-
-        echo "<a href='?action=view&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                class='btn btn-sm btn-secondary'>View</a> ";
-
-        echo "<a href='?action=delete&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                class='btn btn-sm btn-danger' 
-                onclick=\"return confirm('Are you sure you want to delete this notification?')\">Delete</a>";
-
-        echo "</td></tr>";
-    }
+function truncateMessage($message, $length = 80) {
+    if (strlen($message) <= $length) return $message;
+    return substr($message, 0, $length) . '...';
 }
 ?>
 
-<div>
-    <div class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Notifications</h2>
-            <p class="page-header__description">View and manage your notifications</p>
-        </div>
+<div class="dashboard-page">
+    <style>
+        .notification-row.unread .notification-title { font-weight: 700; }
+        .notification-row.unread { background: #f0fff4; }
+        .notifications-table .notification-row:hover { background: #f5f5f5; }
+    </style>
+
+    <div class="header"></div>
+
+    <div class="stats-grid">
+        <?php $stats = [
+            ['title' => 'Total Notifications','value' => $totalNotifications,'icon' => 'fa-solid fa-bell','subtitle' => 'All time'],
+            ['title' => 'Unread','value' => $unreadNotifications,'icon' => 'fa-solid fa-envelope-open','subtitle'=>'Need attention'],
+            ['title' => 'Today','value' => $todayNotifications,'icon' => 'fa-solid fa-calendar-day','subtitle'=>'Received today'],
+        ];
+        foreach ($stats as $stat): ?>
+            <div class="feature-card">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title"><?= htmlspecialchars($stat['title']) ?></h3>
+                    <div class="feature-card__icon"><i class="<?= htmlspecialchars($stat['icon']) ?>"></i></div>
+                </div>
+                <p class="feature-card__body"><?= htmlspecialchars($stat['value']) ?></p>
+                <div class="feature-card__footer"><span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span></div>
+            </div>
+        <?php endforeach; ?>
     </div>
 
+    <div class="action-buttons" style="margin-bottom:2rem;">
+        <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread (<?php echo $unreadNotifications; ?>)</a>
+        <a href="?filter=pickup" class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
+        <a href="?filter=payment" class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
+        <a href="?action=mark_all_read" class="btn btn-outline">Mark All Read</a>
+    </div>
 
-    <?php if ($msg): ?>
-        <div class="alert alert-success"
-            style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
-            <?= htmlspecialchars($msg) ?>
-        </div>
-    <?php endif; ?>
-
-    <div class="tabs">
-        <div class="tabs-list">
-            <button class="tabs-trigger active" onclick="showTab('total')" id="total-tab">Total
-                (<?= count($total) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('unread')" id="unread-tab">Unread
-                (<?= count($unread) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('read')" id="read-tab">Read (<?= count($read) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('archived')" id="archived-tab">Archived
-                (<?= count($archived) ?>)</button>
-        </div>
-
-        <div class="tabs-content active" id="total-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($total); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="unread-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($unread); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="read-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($read); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="archived-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($archived); ?></tbody>
-            </table>
-        </div>
+    <div class="table-container" style="overflow-x:auto;">
+        <table class="notifications-table data-table" style="min-width:800px;">
+            <thead>
+                <tr>
+                    <th>Notification</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($normalized)): ?>
+                    <tr><td colspan="5" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>
+                <?php else: ?>
+                    <?php foreach ($normalized as $notification): ?>
+                        <tr class="notification-row <?php echo !$notification['isRead'] ? 'unread' : ''; ?>" data-id="<?php echo $notification['id']; ?>">
+                            <td class="notification-info">
+                                <div class="notification-details">
+                                    <?php if (!$notification['isRead']): ?><span class="unread-dot" aria-hidden="true"></span><?php endif; ?>
+                                    <div class="notification-title"><?php echo htmlspecialchars($notification['title']); ?></div>
+                                    <div class="notification-message"><?php echo htmlspecialchars(truncateMessage($notification['message'])); ?></div>
+                                </div>
+                            </td>
+                            <td><span class="type-badge <?php echo $notification['category']; ?>"><?php echo ucfirst($notification['category']); ?></span></td>
+                            <td class="time-cell"><?php echo timeAgo($notification['timestamp']); ?></td>
+                            <td><span class="status-badge <?php echo getStatusClass($notification['priority'], $notification['isRead']); ?>"><?php echo !$notification['isRead'] ? 'Unread' : 'Read'; ?></span></td>
+                            <td class="actions-cell">
+                                <?php if (!$notification['isRead']): ?>
+                                    <a href="?action=mark_read&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn mark-read">Mark Read</a>
+                                <?php endif; ?>
+                                <a href="?action=view&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>" class="action-btn view">View</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<script>
-    function showTab(tab) {
-        document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
-        document.getElementById(tab + '-content').classList.add('active');
-        document.getElementById(tab + '-tab').classList.add('active');
-    }
-</script>
+<?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
+    <?php $id = $_GET['id']; $view = null; foreach ($normalized as $n) { if ($n['id'] === $id) { $view = $n; break; }} ?>
+    <?php if ($view): ?>
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header"><h2><?php echo htmlspecialchars($view['title']); ?></h2><a href="?filter=<?php echo $filter; ?>" class="modal-close">×</a></div>
+                <div class="modal-body"><p><?php echo htmlspecialchars($view['message']); ?></p><div class="detail-timestamp"><strong>Received:</strong> <?php echo date('F j, Y \a\t g:i A', strtotime($view['timestamp'])); ?></div></div>
+                <div class="modal-footer">
+                    <?php if (!$view['isRead']): ?><a href="?action=mark_read&id=<?php echo $view['id']; ?>&filter=<?php echo $filter; ?>" class="btn-primary">Mark as Read</a><?php endif; ?>
+                    <a href="?filter=<?php echo $filter; ?>" class="btn-secondary">Close</a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+<?php endif; ?>

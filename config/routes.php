@@ -368,26 +368,26 @@ $router->post('/api/analytics/feedback', 'Controllers\Api\AnalyticsController@ad
 ]);
 
 // Waste collection report
-$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportsController@wasteCollection', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 // Bidding analytics report
-$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportsController@bidding', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 // Revenue reports
-$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportsController@revenue', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 
 // Export report (CSV / PDF)
-$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
+$router->post('/api/reports/export', 'Controllers\Api\ReportsController@export', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);

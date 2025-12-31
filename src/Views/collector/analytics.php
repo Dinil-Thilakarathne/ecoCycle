@@ -58,6 +58,39 @@ $collectorFeedback = []; // Will be populated by JavaScript
         <canvas id="wasteChart" style="max-height: 380px;"></canvas>
     </div>
 
+    <!-- Waste Collection Table -->
+    <div class="activity-card">
+        <div class="activity-card__header">
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-trash" style="margin-right: 8px;"></i>
+                Waste Collection Details
+            </h3>
+            <p class="activity-card__description">Track waste pickups by customer and category</p>
+        </div>
+        <div class="activity-card__content">
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th><i class="fa-solid fa-id-card"></i> Customer ID</th>
+                            <th><i class="fa-solid fa-user"></i> Customer Name</th>
+                            <th><i class="fa-solid fa-box"></i> Waste Category</th>
+                            <th><i class="fa-solid fa-weight"></i> Weight (kg)</th>
+                            <th><i class="fa-solid fa-money-bill"></i> Amount (Rs)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wasteCollectionTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: var(--space-16);">
+                                <span class="loading">Loading waste collection data...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Feedback Table -->
     <div class="activity-card">
         <div class="activity-card__header">
@@ -140,6 +173,9 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 loadWasteChart(metricsData.data.waste_collection);
             }
 
+            // Load waste collection details
+            loadWasteCollectionTable();
+
             // Load feedback
             const feedbackResponse = await fetch('/api/analytics/collector-feedback?limit=50', {
                 method: 'GET',
@@ -169,6 +205,41 @@ $collectorFeedback = []; // Will be populated by JavaScript
             console.error('Error loading analytics data:', error);
             document.getElementById('feedbackTableBody').innerHTML = `
                 <tr><td colspan="5" style="text-align: center; color: red;">Error loading feedback data</td></tr>
+            `;
+        }
+    }
+
+    // Load waste collection details
+    async function loadWasteCollectionTable() {
+        try {
+            const response = await fetch('/api/analytics/waste-stats?limit=50', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const tableBody = document.getElementById('wasteCollectionTableBody');
+
+                if (data.data && data.data.length > 0) {
+                    tableBody.innerHTML = data.data.map(item => `
+                        <tr>
+                            <td>${escapeHtml(item.customer_id || '-')}</td>
+                            <td>${escapeHtml(item.customer_name || 'Unknown')}</td>
+                            <td><span class="badge" style="background-color: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px;">${escapeHtml(item.waste_category || '-')}</span></td>
+                            <td>${parseFloat(item.weight || 0).toFixed(2)} kg</td>
+                            <td style="font-weight: 600;">Rs ${parseFloat(item.amount || 0).toFixed(2)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No waste collection records found.</td></tr>';
+                }
+            }
+        } catch (error) {
+            console.error('Error loading waste collection data:', error);
+            document.getElementById('wasteCollectionTableBody').innerHTML = `
+                <tr><td colspan="5" style="text-align: center; color: red;">Error loading waste collection data</td></tr>
             `;
         }
     }
