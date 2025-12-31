@@ -80,5 +80,47 @@ class PaymentService
 
         return $record;
     }
+
+    public function updatePayment(string $id, array $data): array
+    {
+        $existing = $this->payments->findById($id);
+        if (!$existing) {
+            throw new \InvalidArgumentException('Payment not found.');
+        }
+
+        // Validate if status is being updated
+        if (isset($data['status'])) {
+            $status = strtolower((string) $data['status']);
+            if (!in_array($status, ['pending', 'processing', 'completed', 'failed'], true)) {
+                throw new \InvalidArgumentException('Unsupported payment status.');
+            }
+            $data['status'] = $status;
+        }
+
+        // Validate if type is being updated
+        if (isset($data['type'])) {
+            $type = strtolower((string) $data['type']);
+            if (!in_array($type, ['payment', 'payout', 'refund'], true)) {
+                throw new \InvalidArgumentException('Unsupported payment type.');
+            }
+            $data['type'] = $type;
+        }
+
+        // Validate amount if provided
+        if (isset($data['amount'])) {
+            $amount = (float) $data['amount'];
+            if ($amount <= 0) {
+                throw new \InvalidArgumentException('Amount must be greater than zero.');
+            }
+            $data['amount'] = round($amount, 2);
+        }
+
+        $success = $this->payments->update($id, $data);
+        if (!$success) {
+            throw new \RuntimeException('Failed to update payment record.');
+        }
+
+        return $this->payments->findById($id) ?? [];
+    }
 }
 

@@ -151,6 +151,11 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\Roles\CollectorOnly',
 ]);
 
+$router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
     'Middleware\AuthMiddleware',
     // 'Middleware\CsrfMiddleware',
@@ -160,6 +165,12 @@ $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
 $router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
     'Middleware\AuthMiddleware',
     // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/payments/{id}', 'Controllers\Api\PaymentController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
