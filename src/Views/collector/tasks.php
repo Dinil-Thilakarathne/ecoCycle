@@ -120,6 +120,13 @@ function getStatusBadge($status)
             <div><strong>Status</strong></div>
             <div class="pd-status"></div>
         </div>
+        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
+            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+            <div>
+                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50" style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
+                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please enter a valid weight greater than 0.</div>
+            </div>
+        </div>
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
@@ -152,10 +159,16 @@ function getStatusBadge($status)
         btn.disabled = false;
         if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
+            document.getElementById('weight-entry-row').style.display = 'none';
         } else if (statusValue === 'in progress') {
             btn.textContent = 'Mark as Completed';
+            // show weight input when task is in progress and collector will complete it
+            document.getElementById('weight-entry-row').style.display = '';
+            document.getElementById('weightInput').value = '';
+            document.getElementById('weightError').style.display = 'none';
         } else {
             btn.style.display = 'none';
+            document.getElementById('weight-entry-row').style.display = 'none';
         }
 
         modal.setAttribute('data-current-id', record.id);
@@ -181,6 +194,19 @@ function getStatusBadge($status)
         btn.textContent = 'Updating...';
 
         try {
+            const payloadBody = { status: nextTarget };
+            if (nextTarget === 'completed') {
+                const weightEl = document.getElementById('weightInput');
+                const weightVal = weightEl ? parseFloat(weightEl.value) : NaN;
+                if (isNaN(weightVal) || weightVal <= 0) {
+                    document.getElementById('weightError').style.display = '';
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+                payloadBody.weight = weightVal;
+            }
+
             const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
                 method: 'PUT',
                 headers: {
@@ -188,7 +214,7 @@ function getStatusBadge($status)
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ status: nextTarget })
+                body: JSON.stringify(payloadBody)
             });
 
             const payload = await response.json().catch(() => ({}));

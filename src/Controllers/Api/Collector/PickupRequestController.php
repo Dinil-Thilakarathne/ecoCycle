@@ -36,6 +36,13 @@ class PickupRequestController extends BaseController
             return Response::errorJson('Invalid status provided', 422, ['status' => 'Status is required and must be a valid value.']);
         }
 
+        // If completing, expect a measured weight (optional for other transitions)
+        $weightInput = $request->input('weight', null);
+        $weight = null;
+        if ($weightInput !== null && $weightInput !== '') {
+            $weight = is_numeric($weightInput) ? (float) $weightInput : null;
+        }
+
         $collectorId = (int) $user['id'];
 
         try {
@@ -66,8 +73,15 @@ class PickupRequestController extends BaseController
 
         $dbStatus = $this->mapStatusForDatabase($normalizedStatus);
 
+        // If moving to completed, ensure weight provided and valid
+        if ($normalizedStatus === 'completed') {
+            if ($weight === null || $weight <= 0) {
+                return Response::errorJson('Measured weight is required when completing a pickup', 422, ['weight' => 'Provide a numeric weight greater than 0.']);
+            }
+        }
+
         try {
-            $success = $this->pickupRequest->updateStatusForCollector($id, $collectorId, $dbStatus);
+            $success = $this->pickupRequest->updateStatusForCollector($id, $collectorId, $dbStatus, $weight);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update pickup status', 500, ['detail' => $e->getMessage()]);
         }

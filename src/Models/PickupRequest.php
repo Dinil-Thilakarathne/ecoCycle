@@ -278,9 +278,28 @@ class PickupRequest extends BaseModel
             return false;
         }
 
+        // If a weight is provided, update the weight column as well (measured by collector)
+        // $weight may be provided via an appended parameter; to maintain backwards compatibility
+        // we will accept an optional fourth parameter.
+        $args = func_get_args();
+        $weight = null;
+        if (count($args) >= 4) {
+            $weight = $args[3];
+            if ($weight !== null) {
+                $weight = (float) $weight;
+            }
+        }
+
+        if ($weight === null) {
+            return $this->db->query(
+                "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
+                [$status, $id, $collectorId]
+            );
+        }
+
         return $this->db->query(
-            "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
-            [$status, $id, $collectorId]
+            "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
+            [$status, $weight, $id, $collectorId]
         );
     }
 
@@ -415,6 +434,7 @@ class PickupRequest extends BaseModel
             'collectorName' => $row['collector_name'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
+            'weight' => isset($row['weight']) && $row['weight'] !== null ? (float) $row['weight'] : null,
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
