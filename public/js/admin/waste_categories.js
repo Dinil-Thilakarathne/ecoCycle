@@ -105,6 +105,20 @@ function getFormContent(data = {}) {
                 <p style="margin-top:0.5rem;font-size:0.8rem;color:#15803d;">
                     This is the amount paid to customers for each unit of waste collected.
                 </p>
+                </p>
+            </div>
+
+            <div style="background:#fef3c7;padding:1rem;border-radius:0.5rem;border:1px solid #fcd34d;">
+                <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#92400e;">Markup Percentage (%)</label>
+                <div style="position:relative;">
+                    <input type="number" step="0.01" min="0" id="cat_markup" value="${escapeHtml(
+                      data.markup || "0.00"
+                    )}" 
+                        style="width:100%;padding:0.5rem;border:1px solid #d97706;border-radius:0.375rem;color:#92400e;font-weight:bold;">
+                </div>
+                <p style="margin-top:0.5rem;font-size:0.8rem;color:#b45309;">
+                    The percentage increase for starting bids in auctions.
+                </p>
             </div>
         </div>
     `;
@@ -149,6 +163,8 @@ function openWasteCategoryModal(existingData = null) {
           const color = formContent.querySelector("#cat_color").value.trim();
           const price =
             parseFloat(formContent.querySelector("#cat_price").value) || 0;
+          const markup =
+            parseFloat(formContent.querySelector("#cat_markup").value) || 0;
 
           if (!name) {
             showToast("Category name is required", "error");
@@ -163,6 +179,7 @@ function openWasteCategoryModal(existingData = null) {
               unit,
               color,
               pricePerUnit: price,
+              markupPercentage: markup,
             };
 
             let response;

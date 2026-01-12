@@ -25,6 +25,7 @@ $categories = $categories ?? [];
                         <th>Unit</th>
                         <th>Color Code</th>
                         <th>Purchase Price (Per Unit)</th>
+                        <th>Markup (%)</th>
                         <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
@@ -41,7 +42,8 @@ $categories = $categories ?? [];
                                 data-name="<?= htmlspecialchars($cat['name']) ?>"
                                 data-unit="<?= htmlspecialchars($cat['unit'] ?? 'kg') ?>"
                                 data-color="<?= htmlspecialchars($cat['color'] ?? '#000000') ?>"
-                                data-price="<?= htmlspecialchars($cat['price_per_unit'] ?? 0) ?>">
+                                data-price="<?= htmlspecialchars($cat['price_per_unit'] ?? 0) ?>"
+                                data-markup="<?= htmlspecialchars($cat['markup_percentage'] ?? 0) ?>">
 
                                 <td class="font-medium">
                                     <div style="display:flex;align-items:center;gap:0.5rem;">
@@ -53,12 +55,17 @@ $categories = $categories ?? [];
                                 <td><?= htmlspecialchars($cat['unit'] ?? 'kg') ?></td>
                                 <td>
                                     <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.85rem;">
-                                                                <?= htmlspecialchars($cat['color'] ?? 'N/A') ?>
-                                                            </code>
+                                                                        <?= htmlspecialchars($cat['color'] ?? 'N/A') ?>
+                                                                    </code>
                                 </td>
                                 <td>
                                     <span style="font-weight:600;color:var(--primary-600);">
                                         Rs <?= number_format((float) ($cat['price_per_unit'] ?? 0), 2) ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-weight:600;color:var(--secondary-600);">
+                                        <?= number_format((float) ($cat['markup_percentage'] ?? 0), 2) ?>%
                                     </span>
                                 </td>
                                 <td style="text-align:right;">
@@ -68,7 +75,8 @@ $categories = $categories ?? [];
                                             'name' => $cat['name'],
                                             'unit' => $cat['unit'] ?? 'kg',
                                             'color' => $cat['color'] ?? '#000000',
-                                            'price' => $cat['price_per_unit'] ?? 0
+                                            'price' => $cat['price_per_unit'] ?? 0,
+                                            'markup' => $cat['markup_percentage'] ?? 0
                                         ])) ?>)">
                                             <i class="fa-solid fa-edit"></i>
                                         </button>

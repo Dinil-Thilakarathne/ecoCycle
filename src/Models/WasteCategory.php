@@ -8,7 +8,7 @@ class WasteCategory extends BaseModel
 
     public function listAll(): array
     {
-        $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit FROM {$this->table} ORDER BY name ASC");
+        $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} ORDER BY name ASC");
         if (!$rows) {
             return [];
         }
@@ -20,6 +20,7 @@ class WasteCategory extends BaseModel
                 'color' => $row['color'] ?? null,
                 'unit' => $row['unit'] ?? 'kg',
                 'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
+                'markupPercentage' => isset($row['markup_percentage']) ? (float) $row['markup_percentage'] : 0.0,
             ];
         }, $rows);
     }
@@ -27,7 +28,7 @@ class WasteCategory extends BaseModel
     public function findById(int $id): ?array
     {
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE id = ? LIMIT 1",
+            "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE id = ? LIMIT 1",
             [$id]
         );
 
@@ -41,6 +42,7 @@ class WasteCategory extends BaseModel
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
             'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
+            'markupPercentage' => isset($row['markup_percentage']) ? (float) $row['markup_percentage'] : 0.0,
         ];
     }
 
@@ -52,7 +54,7 @@ class WasteCategory extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+            "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
             [$trimmed]
         );
 
@@ -66,6 +68,7 @@ class WasteCategory extends BaseModel
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
             'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
+            'markupPercentage' => isset($row['markup_percentage']) ? (float) $row['markup_percentage'] : 0.0,
         ];
     }
 
@@ -89,6 +92,10 @@ class WasteCategory extends BaseModel
         if (isset($data['price_per_unit'])) {
             $fields[] = 'price_per_unit = ?';
             $params[] = (float) $data['price_per_unit'];
+        }
+        if (isset($data['markup_percentage'])) {
+            $fields[] = 'markup_percentage = ?';
+            $params[] = (float) $data['markup_percentage'];
         }
 
         if (empty($fields)) {
@@ -123,7 +130,7 @@ class WasteCategory extends BaseModel
      */
     public function create(array $data): array
     {
-        $sql = "INSERT INTO {$this->table} (name, color, default_minimum_bid, unit, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+        $sql = "INSERT INTO {$this->table} (name, color, default_minimum_bid, unit, price_per_unit, markup_percentage, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
 
         // Map incoming keys: controller uses 'basePrice' so map it to default_minimum_bid
         $params = [
@@ -131,6 +138,8 @@ class WasteCategory extends BaseModel
             $data['color'] ?? null,
             isset($data['basePrice']) ? (float) $data['basePrice'] : ($data['defaultMinimumBid'] ?? null),
             $data['unit'] ?? 'kg',
+            $data['price_per_unit'] ?? 0.0,
+            $data['markup_percentage'] ?? 0.0,
         ];
 
         if ($this->db->isPgsql()) {

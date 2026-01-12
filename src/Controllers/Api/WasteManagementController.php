@@ -22,7 +22,7 @@ class WasteManagementController extends BaseController
     // GET /api/waste-categories
     public function index(Request $request): Response
     {
-        $records = $this->categories->findAll();
+        $records = $this->categories->listAll();
 
         return Response::json([
             'data' => $records
@@ -77,16 +77,16 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
-        $oldData = $this->categories->findById((int)$id);
+        $oldData = $this->categories->findById((int) $id);
         if (!$oldData) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
-            $this->categories->update((int)$id, $payload['data']);
+            $this->categories->update((int) $id, $payload['data']);
 
             // Get updated record
-            $updatedRecord = $this->categories->findById((int)$id);
+            $updatedRecord = $this->categories->findById((int) $id);
 
             // Broadcast update event
             $this->eventService->broadcastUpdated($updatedRecord, $oldData);
@@ -115,10 +115,10 @@ class WasteManagementController extends BaseController
         }
 
         try {
-            $this->categories->delete((int)$id);
+            $this->categories->delete((int) $id);
 
             // Broadcast deletion event
-            $this->eventService->broadcastDeleted((int)$id);
+            $this->eventService->broadcastDeleted((int) $id);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to delete category', 500, [
                 'detail' => $e->getMessage()
@@ -157,6 +157,11 @@ class WasteManagementController extends BaseController
                 $errors['pricePerUnit'] = 'Price must be a positive number.';
             }
         }
+        if (isset($data['markupPercentage'])) {
+            if (!is_numeric($data['markupPercentage']) || (float) $data['markupPercentage'] < 0) {
+                $errors['markupPercentage'] = 'Markup percentage must be non-negative.';
+            }
+        }
 
         if (!empty($errors)) {
             return ['errors' => $errors];
@@ -172,6 +177,8 @@ class WasteManagementController extends BaseController
             $mapped['color'] = $data['color'];
         if (isset($data['pricePerUnit']))
             $mapped['price_per_unit'] = (float) $data['pricePerUnit'];
+        if (isset($data['markupPercentage']))
+            $mapped['markup_percentage'] = (float) $data['markupPercentage'];
 
         return ['data' => $mapped];
     }
