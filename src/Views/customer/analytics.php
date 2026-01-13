@@ -69,7 +69,7 @@ $wasteTypeData = [
         <!-- Multi-bar graph for waste types per month (last 3 months) -->
         <div class="feature-card">
             <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h2 class="section-title" style="font-size:1.125rem;font-weight:500;color:#1e293b;">Weight of Waste Types</h2>
+                <h2 class="section-title" style="font-size:1.25rem;font-weight:500;color:#1e293b;"><b>Weight of Waste Types</b></h2>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <div class="month-picker-control" style="position:relative;display:flex;align-items:center;">
                         <input type="text" id="wasteMonthDisplay" readonly aria-haspopup="dialog" aria-controls="wasteMonthPanel" style="padding:6px 8px;font-size:1.12rem;min-width:160px;font-weight:600;" />
@@ -101,15 +101,25 @@ $wasteTypeData = [
         </div>
         <!-- Bar graph for income per month -->
         <div class="feature-card">
-            <div class="section-header" style="margin-bottom:1rem;">
-                <h2 class="section-title"
-                    style="font-size:1.25rem;font-weight:600;color:#1e293b;text-align:center;margin-left:2.5rem;">
-                    Monthly Income</h2>
+            <div class="section-header" style="margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;">
+                <h2 class="section-title" style="font-size:1.25rem;font-weight:600;color:#1e293b;margin:0;">Monthly Income</h2>
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:8px;position:relative;">
+                        <label for="incomeYearSelect" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Select year</label>
+                        <select id="incomeYearSelect" aria-label="Select year" style="padding:6px 8px;border-radius:6px;font-weight:500;border:1px solid #e5e7eb;background:#fff;width:116px;font-size:0.95rem;">
+                            <!-- options populated by JS -->
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div style="height:320px;width:100%;">
-                <canvas id="incomeBarChart" style="width:100%;height:100%;"></canvas>
+            <div style="width:100%;">
+                <div id="incomeChartScroll" style="overflow-x:auto;white-space:nowrap;padding-bottom:8px;scroll-behavior:smooth;">
+                    <div style="display:inline-block;min-width:960px;">
+                        <canvas id="incomeBarChart" style="width:100%;height:300px;min-width:960px;"></canvas>
+                    </div>
+                </div>
             </div>
-        </div>
+        </div> 
     </div>
 </div>
 
@@ -318,55 +328,135 @@ $wasteTypeData = [
             panelYear = Number(selectedYM.split('-')[0]);
             renderForMonth(selectedYM);
         })();
+
+        // -------------------------- Income chart (12 months, scrollable) --------------------------
+        // Elements (added to DOM): #incomeYearSelect, #incomeChartScroll
+        const incomeYearSelect = document.getElementById('incomeYearSelect');
+        const incomeChartScroll = document.getElementById('incomeChartScroll');
+        const incomeCanvasWrapper = incomeChartScroll ? incomeChartScroll.querySelector('div') : null;
+        let incomeChart = null;
+        const thisYear = new Date().getFullYear();
+        let incomeYear = thisYear;
+        const minIncomeYear = availableMonths.length ? Math.min(...availableMonths.map(s => Number(s.split('-')[0]))) : (thisYear - 5);
+        const maxIncomeYear = thisYear;
+
+        function populateIncomeYears(initYear){
+            if (!incomeYearSelect) return;
+            incomeYearSelect.innerHTML = '';
+
+            // Show a compact recent range: last 5 years or from minIncomeYear if older
+            const startYear = Math.min(maxIncomeYear, Math.max(minIncomeYear, maxIncomeYear - 4));
+            for (let y = maxIncomeYear; y >= startYear; y--){
+                const opt = document.createElement('option');
+                opt.value = String(y);
+                opt.textContent = String(y);
+                incomeYearSelect.appendChild(opt);
+            }
+
+            incomeYearSelect.value = String(initYear || thisYear);
+            incomeYearSelect.addEventListener('change', () => { renderIncomeYear(Number(incomeYearSelect.value)); });
+        }
+
+        function computeIncomeForYear(year){
+            const labels = [];
+            const data = [];
+            // Example rate: Rs per kg (adjust later if you prefer a real formula)
+            const rate = 100;
+            for (let m=1; m<=12; m++){
+                const mm = String(m).padStart(2,'0');
+                const ym = `${year}-${mm}`;
+                labels.push(new Date(year, m-1).toLocaleString(undefined, { month: 'short' }));
+                const monthObj = monthlyData.find(x => x.month === ym);
+                if (monthObj){
+                    const totalWeight = Object.keys(monthObj).filter(k => k !== 'month' && k !== 'label').reduce((s,k) => s + Number(monthObj[k] || 0), 0);
+                    data.push(Math.round(totalWeight * rate));
+                } else {
+                    data.push(0);
+                }
+            }
+            return { labels, data };
+        }
+
+        function renderIncomeYear(year){
+            incomeYear = year;
+            if (incomeYearSelect) incomeYearSelect.value = String(year);
+            const out = computeIncomeForYear(year);
+            // adjust canvas wrapper width so scrollbar appears when necessary
+            if (incomeCanvasWrapper) incomeCanvasWrapper.style.minWidth = `${12 * 80}px`; // 80px per month
+
+            const canvas = document.getElementById('incomeBarChart');
+            if (!canvas) return;
+            const ctxI = canvas.getContext('2d');
+
+            // show placeholder when no data exists for the year
+            const hasAny = out.data.some(v => v > 0);
+            const wrapper = canvas.parentElement;
+            if (!hasAny){
+                // overlay small notice
+                if (wrapper && !wrapper.querySelector('.no-income')){
+                    const el = document.createElement('div');
+                    el.className = 'no-income';
+                    el.style.position = 'absolute';
+                    el.style.left = '8px';
+                    el.style.top = '8px';
+                    el.style.background = 'rgba(34,197,94,0.08)';
+                    el.style.border = '1px solid rgba(34,197,94,0.15)';
+                    el.style.color = '#065f46';
+                    el.style.padding = '6px 8px';
+                    el.style.borderRadius = '6px';
+                    el.style.fontWeight = '600';
+                    el.textContent = 'No income data for this year';
+                    wrapper.appendChild(el);
+                }
+            } else {
+                const prev = wrapper && wrapper.querySelector('.no-income');
+                if (prev) prev.remove();
+            }
+
+            if (incomeChart){
+                incomeChart.data.labels = out.labels;
+                incomeChart.data.datasets[0].data = out.data;
+                incomeChart.update();
+            } else {
+                incomeChart = new Chart(ctxI, {
+                    type: 'bar',
+                    data: {
+                        labels: out.labels,
+                        datasets: [{
+                            label: 'Income (Rs)',
+                            data: out.data,
+                            backgroundColor: '#22c55e',
+                            borderRadius: 6,
+                            maxBarThickness: 60
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                            y: { beginAtZero: true, ticks: { color: '#64748b', callback: v => 'Rs ' + v.toLocaleString() }, title: { display: true, text: 'Income (Rs)' } }
+                        }
+                    }
+                });
+            }
+
+            // reset scroll to left
+            if (incomeChartScroll) incomeChartScroll.scrollLeft = 0;
+        }
+
+        // populate year select and initial render for current year (or latest available year)
+        const initIncomeYear = availableMonths.length ? Math.max(...availableMonths.map(s => Number(s.split('-')[0]))) : thisYear;
+        populateIncomeYears(initIncomeYear);
+        renderIncomeYear(initIncomeYear);
     }
 
     initWhenReady();
 })();
 
-    // Example income data for last 5 months (in Rs)
-    const incomeMonths = ['Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const incomeData = [9500, 11200, 12000, 13500, 14200];
-    const ctxIncome = document.getElementById('incomeBarChart').getContext('2d');
-    new Chart(ctxIncome, {
-        type: 'bar',
-        data: {
-            labels: incomeMonths,
-            datasets: [{
-                label: 'Income (Rs)',
-                data: incomeData,
-                backgroundColor: '#22c55e',
-                borderRadius: 6,
-                maxBarThickness: 28,
-                barPercentage: 0.6,
-                categoryPercentage: 0.6
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#64748b', font: { weight: 'bold' } },
-                    title: { display: true, text: 'Month' }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
-                    ticks: {
-                        color: '#64748b',
-                        callback: function (value) { return 'Rs ' + value.toLocaleString(); }
-                    },
-                    title: { display: true, text: 'Income (Rs)' }
-                }
-            }
-        }
-    });
+    // Legacy demo income chart removed — using a scrollable 12-month income chart rendered above with year controls.
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 
 <script>
     // PHP to JS data transfer
