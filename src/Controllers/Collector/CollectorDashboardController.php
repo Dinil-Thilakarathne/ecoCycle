@@ -7,6 +7,7 @@ use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
+use Models\IncomeWaste;
 
 /**
  * Collector Dashboard Controller
@@ -480,4 +481,89 @@ class CollectorDashboardController extends DashboardController
 
         return [$first, $last];
     }
+
+
+/**
+ * Update pickup request status (collector workflow)
+ * 
+ * - Status can be: 'assigned' → 'in_progress' → 'completed'
+ * - Weight is entered when completing the task
+ * - Price is automatically calculated as weight × price_per_unit
+ */
+
+public function updatePickupStatus(): \Core\Http\Response
+{
+    $request = request();
+    $pickupId = (int) $request->route('id');
+    $status   = $request->input('status');
+    $weight   = (float) $request->input('weight');
+
+    $allowedStatuses = ['in_progress', 'completed'];
+    if (!in_array($status, $allowedStatuses, true)) {
+        return response()->json(['message' => 'Invalid status'], 400);
+    }
+
+    $collectorId = (int) ($this->user['id'] ?? 0);
+    $pickupModel = new PickupRequest();
+    $pickup = $pickupModel->findForCollector($pickupId, $collectorId);
+
+    if (!$pickup) {
+        return response()->json(['message' => 'Pickup not found'], 404);
+    }
+
+    // -------------------------------
+    // Update status
+    // -------------------------------
+    $updateData = ['status' => $status];
+
+    try {
+        // If completed, update weight and calculate amounts
+        if ($status === 'completed') {
+
+            if ($weight <= 0) {
+                return response()->json(['message' => 'Invalid weight'], 400);
+            }
+
+            $updateData['weight'] = round($weight, 2);
+
+            $incomeModel = new IncomeWaste();
+
+            // Update weight in pickup_requests
+            $incomeModel->updatePickupWeight($pickupId, $weight);
+
+            // Calculate amounts for each waste and update total price
+            $totalPrice = $incomeModel->calculateAndUpdateAmounts($pickupId);
+
+            $updateData['price'] = $totalPrice;
+        }
+
+        // Update status (and price/weight if completed)
+        $pickupModel->updateById($pickupId, $updateData);
+
+    } catch (\Throwable $e) {
+        error_log('Pickup status update failed: ' . $e->getMessage());
+        return response()->json(['message' => 'Failed to update pickup'], 500);
+    }
+
+    $updatedPickup = $pickupModel->find($pickupId);
+
+    return response()->json([
+        'message' => 'Pickup updated successfully',
+        'data' => $updatedPickup
+    ]);
+}
+
+public function updateById(int $pickupId, array $data): bool
+{
+    $set = [];
+    $values = [];
+    foreach ($data as $k => $v) {
+        $set[] = "$k = ?";
+        $values[] = $v;
+    }
+    $values[] = $pickupId;
+    $sql = "UPDATE pickup_requests SET " . implode(',', $set) . " WHERE id = ?";
+    return $this->db->execute($sql, $values);
+}
+
 }

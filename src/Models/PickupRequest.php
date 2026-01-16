@@ -509,4 +509,32 @@ class PickupRequest extends BaseModel
         $status = strtolower($status);
         return in_array($status, ['pending', 'assigned', 'confirmed'], true);
     }
+
+    /**
+ * Find a pickup request by ID for a specific collector
+ */
+public function findForCollector(int $pickupId, int $collectorId): ?array
+{
+    $query = "SELECT * FROM pickup_requests WHERE id = ? AND collector_id = ?";
+    return $this->db->fetchOne($query, [$pickupId, $collectorId]);
+}
+
+/**
+ * Update pickup request by ID
+ */
+public function updateById(int $pickupId, array $data): bool
+{
+    $fields = [];
+    $values = [];
+
+    foreach ($data as $key => $val) {
+        $fields[] = "`$key` = ?";
+        $values[] = $val;
+    }
+
+    $values[] = $pickupId;
+    $sql = "UPDATE pickup_requests SET " . implode(', ', $fields) . " WHERE id = ?";
+    return $this->db->execute($sql, $values);
+}
+
 }
