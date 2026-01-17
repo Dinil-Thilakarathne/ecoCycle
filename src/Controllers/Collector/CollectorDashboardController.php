@@ -305,4 +305,40 @@ class CollectorDashboardController extends DashboardController
         $parts = preg_split('/\s+/', trim($fullName), 2);
         return [$parts[0] ?? '', $parts[1] ?? ''];
     }
+
+    /**
+ * Collector enters weight → save & calculate
+ */
+public function enterPickupWeight(): \Core\Http\Response
+{
+    $request = request();
+    $pickupId = (int) $request->route('id');
+    $weight   = (float) $request->input('weight');
+
+    if($weight <= 0) return response()->json(['message'=>'Weight must be positive'],400);
+
+    $collectorId = (int)($this->user['id'] ?? 0);
+    $pickupModel = new PickupRequest();
+    $incomeModel = new IncomeWaste();
+
+    $pickup = $pickupModel->findForCollector($pickupId, $collectorId);
+    if(!$pickup || $pickup['status']!=='in_progress'){
+        return response()->json(['message'=>'Pickup not in progress'],400);
+    }
+
+    try {
+        $result = $incomeModel->saveWeightAndPrice($pickupId, $weight);
+    } catch (\Throwable $e) {
+        error_log('Enter weight failed: '.$e->getMessage());
+        return response()->json(['message'=>'Failed to save weight'],500);
+    }
+
+    return response()->json([
+        'message'=>'Weight saved and amounts calculated',
+        'totalWeight'=>$result['totalWeight'],
+        'totalPrice'=>$result['totalPrice'],
+        'breakdown'=>$result['breakdown']
+    ]);
+}
+
 }
