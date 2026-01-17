@@ -490,80 +490,124 @@ class CollectorDashboardController extends DashboardController
  * - Weight is entered when completing the task
  * - Price is automatically calculated as weight × price_per_unit
  */
-
-public function updatePickupStatus(): \Core\Http\Response
+// Collector starts the task (status -> in_progress)
+/**
+ * Start pickup task
+ * - Moves status from 'assigned' → 'in_progress'
+ * - Returns current waste details and calculated total (DB not updated yet)
+ */
+public function startPickup(): \Core\Http\Response
 {
     $request = request();
-    $pickupId = (int) $request->route('id');
-    $status   = $request->input('status');
-    $weight   = (float) $request->input('weight');
+    $pickupId = (int)$request->route('id');
+    $collectorId = (int)($this->user['id'] ?? 0);
 
-    $allowedStatuses = ['in_progress', 'completed'];
-    if (!in_array($status, $allowedStatuses, true)) {
-        return response()->json(['message' => 'Invalid status'], 400);
-    }
+    $pickupModel = new \Models\PickupRequest();
+    $incomeModel = new \Models\IncomeWaste();
 
-    $collectorId = (int) ($this->user['id'] ?? 0);
-    $pickupModel = new PickupRequest();
     $pickup = $pickupModel->findForCollector($pickupId, $collectorId);
-
     if (!$pickup) {
         return response()->json(['message' => 'Pickup not found'], 404);
     }
 
-    // -------------------------------
-    // Update status
-    // -------------------------------
-    $updateData = ['status' => $status];
+    if ($pickup['status'] !== 'assigned') {
+        return response()->json(['message' => 'Pickup cannot be started'], 400);
+    }
+
+    // Update status to in_progress
+    $pickupModel->updateById($pickupId, ['status' => 'in_progress']);
+
+    // Calculate amounts for display only
+    $calculated = $incomeModel->calculateAmountsForDisplay($pickupId);
+
+    return response()->json([
+        'message' => 'Pickup started',
+        'status' => 'in_progress',
+        'wastes' => $calculated['wastes'],
+        'totalWeight' => array_sum(array_column($calculated['wastes'], 'quantity')),
+        'totalPrice' => $calculated['totalPrice']
+    ]);
+}
+
+/**
+ * Real-time weight & price update (before completion)
+ * Called whenever collector enters a weight value
+ */
+public function updatePickupWeight(): \Core\Http\Response
+{
+    $request = request();
+    $pickupId = (int) $request->route('id');
+    $weight   = (float) $request->input('weight');
+
+    if ($weight <= 0) {
+        return response()->json(['message' => 'Weight must be greater than 0'], 400);
+    }
+
+    $collectorId = (int)($this->user['id'] ?? 0);
+    $pickupModel = new \Models\PickupRequest();
+    $incomeModel = new \Models\IncomeWaste();
+
+    $pickup = $pickupModel->findForCollector($pickupId, $collectorId);
+    if (!$pickup) {
+        return response()->json(['message' => 'Pickup not found'], 404);
+    }
 
     try {
-        // If completed, update weight and calculate amounts
-        if ($status === 'completed') {
-
-            if ($weight <= 0) {
-                return response()->json(['message' => 'Invalid weight'], 400);
-            }
-
-            $updateData['weight'] = round($weight, 2);
-
-            $incomeModel = new IncomeWaste();
-
-            // Update weight in pickup_requests
-            $incomeModel->updatePickupWeight($pickupId, $weight);
-
-            // Calculate amounts for each waste and update total price
-            $totalPrice = $incomeModel->calculateAndUpdateAmounts($pickupId);
-
-            $updateData['price'] = $totalPrice;
-        }
-
-        // Update status (and price/weight if completed)
-        $pickupModel->updateById($pickupId, $updateData);
-
+        // Calculate totals for entered weight and update DB (without completion)
+        $calculated = $incomeModel->calculateAmountsForDisplay($pickupId, $weight);
+        $incomeModel->saveWeightAndPrice($pickupId, $weight, $calculated['totalPrice']);
     } catch (\Throwable $e) {
-        error_log('Pickup status update failed: ' . $e->getMessage());
-        return response()->json(['message' => 'Failed to update pickup'], 500);
+        error_log('Failed to update pickup weight: ' . $e->getMessage());
+        return response()->json(['message' => 'Failed to update pickup weight'], 500);
+    }
+
+    return response()->json([
+        'message' => 'Weight and price updated successfully',
+        'weight' => $weight,
+        'totalPrice' => $calculated['totalPrice'],
+        'wastes' => $calculated['wastes']
+    ]);
+}
+
+/**
+ * Complete pickup
+ * - Sets status to 'completed'
+ * - Updates weight, scaled quantities, amounts, and total price
+ */
+public function completePickup(): \Core\Http\Response
+{
+    $request = request();
+    $pickupId = (int)$request->route('id');
+    $weight   = (float)$request->input('weight');
+
+    if ($weight <= 0) {
+        return response()->json(['message' => 'Weight must be positive'], 400);
+    }
+
+    $collectorId = (int)($this->user['id'] ?? 0);
+    $pickupModel = new \Models\PickupRequest();
+    $incomeModel = new \Models\IncomeWaste();
+
+    $pickup = $pickupModel->findForCollector($pickupId, $collectorId);
+    if (!$pickup || $pickup['status'] !== 'in_progress') {
+        return response()->json(['message' => 'Pickup not in progress'], 400);
+    }
+
+    try {
+        // Finalize weight and price, mark as completed
+        $totalPrice = $incomeModel->completePickup($pickupId, $weight);
+    } catch (\Throwable $e) {
+        error_log('Complete pickup failed: ' . $e->getMessage());
+        return response()->json(['message' => 'Failed to complete pickup'], 500);
     }
 
     $updatedPickup = $pickupModel->find($pickupId);
 
     return response()->json([
-        'message' => 'Pickup updated successfully',
+        'message' => 'Pickup completed successfully',
+        'weight' => $weight,
+        'totalPrice' => $totalPrice,
         'data' => $updatedPickup
     ]);
 }
-
-public function updateById(int $pickupId, array $data): bool
-{
-    $set = [];
-    $values = [];
-    foreach ($data as $k => $v) {
-        $set[] = "$k = ?";
-        $values[] = $v;
-    }
-    $values[] = $pickupId;
-    $sql = "UPDATE pickup_requests SET " . implode(',', $set) . " WHERE id = ?";
-    return $this->db->execute($sql, $values);
-}
-
 }
