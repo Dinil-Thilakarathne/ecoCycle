@@ -63,13 +63,6 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
           <?php endforeach; ?>
         </ul>
       </div>
-      <div class="c-dashboard-card">
-        <h3>Send Feedback</h3>
-        <div class="feedback">
-          <input type="text" placeholder="Send Feedback">
-          <button class="btn btn-primary" style="flex: 1;" type="submit">Send</button>
-        </div>
-      </div>
     </div>
   </section>
 </main>

@@ -382,7 +382,7 @@ class BiddingRound extends BaseModel
         $params = [$companyId];
 
         if ($status !== null) {
-            $sql .= " WHERE br.status = ?";
+            $sql .= " WHERE br.status <> ?";
             $params[] = $status;
         }
 

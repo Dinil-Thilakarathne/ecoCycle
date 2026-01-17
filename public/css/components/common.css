@@ -73,6 +73,7 @@
 
   &.pending,
   &.Pending,
+  &.leading,
   &.in-transit{
     border: 1px solid var(--warning);
     background-color: var(--warning-light);
