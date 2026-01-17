@@ -112,7 +112,7 @@ const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>
             </div>
             <div id="wasteBreakdown" style="margin-top:1rem;font-size:0.95rem;color:#333;"></div>
             <div style="margin-top:0.5rem;">
-                <button class="btn btn-secondary" onclick="saveWeight()">Save Weight & Calculate</button>
+                <button class="btn btn-secondary" onclick="previewWeight()">Preview Weight & Price</button>
             </div>
         </div>
 
@@ -218,31 +218,11 @@ function updateCalculatedPrice(pickupId) {
     breakdownEl.innerHTML = breakdownHTML;
 }
 
-// Save weight & calculate to backend
-async function saveWeight() {
+// Preview Weight & Price (without saving)
+function previewWeight() {
     const modal = document.getElementById('pickup-detail-modal');
     const pickupId = modal.getAttribute('data-current-id');
-    const weightVal = parseFloat(weightInput.value);
-    if (isNaN(weightVal)) return alert("Enter a valid weight");
-
-    const pickup = window.__PICKUP_DATA.find(p=>p.id==pickupId);
-    const sumQty = pickup.wastes.reduce((sum,w)=>sum+parseFloat(w.quantity||0),0)||1;
-    const totalPrice = pickup.wastes.reduce((sum,w)=>sum+parseFloat(w.quantity)*weightVal/sumQty*parseFloat(w.price_per_unit),0);
-
-    // Update local object
-    pickup.weight = weightVal;
-    pickup.price = totalPrice;
-
-    // Save to backend
-    try {
-        await fetch(`/api/collector/pickup-requests/${pickupId}/save-weight`, {
-            method: 'PUT',
-            headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
-            body: JSON.stringify({weight:weightVal, price:totalPrice})
-        });
-        alert("Weight saved and price calculated!");
-        updateCalculatedPrice(pickupId);
-    } catch(err){ console.error(err); alert("Failed to save weight"); }
+    updateCalculatedPrice(pickupId);
 }
 
 // Start / complete task
