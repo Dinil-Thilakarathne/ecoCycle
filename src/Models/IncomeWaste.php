@@ -35,9 +35,9 @@ class IncomeWaste
     }
 
     // ----------------------------------
-    // 1️⃣ Preview amounts WITHOUT saving
+    // Preview amounts WITHOUT saving
     // ----------------------------------
-    public function calculateAmountsForDisplay(int $pickupId, float $totalWeight): array
+    public function calculateAmountsPreview(int $pickupId, float $totalWeight): array
     {
         $wastes = $this->getWastesByPickup($pickupId);
         $sumQty = max(array_sum(array_map(fn($w) => (float)$w['quantity'], $wastes)), 1);
@@ -68,10 +68,10 @@ class IncomeWaste
     }
 
     // ----------------------------------
-    // 2️⃣ Save weight & calculate amounts (DB update)
+    // Save weight & calculate amounts (DB update)
     // Status stays 'in_progress'
     // ----------------------------------
-    public function saveWeightAndPrice(int $pickupId, float $totalWeight): array
+    public function saveWeight(int $pickupId, float $totalWeight): array
     {
         $wastes = $this->getWastesByPickup($pickupId);
         $sumQty = max(array_sum(array_map(fn($w) => (float)$w['quantity'], $wastes)), 1);
@@ -83,11 +83,9 @@ class IncomeWaste
             $scaledQty = ($waste['quantity'] * $totalWeight) / $sumQty;
             $amount = round($scaledQty * $waste['price_per_unit'], 2);
 
-            // Update each waste row with scaled quantity & calculated amount
+            // Update each waste row
             $this->db->execute(
-                "UPDATE pickup_request_wastes
-                 SET quantity = ?, amount = ?
-                 WHERE id = ?",
+                "UPDATE pickup_request_wastes SET quantity = ?, amount = ? WHERE id = ?",
                 [round($scaledQty, 2), $amount, $waste['pickup_waste_id']]
             );
 
@@ -101,24 +99,21 @@ class IncomeWaste
             ];
         }
 
-        // Update pickup request with total weight and price
+        // Update pickup request
         $this->db->execute(
-            "UPDATE pickup_requests
-             SET weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?",
+            "UPDATE pickup_requests SET weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [round($totalWeight, 2), round($totalPrice, 2), $pickupId]
         );
 
         return [
             'totalWeight' => round($totalWeight, 2),
             'totalPrice'  => round($totalPrice, 2),
-            'breakdown'   => $breakdown
+            'wastes'      => $breakdown
         ];
     }
 
     // ----------------------------------
-    // 3️⃣ Complete pickup (status change)
-    // No recalculation here
+    // Complete pickup (status change)
     // ----------------------------------
     public function completePickup(int $pickupId): void
     {
@@ -132,7 +127,21 @@ class IncomeWaste
     }
 
     // ----------------------------------
-    // Optional: Calculate total income for a collector
+    // Start task (assigned → in_progress)
+    // ----------------------------------
+    public function startTask(int $pickupId): void
+    {
+        $this->db->execute(
+            "UPDATE pickup_requests
+             SET status = 'in_progress',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?",
+            [$pickupId]
+        );
+    }
+
+    // ----------------------------------
+    // Optional: Collector total income
     // ----------------------------------
     public function getCollectorTotalIncome(
         int $collectorId,
@@ -152,19 +161,5 @@ class IncomeWaste
 
         $row = $this->db->fetch($sql, [$collectorId, $startDate, $endDate]);
         return round((float)($row['total_income'] ?? 0), 2);
-    }
-
-    // ----------------------------------
-    // 4️⃣ Optional: Preview + save weight + complete pickup in one go
-    // ----------------------------------
-    public function saveWeightAndComplete(int $pickupId, float $totalWeight): array
-    {
-        // 1️⃣ Save weight & calculate amounts
-        $result = $this->saveWeightAndPrice($pickupId, $totalWeight);
-
-        // 2️⃣ Complete pickup
-        $this->completePickup($pickupId);
-
-        return $result;
     }
 }
