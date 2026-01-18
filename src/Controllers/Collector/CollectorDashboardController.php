@@ -7,24 +7,22 @@ use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
-use Models\IncomeWaste;
 
 /**
  * Collector Dashboard Controller
+ * 
  * Handles collector-specific dashboard functionality
  */
 class CollectorDashboardController extends DashboardController
 {
     private ?array $collectorRecord = null;
-    protected IncomeWaste $incomeWaste;
 
     protected function setUserContext(): void
     {
         $this->userType = 'collector';
         $this->viewPrefix = 'collector';
-
-        // Initialize IncomeWaste model for weight & price handling
-        $this->incomeWaste = new IncomeWaste();
+        // Comment out role enforcement for development
+        // $this->ensureRole('collector');
     }
 
     /**
@@ -45,13 +43,13 @@ class CollectorDashboardController extends DashboardController
     }
 
     /**
-     * Pickup assignments page
+     * Pickup assignments
      */
     public function tasks(): \Core\Http\Response
     {
         $request = request();
-        $selectedTimeSlot = $this->normalizeTimeSlot((string)$request->query('time_slot', 'all'));
-        $selectedStatus = $this->normalizeStatus((string)$request->query('status', 'all'));
+        $selectedTimeSlot = $this->normalizeTimeSlot((string) $request->query('time_slot', 'all'));
+        $selectedStatus = $this->normalizeStatus((string) $request->query('status', 'all'));
 
         $data = [
             'pageTitle' => 'Pickup Assignments',
@@ -62,91 +60,65 @@ class CollectorDashboardController extends DashboardController
             'selectedTimeSlot' => $selectedTimeSlot,
             'selectedStatus' => $selectedStatus,
         ];
-
         return $this->renderDashboard('tasks', $data);
     }
 
     /**
-     * AJAX endpoint: Save measured weight & calculate each amount
-     * Collector enters weight → server updates pickup_requests.weight,
-     * updates pickup_request_wastes.weight, calculates individual amounts,
-     * and returns breakdown for UI
+     * Earnings and payments
      */
-    public function saveWeight(int $pickupId)
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $enteredWeight = isset($data['weight']) ? floatval($data['weight']) : 0;
+    /* public function earnings(): Response
+     {
+         $data = [
+             'pageTitle' => 'Earnings & Payments',
+             'dailyEarnings' => $this->getDailyEarnings(),
+             'monthlyEarnings' => $this->getMonthlyEarnings(),
+             'paymentHistory' => $this->getPaymentHistory(),
+             'pendingPayments' => $this->getPendingPayments()
+         ];
 
-        if ($pickupId <= 0 || $enteredWeight <= 0) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Invalid pickup ID or weight'
-            ]);
-            exit;
-        }
-
-        try {
-            $incomeWaste = new IncomeWaste();
-            $pickupRequest = new PickupRequest();
-
-            // 1️⃣ Save weight & calculate each individual amount
-            $result = $incomeWaste->saveWeightAndCalculate((string)$pickupId, $enteredWeight);
-
-            // 2️⃣ Update pickup_requests table weight only (price optional)
-            $pickupRequest->updateWeightAndPrice((string)$pickupId, $enteredWeight, 0);
-
-            // 3️⃣ Return JSON with individual amounts for frontend display
-            echo json_encode([
-                'success' => true,
-                'data' => $result // contains ['breakdown' => [...], 'total' => ...]
-            ]);
-            exit;
-
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            echo json_encode([
-                'success' => false,
-                'error' => $e->getMessage() ?: 'Failed to save weight'
-            ]);
-            exit;
-        }
-    }
+         return $this->renderDashboard('earnings', $data);
+     }*/
 
     /**
-     * AJAX endpoint: Mark pickup as completed
+     * Collection reporting
      */
-    public function markCompleted(int $pickupId)
+    public function analytics(): \Core\Http\Response
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
-        $price = isset($data['price']) ? floatval($data['price']) : 0;
+        $data = [
+            'pageTitle' => 'Collection Analytics',
+            'collectionStats' => $this->getCollectionStats(),
+            'weightReports' => $this->getWeightReports(),
+            'materialBreakdown' => $this->getMaterialBreakdown()
+        ];
 
-        if ($weight <= 0 || $price <= 0) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Weight or price missing']);
-            exit;
-        }
-
-        $incomeWaste = new IncomeWaste();
-        $pickupRequest = new PickupRequest();
-
-        // Save weight & individual amounts
-        $result = $incomeWaste->saveWeightAndCalculate((string)$pickupId, $weight);
-
-        // Update pickup_requests weight and price, set status completed
-        $pickupRequest->updateWeightAndPrice((string)$pickupId, $weight, $price, 'completed');
-
-        echo json_encode([
-            'message' => 'Task completed successfully',
-            'data' => [
-                'status' => 'completed',
-                'weight' => $weight,
-                'price' => $price,
-                'breakdown' => $result['breakdown']
-            ]
-        ]);
+        return $this->renderDashboard('analytics', $data);
     }
+
+    public function notification(): \Core\Http\Response
+    {
+        $data = [
+            'pageTitle' => 'Notifications',
+            'collectionStats' => $this->getCollectionStats(),
+            'weightReports' => $this->getWeightReports(),
+            'materialBreakdown' => $this->getMaterialBreakdown()
+        ];
+
+        return $this->renderDashboard('notification', $data);
+    }
+
+
+
+
+
+    public function setting(): \Core\Http\Response
+    {
+        $data = [
+            'pageTitle' => 'Collection Setting',
+        ];
+
+        return $this->renderDashboard('setting', $data);
+    }
+
 
     /**
      * Profile and vehicle info
@@ -173,11 +145,33 @@ class CollectorDashboardController extends DashboardController
         return NavigationConfig::getNavigation($this->userType);
     }
 
-    // ----------------- Data Retrieval Helpers -----------------
+    // Placeholder methods for data retrieval
+    private function getTodayPickups(): array
+    {
+        return [];
+    }
+    private function getCompletedPickupsToday(): int
+    {
+        return 5;
+    }
+    private function getPendingPickups(): array
+    {
+        return [];
+    }
+    private function getTodayEarnings(): float
+    {
+        return 125.50;
+    }
+    private function getOptimizedRoute(): array
+    {
+        return [];
+    }
     private function getAssignedPickups(string $timeSlotFilter = 'all', string $statusFilter = 'all'): array
     {
         $collectorId = (int) ($this->user['id'] ?? 0);
-        if ($collectorId <= 0) return [];
+        if ($collectorId <= 0) {
+            return [];
+        }
 
         $timeSlot = $timeSlotFilter !== 'all' ? $timeSlotFilter : null;
         $status = $statusFilter !== 'all' ? $this->mapStatusForQuery($statusFilter) : null;
@@ -185,16 +179,19 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
-            return $records ?: [];
+            if (!empty($records)) {
+                return $records;
+            }
         } catch (\Throwable $e) {
             error_log('Collector tasks load failed: ' . $e->getMessage());
         }
 
         return [];
     }
-
-    private function getAvailablePickups(): array { return []; }
-
+    private function getAvailablePickups(): array
+    {
+        return [];
+    }
     private function getPickupFilters(): array
     {
         return [
@@ -205,18 +202,32 @@ class CollectorDashboardController extends DashboardController
 
     private function getTimeSlots(): array
     {
-        return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+        try {
+            $pickupRequest = new PickupRequest();
+            return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];  // TODO: need to fix this
+        } catch (\Throwable $e) {
+            error_log('Collector time slot load failed: ' . $e->getMessage());
+        }
+
+        $dummy = dummy_data('time_slots');
+        return is_array($dummy) ? $dummy : [];
     }
 
     private function normalizeTimeSlot(string $input): string
     {
-        return trim($input) === '' ? 'all' : trim($input);
+        $candidate = trim($input);
+        if ($candidate === '') {
+            return 'all';
+        }
+        return $candidate;
     }
 
     private function normalizeStatus(string $input): string
     {
         $candidate = strtolower(trim($input));
-        if ($candidate === '' || $candidate === 'all') return 'all';
+        if ($candidate === '' || $candidate === 'all') {
+            return 'all';
+        }
 
         $allowed = ['pending', 'assigned', 'in progress', 'completed'];
         return in_array($candidate, $allowed, true) ? $candidate : 'all';
@@ -224,24 +235,105 @@ class CollectorDashboardController extends DashboardController
 
     private function mapStatusForQuery(string $status): string
     {
-        return $status === 'in progress' ? 'in_progress' : $status;
-    }
+        if ($status === 'in progress') {
+            return 'in_progress';
+        }
 
+        return $status;
+    }
+    private function getRouteHistory(): array
+    {
+        return [];
+    }
+    private function getRouteStats(): array
+    {
+        return [];
+    }
+    private function getDailyEarnings(): array
+    {
+        return [];
+    }
+    private function getMonthlyEarnings(): float
+    {
+        return 2500.00;
+    }
+    private function getPaymentHistory(): array
+    {
+        return [];
+    }
+    private function getPendingPayments(): array
+    {
+        return [];
+    }
+    private function getCollectionStats(): array
+    {
+        return [];
+    }
+    private function getWeightReports(): array
+    {
+        return [];
+    }
+    private function getMaterialBreakdown(): array
+    {
+        return [];
+    }
     private function getCollectorProfile(): array
     {
         $record = $this->loadCollectorRecord();
-        if (!$record) return $this->getCollectorFallbackProfile();
-
-        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
-        $firstName = trim((string)($metadata['firstName'] ?? ''));
-        $lastName = trim((string)($metadata['lastName'] ?? ''));
-
-        if ($firstName === '' && $lastName === '') {
-            [$firstName, $lastName] = $this->splitName((string)($record['name'] ?? ''));
+        if (!$record) {
+            return $this->getCollectorFallbackProfile();
         }
 
-        $displayName = trim((string)($record['name'] ?? '')) ?: trim($firstName . ' ' . $lastName);
-        return [
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+
+        $firstName = trim((string) ($metadata['firstName'] ?? ''));
+        $lastName = trim((string) ($metadata['lastName'] ?? ''));
+        if ($firstName === '' && $lastName === '') {
+            [$firstName, $lastName] = $this->splitName((string) ($record['name'] ?? ''));
+        }
+
+        $displayName = trim((string) ($record['name'] ?? ''));
+        if ($displayName === '' && ($firstName !== '' || $lastName !== '')) {
+            $displayName = trim($firstName . ' ' . $lastName);
+        }
+
+        $postalCode = trim((string) ($metadata['postalCode'] ?? ($metadata['postal_code'] ?? '')));
+        $nic = trim((string) ($metadata['nic'] ?? ($metadata['NIC'] ?? '')));
+        $description = trim((string) ($metadata['description'] ?? ($metadata['bio'] ?? '')));
+
+        $bank = [
+            'bankName' => $record['bank_name'] ?? '',
+            'branch' => $record['bank_branch'] ?? '',
+            'holderName' => $record['bank_account_name'] ?? '',
+            'accountNumber' => $record['bank_account_number'] ?? '',
+        ];
+
+        $bankRaw = $metadata['bank'] ?? $metadata['bank_details'] ?? $metadata['bankDetails'] ?? [];
+        if (is_string($bankRaw)) {
+            $decoded = json_decode($bankRaw, true);
+            $bankRaw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($bankRaw)) {
+            $bankRaw = [];
+        }
+
+        if ($bank['bankName'] === '') {
+            $bank['bankName'] = $bankRaw['bankName'] ?? ($bankRaw['bank_name'] ?? ($bankRaw['bank'] ?? ''));
+        }
+        if ($bank['branch'] === '') {
+            $bank['branch'] = $bankRaw['branch'] ?? '';
+        }
+        if ($bank['holderName'] === '') {
+            $bank['holderName'] = $bankRaw['holderName'] ?? ($bankRaw['account_name'] ?? ($bankRaw['accountName'] ?? ''));
+        }
+        if ($bank['accountNumber'] === '') {
+            $bank['accountNumber'] = $bankRaw['accountNumber'] ?? ($bankRaw['account_number'] ?? '');
+        }
+
+        $profileImagePath = $record['profileImagePath'] ?? ($record['profile_image_path'] ?? null);
+        $profilePic = $metadata['profile_pic'] ?? ($metadata['profileImage'] ?? $profileImagePath);
+
+        $profile = [
             'id' => $record['id'] ?? null,
             'name' => $displayName,
             'firstName' => $firstName,
@@ -249,23 +341,85 @@ class CollectorDashboardController extends DashboardController
             'email' => $record['email'] ?? '',
             'phone' => $record['phone'] ?? '',
             'address' => $record['address'] ?? ($metadata['address'] ?? ''),
-            'bank' => [
-                'bankName' => $record['bank_name'] ?? '',
-                'branch' => $record['bank_branch'] ?? '',
-                'holderName' => $record['bank_account_name'] ?? '',
-                'accountNumber' => $record['bank_account_number'] ?? ''
-            ],
-            'profile_pic' => $metadata['profile_pic'] ?? null,
+            'postalCode' => $postalCode,
+            'nic' => $nic,
+            'description' => $description,
+            'bank' => $bank,
+            'bankAccount' => $bank['accountNumber'],
+            'profile_pic' => $profilePic,
+            'profileImage' => $profileImagePath,
+            'profileImagePath' => $profileImagePath,
             'metadata' => $metadata,
         ];
+
+        $hasCoreDetails = trim((string) ($profile['name'] ?? '')) !== ''
+            || trim((string) ($profile['email'] ?? '')) !== ''
+            || trim((string) ($profile['phone'] ?? '')) !== ''
+            || trim((string) ($profile['address'] ?? '')) !== '';
+
+        if (!$hasCoreDetails) {
+            return $this->getCollectorFallbackProfile();
+        }
+
+        return $profile;
+    }
+    private function getVehicleInfo(): array
+    {
+        $record = $this->loadCollectorRecord();
+        if (!$record) {
+            return [];
+        }
+
+        $vehicleId = (int) ($record['vehicleId'] ?? $record['vehicle_id'] ?? 0);
+        if ($vehicleId > 0) {
+            try {
+                $vehicleModel = new Vehicle();
+                $vehicle = $vehicleModel->find($vehicleId);
+                if (!empty($vehicle)) {
+                    return $vehicle;
+                }
+            } catch (\Throwable $e) {
+                error_log('Collector vehicle load failed: ' . $e->getMessage());
+            }
+        }
+
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+        $vehicleMeta = $metadata['vehicle'] ?? [];
+        if (is_string($vehicleMeta)) {
+            $decoded = json_decode($vehicleMeta, true);
+            $vehicleMeta = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($vehicleMeta) ? $vehicleMeta : [];
+    }
+    private function getCertifications(): array
+    {
+        $record = $this->loadCollectorRecord();
+        if (!$record) {
+            return [];
+        }
+
+        $metadata = is_array($record['metadata'] ?? null) ? $record['metadata'] : [];
+        $certifications = $metadata['certifications'] ?? [];
+        if (is_string($certifications)) {
+            $decoded = json_decode($certifications, true);
+            $certifications = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($certifications) ? $certifications : [];
     }
 
     private function loadCollectorRecord(): ?array
     {
-        if ($this->collectorRecord !== null) return $this->collectorRecord;
+        if ($this->collectorRecord !== null) {
+            return $this->collectorRecord;
+        }
 
-        $collectorId = (int)($this->user['id'] ?? 0);
-        if ($collectorId <= 0) return null;
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            $this->collectorRecord = null;
+            return null;
+        }
 
         try {
             $userModel = new User();
@@ -282,36 +436,48 @@ class CollectorDashboardController extends DashboardController
     private function getCollectorFallbackProfile(): array
     {
         $name = $this->user['name'] ?? 'Demo Collector';
+        $email = $this->user['email'] ?? 'collector@example.com';
         [$first, $last] = $this->splitName($name);
 
         return [
             'name' => $name,
             'firstName' => $first,
             'lastName' => $last,
-            'email' => $this->user['email'] ?? 'collector@example.com',
+            'email' => $email,
             'phone' => $this->user['phone'] ?? '+94 71 000 0000',
             'address' => $this->user['address'] ?? '42 Green Route, Eco City',
+            'postalCode' => '',
+            'nic' => '',
+            'description' => '',
+            'profile_pic' => null,
+            'profileImage' => null,
+            'profileImagePath' => null,
             'bank' => [
                 'bankName' => 'National Bank',
                 'branch' => 'Colombo Main',
                 'holderName' => $name,
                 'accountNumber' => '1234567890',
             ],
-            'profile_pic' => null,
+            'bankAccount' => '1234567890',
             'metadata' => [],
         ];
     }
 
     private function splitName(string $fullName): array
     {
-        $parts = preg_split('/\s+/', trim($fullName), 2) ?: [];
-        return [$parts[0] ?? '', $parts[1] ?? ''];
-    }
+        $fullName = trim($fullName);
+        if ($fullName === '') {
+            return ['', ''];
+        }
 
-    // Dummy placeholders for other dashboard stats
-    private function getTodayPickups(): array { return []; }
-    private function getCompletedPickupsToday(): int { return 5; }
-    private function getPendingPickups(): array { return []; }
-    private function getTodayEarnings(): float { return 125.50; }
-    private function getOptimizedRoute(): array { return []; }
+        $parts = preg_split('/\s+/', $fullName, 2);
+        if (!$parts) {
+            return ['', ''];
+        }
+
+        $first = $parts[0];
+        $last = $parts[1] ?? '';
+
+        return [$first, $last];
+    }
 }
