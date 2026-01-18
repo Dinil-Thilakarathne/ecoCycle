@@ -491,4 +491,69 @@ class PickupRequest extends BaseModel
         $sql = "UPDATE pickup_requests SET " . implode(', ', $fields) . " WHERE id = ?";
         return $this->db->execute($sql, $values);
     }
+
+    /**
+ * Update weight, price, and optionally status for a pickup request
+ *
+ * @param string $pickupId
+ * @param float $weight
+ * @param float $price
+ * @param string|null $status
+ * @return bool
+ */
+public function updateWeightAndPrice(string $pickupId, float $weight, float $price, ?string $status = null): bool
+{
+    if ($pickupId === '' || $weight <= 0 || $price <= 0) {
+        return false;
+    }
+
+    $fields = ['weight = ?', 'price = ?', 'updated_at = CURRENT_TIMESTAMP'];
+    $params = [$weight, $price];
+
+    if ($status !== null) {
+        $fields[] = 'status = ?';
+        $params[] = $status;
+    }
+
+    $params[] = $pickupId;
+
+    $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
+    return $this->db->query($sql, $params);
 }
+    /**
+     * Collector enters weight → save in DB, calculate total, optionally update status
+     *
+     * @param string $pickupId
+     * @param float $enteredWeight
+     * @param string|null $status Optional ('completed')
+     * @return array ['total' => float, 'breakdown' => array]
+     */
+    public function saveWeight(string $pickupId, float $enteredWeight, ?string $status = null): array
+    {
+        $incomeWaste = new IncomeWaste();
+
+        // 1️⃣ Save weight & calculate amounts in pickup_request_wastes
+        $result = $incomeWaste->saveWeightAndCalculate($pickupId, $enteredWeight);
+        $totalPrice = $result['total'];
+
+        // 2️⃣ Update pickup_request table
+        $fields = ['weight = ?', 'price = ?', 'updated_at = CURRENT_TIMESTAMP'];
+        $params = [$enteredWeight, $totalPrice];
+
+        if ($status !== null) {
+            $fields[] = 'status = ?';
+            $params[] = $status;
+        }
+
+        $params[] = $pickupId;
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
+        $this->db->query($sql, $params);
+
+        // 3️⃣ Return total & breakdown for frontend
+        return $result;
+    }
+}
+
+
+
+

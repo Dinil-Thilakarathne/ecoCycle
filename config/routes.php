@@ -409,10 +409,3 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);
-
-$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Collector\CollectorDashboardController@updatePickupStatus', [
-    'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
-

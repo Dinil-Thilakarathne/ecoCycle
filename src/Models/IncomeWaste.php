@@ -1,4 +1,5 @@
 <?php
+
 namespace Models;
 
 use Core\Database;
@@ -12,14 +13,26 @@ class IncomeWaste
         $this->db = new Database();
     }
 
-    // Fetch wastes for a pickup
-    public function getWastesByPickup(int $pickupId): array
+    /**
+     * Save measured weight for a pickup, update each waste amount individually,
+     * and return breakdown for UI display.
+     *
+     * @param string $pickupId
+     * @param float $enteredWeight
+     * @return array ['breakdown' => [...]]
+     * @throws \Exception
+     */
+    public function saveWeightAndCalculate(string $pickupId, float $enteredWeight): array
     {
+        if ($pickupId === '' || $enteredWeight <= 0) {
+            throw new \Exception('Invalid pickup ID or weight');
+        }
+
+        // 1️⃣ Get all wastes for this pickup
         $sql = "
             SELECT prw.id AS pickup_waste_id,
                    prw.pickup_id,
                    prw.waste_category_id,
-                   prw.quantity,
                    wc.name AS category_name,
                    wc.unit,
                    wc.price_per_unit
@@ -27,46 +40,38 @@ class IncomeWaste
             JOIN waste_categories wc ON wc.id = prw.waste_category_id
             WHERE prw.pickup_id = ?
         ";
-        return $this->db->fetchAll($sql, [$pickupId]) ?: [];
-    }
+        $wastes = $this->db->fetchAll($sql, [$pickupId]);
+        if (!$wastes) return ['breakdown' => []];
 
-    // Calculate total price based on entered weight
-    public function calculateTotalPrice(int $pickupId, float $weight): array
-    {
-        $wastes = $this->getWastesByPickup($pickupId);
-        $sumOriginalQty = array_sum(array_column($wastes, 'quantity')) ?: 1;
-
-        $totalPrice = 0;
         $breakdown = [];
+
+        // 2️⃣ Update each waste's weight and calculate individual amount
         foreach ($wastes as $w) {
-            $scaledQty = $w['quantity'] * $weight / $sumOriginalQty;
-            $amount = $scaledQty * $w['price_per_unit'];
-            $totalPrice += $amount;
+            $amount = $enteredWeight * $w['price_per_unit'];
+
+            $this->db->query(
+                "UPDATE pickup_request_wastes
+                 SET weight = ?, amount = ?
+                 WHERE id = ?",
+                [$enteredWeight, $amount, $w['pickup_waste_id']]
+            );
+
             $breakdown[] = [
                 'category_name' => $w['category_name'],
+                'weight' => (float) $enteredWeight,
                 'unit' => $w['unit'],
-                'scaled_qty' => round($scaledQty, 2),
-                'amount' => round($amount, 2),
+                'price_per_unit' => (float) $w['price_per_unit'],
+                'amount' => (float) $amount
             ];
         }
 
-        return [
-            'total_price' => round($totalPrice, 2),
-            'breakdown' => $breakdown,
-        ];
-    }
+        // 3️⃣ Update pickup_requests table weight
+        $this->db->query(
+            "UPDATE pickup_requests SET weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [$enteredWeight, $pickupId]
+        );
 
-    // Save weight and calculated price to pickup request
-    public function saveWeightAndPrice(int $pickupId, float $weight, float $price): bool
-    {
-        $sql = "UPDATE pickup_requests SET weight = ?, price = ?, updated_at = NOW() WHERE id = ?";
-        return $this->db->execute($sql, [$weight, $price, $pickupId]);
-    }
-
-    // Update pickup status
-    public function updateStatus(int $pickupId, string $status): bool
-    {
-        $sql = "UPDATE pickup_requests SET status = ?, updated_at = NOW() WHERE id = ?";
-        return $this->db->execute($sql, [$status, $pickupId]);
+        // 4️⃣ Return breakdown for collector UI
+        return ['breakdown' => $breakdown];
     }
 }
