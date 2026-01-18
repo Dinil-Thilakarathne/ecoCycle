@@ -481,25 +481,33 @@ class CollectorDashboardController extends DashboardController
         return [$first, $last];
     }
 
-    /**
- * AJAX endpoint: Save measured weight & calculate single amount for UI
- */
-public function saveWeight(int $pickupId)
+ public function saveWeight($pickupId)
 {
+    // Force JSON output
+    header('Content-Type: application/json; charset=utf-8');
+
+    // Get raw input
     $data = json_decode(file_get_contents('php://input'), true);
     $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
 
-    if ($pickupId <= 0 || $weight <= 0) {
+    if (empty($pickupId) || $weight <= 0) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or weight']);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Invalid pickup ID or weight'
+        ]); 
         exit;
     }
 
     try {
-        // Use IncomeWaste model
-        $amount = $this->incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
+        // Save weight and calculate single amount
+        $incomeWaste = new \Models\IncomeWaste();
+        $amount = $incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
 
-        // Return JSON with single amount for frontend
+        // Also update PickupRequest model if needed
+        $pickupRequest = new \Models\PickupRequest();
+        $pickupRequest->updateStatus((int)$pickupId, 'in progress'); // optional
+
         echo json_encode([
             'success' => true,
             'data' => [
@@ -518,5 +526,43 @@ public function saveWeight(int $pickupId)
         exit;
     }
 }
+public function updateStatus($pickupId)
+{
+    header('Content-Type: application/json; charset=utf-8');
 
+    $data = json_decode(file_get_contents('php://input'), true);
+    $status = trim($data['status'] ?? '');
+
+    if (empty($pickupId) || $status === '') {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Invalid status'
+        ]);
+        exit;
+    }
+
+    try {
+        $pickupRequest = new \Models\PickupRequest();
+        $pickupRequest->updateStatus((int)$pickupId, $status);
+
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'status' => $status
+            ]
+        ]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
+
+ 
 }

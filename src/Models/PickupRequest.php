@@ -214,6 +214,16 @@ class PickupRequest extends BaseModel
         }
     }
 
+    public function updateStatus(int $pickupId, string $status): void
+    {
+        $this->db->query(
+            "UPDATE {$this->table}
+             SET status = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?",
+            [$status, $pickupId]
+        );
+    }
+
   private function generateId(): string
     {
         do {
