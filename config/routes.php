@@ -429,6 +429,7 @@ $router->get('/api/collector/pickup-requests/{id}',
         'Middleware\Roles\CollectorOnly',
 ]);
 
+// Save weight for a pickup
 $router->put(
     '/api/collector/pickup-requests/{id}/weight',
     'Controllers\Collector\CollectorDashboardController@saveWeight',
@@ -436,9 +437,11 @@ $router->put(
         'Middleware\AuthMiddleware',
         'Middleware\CsrfMiddleware',
         'Middleware\Roles\CollectorOnly',
+        'passRouteParams' => true // ensures {id} becomes $pickupId
     ]
 );
 
+// Update status of a pickup
 $router->put(
     '/api/collector/pickup-requests/{id}/status',
     'Controllers\Collector\CollectorDashboardController@updateStatus',
@@ -446,6 +449,8 @@ $router->put(
         'Middleware\AuthMiddleware',
         'Middleware\CsrfMiddleware',
         'Middleware\Roles\CollectorOnly',
+        'passRouteParams' => true
     ]
 );
+
 

@@ -127,29 +127,32 @@ const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>
 </div>
 
 <script>
+// Grab modal elements
 const weightInput = document.getElementById('weightInput');
 const calculatedPriceEl = document.getElementById('calculatedPrice');
 const weightError = document.getElementById('weightError');
 const enterBtn = document.getElementById('enterWeightBtn');
 
+// Close modal
 function closeDetailModal() {
     const modal = document.getElementById('pickup-detail-modal');
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
 }
 
+// Normalize status
 function normalizeStatusValue(status) {
     const v = (status || '').toLowerCase();
     if (v === 'in_progress' || v === 'in-progress') return 'in progress';
     return v;
 }
 
+// Open modal and populate fields
 function viewDetails(el, pickupId) {
     const record = window.__PICKUP_DATA.find(r => r.id == pickupId);
     if (!record) return;
 
     const modal = document.getElementById('pickup-detail-modal');
-
     modal.querySelector('.pd-id').textContent = record.id;
     modal.querySelector('.pd-customer').textContent = record.customerName;
     modal.querySelector('.pd-address').textContent = record.address;
@@ -157,107 +160,21 @@ function viewDetails(el, pickupId) {
     modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
     modal.querySelector('.pd-status').textContent = normalizeStatusValue(record.status);
 
+    // Show weight input only if in progress
     document.getElementById('weight-entry-row').style.display =
-        normalizeStatusValue(record.status) === 'in progress' ? '' : 'none';
+        ['assigned', 'in progress'].includes(normalizeStatusValue(record.status)) ? '' : 'none';
 
     weightInput.value = record.weight || '';
-    calculatedPriceEl.value = record.price ? `₹${record.price}` : '';
+    calculatedPriceEl.value = record.price ? `₹${record.price.toFixed(2)}` : '';
 
     modal.setAttribute('data-current-id', record.id);
     modal.classList.add('open');
 }
 
-/**
- * ENTER BUTTON → SAVE WEIGHT + PRICE
- */
-/*enterBtn.addEventListener('click', async () => {
-    const modal = document.getElementById('pickup-detail-modal');
-    const pickupId = modal.getAttribute('data-current-id');
-    const weightVal = parseFloat(weightInput.value);
-
-    if (!weightVal || weightVal <= 0) {
-        weightError.style.display = 'block';
-        return;
-    }
-    weightError.style.display = 'none';
-
-    try {
-        enterBtn.disabled = true;
-        enterBtn.textContent = 'Saving...';
-
-        const response = await fetch(
-            `/api/collector/pickup-requests/${pickupId}/weight`,
-            {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({ weight: weightVal })
-            }
-        );
-
-        const payload = await response.json();
-        if (!payload.success) throw new Error('Save failed');
-
-        const amount = payload.data.amount;
-
-        calculatedPriceEl.value = `₹${amount.toFixed(2)}`;
-
-        const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
-        if (pickup) {
-            pickup.weight = weightVal;
-            pickup.price = amount;
-        }
-
-        alert('Weight saved successfully');
-
-    } catch (err) {
-        alert(err.message || 'Failed to save weight');
-    } finally {
-        enterBtn.disabled = false;
-        enterBtn.textContent = 'Enter';
-    }
-});
-
-/**
- * MARK AS COMPLETED
- *//*
-async function startOrUpdateTask() {
-    const modal = document.getElementById('pickup-detail-modal');
-    const pickupId = modal.getAttribute('data-current-id');
-
-    try {
-        const response = await fetch(
-            `/api/collector/pickup-requests/${pickupId}/status`,
-            {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({ status: 'completed' })
-            }
-        );
-
-        const payload = await response.json();
-        if (!payload.success) throw new Error('Status update failed');
-
-        const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
-        if (pickup) pickup.status = 'completed';
-
-        modal.querySelector('.pd-status').textContent = 'completed';
-
-        alert('Pickup completed');
-        closeDetailModal();
-
-    } catch (err) {
-        alert(err.message || 'Failed to update status');
-    }
-}*/
-
+// Save weight + calculate price
 enterBtn.addEventListener('click', async () => {
-    const pickupId = document.getElementById('pickup-detail-modal').getAttribute('data-current-id');
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
     const weightVal = parseFloat(weightInput.value);
 
     if (!weightVal || weightVal <= 0) {
@@ -270,7 +187,6 @@ enterBtn.addEventListener('click', async () => {
         enterBtn.disabled = true;
         enterBtn.textContent = 'Saving...';
 
-        // 1️⃣ Save weight and get amount
         const response = await fetch(`/api/collector/pickup-requests/${pickupId}/weight`, {
             method: 'PUT',
             headers: {
@@ -279,19 +195,28 @@ enterBtn.addEventListener('click', async () => {
             },
             body: JSON.stringify({ weight: weightVal })
         });
+
         const payload = await response.json();
-        if (!payload.success) throw new Error(payload.error);
+        if (!payload.success) throw new Error(payload.error || 'Save failed');
 
-        calculatedPriceEl.value = `₹${payload.data.amount.toFixed(2)}`;
+        const amount = parseFloat(payload.data.amount);
+        calculatedPriceEl.value = `₹${amount.toFixed(2)}`;
 
-        // Optional: update window.__PICKUP_DATA
+        // Update local window.__PICKUP_DATA
         const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
         if (pickup) {
             pickup.weight = weightVal;
-            pickup.price = payload.data.amount;
+            pickup.price = amount;
+            pickup.status = 'in progress';
         }
 
-        alert('Weight and price saved successfully!');
+        // Update table row live
+        const row = document.querySelector(`tr[data-id='${pickupId}']`);
+        if (row) {
+            row.querySelector('td:nth-child(6)').innerHTML = `<div class='tag inprogress'>In progress</div>`;
+        }
+
+        alert('Weight saved and amount calculated successfully!');
 
     } catch (err) {
         alert(err.message || 'Unable to save weight.');
@@ -301,4 +226,42 @@ enterBtn.addEventListener('click', async () => {
     }
 });
 
+// Mark task as completed
+async function startOrUpdateTask() {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+
+    try {
+        const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ status: 'completed' })
+        });
+
+        const payload = await response.json();
+        if (!payload.success) throw new Error(payload.error || 'Status update failed');
+
+        const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
+        if (pickup) pickup.status = 'completed';
+
+        // Update modal and table row
+        modal.querySelector('.pd-status').textContent = 'completed';
+        const row = document.querySelector(`tr[data-id='${pickupId}']`);
+        if (row) {
+            row.querySelector('td:nth-child(6)').innerHTML = `<div class='tag completed'>Completed</div>`;
+        }
+
+        alert('Pickup completed');
+        closeDetailModal();
+
+    } catch (err) {
+        alert(err.message || 'Failed to update status');
+    }
+}
+
+// Hook "Start Task" button
+document.getElementById('taskActionBtn').addEventListener('click', startOrUpdateTask);
 </script>
