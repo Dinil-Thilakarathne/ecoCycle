@@ -480,4 +480,43 @@ class CollectorDashboardController extends DashboardController
 
         return [$first, $last];
     }
+
+    /**
+ * AJAX endpoint: Save measured weight & calculate single amount for UI
+ */
+public function saveWeight(int $pickupId)
+{
+    $data = json_decode(file_get_contents('php://input'), true);
+    $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
+
+    if ($pickupId <= 0 || $weight <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or weight']);
+        exit;
+    }
+
+    try {
+        // Use IncomeWaste model
+        $amount = $this->incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
+
+        // Return JSON with single amount for frontend
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'weight' => $weight,
+                'amount' => $amount
+            ]
+        ]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage() ?: 'Failed to save weight'
+        ]);
+        exit;
+    }
+}
+
 }

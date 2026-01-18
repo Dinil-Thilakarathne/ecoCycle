@@ -253,6 +253,7 @@
         pickup.calculatedBreakdown = breakdownLines;
     }
 
+
     // --- Real-time input listener
     weightInput.addEventListener('input', () => {
         const modal = document.getElementById('pickup-detail-modal');
