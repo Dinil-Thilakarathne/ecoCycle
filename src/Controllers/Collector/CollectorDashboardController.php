@@ -139,7 +139,7 @@ class CollectorDashboardController extends DashboardController
     /**
      * Preview weight-based calculations WITHOUT saving
      */
-    public function previewPickupWeight(): \Core\Http\Response
+    /*public function previewPickupWeight(): \Core\Http\Response
     {
         $request = request();
         $pickupId = (int) $request->route('id');
@@ -167,9 +167,9 @@ class CollectorDashboardController extends DashboardController
             'totalPrice' => $calculated['totalPrice'],
             'wastes' => $calculated['wastes']
         ]);
-    }
+    }*/
 
-    /**
+/*
      * Complete pickup and save weight/price
      */
     public function completePickup(): \Core\Http\Response
@@ -206,7 +206,7 @@ class CollectorDashboardController extends DashboardController
             'breakdown' => $result['breakdown'],
             'data' => $updatedPickup
         ]);
-    }
+  }
 
     // ------------------------
     // OTHER PLACEHOLDER METHODS

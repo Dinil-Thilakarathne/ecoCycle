@@ -5,62 +5,98 @@ $selectedStatus = $selectedStatus ?? 'all';
 $assignedRequests = array_values($assignedPickups);
 $csrfToken = csrf_token();
 
-function getStatusBadge($status) {
+// Status badge generator
+function getStatusBadge($status)
+{
     $status = strtolower($status);
     $class = '';
     switch ($status) {
-        case 'pending': $class='pending'; break;
-        case 'assigned': $class='assigned'; break;
-        case 'in progress': $class='inprogress'; break;
-        case 'completed': $class='completed'; break;
+        case 'pending':
+            $class = 'pending';
+            break;
+        case 'assigned':
+            $class = 'assigned';
+            break;
+        case 'in progress':
+            $class = 'inprogress';
+            break;
+        case 'completed':
+            $class = 'completed';
+            break;
     }
     return "<div class='tag $class'>" . ucfirst($status) . "</div>";
 }
 ?>
 
 <script>
-window.__PICKUP_DATA = <?= json_encode(array_map(function($p){ $p['wastes']=$p['wastes']??[]; return $p; },$assignedRequests), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
-const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
+window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+window.__FILTERS = {
+    timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
+    status: <?php echo json_encode($selectedStatus); ?>
+};
+const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <!-- Page Header -->
 <div class="page-header">
-    <h2>My Assigned Pickups & Daily Tasks</h2>
-    <p>Manage your assigned pickups and track progress in real time</p>
+    <div class="page-header__content">
+        <h2 class="page-header__title">My Assigned Pickups & Daily Tasks</h2>
+        <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
+    </div>
 </div>
 
 <!-- Task Table -->
 <div class="activity-card">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>ID</th><th>Customer</th><th>Address</th><th>Waste</th><th>Time Slot</th><th>Status</th><th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if(!empty($assignedRequests)): foreach($assignedRequests as $r): ?>
-            <tr data-id="<?= $r['id'] ?>">
-                <td><?= $r['id'] ?></td>
-                <td><?= htmlspecialchars($r['customerName']??'Unknown') ?></td>
-                <td><?= htmlspecialchars($r['address']??'N/A') ?></td>
-                <td><?= htmlspecialchars(implode(',',$r['wasteCategories']??[])) ?></td>
-                <td><?= htmlspecialchars($r['timeSlot']??'') ?></td>
-                <td><?= getStatusBadge($r['status']??($r['statusRaw']??'')) ?></td>
-                <td>
-                    <button class="icon-button" onclick="viewDetails(this,'<?= $r['id'] ?>')"><i class="fa-solid fa-eye"></i></button>
-                </td>
-            </tr>
-            <?php endforeach; else: ?>
-            <tr><td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+    <div class="activity-card__header">
+        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
+        <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
+    </div>
+    <div class="activity-card__content">
+        <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Address</th>
+                        <th>Waste</th>
+                        <th>Time Slot</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($assignedRequests)): ?>
+                        <?php foreach ($assignedRequests as $r): ?>
+                            <tr data-id="<?= htmlspecialchars($r['id'] ?? '') ?>">
+                                <td><?= htmlspecialchars($r['id'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($r['customerName'] ?? 'Unknown Customer') ?></td>
+                                <td><?= htmlspecialchars($r['address'] ?? 'Not provided') ?></td>
+                                <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'] ?? [])) ?></td>
+                                <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
+                                <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
+                                <td>
+                                    <button class="icon-button" onclick="viewDetails(this, '<?= htmlspecialchars($r['id'] ?? '') ?>')">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<!-- Modal -->
-<div id="pickup-detail-modal" class="user-modal">
+<!-- Modal for Task Details -->
+<div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
-        <button class="close" onclick="closeDetailModal()">&times;</button>
+        <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
             <div><strong>Request ID</strong></div><div class="pd-id"></div>
@@ -71,23 +107,36 @@ const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
             <div><strong>Status</strong></div><div class="pd-status"></div>
         </div>
 
-        <!-- Weight Entry -->
-        <div id="weight-entry-row" style="display:none;margin-top:1rem;">
-            <div><strong>Measured Weight (kg)</strong></div>
-            <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.5">
-            <div style="margin-top:0.5rem;">
-                <strong>Total Price (₹): </strong><span id="calculatedPrice">0.00</span>
+        <!-- Weight & Price Entry -->
+        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
+            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+            <div>
+                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50"
+                    style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
+                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">
+                    Please enter a valid weight greater than 0.
+                </div>
+
+                <!-- Enter Button (styled like Mark as Completed) -->
+                <div style="margin-top:0.5rem;">
+                    <button id="enterWeightBtn" class="btn btn-primary" type="button">Enter</button>
+                </div>
             </div>
-            <div id="wasteBreakdown" style="margin-top:0.5rem;"></div>
-            <div style="margin-top:0.5rem;">
-                <button class="btn btn-secondary" onclick="previewWeight()">Preview Weight & Price</button>
-                <button class="btn btn-success" onclick="enterWeight()">Enter Weight</button>
+
+            <!-- Total Price Display -->
+            <div id="totalPriceContainer" style="margin-top:1rem;">
+                <strong>Total Calculated Price (Rs): </strong>
+                <input id="calculatedPrice" type="text" placeholder="Rs0.00" readonly
+                    style="padding:0.5rem; border:1px solid #d1d5db; border-radius:4px; width:150px; font-weight:600; color:#1f2937; text-align:right;">
             </div>
+
+            <!-- Waste Breakdown -->
+            <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div>
         </div>
 
-        <div style="margin-top:1rem;text-align:right;">
+        <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
-            <button class="btn btn-primary" id="taskActionBtn" onclick="startOrCompleteTask()">Start Task</button>
+            <button class="btn btn-primary" id="taskActionBtn" onclick="startOrUpdateTask()">Start Task</button>
         </div>
     </div>
 </div>
@@ -95,215 +144,249 @@ const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
 <script>
 const weightInput = document.getElementById('weightInput');
 const calculatedPriceEl = document.getElementById('calculatedPrice');
-const breakdownEl = document.getElementById('wasteBreakdown');
+const wasteBreakdownEl = document.getElementById('wasteBreakdown');
+const weightError = document.getElementById('weightError');
 
-function closeDetailModal(){
-    const modal=document.getElementById('pickup-detail-modal');
+// --- Close modal
+function closeDetailModal() {
+    const modal = document.getElementById('pickup-detail-modal');
     modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
 }
 
-function normalizeStatusValue(status){
-    if(!status) return '';
-    const s = status.toString().toLowerCase();
-    return (s==='in_progress'||s==='in-progress')?'in progress':s;
+// --- Normalize status
+function normalizeStatusValue(status) {
+    const value = (status || '').toString().toLowerCase();
+    if (value === 'in_progress' || value === 'in-progress') return 'in progress';
+    return value;
 }
 
-function getStatusBadge(status){
-    const normalized=normalizeStatusValue(status);
-    const map={'pending':'tag pending','assigned':'tag assigned','in progress':'tag inprogress','completed':'tag completed'};
-    return `<div class="${map[normalized]||'tag'}">${normalized.charAt(0).toUpperCase()+normalized.slice(1)}</div>`;
+// --- Status badge HTML
+function getStatusBadge(status) {
+    const normalized = normalizeStatusValue(status);
+    const map = {
+        'pending': 'tag pending',
+        'assigned': 'tag assigned',
+        'in progress': 'tag inprogress',
+        'completed': 'tag completed'
+    };
+    const cls = map[normalized] || 'tag';
+    return `<div class="${cls}">${normalized.charAt(0).toUpperCase() + normalized.slice(1)}</div>`;
 }
 
-function viewDetails(el,pickupId){
-    const record=window.__PICKUP_DATA.find(r=>r.id==pickupId);
-    const modal=document.getElementById('pickup-detail-modal');
-    if(!record||!modal) return;
+// --- Show modal
+function viewDetails(el, pickupId) {
+    const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
+    const modal = document.getElementById('pickup-detail-modal');
+    if (!record || !modal) return;
 
-    modal.querySelector('.pd-id').textContent=record.id;
-    modal.querySelector('.pd-customer').textContent=record.customerName;
-    modal.querySelector('.pd-address').textContent=record.address;
-    modal.querySelector('.pd-waste').textContent=(record.wasteCategories||[]).join(', ');
-    modal.querySelector('.pd-timeslot').textContent=record.timeSlot;
-    modal.querySelector('.pd-status').textContent=normalizeStatusValue(record.status);
+    modal.querySelector('.pd-id').textContent = record.id;
+    modal.querySelector('.pd-customer').textContent = record.customerName;
+    modal.querySelector('.pd-address').textContent = record.address;
+    modal.querySelector('.pd-waste').textContent = (record.wasteCategories || []).join(', ');
+    modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
+    const statusValue = normalizeStatusValue(record.status);
+    modal.querySelector('.pd-status').textContent = statusValue;
 
-    const btn=document.getElementById('taskActionBtn');
-    const weightRow=document.getElementById('weight-entry-row');
-    weightRow.style.display='none';
-    weightInput.value='';
-    calculatedPriceEl.textContent='0.00';
-    breakdownEl.innerHTML='';
+    const btn = document.getElementById('taskActionBtn');
+    btn.style.display = '';
+    btn.disabled = false;
 
-    if(normalizeStatusValue(record.status)==='assigned'){
-        btn.textContent='Start Task';
-        btn.style.display='';
-        btn.disabled=false;
-    } else if(normalizeStatusValue(record.status)==='in progress'){
-        btn.textContent='Mark as Completed';
-        btn.style.display='';
-        btn.disabled=false;
-        weightRow.style.display='';
-        weightInput.value=record.weight||'';
-        updateCalculatedPrice(record.id);
-    } else{
-        btn.style.display='none';
+    // hide weight entry initially
+    document.getElementById('weight-entry-row').style.display = 'none';
+    weightInput.value = '';
+    calculatedPriceEl.value = '';
+    wasteBreakdownEl.innerHTML = '';
+
+    // set button text
+    if (statusValue === 'assigned') {
+        btn.textContent = 'Start Task';
+    } else if (statusValue === 'in progress') {
+        btn.textContent = 'Mark as Completed';
+        document.getElementById('weight-entry-row').style.display = '';
+        weightInput.value = record.weight || '';
+        calculatePriceAndUpdateTable(record.id, record.weight || 0);
+    } else {
+        btn.style.display = 'none';
     }
 
-    modal.setAttribute('data-current-id',record.id);
+    modal.setAttribute('data-current-id', record.id);
     modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
 }
 
-weightInput.addEventListener('input',()=>{
-    const modal=document.getElementById('pickup-detail-modal');
-    const pickupId=modal.getAttribute('data-current-id');
-    updateCalculatedPrice(pickupId);
-});
+// --- Real-time price calculation
+function calculatePriceAndUpdateTable(pickupId, enteredWeight) {
+    const pickup = (window.__PICKUP_DATA || []).find(p => p.id == pickupId);
+    if (!pickup || !pickup.wastes || pickup.wastes.length === 0) return;
 
-function updateCalculatedPrice(pickupId){
-    const pickup=window.__PICKUP_DATA.find(p=>p.id==pickupId);
-    if(!pickup||!pickup.wastes||pickup.wastes.length===0) return;
-
-    const totalWeight=parseFloat(weightInput.value);
-    if(isNaN(totalWeight)){
-        calculatedPriceEl.textContent='0.00';
-        breakdownEl.innerHTML='';
+    const totalWeight = parseFloat(enteredWeight);
+    if (isNaN(totalWeight) || totalWeight <= 0) {
+        weightError.style.display = 'block';
+        calculatedPriceEl.value = '';
+        wasteBreakdownEl.innerHTML = '';
         return;
+    } else {
+        weightError.style.display = 'none';
     }
 
-    const sumQty=pickup.wastes.reduce((sum,w)=>sum+parseFloat(w.quantity||0),0)||1;
-    let totalPrice=0;
+    const sumOriginalQty = pickup.wastes.reduce((sum, w) => sum + parseFloat(w.quantity || 0), 0) || 1;
+    let totalPrice = 0;
+    const breakdownLines = pickup.wastes.map(w => {
+        const scaledQty = parseFloat(w.quantity) * totalWeight / sumOriginalQty;
+        const amount = scaledQty * parseFloat(w.price_per_unit);
+        totalPrice += amount;
+        return `${w.category_name}: ${scaledQty.toFixed(2)} ${w.unit} → ₹${amount.toFixed(2)}`;
+    });
 
-    const html=pickup.wastes.map(w=>{
-        const scaled=parseFloat(w.quantity)*totalWeight/sumQty;
-        const amount=scaled*parseFloat(w.price_per_unit);
-        totalPrice+=amount;
-        return `${w.category_name}: ${scaled.toFixed(2)} ${w.unit} → ₹${amount.toFixed(2)}`;
-    }).join('<br>');
+    calculatedPriceEl.value = `₹${totalPrice.toFixed(2)}`;
+    wasteBreakdownEl.innerHTML = breakdownLines.join('<br>');
 
-    calculatedPriceEl.textContent=totalPrice.toFixed(2);
-    breakdownEl.innerHTML=html;
+    const row = document.querySelector(`tr[data-id="${pickupId}"]`);
+    if (row) {
+        const wasteCell = row.querySelectorAll('td')[3];
+        wasteCell.innerHTML = breakdownLines.join('<br>');
+    }
+
+    pickup.calculatedWeight = totalWeight;
+    pickup.calculatedPrice = totalPrice;
+    pickup.calculatedBreakdown = breakdownLines;
 }
 
-function previewWeight(){
-    const modal=document.getElementById('pickup-detail-modal');
-    const pickupId=modal.getAttribute('data-current-id');
-    updateCalculatedPrice(pickupId);
-}
-
-async function enterWeight(){
-    const modal=document.getElementById('pickup-detail-modal');
-    const pickupId=modal.getAttribute('data-current-id');
-    const weight=parseFloat(weightInput.value);
-    if(isNaN(weight)||weight<=0){ alert('Enter valid weight'); return; }
-
-    const btn=document.getElementById('taskActionBtn');
-    btn.disabled=true;
-
-    try{
-        const res=await fetch(`/api/collector/pickup-requests/${pickupId}/enter-weight`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
-            body:JSON.stringify({weight})
-        });
-        const data=await res.json();
-        if(data.breakdown){
-            calculatedPriceEl.textContent=data.totalPrice.toFixed(2);
-            breakdownEl.innerHTML=data.breakdown.map(b=>`${b.category_name}: ${b.quantity} ${b.unit} → ₹${b.amount}`).join('<br>');
-            alert('Weight saved successfully');
-        }
-    } catch(err){ alert(err.message||'Failed to save weight'); }
-    btn.disabled=false;
-}
-
-async function enterWeight() {
+// --- Real-time input listener
+weightInput.addEventListener('input', () => {
     const modal = document.getElementById('pickup-detail-modal');
     const pickupId = modal.getAttribute('data-current-id');
-    const weight = parseFloat(weightInput.value);
-    const btn = document.getElementById('taskActionBtn');
+    calculatePriceAndUpdateTable(pickupId, weightInput.value);
+});
 
-    if (isNaN(weight) || weight <= 0) {
-        alert("Please enter a valid weight greater than 0");
+// --- Enter Weight Button click (save to database)
+document.getElementById('enterWeightBtn').addEventListener('click', async () => {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+    const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
+    if (idx === -1) return;
+
+    const pickup = window.__PICKUP_DATA[idx];
+    const weightVal = parseFloat(weightInput.value);
+    if (isNaN(weightVal) || weightVal <= 0) {
+        weightError.style.display = 'block';
         return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
+    calculatePriceAndUpdateTable(pickupId, weightVal);
 
     try {
-        const res = await fetch(`/api/collector/pickup-requests/${pickupId}/weight`, {
+        const payloadBody = {
+            weight: weightVal,
+            price: pickup.calculatedPrice
+        };
+
+        const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/weight`, {
             method: 'PUT',
-            headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrfToken },
-            body: JSON.stringify({ weight })
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify(payloadBody)
         });
-        const data = await res.json();
 
-        if (!res.ok) throw new Error(data.message || "Failed to save weight");
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || 'Failed to save weight.');
 
-        // Update modal with calculated DB values
-        calculatedPriceEl.textContent = data.totalPrice.toFixed(2);
-        breakdownEl.innerHTML = data.breakdown.map(w => 
-            `${w.category_name}: ${w.quantity} ${w.unit} → ₹${w.amount.toFixed(2)}`
-        ).join('<br>');
+        pickup.weight = weightVal;
+        pickup.price = pickup.calculatedPrice;
 
-        // Update weight in pickup data
-        const pickup = window.__PICKUP_DATA.find(p=>p.id==pickupId);
-        if(pickup){
-            pickup.weight = data.totalWeight;
-            pickup.price = data.totalPrice;
-            pickup.wastes = data.breakdown;
-        }
+        alert('Weight saved successfully!');
+    } catch (err) {
+        alert(err.message || 'Unable to save weight.');
+    }
+});
 
-        btn.disabled = false;
+// --- Start or Update Task
+function startOrUpdateTask() {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+    const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
+    if (idx === -1) return;
+
+    const pickup = window.__PICKUP_DATA[idx];
+    const btn = document.getElementById('taskActionBtn');
+    const status = normalizeStatusValue(pickup.status);
+
+    if (status === 'assigned') {
+        pickup.status = 'in progress';
+        modal.querySelector('.pd-status').textContent = 'in progress';
         btn.textContent = 'Mark as Completed';
-    } catch(err) {
-        alert(err.message || "Failed to save weight");
-        btn.disabled = false;
-        btn.textContent = 'Mark as Completed';
+        document.getElementById('weight-entry-row').style.display = '';
+        return;
     }
 
-async function startOrCompleteTask(){
-    const modal=document.getElementById('pickup-detail-modal');
-    const pickupId=modal.getAttribute('data-current-id');
-    const pickup=window.__PICKUP_DATA.find(p=>p.id==pickupId);
-    const btn=document.getElementById('taskActionBtn');
+    updateTaskStatus();
+}
 
-    let nextStatus='';
-    const curr=normalizeStatusValue(pickup.status);
+// --- Update status to completed
+async function updateTaskStatus() {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+    const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
+    if (idx === -1) return;
 
-    if(curr==='assigned') nextStatus='in_progress';
-    else if(curr==='in progress') nextStatus='completed';
-    else return;
+    const pickup = window.__PICKUP_DATA[idx];
+    const btn = document.getElementById('taskActionBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
 
-    btn.disabled=true;
-    btn.textContent='Updating...';
+    const weightVal = pickup.calculatedWeight;
+    const priceVal = pickup.calculatedPrice;
 
-    const payload={status:nextStatus};
-    if(nextStatus==='completed'){
-        payload.weight=parseFloat(weightInput.value);
+    if (!weightVal || weightVal <= 0) {
+        weightError.style.display = '';
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return;
     }
 
-    try{
-        const res=await fetch(`/api/collector/pickup-requests/${pickupId}/status`,{
-            method:'PUT',
-            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
-            body:JSON.stringify(payload)
-        });
-        const data=await res.json();
-        pickup.status=normalizeStatusValue(data.data?.status||nextStatus);
-        document.querySelector(`tr[data-id="${pickupId}"] td:nth-child(6)`).innerHTML=getStatusBadge(pickup.status);
-        modal.querySelector('.pd-status').textContent=pickup.status;
+    try {
+        const payloadBody = {
+            status: 'completed',
+            weight: weightVal,
+            price: priceVal
+        };
 
-        if(pickup.status==='in progress'){
-            document.getElementById('weight-entry-row').style.display='';
-            btn.textContent='Mark as Completed';
-            btn.disabled=false;
-        } else if(pickup.status==='completed'){
-            btn.style.display='none';
-            document.getElementById('weight-entry-row').style.display='none';
+        const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify(payloadBody)
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || 'Failed to update task status.');
+
+        const updated = payload.data || {};
+        pickup.status = normalizeStatusValue(updated.status || 'completed');
+        pickup.weight = weightVal;
+        pickup.price = priceVal;
+
+        modal.querySelector('.pd-status').textContent = pickup.status;
+
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
+        if (row) {
+            const statusCell = row.querySelectorAll('td')[5];
+            if (statusCell) statusCell.innerHTML = getStatusBadge(pickup.status);
         }
-    }catch(err){
-        alert(err.message||'Failed to update status');
-        btn.disabled=false;
-        btn.textContent=(nextStatus==='in_progress')?'Mark as Completed':'Start Task';
+
+        btn.style.display = 'none';
+    } catch (err) {
+        alert(err.message || 'Unable to update task status.');
+        btn.disabled = false;
+        btn.textContent = originalText;
     }
 }
 </script>
