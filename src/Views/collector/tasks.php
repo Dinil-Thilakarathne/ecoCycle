@@ -150,25 +150,50 @@ function normalizeStatusValue(status) {
 // Open modal and populate fields
 function viewDetails(el, pickupId) {
     const record = window.__PICKUP_DATA.find(r => r.id == pickupId);
-    if (!record) return;
+    if (!record) {
+        console.error('Record not found for pickup ID:', pickupId);
+        return;
+    }
 
     const modal = document.getElementById('pickup-detail-modal');
-    modal.querySelector('.pd-id').textContent = record.id;
-    modal.querySelector('.pd-customer').textContent = record.customerName;
-    modal.querySelector('.pd-address').textContent = record.address;
-    modal.querySelector('.pd-waste').textContent = (record.wasteCategories || []).join(', ');
-    modal.querySelector('.pd-timeslot').textContent = record.timeSlot;
+    modal.querySelector('.pd-id').textContent = record.id || '';
+    modal.querySelector('.pd-customer').textContent = record.customerName || 'Unknown';
+    modal.querySelector('.pd-address').textContent = record.address || 'Not provided';
+    modal.querySelector('.pd-waste').textContent = (record.wasteCategories || []).join(', ') || 'Not specified';
+    modal.querySelector('.pd-timeslot').textContent = record.timeSlot || '';
     modal.querySelector('.pd-status').textContent = normalizeStatusValue(record.status);
 
-    // Show weight input only if in progress
+    // Show weight input only if assigned or in progress
     document.getElementById('weight-entry-row').style.display =
         ['assigned', 'in progress'].includes(normalizeStatusValue(record.status)) ? '' : 'none';
 
     weightInput.value = record.weight || '';
-    calculatedPriceEl.value = record.price ? `₹${record.price.toFixed(2)}` : '';
+    calculatedPriceEl.value = record.price ? `₹${record.price.toFixed(2)}` : '₹0.00';
+    weightError.style.display = 'none';
 
     modal.setAttribute('data-current-id', record.id);
     modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+// Helper function to safely parse JSON response
+async function safeJsonParse(response) {
+    const contentType = response.headers.get('content-type');
+    
+    if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Invalid Content-Type:', contentType);
+        console.error('Response body:', text.substring(0, 500));
+        throw new Error(`Server returned ${response.status}: Invalid response format. Expected JSON.`);
+    }
+    
+    try {
+        return await response.json();
+    } catch (e) {
+        const text = await response.text();
+        console.error('JSON Parse Error:', e, 'Response:', text.substring(0, 500));
+        throw new Error('Invalid JSON response from server');
+    }
 }
 
 // Save weight + calculate price
@@ -177,10 +202,23 @@ enterBtn.addEventListener('click', async () => {
     const pickupId = modal.getAttribute('data-current-id');
     const weightVal = parseFloat(weightInput.value);
 
-    if (!weightVal || weightVal <= 0) {
+    // Validate weight input
+    if (!pickupId) {
+        alert('Error: Pickup ID not found.');
+        return;
+    }
+
+    if (!weightVal || weightVal <= 0 || isNaN(weightVal)) {
         weightError.style.display = 'block';
         return;
     }
+    
+    if (weightVal > 10000) {
+        weightError.textContent = 'Weight seems too high. Please verify.';
+        weightError.style.display = 'block';
+        return;
+    }
+
     weightError.style.display = 'none';
 
     try {
@@ -196,10 +234,28 @@ enterBtn.addEventListener('click', async () => {
             body: JSON.stringify({ weight: weightVal })
         });
 
-        const payload = await response.json();
-        if (!payload.success) throw new Error(payload.error || 'Save failed');
+        // Check HTTP status
+        if (!response.ok) {
+            const payload = await safeJsonParse(response);
+            throw new Error(payload.error || `Server error: ${response.status}`);
+        }
+
+        // Parse JSON safely
+        const payload = await safeJsonParse(response);
+
+        if (!payload.success) {
+            throw new Error(payload.error || 'Failed to save weight');
+        }
+
+        if (!payload.data || payload.data.amount === undefined) {
+            throw new Error('Invalid response: missing amount data');
+        }
 
         const amount = parseFloat(payload.data.amount);
+        if (isNaN(amount)) {
+            throw new Error('Invalid amount returned from server');
+        }
+
         calculatedPriceEl.value = `₹${amount.toFixed(2)}`;
 
         // Update local window.__PICKUP_DATA
@@ -211,15 +267,17 @@ enterBtn.addEventListener('click', async () => {
         }
 
         // Update table row live
-        const row = document.querySelector(`tr[data-id='${pickupId}']`);
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
         if (row) {
             row.querySelector('td:nth-child(6)').innerHTML = `<div class='tag inprogress'>In progress</div>`;
         }
 
-        alert('Weight saved and amount calculated successfully!');
+        alert('✓ Weight saved and amount calculated successfully!');
 
     } catch (err) {
-        alert(err.message || 'Unable to save weight.');
+        console.error('Weight entry error:', err);
+        weightError.textContent = err.message || 'Unable to save weight. Please try again.';
+        weightError.style.display = 'block';
     } finally {
         enterBtn.disabled = false;
         enterBtn.textContent = 'Enter';
@@ -231,6 +289,11 @@ async function startOrUpdateTask() {
     const modal = document.getElementById('pickup-detail-modal');
     const pickupId = modal.getAttribute('data-current-id');
 
+    if (!pickupId) {
+        alert('Error: Pickup ID not found.');
+        return;
+    }
+
     try {
         const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
             method: 'PUT',
@@ -241,27 +304,41 @@ async function startOrUpdateTask() {
             body: JSON.stringify({ status: 'completed' })
         });
 
-        const payload = await response.json();
-        if (!payload.success) throw new Error(payload.error || 'Status update failed');
+        // Check HTTP status
+        if (!response.ok) {
+            const payload = await safeJsonParse(response);
+            throw new Error(payload.error || `Server error: ${response.status}`);
+        }
 
+        const payload = await safeJsonParse(response);
+
+        if (!payload.success) {
+            throw new Error(payload.error || 'Status update failed');
+        }
+
+        // Update local data
         const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
-        if (pickup) pickup.status = 'completed';
+        if (pickup) {
+            pickup.status = 'completed';
+        }
 
         // Update modal and table row
-        modal.querySelector('.pd-status').textContent = 'completed';
-        const row = document.querySelector(`tr[data-id='${pickupId}']`);
+        modal.querySelector('.pd-status').textContent = 'Completed';
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
         if (row) {
             row.querySelector('td:nth-child(6)').innerHTML = `<div class='tag completed'>Completed</div>`;
         }
 
-        alert('Pickup completed');
+        alert('✓ Pickup marked as completed');
         closeDetailModal();
 
     } catch (err) {
-        alert(err.message || 'Failed to update status');
+        console.error('Task update error:', err);
+        alert(err.message || 'Failed to update status. Please try again.');
     }
 }
 
 // Hook "Start Task" button
 document.getElementById('taskActionBtn').addEventListener('click', startOrUpdateTask);
+
 </script>
