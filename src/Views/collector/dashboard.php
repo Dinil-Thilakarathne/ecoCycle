@@ -15,7 +15,7 @@
       <div class="feature-card__title">Today's Tasks</div>
       <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
     </div>
-    <div class="feature-card__body">8</div>
+    <div class="feature-card__body"><?= $todayPickups ?? 0 ?></div>
     <div class="feature-card__footer">
       <span class="desc">assigned tasks</span>
     </div>
@@ -26,7 +26,7 @@
       <div class="feature-card__title">Completed</div>
       <div class="feature-card__icon"><i class="fa-solid fa-table-list"></i></div>
     </div>
-    <div class="feature-card__body">5</div>
+    <div class="feature-card__body"><?= $completedPickups ?? 0 ?></div>
     <div class="feature-card__footer">
       <span class="desc">tasks finished</span>
     </div>
@@ -37,7 +37,7 @@
       <div class="feature-card__title">Pending</div>
       <div class="feature-card__icon"><i class="fa-solid fa-clock"></i></div>
     </div>
-    <div class="feature-card__body">3</div>
+    <div class="feature-card__body"><?= count($pendingPickups ?? []) ?></div>
     <div class="feature-card__footer">
       <span class="desc">tasks left</span>
     </div>
@@ -72,33 +72,27 @@
 
   <!-- Recent Tasks -->
   <activity-card title="Recent Tasks" description="Your latest pickup activities">
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">
-          <span>
-            John Smith
-          </span>
-          <span class="tag success">completed</span>
+    <?php if (!empty($pendingPickups)): ?>
+      <?php foreach (array_slice($pendingPickups, 0, 5) as $pickup): ?>
+        <div class="task">
+          <div class="task-info">
+            <div class="task-name">
+              <span><?= htmlspecialchars($pickup['customer_name'] ?? 'Unknown') ?></span>
+              <span class="tag <?= ($pickup['status'] ?? '') === 'completed' ? 'success' : 'warning' ?>">
+                <?= ucfirst(str_replace('_', ' ', $pickup['status'] ?? 'pending')) ?>
+              </span>
+            </div>
+            <div class="task-meta">
+              <i class="fa-solid fa-location-dot"></i> 
+              <?= htmlspecialchars($pickup['address'] ?? 'Not provided') ?> · 
+              <?= htmlspecialchars(implode(', ', $pickup['wasteCategories'] ?? [])) ?>
+            </div>
+          </div>
         </div>
-        <div class="task-meta"><i class="fa-solid fa-location-dot"></i> 123 Oak Street · Plastic · 15kg</div>
-      </div>
-      <div class="task-right">
-      </div>
-    </div>
-
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">Mike Wilson <span class="tag warning">pending</span></div>
-        <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 789 Elm Road · Metal · 8kg</span>
-      </div>
-    </div>
-
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">Emma Davis <span class="tag warning">pending</span></div>
-        <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 321 Maple Street · Glass · 12kg</span>
-      </div>
-    </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <p style="text-align: center; color: #999; padding: 20px;">No pending tasks</p>
+    <?php endif; ?>
   </activity-card>
 
 

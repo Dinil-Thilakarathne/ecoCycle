@@ -147,17 +147,78 @@ class CollectorDashboardController extends DashboardController
     }
 
     // Placeholder methods for data retrieval
-    private function getTodayPickups(): array
+    private function getTodayPickups(): int
     {
-        return [];
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            $allPickups = $pickupRequest->listForCollector($collectorId);
+            
+            // Count only today's pickups (assigned, in progress, or completed)
+            $today = date('Y-m-d');
+            $count = 0;
+            foreach ($allPickups as $pickup) {
+                $createdDate = isset($pickup['created_at']) ? substr($pickup['created_at'], 0, 10) : '';
+                $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
+                
+                if (($createdDate === $today || $scheduledDate === $today) && 
+                    in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'])) {
+                    $count++;
+                }
+            }
+            return $count;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
+
     private function getCompletedPickupsToday(): int
     {
-        return 5;
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            $completedPickups = $pickupRequest->listForCollector($collectorId, 'completed');
+            
+            // Count only today's completed pickups
+            $today = date('Y-m-d');
+            $count = 0;
+            foreach ($completedPickups as $pickup) {
+                $updatedDate = isset($pickup['updated_at']) ? substr($pickup['updated_at'], 0, 10) : '';
+                if ($updatedDate === $today) {
+                    $count++;
+                }
+            }
+            return $count;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
+
     private function getPendingPickups(): array
     {
-        return [];
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return [];
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            // Get assigned and in-progress pickups (not completed)
+            $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
+            $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
+            
+            return array_merge($assigned, $inProgress);
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
     private function getTodayEarnings(): float
     {
@@ -555,11 +616,12 @@ class CollectorDashboardController extends DashboardController
         }
     }*/
 
-        public function saveWeight($pickupId)
+    public function saveWeight(\Core\Http\Request $request)
 {
     header('Content-Type: text/html; charset=utf-8');
 
     try {
+        $pickupId = $request->route('id');
         $data = json_decode(file_get_contents('php://input'), true);
         if (!is_array($data)) {
             throw new \Exception('Invalid input');
@@ -581,7 +643,7 @@ class CollectorDashboardController extends DashboardController
         $pickupRequest->updateStatus((int)$pickupId, 'in progress');
 
         // ✅ HTML RESPONSE with calculated amount
-        echo "
+       echo "
             <div class='weight-result success'>
                 <p><strong>Measured Weight:</strong> {$weight} kg</p>
                 <p><strong>Total Amount:</strong> Rs. " . number_format($amount, 2) . "</p>
@@ -592,16 +654,19 @@ class CollectorDashboardController extends DashboardController
 
     } catch (\Throwable $e) {
         http_response_code(500);
-        echo "<div class='alert error'>Failed to save weight</div>";
+        $errorMsg = $e->getMessage() ?: 'Failed to save weight';
+        error_log('Weight save error: ' . $errorMsg);
+        echo "<div class='alert error'>{$errorMsg}</div>";
         exit;
     }
 }
 
-public function updateStatus($pickupId)
+public function updateStatus(\Core\Http\Request $request)
 {
     header('Content-Type: text/html; charset=utf-8');
 
     try {
+        $pickupId = $request->route('id');
         $data = json_decode(file_get_contents('php://input'), true);
         if (!is_array($data)) {
             throw new \Exception('Invalid input');

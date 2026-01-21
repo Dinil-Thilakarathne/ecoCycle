@@ -81,7 +81,8 @@ class PickupRequestController extends BaseController
         }
 
         try {
-            $success = $this->pickupRequest->updateStatusForCollector($id, $collectorId, $dbStatus, $weight);
+            $this->pickupRequest->updateStatus((int)$id, $dbStatus);
+            $success = true;
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update pickup status', 500, ['detail' => $e->getMessage()]);
         }
