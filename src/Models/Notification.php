@@ -100,8 +100,14 @@ class Notification extends BaseModel
 
         $limit = max(1, (int) $limit);
         
+        // Normalize role to lowercase to match predefined recipient groups (which are lowercase)
+        $originalRole = $role;
+        $role = strtolower($role);
         // Map singular role to plural group name if needed, or check both
         $roleGroup = $role . 's'; // e.g. customer -> customers
+        
+        // DEBUG LOGGING
+        file_put_contents(__DIR__ . '/../../storage/logs/notification_debug.log', date('Y-m-d H:i:s') . " - forUser: userId=$userId originalRole=$originalRole normalizedRole=$role roleGroup=$roleGroup\n", FILE_APPEND);
 
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(

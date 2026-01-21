@@ -9,23 +9,12 @@ $pickupRequests = array_values(array_filter($pickupRequests, static function ($r
     $status = strtolower((string) ($r['status'] ?? ''));
     return $status !== 'cancelled';
 }));
-$filter = $_GET['filter'] ?? 'all';
-$normalizedFilter = is_string($filter) ? strtolower($filter) : 'all';
-
-$filteredRequests = $pickupRequests;
-if ($normalizedFilter !== 'all') {
-    $filteredRequests = array_values(array_filter(
-        $pickupRequests,
-        static function ($request) use ($normalizedFilter) {
-            $status = strtolower((string) ($request['status'] ?? ''));
-            return $status === $normalizedFilter;
-        }
-    ));
-}
 
 $pendingCount = 0;
 $scheduledCount = 0;
 $completedCount = 0;
+$totalCount = 0;
+
 foreach ($pickupRequests as $request) {
     $status = strtolower((string) ($request['status'] ?? ''));
     if ($status === 'pending') {
@@ -37,8 +26,18 @@ foreach ($pickupRequests as $request) {
     if ($status === 'completed') {
         $completedCount++;
     }
+    $totalCount++;
 }
-$totalCount = count($pickupRequests);
+
+// Get only the top 5 most recent pickups for the dashboard widget
+$recentPickupsWidget = array_slice(
+    array_values(array_filter($pickupRequests, static function ($r) {
+        $status = strtolower((string) ($r['status'] ?? ''));
+        return $status !== 'cancelled';
+    })),
+    0,
+    5
+);
 
 if (!function_exists('customer_pickup_status_class')) {
     function customer_pickup_status_class(string $status): string
@@ -78,53 +77,57 @@ if (!function_exists('customer_pickup_format_datetime')) {
 
 $customerStats = [
     [
-        'title' => 'Total Requests',
+        'title' => 'Total Pickups',
         'value' => $totalCount,
         'icon' => 'fa-solid fa-truck',
         'subtitle' => 'All time',
     ],
     [
-        'title' => 'Pending Request',
-        'value' => $pendingCount,
-        'icon' => 'fa-solid fa-hourglass-half',
-        'subtitle' => 'Awaiting confirmation',
-    ],
-    [
-        'title' => 'Scheduled Pickups',
-        'value' => $scheduledCount,
-        'icon' => 'fa-solid fa-calendar-check',
-        'subtitle' => 'Assigned / Confirmed',
-    ],
-    [
         'title' => 'Total Income',
-        'value' => "Rs: 10,000.00",
+        'value' => 'Rs 0.00',
         'icon' => 'fa-solid fa-wallet',
-        'subtitle' => 'Total earnings (Rs)'
+        'subtitle' => 'Earnings',
+    ],
+    [
+        'title' => 'Total Weight',
+        'value' => '0 kg',
+        'icon' => 'fa-solid fa-weight',
+        'subtitle' => 'Waste collected',
     ],
 ];
 ?>
 
 <!-- Main Content -->
 <div class="main-content">
-    <div class="dashboard-page">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
-                <?php
-                $profileData = $userProfile ?? [];
-                $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
-                $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
-                $imagePath = $profileData['profileImage'] ?? null;
-                $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
-                ?>
-                <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar"
-                    style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
-                <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
+    <div class="dashboard-page" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); min-height: 100vh; padding: 2rem; display: flex; flex-direction: column;">
+        
+        <!-- Welcome Section with CTA -->
+        <div class="welcome-section" style="margin-bottom: 2.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; flex-wrap: wrap;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <?php
+                        $profileData = $userProfile ?? [];
+                        $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
+                        $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
+                        $imagePath = $profileData['profileImage'] ?? null;
+                        $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
+                        ?>
+                        <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar" style="width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(28, 227, 106, 0.15);">
+                        <div>
+                            <h1 style="margin: 0; color: #111827; font-size: 1.75rem; font-weight: 700;">Welcome, <?= htmlspecialchars($firstName) ?>!</h1>
+                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.95rem;">Your waste collection dashboard</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="navigateTo('/customer/pickup')" style="height: fit-content; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 600; background: #1ce36a; color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(28, 227, 106, 0.25);">
+                    <i class="fa-solid fa-plus" style="margin-right: 0.5rem;"></i> New Request
+                </button>
             </div>
         </div>
 
-        <!-- Stats Feature Cards -->
-        <div class="stats-grid">
+        <!-- Stats Feature Cards (Using old style) -->
+        <div class="stats-grid" style="margin-bottom: 2.5rem;">
             <?php foreach ($customerStats as $stat): ?>
                 <div class="feature-card">
                     <div class="feature-card__header">
@@ -145,230 +148,222 @@ $customerStats = [
             <?php endforeach; ?>
         </div>
 
-        <!-- Recent Pickups Table -->
-        <div class="table-section">
-            <div class="section-header">
-                <h2 class="section-title">Recent Pickups</h2>
-                <p class="section-subtitle">Your latest waste collection activities</p>
-            </div>
+        <!-- Main Content Grid -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; flex: 1; margin-bottom: 0; align-items: start;">
+            
+            <!-- Left Column: Chart & Recent Activity -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                
+                <!-- Activity Doughnut Chart -->
+                <div style="background: white; border-radius: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden; padding: 2rem;">
+                    <div style="margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #111827; font-size: 1.25rem; font-weight: 700;">Request Status Overview</h2>
+                        <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
+                    </div>
+                    <div style="height: 280px; position: relative; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="statusChart" style="max-height: 280px;"></canvas>
+                    </div>
+                    <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1ce36a;"><?= $pendingCount ?></div>
+                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Pending</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;"><?= $scheduledCount ?></div>
+                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Scheduled</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;"><?= $completedCount ?></div>
+                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Completed</p>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="action-buttons" style="margin-bottom:1.5rem;">
-                <?php
-                $filters = [
-                    'all' => 'All Requests',
-                    'pending' => 'Pending',
-                    'assigned' => 'Assigned',
-                    'confirmed' => 'Confirmed',
-                    'completed' => 'Completed',
-                    // cancelled intentionally omitted from dashboard filters
-                ];
-                foreach ($filters as $key => $label):
-                    $isActive = $normalizedFilter === $key ? 'btn-primary' : 'btn-outline';
-                    ?>
-                    <button type="button" class="btn <?= $isActive ?>" data-filter="<?= e($key) ?>">
-                        <?= e($label) ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
+                <!-- Recent Activity -->
+                <div style="background: white; border-radius: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden;">
+                    <div style="padding: 2rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h2 style="margin: 0; color: #111827; font-size: 1.25rem; font-weight: 700;">Recent Activity</h2>
+                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Last 5 pickup requests</p>
+                        </div>
+                        <a href="/customer/pickup" style="color: #1ce36a; text-decoration: none; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.3s;">
+                            View All <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+                        </a>
+                    </div>
 
-            <div class="table-container"
-                style="overflow-x:auto;box-shadow:0 2px 12px rgba(34,197,94,0.08);border-radius:16px;">
-                <table class="data-table" style="min-width:900px;">
-                    <thead>
-                        <tr>
-                            <th style="width:60px;">PID</th>
-                            <th>Address</th>
-                            <th>Time Slot</th>
-                            <th>Waste Categories</th>
-                            <th>Created</th>
-                            <th>Scheduled</th>
-                            <th>Collector</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboard-pickup-body">
-                        <?php if (empty($filteredRequests)): ?>
-                            <tr>
-                                <td colspan="9" class="empty-state">
-                                    <div class="empty-content">
-                                        <div class="empty-icon">📦</div>
-                                        <h3>No pickup requests found</h3>
-                                        <p>No pickup requests match your current filter.</p>
-                                    </div>
-                                </td>
-                            </tr>
+                    <div style="max-height: 350px; overflow-y: auto;">
+                        <?php if (empty($recentPickupsWidget)): ?>
+                            <div style="padding: 3rem 2rem; text-align: center; color: #6b7280;">
+                                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📦</div>
+                                <p style="margin: 0; font-weight: 500;">No pickup requests yet</p>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Create your first pickup request to get started</p>
+                            </div>
                         <?php else: ?>
-                            <?php foreach ($filteredRequests as $request):
-                                $status = (string) ($request['status'] ?? 'pending');
-                                $collector = $request['collectorName'] ?? '';
-                                $categoryListRaw = $request['wasteCategories'] ?? [];
-                                $categoryList = is_array($categoryListRaw) ? $categoryListRaw : [];
-                                ?>
-                                <tr data-request-id="<?= e((string) $request['id']) ?>">
-                                    <td><?= e((string) $request['id']) ?></td>
-                                    <td><?= e((string) ($request['address'] ?? '')) ?></td>
-                                    <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
-                                    <td>
-                                        <?php
-                                        $categoryNames = array_values(array_filter(array_map('strval', is_array($categoryList) ? $categoryList : [])));
-                                        ?>
-                                        <?php if (!empty($categoryNames)): ?>
-                                            <div class="badge-group">
-                                                <?php foreach ($categoryNames as $categoryName): ?>
-                                                    <span class="tag"><?= e($categoryName) ?></span>
-                                                <?php endforeach; ?>
+                            <div style="list-style: none; padding: 0; margin: 0;">
+                                <?php foreach ($recentPickupsWidget as $request): 
+                                    $status = strtolower((string) ($request['status'] ?? 'pending'));
+                                    $statusColors = [
+                                        'pending' => ['#1ce36a', '#f0fdf4'],
+                                        'assigned' => ['#3b82f6', '#eff6ff'],
+                                        'confirmed' => ['#10b981', '#f0fdf4'],
+                                        'completed' => ['#059669', '#d1fae5'],
+                                        'cancelled' => ['#ef4444', '#fee2e2'],
+                                    ];
+                                    $colors = $statusColors[$status] ?? ['#6b7280', '#f9fafb'];
+                                    ?>
+                                    <div style="padding: 1.25rem 2rem; border-bottom: 1px solid #f3f4f6; transition: background 0.3s;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='transparent'">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                                            <div style="flex: 1;">
+                                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                                    <span style="font-weight: 700; color: #111827; font-size: 0.95rem;">Request #<?= e((string) $request['id']) ?></span>
+                                                    <span style="background: <?= e($colors[1]) ?>; color: <?= e($colors[0]) ?>; padding: 0.25rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;"><?= e(ucfirst($status)) ?></span>
+                                                </div>
+                                                <p style="margin: 0.5rem 0 0 0; color: #4b5563; font-size: 0.875rem;">
+                                                    <i class="fa-solid fa-map-marker-alt" style="color: #1ce36a; margin-right: 0.5rem;"></i>
+                                                    <?= e((string) ($request['address'] ?? 'Address not provided')) ?>
+                                                </p>
+                                                <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.75rem;">
+                                                    <i class="fa-solid fa-calendar" style="margin-right: 0.5rem;"></i>
+                                                    <?php 
+                                                    $createdAt = strtotime($request['createdAt'] ?? 'now');
+                                                    echo date('M d, Y', $createdAt);
+                                                    ?>
+                                                </p>
                                             </div>
-                                        <?php else: ?>
-                                            <span>-</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= e(customer_pickup_format_datetime($request['createdAt'] ?? null)) ?></td>
-                                    <td><?= e(customer_pickup_format_datetime($request['scheduledAt'] ?? null)) ?></td>
-                                    <td><?= e($collector !== '' ? $collector : '-') ?></td>
-                                    <td>
-                                        <span class="tag <?= e(customer_pickup_status_class($status)) ?>">
-                                            <?= e(ucfirst($status)) ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                                            <a href="/customer/pickup?edit=<?= e((string) $request['id']) ?>" style="padding: 0.5rem 1rem; background: #f3f4f6; color: #1ce36a; text-decoration: none; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap; transition: all 0.3s;" onmouseenter="this.style.background='#e5e7eb'" onmouseleave="this.style.background='#f3f4f6'">View Details</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         <?php endif; ?>
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Quick Stats & Actions -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- Performance Card -->
+                <div style="background: linear-gradient(135deg, #1ce36a 0%, #08682d 100%); border-radius: 1.25rem; padding: 2rem; color: white; box-shadow: 0 8px 16px rgba(28, 227, 106, 0.25);">
+                    <h3 style="margin: 0; font-size: 1rem; opacity: 0.9; font-weight: 600; margin-bottom: 0.5rem;">Completion Rate</h3>
+                    <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem;">
+                        <?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%
+                    </div>
+                    <p style="margin: 0; font-size: 0.875rem; opacity: 0.95;">of your requests completed</p>
+                    <div style="margin-top: 1rem; background: rgba(255,255,255,0.2); border-radius: 0.5rem; height: 6px; overflow: hidden;">
+                        <div style="background: white; height: 100%; width: <?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%; transition: width 0.5s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div style="background: white; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                    <h3 style="margin: 0 0 1rem 0; color: #111827; font-size: 1rem; font-weight: 700;">Quick Actions</h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <a href="/customer/pickup" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
+                            <i class="fa-solid fa-plus" style="color: #1ce36a;"></i> New Pickup Request
+                        </a>
+                        <a href="/customer/analytics" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
+                            <i class="fa-solid fa-chart-line" style="color: #3b82f6;"></i> View Analytics
+                        </a>
+                        <a href="/customer/profile" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
+                            <i class="fa-solid fa-user" style="color: #f59e0b;"></i> Edit Profile
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Stats Summary -->
+                <div style="background: white; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                    <h3 style="margin: 0 0 1rem 0; color: #111827; font-size: 1rem; font-weight: 700;">Summary</h3>
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #4b5563; font-size: 0.875rem;">Total Requests</span>
+                            <span style="font-weight: 700; color: #111827; font-size: 1.125rem;"><?= $totalCount ?></span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #4b5563; font-size: 0.875rem;">Success Rate</span>
+                            <span style="font-weight: 700; color: #1ce36a; font-size: 1.125rem;"><?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #4b5563; font-size: 0.875rem;">Awaiting Action</span>
+                            <span style="font-weight: 700; color: #f59e0b; font-size: 1.125rem;"><?= $pendingCount ?></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    (function () {
-        // Client-side renderer for the Recent Pickups table so filtering does not change the URL
-        const state = {
-            requests: <?= json_encode($pickupRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
-            filter: '<?= e($normalizedFilter) ?>'
-        };
+    function navigateTo(url) {
+        window.location.href = url;
+    }
 
-        const tableBody = document.getElementById('dashboard-pickup-body');
-        const filterButtons = document.querySelectorAll('[data-filter]');
-
-        function escapeHtml(value) {
-            return String(value ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function formatDate(value) {
-            if (!value) return '-';
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) {
-                const parsed = new Date(String(value).replace(' ', 'T'));
-                if (Number.isNaN(parsed.getTime())) return '-';
-                return parsed.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
-            }
-            return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
-        }
-
-        function statusClass(status) {
-            const map = {
-                pending: 'pending',
-                assigned: 'assigned',
-                confirmed: 'assigned',
-                completed: 'completed',
-                cancelled: 'warning'
-            };
-            return map[(status || '').toLowerCase()] || 'secondary';
-        }
-
-        function renderWasteCategories(rawList) {
-            const list = Array.isArray(rawList) ? rawList : [];
-            const normalized = list.map((item) => (typeof item === 'string' ? item.trim() : String(item).trim())).filter(Boolean);
-            if (!normalized.length) return '<span>-</span>';
-            return '<div class="badge-group">' + normalized.map(n => `<span class="tag">${escapeHtml(n)}</span>`).join('') + '</div>';
-        }
-
-        function capitalize(str) {
-            if (!str) return '';
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
-
-        function renderTable() {
-            if (!tableBody) return;
-
-            const filtered = state.filter === 'all' ? state.requests : state.requests.filter(r => ((r.status || '').toLowerCase()) === state.filter);
-
-            if (!filtered.length) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <div class="empty-content">
-                                <div class="empty-icon">📦</div>
-                                <h3>No pickup requests found</h3>
-                                <p>No pickup requests match your current filter.</p>
-                            </div>
-                        </td>
-                    </tr>`;
-                return;
-            }
-
-            const rows = filtered.map((request) => {
-                const status = (request.status || 'pending');
-                const normalizedStatus = status.toLowerCase();
-                const collector = request.collectorName ? request.collectorName : '-';
-                const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
-                const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
-
-                return `
-                    <tr data-request-id="${escapeHtml(String(request.id))}">
-                        <td>${escapeHtml(String(request.id))}</td>
-                        <td>${escapeHtml(request.address || '')}</td>
-                        <td>${escapeHtml(request.timeSlot || '')}</td>
-                        <td>${renderWasteCategories(request.wasteCategories)}</td>
-                        <td>${escapeHtml(formatDate(request.createdAt))}</td>
-                        <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
-                        <td>${escapeHtml(collector)}</td>
-                        <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
-                    </tr>`;
-            });
-
-            tableBody.innerHTML = rows.join('');
-        }
-
-        function attachFilterListeners() {
-            filterButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    state.filter = button.getAttribute('data-filter') || 'all';
-                    filterButtons.forEach((btn) => {
-                        btn.classList.remove('btn-primary');
-                        btn.classList.add('btn-outline');
-                    });
-                    button.classList.remove('btn-outline');
-                    button.classList.add('btn-primary');
-                    renderTable();
-                });
+    // Initialize Status Doughnut Chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const chartCanvas = document.getElementById('statusChart');
+        if (chartCanvas) {
+            new Chart(chartCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Scheduled', 'Completed'],
+                    datasets: [
+                        {
+                            data: [<?= $pendingCount ?>, <?= $scheduledCount ?>, <?= $completedCount ?>],
+                            backgroundColor: [
+                                '#1ce36a',
+                                '#3b82f6',
+                                '#10b981'
+                            ],
+                            borderColor: [
+                                '#08682d',
+                                '#1e40af',
+                                '#047857'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 8,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 12, weight: '600' },
+                                color: '#4b5563',
+                                padding: 15,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                boxWidth: 8,
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            padding: 12,
+                            titleFont: { size: 12, weight: '600' },
+                            bodyFont: { size: 12 },
+                            borderColor: '#1ce36a',
+                            borderWidth: 1,
+                            usePointStyle: true,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
-
-        // Delegate edit/cancel buttons to existing page (they link to /customer/pickup currently)
-        document.addEventListener('click', function (e) {
-            const target = e.target;
-            if (!(target instanceof HTMLElement)) return;
-            const action = target.getAttribute('data-action');
-            const id = target.getAttribute('data-id');
-            if (!action || !id) return;
-
-            if (action === 'edit') {
-                // Navigate to the full pickup management page to edit
-                window.location.href = '/customer/pickup?edit=' + encodeURIComponent(id);
-            } else if (action === 'cancel') {
-                window.location.href = '/customer/pickup?cancel=' + encodeURIComponent(id);
-            }
-        });
-
-        // Initialize
-        attachFilterListeners();
-        renderTable();
-    })();
+    });
 </script>
