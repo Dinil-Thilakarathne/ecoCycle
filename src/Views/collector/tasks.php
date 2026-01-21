@@ -176,7 +176,7 @@ function viewDetails(el, pickupId) {
     modal.setAttribute('aria-hidden', 'false');
 }
 
-// Helper function to safely parse JSON response
+/* Helper function to safely parse JSON response
 async function safeJsonParse(response) {
     const contentType = response.headers.get('content-type');
     
@@ -194,10 +194,10 @@ async function safeJsonParse(response) {
         console.error('JSON Parse Error:', e, 'Response:', text.substring(0, 500));
         throw new Error('Invalid JSON response from server');
     }
-}
+}*/
 
 // Save weight + calculate price
-enterBtn.addEventListener('click', async () => {
+/*enterBtn.addEventListener('click', async () => {
     const modal = document.getElementById('pickup-detail-modal');
     const pickupId = modal.getAttribute('data-current-id');
     const weightVal = parseFloat(weightInput.value);
@@ -339,6 +339,128 @@ async function startOrUpdateTask() {
 }
 
 // Hook "Start Task" button
+document.getElementById('taskActionBtn').addEventListener('click', startOrUpdateTask);*/
+
+enterBtn.addEventListener('click', async () => {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+    const weightVal = parseFloat(weightInput.value);
+
+    if (!pickupId) {
+        weightError.textContent = 'Pickup ID not found';
+        weightError.style.display = 'block';
+        return;
+    }
+
+    if (!weightVal || weightVal <= 0 || isNaN(weightVal)) {
+        weightError.textContent = 'Please enter a valid weight greater than 0.';
+        weightError.style.display = 'block';
+        return;
+    }
+
+    weightError.style.display = 'none';
+
+    try {
+        enterBtn.disabled = true;
+        enterBtn.textContent = 'Saving...';
+
+        const response = await fetch(`/api/collector/pickup-requests/${pickupId}/weight`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ weight: weightVal })
+        });
+
+        const html = await response.text();
+
+        if (!response.ok) {
+            throw new Error(html || `Server error (${response.status}): Failed to save weight`);
+        }
+
+        // ✅ Inject server-rendered HTML
+        const wasteBreakdown = document.getElementById('wasteBreakdown');
+        if (wasteBreakdown) {
+            wasteBreakdown.innerHTML = html;
+        }
+
+        // Update local state
+        const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
+        if (pickup) {
+            pickup.weight = weightVal;
+            pickup.status = 'in progress';
+        }
+
+        // Update table badge
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
+        if (row) {
+            row.querySelector('td:nth-child(6)').innerHTML =
+                `<div class="tag inprogress">In progress</div>`;
+        }
+
+        // Hide weight input row and show success message
+        document.getElementById('weight-entry-row').style.display = 'none';
+        alert('✓ Weight saved successfully!');
+
+    } catch (err) {
+        console.error('Weight save error:', err);
+        weightError.textContent = err.message || 'Unable to save weight. Please try again.';
+        weightError.style.display = 'block';
+    } finally {
+        enterBtn.disabled = false;
+        enterBtn.textContent = 'Enter';
+    }
+});
+
+async function startOrUpdateTask() {
+    const modal = document.getElementById('pickup-detail-modal');
+    const pickupId = modal.getAttribute('data-current-id');
+
+    if (!pickupId) {
+        alert('Pickup ID not found');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ status: 'completed' })
+        });
+
+        const html = await response.text();
+
+        if (!response.ok) {
+            throw new Error(html || 'Failed to update status');
+        }
+
+        // ✅ Update modal status
+        modal.querySelector('.pd-status').innerHTML = html;
+
+        // ✅ Update table status badge
+        const row = document.querySelector(`tr[data-id="${pickupId}"]`);
+        if (row) {
+            row.querySelector('td:nth-child(6)').innerHTML = html;
+        }
+
+        // Update local data
+        const pickup = window.__PICKUP_DATA.find(p => p.id == pickupId);
+        if (pickup) pickup.status = 'completed';
+
+        closeDetailModal();
+
+    } catch (err) {
+        alert(err.message || 'Failed to update status');
+    }
+
+}
+
+// Hook "Start Task" button
 document.getElementById('taskActionBtn').addEventListener('click', startOrUpdateTask);
+
 
 </script>

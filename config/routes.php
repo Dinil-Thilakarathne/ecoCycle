@@ -392,30 +392,7 @@ $router->post('/api/reports/export', 'Controllers\Api\ReportsController@export',
     'Middleware\Roles\AdminOnly',
 ]);
 
-/*// Collector Pickup Requests API
-$router->get('/api/collector/pickup-requests', 'Controllers\Api\Collector\PickupRequestController@index', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
 
-$router->get('/api/collector/pickup-requests/{id}', 'Controllers\Api\Collector\PickupRequestController@show', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
-
-// Update status, weight, price
-$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
-    'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
-
-$router->put('/api/collector/pickup-requests/{id}/weight', 'Controllers\Api\Collector\PickupRequestController@saveWeight', [
-    'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
-*/
 // Collector Pickup Requests API
 $router->get('/api/collector/pickup-requests', 
     'Controllers\Collector\CollectorDashboardController@index', [
@@ -437,7 +414,6 @@ $router->put(
         'Middleware\AuthMiddleware',
         'Middleware\CsrfMiddleware',
         'Middleware\Roles\CollectorOnly',
-        'passRouteParams' => true // ensures {id} becomes $pickupId
     ]
 );
 
@@ -449,6 +425,5 @@ $router->put(
         'Middleware\AuthMiddleware',
         'Middleware\CsrfMiddleware',
         'Middleware\Roles\CollectorOnly',
-        'passRouteParams' => true
     ]
 );
