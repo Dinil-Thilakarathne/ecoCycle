@@ -119,6 +119,12 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\Roles\CustomerOnly',
 ]);
 
+// Customer dashboard API
+$router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\DashboardController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Customer collector ratings
 $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
     'Middleware\AuthMiddleware',

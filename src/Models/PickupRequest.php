@@ -489,4 +489,34 @@ class PickupRequest extends BaseModel
         $status = strtolower($status);
         return in_array($status, ['pending', 'assigned', 'confirmed'], true);
     }
+
+    /**
+     * Count total pickup requests for a customer (excluding cancelled)
+     */
+    public function countByCustomer(int $customerId): int
+    {
+        $row = $this->db->fetch(
+            "SELECT COUNT(*) AS total FROM {$this->table} WHERE customer_id = ? AND status != 'cancelled'",
+            [$customerId]
+        );
+        return (int) ($row['total'] ?? 0);
+    }
+
+    /**
+     * Count pickup requests for a customer by status or statuses
+     */
+    public function countByCustomerAndStatus(int $customerId, $status): int
+    {
+        $statuses = is_array($status) ? $status : [$status];
+        if (empty($statuses)) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $params = array_merge([$customerId], $statuses);
+        $row = $this->db->fetch(
+            "SELECT COUNT(*) AS total FROM {$this->table} WHERE customer_id = ? AND status IN ({$placeholders})",
+            $params
+        );
+        return (int) ($row['total'] ?? 0);
+    }
 }

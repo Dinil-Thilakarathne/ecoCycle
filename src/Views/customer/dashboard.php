@@ -128,24 +128,30 @@ $customerStats = [
 
         <!-- Stats Feature Cards (Using old style) -->
         <div class="stats-grid" style="margin-bottom: 2.5rem;">
-            <?php foreach ($customerStats as $stat): ?>
-                <div class="feature-card">
-                    <div class="feature-card__header">
-                        <h3 class="feature-card__title">
-                            <?= e($stat['title']) ?>
-                        </h3>
-                        <div class="feature-card__icon">
-                            <i class="<?= e($stat['icon']) ?>"></i>
-                        </div>
-                    </div>
-                    <p class="feature-card__body">
-                        <?= e((string) $stat['value']) ?>
-                    </p>
-                    <div class="feature-card__footer">
-                        <span class="tag success"><?= e($stat['subtitle']) ?></span>
-                    </div>
+            <div class="feature-card" data-stat="pickups">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Pickups</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-truck"></i></div>
                 </div>
-            <?php endforeach; ?>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0</p>
+                <div class="feature-card__footer"><span class="tag success">All time</span></div>
+            </div>
+            <div class="feature-card" data-stat="income">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Income</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-wallet"></i></div>
+                </div>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs 0.00</p>
+                <div class="feature-card__footer"><span class="tag success">Earnings</span></div>
+            </div>
+            <div class="feature-card" data-stat="weight">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Weight</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-weight"></i></div>
+                </div>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0 kg</p>
+                <div class="feature-card__footer"><span class="tag success">Waste collected</span></div>
+            </div>
         </div>
 
         <!-- Main Content Grid -->
@@ -298,36 +304,68 @@ $customerStats = [
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+    let chartInstance = null;
+
     function navigateTo(url) {
         window.location.href = url;
     }
 
-    // Initialize Status Doughnut Chart
-    document.addEventListener('DOMContentLoaded', function() {
+    // Fetch dashboard data from API
+    function loadDashboardData() {
+        fetch('/api/customer/dashboard/stats', {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                updateFeatureCards(data.data);
+                updateChart(data.data);
+            }
+        })
+        .catch(error => console.error('Error loading dashboard stats:', error));
+    }
+
+    // Update feature cards with API data
+    function updateFeatureCards(stats) {
+        const pickupCard = document.querySelector('[data-stat="pickups"]');
+        const incomeCard = document.querySelector('[data-stat="income"]');
+        const weightCard = document.querySelector('[data-stat="weight"]');
+
+        if (pickupCard) {
+            pickupCard.querySelector('.feature-card__body').textContent = stats.totalPickups || 0;
+        }
+        if (incomeCard) {
+            incomeCard.querySelector('.feature-card__body').textContent = 'Rs ' + ((stats.totalIncome || 0).toFixed(2));
+        }
+        if (weightCard) {
+            weightCard.querySelector('.feature-card__body').textContent = (stats.totalWeight || 0) + ' kg';
+        }
+    }
+
+    // Update or initialize chart
+    function updateChart(stats) {
         const chartCanvas = document.getElementById('statusChart');
-        if (chartCanvas) {
-            new Chart(chartCanvas, {
+        if (!chartCanvas) return;
+
+        const pendingCount = stats.pendingCount || 0;
+        const scheduledCount = stats.scheduledCount || 0;
+        const completedCount = stats.completedCount || 0;
+
+        if (!chartInstance) {
+            chartInstance = new Chart(chartCanvas, {
                 type: 'doughnut',
                 data: {
                     labels: ['Pending', 'Scheduled', 'Completed'],
-                    datasets: [
-                        {
-                            data: [<?= $pendingCount ?>, <?= $scheduledCount ?>, <?= $completedCount ?>],
-                            backgroundColor: [
-                                '#1ce36a',
-                                '#3b82f6',
-                                '#10b981'
-                            ],
-                            borderColor: [
-                                '#08682d',
-                                '#1e40af',
-                                '#047857'
-                            ],
-                            borderWidth: 2,
-                            hoverOffset: 8,
-                            borderRadius: 4,
-                        }
-                    ]
+                    datasets: [{
+                        data: [pendingCount, scheduledCount, completedCount],
+                        backgroundColor: ['#1ce36a', '#3b82f6', '#10b981'],
+                        borderColor: ['#08682d', '#1e40af', '#047857'],
+                        borderWidth: 2,
+                        hoverOffset: 8,
+                        borderRadius: 4,
+                    }]
                 },
                 options: {
                     responsive: true,
@@ -336,20 +374,13 @@ $customerStats = [
                         legend: {
                             display: true,
                             position: 'bottom',
-                            labels: {
-                                font: { size: 12, weight: '600' },
-                                color: '#4b5563',
-                                padding: 15,
-                                usePointStyle: true,
-                                pointStyle: 'circle',
-                                boxWidth: 8,
-                            }
+                            labels: {font: {size: 12, weight: '600'}, color: '#4b5563', padding: 15, usePointStyle: true, pointStyle: 'circle', boxWidth: 8}
                         },
                         tooltip: {
                             backgroundColor: 'rgba(17, 24, 39, 0.9)',
                             padding: 12,
-                            titleFont: { size: 12, weight: '600' },
-                            bodyFont: { size: 12 },
+                            titleFont: {size: 12, weight: '600'},
+                            bodyFont: {size: 12},
                             borderColor: '#1ce36a',
                             borderWidth: 1,
                             usePointStyle: true,
@@ -364,6 +395,22 @@ $customerStats = [
                     }
                 }
             });
+        } else {
+            chartInstance.data.datasets[0].data = [pendingCount, scheduledCount, completedCount];
+            chartInstance.update();
         }
+
+        // Update status numbers below chart
+        const statusDivs = document.querySelectorAll('[style*="text-align: center"]');
+        if (statusDivs.length >= 3) {
+            statusDivs[0].querySelector('div:first-child').textContent = pendingCount;
+            statusDivs[1].querySelector('div:first-child').textContent = scheduledCount;
+            statusDivs[2].querySelector('div:first-child').textContent = completedCount;
+        }
+    }
+
+    // Load data when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDashboardData();
     });
 </script>
