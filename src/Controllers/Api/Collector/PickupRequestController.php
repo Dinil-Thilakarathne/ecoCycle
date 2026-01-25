@@ -24,6 +24,8 @@ class PickupRequestController extends BaseController
         }
 
         $id = $this->resolveRouteId($request);
+        error_log("DEBUG: updateStatus hit. User ID: " . ($user['id'] ?? 'null') . ", Route ID: " . ($id ?? 'null'));
+
         if ($id === null) {
             return Response::errorJson('Pickup request id is required', 400);
         }
@@ -36,23 +38,32 @@ class PickupRequestController extends BaseController
             return Response::errorJson('Invalid status provided', 422, ['status' => 'Status is required and must be a valid value.']);
         }
 
-        // If completing, expect a measured weight (optional for other transitions)
-        $weightInput = $request->input('weight', null);
-        $weight = null;
-        if ($weightInput !== null && $weightInput !== '') {
-            $weight = is_numeric($weightInput) ? (float) $weightInput : null;
+        // If completing, expect an array of weights [{ category_id: 1, weight: 10 }, ...]
+        $weightsInput = $request->input('weights', []);
+        $weights = [];
+        if (is_array($weightsInput)) {
+            $weights = $weightsInput;
         }
 
         $collectorId = (int) $user['id'];
 
         try {
             $record = $this->pickupRequest->find($id);
+            error_log("DEBUG: Record found: " . ($record ? 'yes' : 'no'));
         } catch (\Throwable $e) {
+            error_log("DEBUG: Exception finding record: " . $e->getMessage());
             return Response::errorJson('Failed to load pickup request', 500, ['detail' => $e->getMessage()]);
         }
 
-        if (!$record || (int) ($record['collectorId'] ?? 0) !== $collectorId) {
-            return Response::errorJson('Pickup request not found', 404);
+        if (!$record) {
+            error_log("DEBUG: Record not found for ID: $id");
+            return Response::errorJson("Pickup request not found (Invalid ID: $id)", 404);
+        }
+
+        $recColId = (int) ($record['collectorId'] ?? 0);
+        if ($recColId !== $collectorId) {
+            error_log("DEBUG: Access Denied. Record Owner: $recColId, Me: $collectorId");
+            return Response::errorJson("Pickup request not found (Access Denied: Record Owner $recColId vs User $collectorId)", 404);
         }
 
         $currentStatus = $this->normalizeStatus((string) ($record['status'] ?? ''));
@@ -73,15 +84,25 @@ class PickupRequestController extends BaseController
 
         $dbStatus = $this->mapStatusForDatabase($normalizedStatus);
 
-        // If moving to completed, ensure weight provided and valid
+        // If moving to completed, ensure weights provided
         if ($normalizedStatus === 'completed') {
-            if ($weight === null || $weight <= 0) {
-                return Response::errorJson('Measured weight is required when completing a pickup', 422, ['weight' => 'Provide a numeric weight greater than 0.']);
+            if (empty($weights)) {
+                return Response::errorJson('Measured weights are required when completing a pickup', 422, ['weights' => 'Provide weights for each category.']);
+            }
+            // Basic validation of structure
+            foreach ($weights as $w) {
+                if (!isset($w['category_id']) || !isset($w['weight'])) {
+                    return Response::errorJson('Invalid weights format', 422, ['weights' => 'Each entry must have category_id and weight.']);
+                }
+                if (!is_numeric($w['weight']) || $w['weight'] < 0) {
+                    return Response::errorJson('Invalid weight value', 422, ['weights' => 'Weight must be a non-negative number.']);
+                }
             }
         }
 
         try {
-            $success = $this->pickupRequest->updateStatusForCollector($id, $collectorId, $dbStatus, $weight);
+            // Pass the array of weights instead of single float
+            $success = $this->pickupRequest->updateStatusForCollector($id, $collectorId, $dbStatus, $weights);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update pickup status', 500, ['detail' => $e->getMessage()]);
         }

@@ -123,8 +123,10 @@ function getStatusBadge($status)
         <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
             <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
             <div>
-                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50" style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
-                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please enter a valid weight greater than 0.</div>
+                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50"
+                    style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
+                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+                    enter a valid weight greater than 0.</div>
             </div>
         </div>
         <div style="margin-top: var(--space-8); text-align: right;">
@@ -157,18 +159,62 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
+
+        const weightRow = document.getElementById('weight-entry-row');
+        weightRow.style.display = 'none';
+        weightRow.innerHTML = ''; // Clear previous inputs
+
         if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
-            document.getElementById('weight-entry-row').style.display = 'none';
         } else if (statusValue === 'in progress') {
             btn.textContent = 'Mark as Completed';
-            // show weight input when task is in progress and collector will complete it
-            document.getElementById('weight-entry-row').style.display = '';
-            document.getElementById('weightInput').value = '';
-            document.getElementById('weightError').style.display = 'none';
+
+            // Show weight input for each category
+            weightRow.style.display = 'block';
+            weightRow.innerHTML = '<div style="margin-bottom:0.5rem;font-weight:600;">Enter Measured Weights:</div>';
+
+            if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
+                record.wasteCategoryDetails.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '0.75rem';
+
+                    const label = document.createElement('label');
+                    label.textContent = `${cat.name} (kg)`;
+                    label.style.display = 'block';
+                    label.style.fontSize = '0.9rem';
+                    label.style.marginBottom = '0.25rem';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = '0.01';
+                    input.min = '0';
+                    input.className = 'weight-input';
+                    input.style.width = '100%';
+                    input.style.padding = '0.5rem';
+                    input.style.border = '1px solid #e5e7eb';
+                    input.style.borderRadius = '4px';
+                    input.setAttribute('data-cat-id', cat.id);
+                    input.placeholder = '0.00';
+
+                    div.appendChild(label);
+                    div.appendChild(input);
+                    weightRow.appendChild(div);
+                });
+            } else {
+                weightRow.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'weightError';
+            errorDiv.style.color = '#dc2626';
+            errorDiv.style.marginTop = '0.5rem';
+            errorDiv.style.display = 'none';
+            errorDiv.style.fontSize = '0.95rem';
+            errorDiv.textContent = 'Please enter valid weights for all categories.';
+            weightRow.appendChild(errorDiv);
+
         } else {
             btn.style.display = 'none';
-            document.getElementById('weight-entry-row').style.display = 'none';
         }
 
         modal.setAttribute('data-current-id', record.id);
@@ -195,16 +241,32 @@ function getStatusBadge($status)
 
         try {
             const payloadBody = { status: nextTarget };
+
             if (nextTarget === 'completed') {
-                const weightEl = document.getElementById('weightInput');
-                const weightVal = weightEl ? parseFloat(weightEl.value) : NaN;
-                if (isNaN(weightVal) || weightVal <= 0) {
-                    document.getElementById('weightError').style.display = '';
+                const inputs = modal.querySelectorAll('.weight-input');
+                let allValid = true;
+                const weights = [];
+
+                inputs.forEach(input => {
+                    const val = parseFloat(input.value);
+                    if (isNaN(val) || val < 0) { // Allow 0, but usually weight > 0
+                        allValid = false;
+                    }
+                    weights.push({
+                        category_id: parseInt(input.getAttribute('data-cat-id')),
+                        weight: val
+                    });
+                });
+
+                if (!allValid || weights.length === 0) {
+                    const err = document.getElementById('weightError');
+                    if (err) err.style.display = 'block';
                     btn.textContent = originalText;
                     btn.disabled = false;
                     return;
                 }
-                payloadBody.weight = weightVal;
+
+                payloadBody.weights = weights;
             }
 
             const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
@@ -239,15 +301,9 @@ function getStatusBadge($status)
 
             modal.querySelector('.pd-status').textContent = normalizedStatus;
 
-            if (normalizedStatus === 'in progress') {
-                btn.textContent = 'Mark as Completed';
-                btn.disabled = false;
-            } else if (normalizedStatus === 'completed') {
-                btn.style.display = 'none';
-            } else {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
+            // Refresh the view logic to update buttons/inputs
+            viewDetails(null, pickupId);
+
         } catch (error) {
             btn.textContent = originalText;
             btn.disabled = false;

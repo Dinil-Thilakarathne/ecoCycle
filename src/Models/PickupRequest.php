@@ -270,7 +270,7 @@ class PickupRequest extends BaseModel
         return true;
     }
 
-    public function updateStatusForCollector(string $id, int $collectorId, string $status): bool
+    public function updateStatusForCollector(string $id, int $collectorId, string $status, $weights = null): bool
     {
         $id = trim($id);
         $collectorId = (int) $collectorId;
@@ -278,28 +278,78 @@ class PickupRequest extends BaseModel
             return false;
         }
 
-        // If a weight is provided, update the weight column as well (measured by collector)
-        // $weight may be provided via an appended parameter; to maintain backwards compatibility
-        // we will accept an optional fourth parameter.
-        $args = func_get_args();
-        $weight = null;
-        if (count($args) >= 4) {
-            $weight = $args[3];
-            if ($weight !== null) {
-                $weight = (float) $weight;
-            }
-        }
-
-        if ($weight === null) {
+        if ($weights === null) {
             return $this->db->query(
                 "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
                 [$status, $id, $collectorId]
             );
         }
 
+        // Handle the new array format for weights
+        if (is_array($weights)) {
+            $pdo = $this->db->pdo();
+            $pdo->beginTransaction();
+
+            try {
+                // 1. Update individual waste items
+                $totalWeight = 0.0;
+                $totalPrice = 0.0;
+
+                foreach ($weights as $item) {
+                    $catId = (int) ($item['category_id'] ?? 0);
+                    $weight = (float) ($item['weight'] ?? 0);
+
+                    if ($catId <= 0)
+                        continue;
+
+                    // Fetch price per unit for this category
+                    $catRow = $this->db->fetch("SELECT default_minimum_bid FROM waste_categories WHERE id = ?", [$catId]);
+                    $pricePerUnit = 0.0;
+                    if ($catRow) {
+                        $pricePerUnit = (float) ($catRow['default_minimum_bid'] ?? 0);
+                    }
+
+                    $amount = $weight * $pricePerUnit;
+                    $totalWeight += $weight;
+                    $totalPrice += $amount;
+
+                    // Update the specific waste line item
+                    // Note: We assume one entry per category per pickup. 
+                    // If multiple entries exist for same category (rare/duplicate), this updates all of them or the logic needs refinement.
+                    // For now, updating by pickup_id and waste_category_id is safe enough for this schema.
+                    $this->db->query(
+                        "UPDATE pickup_request_wastes 
+                         SET weight = ?, amount = ? 
+                         WHERE pickup_id = ? AND waste_category_id = ?",
+                        [$weight, $amount, $id, $catId]
+                    );
+                }
+
+                // 2. Update the main request with totals and status
+                $this->db->query(
+                    "UPDATE {$this->table} 
+                     SET status = ?, weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = ? AND collector_id = ?",
+                    [$status, $totalWeight, $totalPrice, $id, $collectorId]
+                );
+
+                $pdo->commit();
+                return true;
+
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+                // rethrow or log? For now, return false to indicate failure.
+                // ideally we should facilitate error bubbling, but matching interface return bool
+                error_log("Failed updating pickup weights: " . $e->getMessage());
+                return false;
+            }
+        }
+
+        // Fallback for legacy calls (if any) passing single float
+        // logic should ideally be deprecated or removed if we are sure no legacy calls remain
         return $this->db->query(
             "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
-            [$status, $weight, $id, $collectorId]
+            [$status, (float) $weights, $id, $collectorId]
         );
     }
 
