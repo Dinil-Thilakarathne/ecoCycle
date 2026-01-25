@@ -439,3 +439,9 @@ $router->get('/api/collector/material-prices', 'Controllers\Api\CollectorStatsCo
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);
+
+// Collector notifications (used by collector notifications UI)
+$router->get('/api/collector/notifications', 'Controllers\Api\CollectorStatsController@notifications', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);

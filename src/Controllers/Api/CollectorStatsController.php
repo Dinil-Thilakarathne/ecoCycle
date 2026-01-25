@@ -78,4 +78,36 @@ class CollectorStatsController extends BaseController
             return $this->json(['status' => 'error', 'message' => 'Failed to fetch material prices', 'details' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * GET /api/collector/notifications
+     * Returns real-time notifications for the logged-in collector
+     */
+    public function notifications(Request $request): Response
+    {
+        try {
+            $collectorId = session()->get('user_id');
+            if (!$collectorId) {
+                return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
+            }
+
+            // Fetch notifications for this collector
+            $notificationsSql = "SELECT id, type, title, message, recipients, recipient_group, status, sent_at, created_at, created_by, update_by 
+                                FROM notifications 
+                                WHERE (recipients LIKE ? OR recipient_group = ? OR created_by = ?)
+                                ORDER BY created_at DESC 
+                                LIMIT 100";
+            
+            $recipientLike = '%' . $collectorId . '%';
+            $notifications = $this->db->fetchAll($notificationsSql, [$recipientLike, 'collector', $collectorId]);
+
+            return $this->json([
+                'status' => 'success',
+                'data' => $notifications ?: [],
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
+        } catch (\Throwable $e) {
+            return $this->json(['status' => 'error', 'message' => 'Failed to fetch notifications', 'details' => $e->getMessage()], 500);
+        }
+    }
 }
