@@ -11,53 +11,36 @@ function getStatusBadge($status)
     $status = strtolower($status);
     $class = '';
     switch ($status) {
-        case 'pending':
-            $class = 'pending';
-            break;
-        case 'assigned':
-            $class = 'assigned';
-            break;
-        case 'in progress':
-            $class = 'inprogress';
-            break;
-        case 'completed':
-            $class = 'completed';
-            break;
+        case 'pending': $class = 'pending'; break;
+        case 'assigned': $class = 'assigned'; break;
+        case 'in progress': $class = 'inprogress'; break;
+        case 'completed': $class = 'completed'; break;
     }
     return "<div class='tag $class'>" . ucfirst($status) . "</div>";
 }
 ?>
 
-<!-- JavaScript data for front-end -->
 <script>
-    window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-    window.__FILTERS = {
-        timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
-        status: <?php echo json_encode($selectedStatus); ?>
-    };
-    const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
+window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+window.__FILTERS = {
+    timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
+    status: <?php echo json_encode($selectedStatus); ?>
+};
+const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Page Header -->
 <div class="page-header">
     <div class="page-header__content">
-        <h2 class="page-header__title">
-            My Assigned Pickups & Daily Tasks
-        </h2>
+        <h2 class="page-header__title">My Assigned Pickups & Daily Tasks</h2>
         <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
     </div>
 </div>
 
-<!-- Task Table -->
 <div class="activity-card">
     <div class="activity-card__header">
-        <h3 class="activity-card__title">
-            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
-            My Tasks
-        </h3>
+        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
         <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
-
     <div class="activity-card__content">
         <div style="overflow-x:auto;">
             <table class="data-table">
@@ -83,8 +66,7 @@ function getStatusBadge($status)
                                 <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
                                 <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
                                 <td>
-                                    <button class="icon-button"
-                                        onclick="viewDetails(this, '<?= htmlspecialchars($r['id'] ?? '') ?>')">
+                                    <button class="icon-button" onclick="viewDetails(this, '<?= htmlspecialchars($r['id'] ?? '') ?>')">
                                         <i class="fa-solid fa-eye"></i>
                                     </button>
                                 </td>
@@ -101,25 +83,20 @@ function getStatusBadge($status)
     </div>
 </div>
 
-<!-- Modal for Task Details -->
+<!-- Pickup Details Modal -->
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
-            <div><strong>Customer</strong></div>
-            <div class="pd-customer"></div>
-            <div><strong>Address</strong></div>
-            <div class="pd-address"></div>
-            <div><strong>Waste Categories</strong></div>
-            <div class="pd-waste"></div>
-            <div><strong>Time Slot</strong></div>
-            <div class="pd-timeslot"></div>
-            <div><strong>Status</strong></div>
-            <div class="pd-status"></div>
+            <div><strong>Request ID</strong></div><div class="pd-id"></div>
+            <div><strong>Customer</strong></div><div class="pd-customer"></div>
+            <div><strong>Address</strong></div><div class="pd-address"></div>
+            <div><strong>Waste Categories</strong></div><div class="pd-waste"></div>
+            <div><strong>Time Slot</strong></div><div class="pd-timeslot"></div>
+            <div><strong>Status</strong></div><div class="pd-status"></div>
         </div>
+
         <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
             <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
             <div>
@@ -128,20 +105,30 @@ function getStatusBadge($status)
                 <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
                     enter a valid weight greater than 0.</div>
             </div>
+
+            <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div>
         </div>
+
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
-            <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
+            <button class="btn btn-primary" id="taskActionBtn" onclick="startOrUpdateTask()">Start Task</button>
         </div>
     </div>
 </div>
 
 <script>
-    function closeDetailModal() {
-        const modal = document.getElementById('pickup-detail-modal');
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-    }
+// Grab modal elements
+const weightInput = document.getElementById('weightInput');
+const calculatedPriceEl = document.getElementById('calculatedPrice');
+const weightError = document.getElementById('weightError');
+const enterBtn = document.getElementById('enterWeightBtn');
+
+// Close modal
+function closeDetailModal() {
+    const modal = document.getElementById('pickup-detail-modal');
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
 
     function viewDetails(el, pickupId) {
         const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
@@ -217,10 +204,10 @@ function getStatusBadge($status)
             btn.style.display = 'none';
         }
 
-        modal.setAttribute('data-current-id', record.id);
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    }
+    modal.setAttribute('data-current-id', record.id);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+}
 
     async function updateTaskStatus() {
         const modal = document.getElementById('pickup-detail-modal');
@@ -269,15 +256,15 @@ function getStatusBadge($status)
                 payloadBody.weights = weights;
             }
 
-            const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify(payloadBody)
-            });
+    try {
+        const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ status: 'in progress' })
+        });
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -339,4 +326,7 @@ function getStatusBadge($status)
         }
         return value;
     }
+}
+
+
 </script>

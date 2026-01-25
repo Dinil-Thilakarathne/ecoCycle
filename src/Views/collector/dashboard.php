@@ -15,7 +15,7 @@
       <div class="feature-card__title">Today's Tasks</div>
       <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
     </div>
-    <div class="feature-card__body">8</div>
+    <div class="feature-card__body"><span id="stat-today-tasks"><?= $todayPickups ?? 0 ?></span></div>
     <div class="feature-card__footer">
       <span class="desc">assigned tasks</span>
     </div>
@@ -26,7 +26,7 @@
       <div class="feature-card__title">Completed</div>
       <div class="feature-card__icon"><i class="fa-solid fa-table-list"></i></div>
     </div>
-    <div class="feature-card__body">5</div>
+    <div class="feature-card__body"><span id="stat-completed"><?= $completedPickups ?? 0 ?></span></div>
     <div class="feature-card__footer">
       <span class="desc">tasks finished</span>
     </div>
@@ -37,7 +37,7 @@
       <div class="feature-card__title">Pending</div>
       <div class="feature-card__icon"><i class="fa-solid fa-clock"></i></div>
     </div>
-    <div class="feature-card__body">3</div>
+    <div class="feature-card__body"><span id="stat-pending"><?= count($pendingPickups ?? []) ?></span></div>
     <div class="feature-card__footer">
       <span class="desc">tasks left</span>
     </div>
@@ -48,7 +48,7 @@
       <div class="feature-card__title">Total Weight</div>
       <div class="feature-card__icon"><i class="fa-solid fa-weight-hanging"></i></div>
     </div>
-    <div class="feature-card__body">245kg</div>
+    <div class="feature-card__body"><span id="stat-total-weight">0kg</span></div>
     <div class="feature-card__footer">
       <span class="desc">collected today</span>
     </div>
@@ -72,35 +72,28 @@
 
   <!-- Recent Tasks -->
   <activity-card title="Recent Tasks" description="Your latest pickup activities">
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">
-          <span>
-            John Smith
-          </span>
-          <span class="tag success">completed</span>
+    <?php if (!empty($pendingPickups)): ?>
+      <?php foreach (array_slice($pendingPickups, 0, 5) as $pickup): ?>
+        <div class="task">
+          <div class="task-info">
+            <div class="task-name">
+              <span><?= htmlspecialchars($pickup['customer_name'] ?? 'Unknown') ?></span>
+              <span class="tag <?= ($pickup['status'] ?? '') === 'completed' ? 'success' : 'warning' ?>">
+                <?= ucfirst(str_replace('_', ' ', $pickup['status'] ?? 'pending')) ?>
+              </span>
+            </div>
+            <div class="task-meta">
+              <i class="fa-solid fa-location-dot"></i> 
+              <?= htmlspecialchars($pickup['address'] ?? 'Not provided') ?> · 
+              <?= htmlspecialchars(implode(', ', $pickup['wasteCategories'] ?? [])) ?>
+            </div>
+          </div>
         </div>
-        <div class="task-meta"><i class="fa-solid fa-location-dot"></i> 123 Oak Street · Plastic · 15kg</div>
-      </div>
-      <div class="task-right">
-      </div>
-    </div>
-
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">Mike Wilson <span class="tag warning">pending</span></div>
-        <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 789 Elm Road · Metal · 8kg</span>
-      </div>
-    </div>
-
-    <div class="task">
-      <div class="task-info">
-        <div class="task-name">Emma Davis <span class="tag warning">pending</span></div>
-        <span class="task-meta"><i class="fa-solid fa-location-dot"></i> 321 Maple Street · Glass · 12kg</span>
-      </div>
-    </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <p style="text-align: center; color: #999; padding: 20px;">No pending tasks</p>
+    <?php endif; ?>
   </activity-card>
-
 
   <activity-card title="Material Collection Summary" description="Breakdown of today's collected materials">
     <!-- Material Chart -->
@@ -110,72 +103,13 @@
   </activity-card>
 
   <!-- Amount per unit Section -->
-  <activity-card title="Amount Per Weight Unit " description="Current highest bids for each material for 1 kg">
-    <div class="goal">
-      <div class="goal-header">
-        <span style="display: flex; align-items: center; gap: var(--space-2);">
-          <div
-            style="width: 12px; height: 12px; border-radius: 50%; background-color: <?php echo material_color('plastic'); ?>;">
-          </div>
-          <span class="font-medium">Plastic</span>
-        </span>
-        <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
-          <?php echo format_rs(material_min_bid('plastic')); ?></span>
-      </div>
-    </div>
-    <div class="goal">
-      <div class="goal-header">
-        <span style="display: flex; align-items: center; gap: var(--space-2);">
-          <div
-            style="width: 12px; height: 12px; border-radius: 50%; background-color: <?php echo material_color('glass'); ?>;">
-          </div>
-          <span class="font-medium">Glass</span>
-        </span>
-        <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
-          <?php echo format_rs(material_min_bid('glass')); ?></span>
-      </div>
-    </div>
-    <div class="goal">
-      <div class="goal-header">
-        <span style="display: flex; align-items: center; gap: var(--space-2);">
-          <div
-            style="width: 12px; height: 12px; border-radius: 50%; background-color: <?php echo material_color('metal'); ?>;">
-          </div>
-          <span class="font-medium">Metal</span>
-        </span>
-        <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
-          <?php echo format_rs(material_min_bid('metal')); ?></span>
-      </div>
-    </div>
-    <div class="goal">
-      <div class="goal-header">
-        <span style="display: flex; align-items: center; gap: var(--space-2);">
-          <div
-            style="width: 12px; height: 12px; border-radius: 50%; background-color: <?php echo material_color('paper'); ?>;">
-          </div>
-          <span class="font-medium">Paper</span>
-        </span>
-        <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
-          <?php echo format_rs(material_min_bid('paper')); ?></span>
-      </div>
-    </div>
-    <div class="goal">
-      <div class="goal-header">
-        <span style="display: flex; align-items: center; gap: var(--space-2);">
-          <div
-            style="width: 12px; height: 12px; border-radius: 50%; background-color: <?php echo material_color('organic'); ?>;">
-          </div>
-          <span class="font-medium">Organic</span>
-        </span>
-        <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
-          <?php echo format_rs(material_min_bid('organic')); ?></span>
-      </div>
-    </div>
+  <activity-card title="Amount Per Weight Unit " description="Current amount for each material for 1 kg">
+    <div id="material-prices-container"></div>
   </activity-card>
 </div>
 
 
-<!-- Material Collection Chart Script -->
+<!-- Scripts -->
 <script>
   <?php
   // Define material data
@@ -192,7 +126,6 @@
   $materialColors = json_encode(array_column($materials, 'color'));
   ?>
 
-  // Prepare data from PHP
   const materialLabels = <?php echo $materialLabels; ?>;
   const materialWeights = <?php echo $materialWeights; ?>;
   const materialColors = <?php echo $materialColors; ?>;
@@ -264,5 +197,97 @@
 </script>
 
 <script>
+  // Poll collector stats endpoint and update cards in real time
+  (function () {
+    const endpoint = '/api/collector/stats';
+    const elToday = document.getElementById('stat-today-tasks');
+    const elCompleted = document.getElementById('stat-completed');
+    const elPending = document.getElementById('stat-pending');
+    const elWeight = document.getElementById('stat-total-weight');
+
+    function formatWeight(val) {
+      if (val === null || val === undefined) return '0kg';
+      return Number(val).toFixed(2) + 'kg';
+    }
+
+    async function fetchStats() {
+      try {
+        const res = await fetch(endpoint, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json || json.status !== 'success') return;
+        const d = json.data || {};
+        if (elToday) elToday.textContent = (d.todays_tasks ?? 0);
+        if (elCompleted) elCompleted.textContent = (d.completed ?? 0);
+        if (elPending) elPending.textContent = (d.pending ?? 0);
+        if (elWeight) elWeight.textContent = formatWeight(d.total_weight ?? 0);
+      } catch (e) {
+        // silent fail
+      }
+    }
+
+    // Initial fetch and interval
+    fetchStats();
+    setInterval(fetchStats, 10000);
+  })();
+
+  // Poll collector material prices and update in real time
+  (function () {
+    const endpoint = '/api/collector/material-prices';
+    const container = document.getElementById('material-prices-container');
+
+    function formatPrice(val) {
+      if (val === null || val === undefined) return 'Rs. 0.00';
+      const num = parseFloat(val);
+      return 'Rs. ' + num.toFixed(2);
+    }
+
+    function getColorForMaterial(name) {
+      const lowerName = (name || '').toLowerCase();
+      const colorMap = {
+        'plastic': '#fbbf24',
+        'glass': '#60a5fa',
+        'metal': '#a78bfa',
+        'paper': '#34d399',
+        'organic': '#f97316'
+      };
+      return colorMap[lowerName] || '#6b7280';
+    }
+
+    async function fetchMaterialPrices() {
+      try {
+        const res = await fetch(endpoint, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json || json.status !== 'success' || !Array.isArray(json.data)) return;
+
+        // Clear and rebuild the container
+        container.innerHTML = '';
+        json.data.forEach(material => {
+          const div = document.createElement('div');
+          div.className = 'goal';
+          div.innerHTML = `
+            <div class="goal-header">
+              <span style="display: flex; align-items: center; gap: var(--space-2);">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${getColorForMaterial(material.name)};"></div>
+                <span class="font-medium">${material.name}</span>
+              </span>
+              <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
+                ${formatPrice(material.price_per_unit)}
+              </span>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        // silent fail
+      }
+    }
+
+    // Initial fetch and interval
+    fetchMaterialPrices();
+    setInterval(fetchMaterialPrices, 10000);
+  })();
+
   lucide.createIcons();
 </script>
