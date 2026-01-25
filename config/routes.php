@@ -427,3 +427,15 @@ $router->put(
         'Middleware\Roles\CollectorOnly',
     ]
 );
+
+// Collector dashboard quick stats (used by collector dashboard UI)
+$router->get('/api/collector/stats', 'Controllers\Api\CollectorStatsController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector material prices (used by collector dashboard UI)
+$router->get('/api/collector/material-prices', 'Controllers\Api\CollectorStatsController@materialPrices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
