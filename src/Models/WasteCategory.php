@@ -6,6 +6,10 @@ class WasteCategory extends BaseModel
 {
     protected string $table = 'waste_categories';
 
+    /**
+     * List all waste categories with price per unit
+     * Used for dashboard amount per unit card
+     */
     public function listAll(): array
     {
         $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} ORDER BY name ASC");
