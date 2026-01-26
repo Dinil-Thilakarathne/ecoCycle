@@ -80,7 +80,6 @@ CREATE TABLE IF NOT EXISTS `pickup_requests` (
   `status` VARCHAR(32) DEFAULT 'pending',
   `collector_id` INT DEFAULT NULL,
   `collector_name` VARCHAR(255) DEFAULT NULL,
-  `weight` DECIMAL(10,2) DEFAULT NULL,
   `scheduled_at` DATETIME DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NULL DEFAULT NULL,

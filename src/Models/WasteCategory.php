@@ -6,16 +6,9 @@ class WasteCategory extends BaseModel
 {
     protected string $table = 'waste_categories';
 
-    /**
-     * List all waste categories with price per unit
-     * Used for dashboard amount per unit card
-     */
     public function listAll(): array
     {
-        $rows = $this->db->fetchAll(
-            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} ORDER BY name ASC"
-        );
-
+        $rows = $this->db->fetchAll("SELECT id, name, color, unit FROM {$this->table} ORDER BY name ASC");
         if (!$rows) {
             return [];
         }
@@ -26,7 +19,6 @@ class WasteCategory extends BaseModel
                 'name' => (string) ($row['name'] ?? ''),
                 'color' => $row['color'] ?? null,
                 'unit' => $row['unit'] ?? 'kg',
-                'price_per_unit' => isset($row['price_per_unit']) ? (float)$row['price_per_unit'] : 0,
             ];
         }, $rows);
     }
@@ -34,7 +26,7 @@ class WasteCategory extends BaseModel
     public function findById(int $id): ?array
     {
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE id = ? LIMIT 1",
+            "SELECT id, name, color, unit FROM {$this->table} WHERE id = ? LIMIT 1",
             [$id]
         );
 
@@ -47,7 +39,6 @@ class WasteCategory extends BaseModel
             'name' => (string) ($row['name'] ?? ''),
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
-            'price_per_unit' => isset($row['price_per_unit']) ? (float)$row['price_per_unit'] : 0,
         ];
     }
 
@@ -59,7 +50,7 @@ class WasteCategory extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+            "SELECT id, name, color, unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
             [$trimmed]
         );
 
@@ -72,7 +63,6 @@ class WasteCategory extends BaseModel
             'name' => (string) ($row['name'] ?? ''),
             'color' => $row['color'] ?? null,
             'unit' => $row['unit'] ?? 'kg',
-            'price_per_unit' => isset($row['price_per_unit']) ? (float)$row['price_per_unit'] : 0,
         ];
     }
 
@@ -81,4 +71,6 @@ class WasteCategory extends BaseModel
         $row = $this->db->fetch("SELECT id FROM {$this->table} WHERE id = ? LIMIT 1", [$id]);
         return (bool) $row;
     }
+
+    
 }

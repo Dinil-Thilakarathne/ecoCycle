@@ -179,13 +179,6 @@ if (empty($timeSlots)) {
         setText('.pd-waste', Array.isArray(pickup.wasteCategories) ? pickup.wasteCategories.join(', ') : '');
         setText('.pd-timeslot', pickup.timeSlot ?? '');
         setText('.pd-status', pickup.status ? String(pickup.status).charAt(0).toUpperCase() + String(pickup.status).slice(1) : '');
-
-        let weightText = '';
-        if (pickup.weight !== null && pickup.weight !== undefined) {
-            weightText = parseFloat(pickup.weight).toFixed(2) + ' kg';
-        }
-        setText('.pd-weight', weightText);
-
         setText('.pd-collector', pickup.collectorName ?? '');
     }
 </script>
@@ -213,9 +206,6 @@ if (empty($timeSlots)) {
 
             <div><strong>Status</strong></div>
             <div class="pd-status"></div>
-
-            <div><strong>Measured Weight</strong></div>
-            <div class="pd-weight"></div>
 
             <div><strong>Collector</strong></div>
             <div class="pd-collector"></div>

@@ -270,7 +270,7 @@ class PickupRequest extends BaseModel
         return true;
     }
 
-    public function updateStatusForCollector(string $id, int $collectorId, string $status, $weights = null): bool
+    public function updateStatusForCollector(string $id, int $collectorId, string $status): bool
     {
         $id = trim($id);
         $collectorId = (int) $collectorId;
@@ -278,78 +278,9 @@ class PickupRequest extends BaseModel
             return false;
         }
 
-        if ($weights === null) {
-            return $this->db->query(
-                "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
-                [$status, $id, $collectorId]
-            );
-        }
-
-        // Handle the new array format for weights
-        if (is_array($weights)) {
-            $pdo = $this->db->pdo();
-            $pdo->beginTransaction();
-
-            try {
-                // 1. Update individual waste items
-                $totalWeight = 0.0;
-                $totalPrice = 0.0;
-
-                foreach ($weights as $item) {
-                    $catId = (int) ($item['category_id'] ?? 0);
-                    $weight = (float) ($item['weight'] ?? 0);
-
-                    if ($catId <= 0)
-                        continue;
-
-                    // Fetch price per unit for this category
-                    $catRow = $this->db->fetch("SELECT default_minimum_bid FROM waste_categories WHERE id = ?", [$catId]);
-                    $pricePerUnit = 0.0;
-                    if ($catRow) {
-                        $pricePerUnit = (float) ($catRow['default_minimum_bid'] ?? 0);
-                    }
-
-                    $amount = $weight * $pricePerUnit;
-                    $totalWeight += $weight;
-                    $totalPrice += $amount;
-
-                    // Update the specific waste line item
-                    // Note: We assume one entry per category per pickup. 
-                    // If multiple entries exist for same category (rare/duplicate), this updates all of them or the logic needs refinement.
-                    // For now, updating by pickup_id and waste_category_id is safe enough for this schema.
-                    $this->db->query(
-                        "UPDATE pickup_request_wastes 
-                         SET weight = ?, amount = ? 
-                         WHERE pickup_id = ? AND waste_category_id = ?",
-                        [$weight, $amount, $id, $catId]
-                    );
-                }
-
-                // 2. Update the main request with totals and status
-                $this->db->query(
-                    "UPDATE {$this->table} 
-                     SET status = ?, weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
-                     WHERE id = ? AND collector_id = ?",
-                    [$status, $totalWeight, $totalPrice, $id, $collectorId]
-                );
-
-                $pdo->commit();
-                return true;
-
-            } catch (\Throwable $e) {
-                $pdo->rollBack();
-                // rethrow or log? For now, return false to indicate failure.
-                // ideally we should facilitate error bubbling, but matching interface return bool
-                error_log("Failed updating pickup weights: " . $e->getMessage());
-                return false;
-            }
-        }
-
-        // Fallback for legacy calls (if any) passing single float
-        // logic should ideally be deprecated or removed if we are sure no legacy calls remain
         return $this->db->query(
-            "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
-            [$status, (float) $weights, $id, $collectorId]
+            "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
+            [$status, $id, $collectorId]
         );
     }
 
@@ -426,7 +357,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.quantity, prw.unit, wc.name
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -455,7 +386,7 @@ class PickupRequest extends BaseModel
                 $map[$pid]['details'][] = [
                     'id' => (int) $row['waste_category_id'],
                     'name' => $name,
-                    'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
+                    'quantity' => $row['quantity'] !== null ? (float) $row['quantity'] : null,
                     'unit' => $row['unit'] ?? null,
                 ];
             }
@@ -484,8 +415,6 @@ class PickupRequest extends BaseModel
             'collectorName' => $row['collector_name'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
-            'weight' => isset($row['weight']) ? (float)$row['weight'] : null,   // pickup_requests weight
-            'price' => isset($row['price']) ? (float)$row['price'] : null,      // pickup_requests price
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
@@ -494,36 +423,33 @@ class PickupRequest extends BaseModel
     private function replaceWasteCategories(string $pickupId, array $categories, bool $clearExisting = true): void
     {
         if ($clearExisting) {
-            $this->db->query('DELETE FROM pickup_request_wastes WHERE pickup_id = ?', [$pickupId]);
+            $this->db->query(
+                'DELETE FROM pickup_request_wastes WHERE pickup_id = ?',
+                [$pickupId]
+            );
         }
 
         foreach ($categories as $category) {
             $categoryId = $category['id'] ?? null;
-            if ($categoryId === null) continue;
+            if ($categoryId === null) {
+                continue;
+            }
 
-            $weight = $category['weight'] ?? null;
-            if ($weight !== null) $weight = (float) $weight;
+            $quantity = $category['quantity'] ?? null;
+            if ($quantity !== null) {
+                $quantity = (float) $quantity;
+            }
 
             $unit = $category['unit'] ?? null;
 
             $this->db->query(
-                'INSERT INTO pickup_request_wastes (pickup_id, waste_category_id, weight, unit) VALUES (?, ?, ?, ?)',
-                [$pickupId, $categoryId, $weight, $unit]
+                'INSERT INTO pickup_request_wastes (pickup_id, waste_category_id, quantity, unit) VALUES (?, ?, ?, ?)',
+                [$pickupId, $categoryId, $quantity, $unit]
             );
         }
     }
 
-    public function updateStatus(int $pickupId, string $status): void
-    {
-        $this->db->query(
-            "UPDATE {$this->table}
-             SET status = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?",
-            [$status, $pickupId]
-        );
-    }
-
-  private function generateId(): string
+    private function generateId(): string
     {
         do {
             $id = 'PR' . strtoupper(bin2hex(random_bytes(5)));
@@ -563,71 +489,4 @@ class PickupRequest extends BaseModel
         $status = strtolower($status);
         return in_array($status, ['pending', 'assigned', 'confirmed'], true);
     }
-
-    /**
- * Get all pickups for a collector (for dashboard)
- * Includes waste categories, weights, and price per unit
- */
-public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
-{
-    $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
-                   c.name AS customer_name,
-                   wc.id AS waste_category_id, wc.name AS waste_category_name, wc.unit, wc.price_per_unit,
-                   prw.weight
-            FROM {$this->table} pr
-            LEFT JOIN users c ON c.id = pr.customer_id
-            LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
-            LEFT JOIN waste_categories wc ON prw.waste_category_id = wc.id
-            WHERE pr.collector_id = ?";
-
-    $params = [$collectorId];
-
-    if ($status !== null && $status !== '') {
-        $sql .= " AND pr.status = ?";
-        $params[] = $status;
-    }
-
-    $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
-
-    $rows = $this->db->fetchAll($sql, $params);
-    if (!$rows) {
-        return [];
-    }
-
-    // Map pickups
-    $map = [];
-    foreach ($rows as $row) {
-        $pid = $row['id'];
-        if (!isset($map[$pid])) {
-            $map[$pid] = [
-                'id' => $pid,
-                'customerId' => $row['customer_id'],
-                'customerName' => $row['customer_name'] ?? '',
-                'collectorId' => $row['collector_id'],
-                'address' => $row['address'] ?? '',
-                'timeSlot' => $row['time_slot'] ?? '',
-                'status' => $this->normalizeStatusValue($row['status'] ?? 'pending'),
-                'createdAt' => $row['created_at'] ?? null,
-                'scheduledAt' => $row['scheduled_at'] ?? null,
-                'wasteCategories' => [],
-                'weight' => 0,
-                'price' => 0
-            ];
-        }
-
-        if (isset($row['waste_category_id'])) {
-            $map[$pid]['wasteCategories'][] = [
-                'id' => $row['waste_category_id'],
-                'name' => $row['waste_category_name'],
-                'weight' => $row['weight'] !== null ? (float)$row['weight'] : 0,
-                'unit' => $row['unit'] ?? null,
-                'price_per_unit' => (float)$row['price_per_unit']
-            ];
-            $map[$pid]['weight'] += $row['weight'] !== null ? (float)$row['weight'] : 0;
-        }
-    }
-
-    return array_values($map);
-}
-
 }
