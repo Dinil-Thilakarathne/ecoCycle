@@ -177,6 +177,23 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   CONSTRAINT `fk_notifications_creator` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Collector ratings (customer supplied reviews for collectors)
+CREATE TABLE IF NOT EXISTS `collector_ratings` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `customer_id` INT NOT NULL,
+  `collector_id` INT DEFAULT NULL,
+  `collector_name` VARCHAR(255) NOT NULL,
+  `rating` INT NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `address` TEXT DEFAULT NULL,
+  `rating_date` DATE DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_cr_customer` (`customer_id`),
+  INDEX `idx_cr_collector` (`collector_id`),
+  CONSTRAINT `fk_cr_customer` FOREIGN KEY (`customer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_cr_collector` FOREIGN KEY (`collector_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- System alerts (config)
 CREATE TABLE IF NOT EXISTS `system_alerts` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,

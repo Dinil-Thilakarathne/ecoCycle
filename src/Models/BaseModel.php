@@ -55,6 +55,10 @@ class BaseModel
             return false;
         }
     }
+    public function getDb(): \Core\Database
+    {
+        return $this->db;
+    }
 
     protected function createTable(string $sql): bool
     {

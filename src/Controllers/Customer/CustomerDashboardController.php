@@ -8,6 +8,7 @@ use Core\Http\Response;
 use Models\User;
 use Models\PickupRequest;
 use Models\WasteCategory;
+use Models\Payment;
 
 /**
  * Customer Dashboard Controller
@@ -64,8 +65,19 @@ class CustomerDashboardController extends DashboardController
      */
     public function payment(): Response
     {
+        $session = session();
+        $user = $session->get('user');
+        $userId = $user['id'] ?? 0;
+
+        $paymentModel = new Payment();
+        // Fetch payouts (money received by customer)
+        $transactions = $paymentModel->listCustomerPayments((int) $userId, 50);
+
         $data = [
-            'pageTitle' => 'Payment',
+            'pageTitle' => 'Payments & Payouts',
+            'payments' => $transactions,
+            // Keep specific mock data for layout if needed, or pass empty/null
+            // 'current_plan' => ..., 
         ];
 
         return $this->renderDashboard('payment', $data);

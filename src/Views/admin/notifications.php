@@ -1,54 +1,5 @@
 <?php
-// Recent notifications data (in a real application, this would come from your database/models)
-$recentNotifications = [
-    [
-        'id' => 'NOT001',
-        'type' => 'system',
-        'title' => 'System Maintenance Scheduled',
-        'message' => 'Scheduled maintenance on Jan 20, 2024 from 2:00 AM to 4:00 AM',
-        'timestamp' => '2024-01-15 10:30:00',
-        'status' => 'sent',
-        'recipients' => 'All Users'
-    ],
-    [
-        'id' => 'NOT002',
-        'type' => 'alert',
-        'title' => 'High Bid Activity',
-        'message' => 'Unusual bidding activity detected for Lot #1234',
-        'timestamp' => '2024-01-15 09:15:00',
-        'status' => 'sent',
-        'recipients' => 'Administrators'
-    ],
-    [
-        'id' => 'NOT003',
-        'type' => 'info',
-        'title' => 'New Company Registration',
-        'message' => 'EcoRecycle Ltd. has registered and is pending approval',
-        'timestamp' => '2024-01-15 08:45:00',
-        'status' => 'sent',
-        'recipients' => 'Administrators'
-    ],
-    [
-        'id' => 'NOT004',
-        'type' => 'maintenance',
-        'title' => 'Vehicle Maintenance Due',
-        'message' => 'Vehicle ABC-1234 is due for scheduled maintenance',
-        'timestamp' => '2024-01-15 08:00:00',
-        'status' => 'pending',
-        'recipients' => 'Fleet Managers'
-    ],
-    [
-        'id' => 'NOT005',
-        'type' => 'alert',
-        'title' => 'Payment Failed',
-        'message' => 'Payment processing failed for invoice #INV-2024-001',
-        'timestamp' => '2024-01-15 07:30:00',
-        'status' => 'failed',
-        'recipients' => 'Finance Team'
-    ]
-];
-
-// System alert configurations
+// System alert configurations (keeping these hardcoded for now as they seem to be feature toggles/static config)
 $systemAlerts = [
     [
         'name' => 'Pickup Reminders',
@@ -71,21 +22,6 @@ $systemAlerts = [
         'status' => 'scheduled'
     ]
 ];
-
-// Helper functions
-function getStatusTag($status)
-{
-    switch ($status) {
-        case 'sent':
-            return '<div class="tag success">Sent</div>';
-        case 'pending':
-            return '<div class="tag warning">Pending</div>';
-        case 'failed':
-            return '<div class="tag danger">Failed</div>';
-        default:
-            return '<div class="tag secondary">' . htmlspecialchars($status) . '</div>';
-    }
-}
 
 function getAlertStatusTag($status)
 {
@@ -133,7 +69,8 @@ function getAlertStatusTag($status)
                             <option value="customers">Customers</option>
                             <option value="companies">Companies</option>
                             <option value="collectors">Collectors</option>
-                            <option value="admins">Administrators</option>
+                            <option value="users">Specific Users (Not implemented)</option>
+                            <!-- Adjusted logic in Controller supports 'users', 'all' etc -->
                         </select>
                     </div>
 
@@ -181,51 +118,15 @@ function getAlertStatusTag($status)
                     Recent Notifications
                 </h3>
                 <p class="activity-card__description">Recently sent notifications and their status</p>
+                <!-- Optional: Refresh Button -->
+                <button onclick="fetchNotifications()" class="btn btn-sm btn-outline" style="margin-top:var(--space-2)">
+                    <i class="fa-solid fa-sync"></i> Refresh
+                </button>
             </div>
             <div class="activity-card__content">
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <?php foreach ($recentNotifications as $notification): ?>
-                        <?php
-                        // Map notification type/status to alert-box type
-                        $type = $notification['type'] ?? 'info';
-                        $status = $notification['status'] ?? '';
-                        if ($status === 'failed') {
-                            $alertType = 'danger';
-                        } else {
-                            switch ($type) {
-                                case 'alert':
-                                    $alertType = 'danger';
-                                    break;
-                                case 'maintenance':
-                                    $alertType = 'warning';
-                                    break;
-                                case 'info':
-                                case 'system':
-                                default:
-                                    $alertType = 'info';
-                            }
-                        }
-
-                        $statusClass = ($status === 'sent') ? 'success' : (($status === 'pending') ? 'warning' : (($status === 'failed') ? 'danger' : 'secondary'));
-                        ?>
-
-                        <alert-box type="<?= $alertType ?>" title="<?= htmlspecialchars($notification['title']) ?>"
-                            dismissible>
-                            <p style="margin:0; color: var(--neutral-700); font-size: var(--text-sm);">
-                                <?= htmlspecialchars($notification['message']) ?>
-                            </p>
-
-                            <div style="margin-top: var(--space-2); font-size: var(--text-xs); color: var(--neutral-500);">
-                                <span>To: <?= htmlspecialchars($notification['recipients']) ?></span>
-                                &nbsp;&middot;&nbsp;
-                                <span><?= htmlspecialchars($notification['timestamp']) ?></span>
-                            </div>
-
-                            <div class="tag <?= $statusClass ?> alert-action">
-                                <?= ($status === 'sent') ? 'Sent' : (($status === 'pending') ? 'Pending' : (($status === 'failed') ? 'Failed' : htmlspecialchars($status))) ?>
-                            </div>
-                        </alert-box>
-                    <?php endforeach; ?>
+                <div id="recent-notifications-list" style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <!-- Notifications will be loaded here via JS -->
+                    <div style="padding:2rem;text-align:center;color:var(--neutral-500);">Loading notifications...</div>
                 </div>
             </div>
         </div>
@@ -263,6 +164,14 @@ function getAlertStatusTag($status)
         </div>
     </div>
 </div>
+
+<script src="/js/admin/notifications.js"></script>
+<script>
+    // Toggle system alert configuration (kept inline as it's UI-only mock for now)
+    function toggleAlert(alertName) {
+        showToast(`Opening configuration for "${alertName}"`, 'info');
+    }
+</script>
 
 <script>
     // Toast utility wrapper for cleaner code

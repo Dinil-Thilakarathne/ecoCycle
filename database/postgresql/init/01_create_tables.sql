@@ -210,6 +210,25 @@ CREATE TABLE IF NOT EXISTS notifications (
   updated_at TIMESTAMP NULL DEFAULT NULL
 );
 
+-- Collector ratings (customer supplied reviews for collectors)
+CREATE TABLE IF NOT EXISTS collector_ratings (
+  id SERIAL PRIMARY KEY,
+  customer_id INT NOT NULL,
+  collector_id INT DEFAULT NULL,
+  collector_name VARCHAR(255) NOT NULL,
+  rating INT NOT NULL,
+  description TEXT DEFAULT NULL,
+  address TEXT DEFAULT NULL,
+  rating_date DATE DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cr_customer ON collector_ratings (customer_id);
+CREATE INDEX idx_cr_collector ON collector_ratings (collector_id);
+
+ALTER TABLE collector_ratings ADD CONSTRAINT fk_cr_customer FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE collector_ratings ADD CONSTRAINT fk_cr_collector FOREIGN KEY (collector_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- Create indexes for notifications table
 CREATE INDEX idx_notifications_type ON notifications (type);
 CREATE INDEX idx_notifications_status ON notifications (status);

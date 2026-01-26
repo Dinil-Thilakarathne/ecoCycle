@@ -127,6 +127,29 @@
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
 }
 
+/* Rate collector button - long and matches primary button style */
+.btn-rate {
+  min-width: 320px;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--rounded-2xl);
+  font-weight: var(--font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rating input tweaks */
+.request-form input[type="number"]#rate_score {
+  max-width: 120px;
+}
+
+@media (max-width: 520px) {
+  .btn-rate {
+    min-width: 100%;
+    width: 100%;
+  }
+}
+
 /* --------------------------------------------------------------------------
  * Profile page
  * -------------------------------------------------------------------------- */

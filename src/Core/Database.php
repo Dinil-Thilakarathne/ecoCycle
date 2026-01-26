@@ -106,6 +106,12 @@ class Database
         return $this->stmt->fetch();
     }
 
+    public function fetchColumn(string $sql, array $params = [], int $column = 0)
+    {
+        $this->query($sql, $params);
+        return $this->stmt->fetchColumn($column);
+    }
+
     public function lastInsertId(): string|false
     {
         return $this->pdo()->lastInsertId();
