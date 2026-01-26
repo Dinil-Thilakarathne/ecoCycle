@@ -55,6 +55,7 @@
 
     <!-- JavaScript Files -->
     <!-- Core JS -->
+    <script type="module" src="/js/components/modal-manager.js"></script>
     <script type="module" src="/js/components/core.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/toast.js"></script>
