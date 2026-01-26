@@ -45,6 +45,11 @@ $router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->post('/api/users/suspend', 'Controllers\Api\UserController@suspend', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
@@ -123,6 +128,44 @@ $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Coll
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CollectorOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/payments/{id}', 'Controllers\Api\PaymentController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/payments/{id}', 'Controllers\Api\PaymentController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/customer/payments', 'Controllers\Api\PaymentController@customerPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
 ]);
 
 // Root redirect to navigation page for development
@@ -232,9 +275,21 @@ $router->get('/test', function () {
         'utilities' => [
             'routes_list' => '/routes/list',
             'routes_validate' => '/routes/validate',
-            'diagnostic' => '/diagnostic'
+            'diagnostic' => '/diagnostic',
+            'api_debug_routes' => '/api/debug/routes'
         ]
     ]);
+});
+
+// Debug route to list all registered routes
+$router->get('/api/debug/routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+         $routes = $router->getRoutes();
+    } else {
+         $routes = [];
+    }
+   
+    return view('debug/routes', ['routes' => $routes]);
 });
 
 // Route diagnostic page
@@ -332,6 +387,25 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     return redirect("/{$role}");
 });
 
+$router->post('/api/profile/update', 'Controllers\Api\profileController@updateProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware'
+]);
+
+$router->get('/api/profile/delete', 'Controllers\Api\profileController@deleteProfile', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware'
+]);
+
+$router->post('/api/profile/bankDetails', 'Controllers\Api\profileController@updateBankDetails', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware'
+]);
+
+$router->post('/api/profile/password', 'Controllers\Api\profileController@changePassword', [
+    'Middleware\AuthMiddleware',
+    // 'Middleware\CsrfMiddleware'
+]);
 // ---------------------------------------------
 // Analytics & Reporting API Routes
 // ---------------------------------------------
@@ -392,6 +466,39 @@ $router->post('/api/reports/export', 'Controllers\Api\ReportsController@export',
     'Middleware\Roles\AdminOnly',
 ]);
 
+// ---------------------------------------------
+// Waste Management API Routes
+// ---------------------------------------------
+
+// Waste Category Management Routes
+$router->get('/api/waste-categories', 'Controllers\Api\WasteManagementController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/waste-categories', 'Controllers\Api\WasteManagementController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+// notification routes 
+
+// example
+$router->get('/api/notifications', 'Controllers\Api\NotificationController@index', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->post('/api/notifications', 'Controllers\Api\NotificationController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/notifications/{id}/read', 'Controllers\Api\NotificationController@markAsRead', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/notifications/read-all', 'Controllers\Api\NotificationController@markAllAsRead', [
+    'Middleware\AuthMiddleware',
+]);
 
 // Collector Pickup Requests API
 $router->get('/api/collector/pickup-requests', 
@@ -445,3 +552,35 @@ $router->get('/api/collector/notifications', 'Controllers\Api\CollectorStatsCont
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);
+
+$router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
+// user managemnet api routes
+$router->get('/api/users/{id}', 'Controllers\Api\UserController@findById', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/users', 'Controllers\Api\UserController@findAll', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+    

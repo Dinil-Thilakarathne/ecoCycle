@@ -7,36 +7,59 @@ $oldInput = is_array($oldInput ?? null) ? $oldInput : [];
 $vehicle = is_array($vehicleInfo ?? null) ? $vehicleInfo : [];
 $certificationsData = $certifications ?? [];
 
-$displayFirstName = $collector['firstName'] ?? '';
-$displayLastName = $collector['lastName'] ?? '';
-$displayName = trim($collector['name'] ?? ($displayFirstName . ' ' . $displayLastName));
+$displayName = trim($collector['name'] ?? '');
 $displayName = $displayName !== '' ? $displayName : 'N/A';
 
 $displayEmail = $collector['email'] ?? '';
 $displayPhone = $collector['phone'] ?? '';
 $displayAddress = $collector['address'] ?? '';
 $displayPostal = $collector['postalCode'] ?? '';
-$displayNic = $collector['nic'] ?? ($collector['metadata']['nic'] ?? '');
 $displayDescription = $collector['description'] ?? '';
 
-$bank = is_array($collector['bank'] ?? null) ? $collector['bank'] : [];
-$displayBankName = $bank['bankName'] ?? '';
-$displayBankBranch = $bank['branch'] ?? '';
-$displayBankHolder = $bank['holderName'] ?? '';
-$displayBankAccount = $collector['bankAccount'] ?? ($bank['accountNumber'] ?? '');
+// Parse metadata (may be JSON string or array)
+if (isset($collector['metadata'])) {
+  if (is_string($collector['metadata'])) {
+    $metadata = json_decode($collector['metadata'], true) ?? [];
+  } elseif (is_array($collector['metadata'])) {
+    $metadata = $collector['metadata'];
+  } else {
+    $metadata = [];
+  }
+} else {
+  $metadata = [];
+}
 
-$editFirstName = $oldInput['firstName'] ?? $displayFirstName;
-$editLastName = $oldInput['lastName'] ?? $displayLastName;
+$vehiclePreference = $metadata['vehiclePreference'] ?? '';
+$serviceAreas = $metadata['serviceAreas'] ?? [];
+if (!is_array($serviceAreas)) {
+  $serviceAreas = is_string($serviceAreas) ? array_filter(array_map('trim', explode(',', $serviceAreas))) : [];
+}
+$licenseNumber = $metadata['licenseNumber'] ?? '';
+
+$bankDetails = is_array($collector['bank'] ?? null) ? $collector['bank'] : [];
+// Normalize bank details keys
+$bankDetails = array_merge([
+  'name' => $bankDetails['bankName'] ?? $bankDetails['name'] ?? '',
+  'account_number' => $bankDetails['accountNumber'] ?? $bankDetails['account_number'] ?? $collector['bankAccount'] ?? '',
+  'user' => $bankDetails['holderName'] ?? $bankDetails['user'] ?? '',
+  'branch' => $bankDetails['branch'] ?? $bankDetails['bank_branch'] ?? '',
+], $bankDetails);
+
+$editName = $oldInput['name'] ?? ($collector['name'] ?? '');
 $editEmail = $oldInput['email'] ?? $displayEmail;
 $editPhone = $oldInput['phone'] ?? $displayPhone;
 $editAddress = $oldInput['address'] ?? $displayAddress;
 $editPostalCode = $oldInput['postalCode'] ?? $displayPostal;
-$editNic = $oldInput['nic'] ?? $displayNic;
 $editDescription = $oldInput['description'] ?? $displayDescription;
-$editBankName = $oldInput['bankName'] ?? $displayBankName;
-$editBankBranch = $oldInput['bankBranch'] ?? $displayBankBranch;
-$editBankHolder = $oldInput['bankHolder'] ?? $displayBankHolder;
-$editBankAccount = $oldInput['bankAccount'] ?? $displayBankAccount;
+
+$editVehiclePreference = $oldInput['vehiclePreference'] ?? $vehiclePreference;
+$editServiceAreas = $oldInput['serviceArea'] ?? implode(', ', $serviceAreas);
+$editLicenseNumber = $oldInput['licenseNumber'] ?? $licenseNumber;
+
+$editBankName = $oldInput['bank_name'] ?? $bankDetails['name'] ?? '';
+$editBankAccount = $oldInput['bank_account_number'] ?? $bankDetails['account_number'] ?? '';
+$editBankHolder = $oldInput['bank_account_name'] ?? $bankDetails['user'] ?? '';
+$editBankBranch = $oldInput['bank_branch'] ?? $bankDetails['branch'] ?? '';
 
 $profileImage = $collector['profile_pic'] ?? ($collector['profileImage'] ?? ($collector['profileImagePath'] ?? null));
 if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
@@ -114,11 +137,11 @@ $csrfToken = csrf_token();
       <div class="form-group"><label>Full Name</label>
         <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
       </div>
-      <div class="form-group"><label>First Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayFirstName) ?>" disabled>
+      <div class="form-group"><label>License Number</label>
+        <input type="text" value="<?= htmlspecialchars($licenseNumber) ?>" disabled>
       </div>
-      <div class="form-group"><label>Last Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayLastName) ?>" disabled>
+      <div class="form-group"><label>Service Areas</label>
+        <input type="text" value="<?= htmlspecialchars(implode(', ', $serviceAreas)) ?>" disabled>
       </div>
     </div>
 
@@ -150,22 +173,22 @@ $csrfToken = csrf_token();
 
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
-      <div class="bank-summary">
+      <div style="display: grid; grid-template-columns: 2fr 2fr; gap: 20px;">
         <div class="form-group"><label>Bank Name</label>
-          <input type="text" value="<?= htmlspecialchars($displayBankName) ?>" disabled>
-        </div>
-        <div class="form-group"><label>Branch</label>
-          <input type="text" value="<?= htmlspecialchars($displayBankBranch) ?>" disabled>
-        </div>
-        <div class="form-group"><label>Account Holder</label>
-          <input type="text" value="<?= htmlspecialchars($displayBankHolder) ?>" disabled>
+          <input type="text" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>" disabled>
         </div>
         <div class="form-group"><label>Account Number</label>
-          <input type="text" value="<?= htmlspecialchars($displayBankAccount) ?>" disabled>
+          <input type="text" value="<?= htmlspecialchars($bankDetails['account_number'] ?? '') ?>" disabled>
+        </div>
+        <div class="form-group"><label>User's Name</label>
+          <input type="text" value="<?= htmlspecialchars($bankDetails['user'] ?? '') ?>" disabled>
+        </div>
+        <div class="form-group"><label>Bank Branch</label>
+          <input type="text" value="<?= htmlspecialchars($bankDetails['branch'] ?? '') ?>" disabled>
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">See
+        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light); ">Edit
             Bank Details</a></p>
       </div>
     </div>
@@ -201,7 +224,7 @@ $csrfToken = csrf_token();
     <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
     <p><button type="button" class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button>
     </p>
-    <p><button type="button" class="p-btn-delete">Delete Account</button></p>
+    <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
   </div>
 </main>
 
@@ -219,24 +242,22 @@ $csrfToken = csrf_token();
         </ul>
       </div>
     <?php endif; ?>
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" action="/api/profile/update">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label>Profile Picture</label>
-        <input type="file" name="photo" accept="image/*">
+        <input type="file" name="profile_picture" accept="image/*">
       </div>
       <div class="form-actions">
         <button type="submit" name="uploadPhoto" class="btn btn-outline" style="width:100%; margin-bottom:8px;">Upload
           Photo</button>
         <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
-          <button type="submit" name="removePhoto" class="btn btn-outline p-btn-delete" style="width:100%;">Remove
+          <button type="submit" name="removePhoto" class="btn btn-outline p-btn-delete" style="width:100%">Remove
             Photo</button>
         <?php endif; ?>
       </div>
-      <div class="form-group"><label class="form-lable">First Name</label>
-        <input type="text" name="firstName" value="<?= htmlspecialchars($editFirstName) ?>" required>
-      </div>
-      <div class="form-group"><label class="form-lable">Last Name</label>
-        <input type="text" name="lastName" value="<?= htmlspecialchars($editLastName) ?>" required>
+
+      <div class="form-group"><label class="form-lable">Name</label>
+        <input type="text" name="name" value="<?= htmlspecialchars($editName) ?>" required>
       </div>
       <div class="form-group"><label class="form-lable">Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($editEmail) ?>" required>
@@ -255,20 +276,18 @@ $csrfToken = csrf_token();
       <div class="form-group"><label class="form-lable">About You</label>
         <textarea name="description" rows="3"><?= htmlspecialchars($editDescription) ?></textarea>
       </div>
-      <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" name="bankName" value="<?= htmlspecialchars($editBankName) ?>" required>
+
+      <div class="form-group"><label class="form-lable">Vehicle Preference</label>
+        <input type="text" name="vehiclePreference" value="<?= htmlspecialchars($editVehiclePreference) ?>">
       </div>
-      <div class="form-group"><label class="form-lable">Branch</label>
-        <input type="text" name="bankBranch" value="<?= htmlspecialchars($editBankBranch) ?>" required>
+      <div class="form-group"><label class="form-lable">Service Areas</label>
+        <input type="text" name="serviceArea" value="<?= htmlspecialchars($editServiceAreas) ?>" placeholder="Area1, Area2">
       </div>
-      <div class="form-group"><label class="form-lable">Account Holder's Name</label>
-        <input type="text" name="bankHolder" value="<?= htmlspecialchars($editBankHolder) ?>" required>
+      <div class="form-group"><label class="form-lable">License Number</label>
+        <input type="text" name="licenseNumber" value="<?= htmlspecialchars($editLicenseNumber) ?>">
       </div>
-      <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" name="bankAccount" value="<?= htmlspecialchars($editBankAccount) ?>" pattern="[0-9]{1,20}"
-          required>
-      </div>
-      <button type="submit" class="btn btn-primary outline" name="saveProfile" style="width:100%;">Save Changes</button>
+
+      <button type="submit" class="btn btn-primary outline" name="saveProfile" style="width:100%">Save Changes</button>
     </form>
   </div>
 </div>
@@ -278,20 +297,21 @@ $csrfToken = csrf_token();
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
-    <form>
+    <form method="POST" action="/api/profile/bankDetails">
+      <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankName) ?>" disabled>
-      </div>
-      <div class="form-group"><label class="form-lable">Branch</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankBranch) ?>" disabled>
-      </div>
-      <div class="form-group"><label class="form-lable">Account Holder's Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankHolder) ?>" disabled>
+        <input type="text" name="bank_name" value="<?= htmlspecialchars($editBankName) ?>">
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankAccount) ?>" disabled>
+        <input type="text" name="bank_account_number" value="<?= htmlspecialchars($editBankAccount) ?>">
       </div>
-      <button type="button" class="btn btn-primary outline" style="width: 100%" disabled>Save Details</button>
+      <div class="form-group"><label class="form-lable">User's Name</label>
+        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($editBankHolder) ?>">
+      </div>
+      <div class="form-group"><label class="form-lable">Bank Branch</label>
+        <input type="text" name="bank_branch" value="<?= htmlspecialchars($editBankBranch) ?>">
+      </div>
+      <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>
   </div>
 </div>
@@ -301,19 +321,15 @@ $csrfToken = csrf_token();
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Change Password</h2>
-    <form method="POST">
+    <form method="POST" action="/api/profile/password">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
-      <div class="form-group"><label>Current Password</label>
-        <input type="password" name="currentPassword" required>
-      </div>
       <div class="form-group"><label>New Password</label>
-        <input type="password" name="newPassword" minlength="8" required>
+        <input type="password" name="password" minlength="6" required>
       </div>
       <div class="form-group"><label>Confirm New Password</label>
-        <input type="password" name="confirmPassword" minlength="8" required>
+        <input type="password" name="confirm_password" minlength="6" required>
       </div>
-      <button type="submit" class="btn btn-primary outline" name="updatePassword" style="width:100%;">Update
-        Password</button>
+      <button type="submit" class="btn btn-primary outline" style="width:100%">Change Password</button>
     </form>
   </div>
 
@@ -341,3 +357,20 @@ $csrfToken = csrf_token();
   <?php if (!empty($errors)): ?>
     <script>window.location.hash = '#editModal';</script>
   <?php endif; ?>
+
+<script>
+function confirmDeleteProfile(event) {
+  event.preventDefault();
+
+  const confirmDelete = confirm(
+    "Are you sure you want to delete your account?\n\n" +
+    "This action is PERMANENT and cannot be undone."
+  );
+
+  if (confirmDelete) {
+    window.location.href = event.currentTarget.href;
+  }
+
+  return false;
+}
+</script>

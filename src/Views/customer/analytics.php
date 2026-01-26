@@ -38,7 +38,7 @@ $wasteTypeData = [
         </div>
     </div>
 
-    <div class="stats-grid" style="margin-bottom:2.5rem;">
+    <div class="stats-grid analytics-grid" style="margin-bottom:2.5rem;">
         <div class="feature-card">
             <div class="feature-card__header">
                 <h3 class="feature-card__title">Total Weight</h3>
@@ -65,7 +65,7 @@ $wasteTypeData = [
         </div>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid analytics-grid">
         <!-- Multi-bar graph for waste types per month (last 3 months) -->
         <div class="feature-card">
             <div class="section-header" style="margin-bottom:1rem;">

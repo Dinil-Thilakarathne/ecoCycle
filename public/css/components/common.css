@@ -71,25 +71,34 @@
     color: #047857;
   }
 
-  &.pending {
+  &.pending,
+  &.Pending,
+  &.in-transit{
     border: 1px solid var(--warning);
     background-color: var(--warning-light);
     color: #b45309;
   }
 
-  &.assigned {
+  &.assigned,
+  &.won,
+  &.delivered {
     border: 1px solid var(--info);
     background-color: var(--info-light);
     color: #1e40af;
   }
 
-  &.completed {
+  &.completed,
+  &.active,
+  &.available {
     border: 1px solid var(--success);
     background-color: var(--success-light);
     color: var(--success);
   }
 
-  &.danger {
+  &.danger,
+  &.Closed,
+  &.rejected,
+  &.confirmed {
     border: 1px solid var(--danger);
     background-color: var(--danger-light);
     color: var(--danger);

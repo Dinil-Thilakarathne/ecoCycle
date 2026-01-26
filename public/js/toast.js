@@ -36,4 +36,7 @@
     setTimeout(remove, timeout);
     return t;
   };
+
+  // Alias for easier usage
+  window.toast = window.__createToast;
 })();
