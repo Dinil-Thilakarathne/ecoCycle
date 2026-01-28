@@ -12,11 +12,13 @@ class BiddingController extends BaseController
 {
     private BiddingRound $rounds;
     private WasteCategory $categories;
+    private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->rounds = new BiddingRound();
         $this->categories = new WasteCategory();
+        $this->notification = new \Models\Notification();
     }
 
     public function index(Request $request): Response
@@ -44,6 +46,17 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->createRound($validation['payload']);
+
+            // Trigger Notification to Companies
+            if ($round) {
+                $this->notification->create([
+                    'type' => 'bidding_round_opened',
+                    'title' => 'New Bidding Round',
+                    'message' => "New bidding round available: {$round['quantity']}{$round['unit']} of {$round['waste_category_id']}", // In a real app we'd fetch category name
+                    'recipient_group' => 'company',
+                    'status' => 'pending'
+                ]);
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create bidding round', 500, ['detail' => $e->getMessage()]);
         }
@@ -198,6 +211,19 @@ class BiddingController extends BaseController
             return Response::errorJson('Bidding round not found', 404);
         }
 
+
+
+        // Trigger Notification to Companies about Cancellation
+        if ($round) {
+            $this->notification->create([
+                'type' => 'bidding_round_cancelled',
+                'title' => 'Bidding Round Cancelled',
+                'message' => "Bidding round for Lot {$round['lot_id']} has been cancelled.",
+                'recipient_group' => 'company',
+                'status' => 'pending'
+            ]);
+        }
+
         return Response::json([
             'success' => true,
             'message' => 'Bidding round cancelled',
@@ -231,6 +257,15 @@ class BiddingController extends BaseController
                         'txnId' => "INV-{$round['lotId']}-" . time()
                     ]);
                 }
+
+                // Notify Winning Company
+                $this->notification->create([
+                    'type' => 'bid_won',
+                    'title' => 'Bid Won!',
+                    'message' => "Congratulations! You have won the bid for Lot {$round['lotId']}. Please check your invoices.",
+                    'recipients' => ['company:' . $companyId],
+                    'status' => 'pending'
+                ]);
             }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to approve bidding round', 500, ['detail' => $e->getMessage()]);
@@ -265,6 +300,19 @@ class BiddingController extends BaseController
 
         if (!$round) {
             return Response::errorJson('Bidding round not found', 404);
+        }
+
+
+
+        // Trigger Notification to Companies about Rejection (Cancellation)
+        if ($round) {
+            $this->notification->create([
+                'type' => 'bidding_round_cancelled',
+                'title' => 'Bidding Round Cancelled',
+                'message' => "Bidding round for Lot {$round['lotId']} has been cancelled.", // Use field names correctly based on model return
+                'recipient_group' => 'company',
+                'status' => 'pending'
+            ]);
         }
 
         return Response::json([
