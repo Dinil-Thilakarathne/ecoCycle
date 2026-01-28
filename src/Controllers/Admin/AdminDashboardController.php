@@ -143,7 +143,9 @@ class AdminDashboardController extends DashboardController
             'collectors' => $collectors,
         ];
 
-        return $this->renderDashboard('users', $data);
+        return $this->renderDashboard('users', $data + [
+            'vehicles' => (new Vehicle())->listAll(),
+        ]);
     }
 
     /**
@@ -152,10 +154,12 @@ class AdminDashboardController extends DashboardController
     public function vehicles(): Response
     {
         $vehicles = (new Vehicle())->listAll();
+        $collectors = (new User())->listByType('collector');
 
         $data = [
             'pageTitle' => 'Vehicle Management',
             'vehicles' => $vehicles,
+            'collectors' => $collectors,
         ];
 
         return $this->renderDashboard('vehicles', $data);
@@ -191,9 +195,6 @@ class AdminDashboardController extends DashboardController
         return $this->renderDashboard('settings', $data);
     }
 
-    /**
-     * Bidding management page
-     */
     public function bidding(): Response
     {
         $biddingModel = new BiddingRound();
@@ -216,6 +217,32 @@ class AdminDashboardController extends DashboardController
         ];
 
         return $this->renderDashboard('biddingManagement', $data);
+    }
+
+    /**
+     * Waste Categories & Pricing page
+     */
+    public function wasteCategories(): Response
+    {
+        $db = new Database();
+        // Fetch categories with the new price_per_unit column
+        // Note: Make sure the DB migration has been applied!
+        try {
+            $categories = $db->fetchAll("SELECT * FROM waste_categories ORDER BY name ASC");
+        } catch (\Throwable $e) {
+            // Fallback for when migration hasn't run yet
+            $categories = $db->fetchAll("SELECT id, name, unit, color FROM waste_categories ORDER BY name ASC");
+            foreach ($categories as &$cat) {
+                $cat['price_per_unit'] = 0.00;
+            }
+        }
+
+        $data = [
+            'pageTitle' => 'Waste Pricing',
+            'categories' => $categories,
+        ];
+
+        return $this->renderDashboard('waste_categories', $data);
     }
 
     /**
@@ -248,57 +275,31 @@ class AdminDashboardController extends DashboardController
     public function analytics(): Response
     {
         $paymentModel = new Payment();
-        $summary = $paymentModel->getSummary();
+        $reportsModel = new \Models\ReportsModel();
 
+        // Financial Summary
+        $summary = $paymentModel->getSummary();
         $totalRevenue = $summary['total_payments'] ?? 0.0;
         $customerPayouts = $summary['total_payouts'] ?? 0.0;
         $netProfit = $totalRevenue - $customerPayouts;
 
-        $db = new Database();
-        try {
-            $wasteRows = $db->fetchAll(
-                'SELECT wc.name, SUM(br.quantity) AS total_quantity
-                 FROM waste_categories wc
-                 LEFT JOIN bidding_rounds br ON br.waste_category_id = wc.id
-                 GROUP BY wc.id, wc.name
-                 ORDER BY wc.name'
-            );
-        } catch (\Throwable $e) {
-            $wasteRows = [];
-        }
+        // Waste Categories
+        $wasteData = $reportsModel->getWasteVolumeByCategory();
 
+        $totalWaste = array_sum(array_column($wasteData, 'volume'));
         $wasteCategories = [];
-        $totalWaste = 0.0;
-        foreach ($wasteRows as $row) {
-            $quantity = isset($row['total_quantity']) ? (float) $row['total_quantity'] : 0.0;
-            $totalWaste += $quantity;
-            $wasteCategories[] = [
-                'category' => $row['name'] ?? '',
-                'volume' => $quantity,
-            ];
-        }
 
-        if ($totalWaste > 0) {
-            foreach ($wasteCategories as &$item) {
-                $item['percentage'] = $totalWaste > 0 ? round(($item['volume'] / $totalWaste) * 100, 1) : 0;
-            }
-            unset($item);
-        } else {
-            $fallback = Config::get('data.wasteCategories', []);
-            if (is_array($fallback) && !empty($fallback)) {
-                $wasteCategories = array_map(static function ($item) {
-                    return [
-                        'category' => $item['category'] ?? '',
-                        'volume' => isset($item['volume']) ? (float) $item['volume'] : 0,
-                        'percentage' => isset($item['percentage']) ? (float) $item['percentage'] : 0,
-                    ];
-                }, $fallback);
-                $totalWaste = array_sum(array_column($wasteCategories, 'volume'));
-            }
+        foreach ($wasteData as $item) {
+            $wasteCategories[] = [
+                'category' => $item['category'],
+                'volume' => $item['volume'],
+                'percentage' => $totalWaste > 0 ? round(($item['volume'] / $totalWaste) * 100, 1) : 0
+            ];
         }
 
         $avgCollectionPerDay = $totalWaste > 0 ? (int) round($totalWaste / 30) : 0;
 
+        // Chart Data
         $chartDays = [];
         for ($i = 29; $i >= 0; $i--) {
             $chartDays[] = date('Y-m-d', strtotime("-{$i} days"));
@@ -308,12 +309,7 @@ class AdminDashboardController extends DashboardController
         $payoutsMap = array_fill_keys($chartDays, 0.0);
 
         try {
-            $chartRows = $db->fetchAll(
-                "SELECT DATE(`date`) AS day, `type`, SUM(amount) AS total
-                 FROM payments
-                 WHERE `date` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                 GROUP BY day, type"
-            );
+            $chartRows = $reportsModel->getDailyFinancials(30);
             foreach ($chartRows as $row) {
                 $day = $row['day'] ?? null;
                 if (!$day || !isset($revenueMap[$day])) {
@@ -327,7 +323,7 @@ class AdminDashboardController extends DashboardController
                 }
             }
         } catch (\Throwable $e) {
-            // Leave maps at zero if query fails
+            // Charts will simply be empty on error
         }
 
         $data = [

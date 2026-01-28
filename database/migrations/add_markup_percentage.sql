@@ -1,0 +1,1 @@
+ALTER TABLE waste_categories ADD COLUMN markup_percentage DECIMAL(5,2) DEFAULT 0.00;

@@ -30,6 +30,8 @@
             <link rel="stylesheet" href="/css/company.css">
         <?php elseif (isset($userType) && $userType === 'customer'): ?>
             <link rel="stylesheet" href="/css/customer.css">
+        <?php elseif (isset($userType) && $userType === 'admin'): ?>
+            <link rel="stylesheet" href="/css/admin.css">
         <?php endif; ?>
     <?php endif; ?>
 
@@ -53,6 +55,7 @@
 
     <!-- JavaScript Files -->
     <!-- Core JS -->
+    <script type="module" src="/js/components/modal-manager.js"></script>
     <script type="module" src="/js/components/core.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/toast.js"></script>

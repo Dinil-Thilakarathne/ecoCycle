@@ -325,6 +325,7 @@ class BiddingRound extends BaseModel
 
     public function activeLots(): array
     {
+        $this->expireEndedRounds();
         $rows = $this->db->fetchAll(
             "SELECT br.*, wc.name AS waste_category_name
              FROM {$this->table} br
@@ -368,6 +369,9 @@ class BiddingRound extends BaseModel
 
     public function companyRounds(int $companyId, ?string $status = null, int $limit = 20): array
     {
+        // For stats consistency, we might trigger expiry here too, though strictly it matters most for 'active' queries.
+        $this->expireEndedRounds();
+
         if ($companyId <= 0) {
             return [];
         }
@@ -420,6 +424,8 @@ class BiddingRound extends BaseModel
 
     public function listAll(int $limit = 100): array
     {
+        $this->expireEndedRounds();
+
         $limit = max(1, (int) $limit);
         $sql = "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name
                 FROM {$this->table} br
@@ -439,6 +445,8 @@ class BiddingRound extends BaseModel
 
     public function stats(): array
     {
+        $this->expireEndedRounds();
+
         $row = $this->db->fetch(
             "SELECT
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_rounds,
@@ -567,5 +575,18 @@ class BiddingRound extends BaseModel
         }
 
         return $candidate;
+    }
+
+    /**
+     * Lazily expire rounds that have past their end time but remain active.
+     */
+    private function expireEndedRounds(): void
+    {
+        // Update status for any round that is 'active' and end_time is in the past
+        $this->db->query(
+            "UPDATE {$this->table}
+             SET status = 'completed', updated_at = NOW()
+             WHERE status = 'active' AND end_time <= NOW()"
+        );
     }
 }

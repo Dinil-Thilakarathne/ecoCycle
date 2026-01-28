@@ -254,6 +254,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </tbody>
         </table>
     </div>
+    <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary btn-rate" onclick="showRateCollectorForm()">Rate a collector</button>
+    </div>
 </div>
 
 <div id="newRequestModal" class="modal">
@@ -299,6 +302,51 @@ if (!function_exists('customer_pickup_format_datetime')) {
             <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
                 <button type="button" onclick="hideNewRequestForm()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-primary">Submit Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="rateCollectorModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Rate Collector</h2>
+            <span class="close" onclick="hideRateCollectorForm()">&times;</span>
+        </div>
+        <form id="rateCollectorForm" class="request-form">
+            <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
+            <?php $customerName = trim((string) ($profileData['name'] ?? ($userData['name'] ?? ''))); ?>
+            <div class="form-group">
+                <label for="rate_customer_name">Customer name</label>
+                <input type="text" id="rate_customer_name" name="customerName" readonly value="<?= e($customerName) ?>">
+            </div>
+            <div class="form-group">
+                <label for="rate_address">Address</label>
+                <textarea id="rate_address" name="address" rows="2" readonly><?= e($defaultAddress) ?></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rate_date">Date</label>
+                    <input type="date" id="rate_date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="rate_collector">Collector name</label>
+                    <input type="text" id="rate_collector" name="collectorName" placeholder="Collector name" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rate_score">Rating (1-5)</label>
+                    <input type="number" id="rate_score" name="rating" min="1" max="5" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="rate_description">Description</label>
+                    <input type="text" id="rate_description" name="description" placeholder="Short note (optional)">
+                </div>
+            </div>
+            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+                <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Rating</button>
             </div>
         </form>
     </div>
@@ -368,6 +416,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         const tableBody = document.getElementById('pickup-requests-body');
         const newModal = document.getElementById('newRequestModal');
         const editModal = document.getElementById('editRequestModal');
+        const rateModal = document.getElementById('rateCollectorModal');
         const filterButtons = document.querySelectorAll('[data-filter]');
 
         function showAlert(message, type = 'success') {
@@ -614,6 +663,29 @@ if (!function_exists('customer_pickup_format_datetime')) {
             }
         }
 
+        function showRateCollectorForm() {
+            if (!rateModal) return;
+            // Pre-fill date with today
+            const dateInput = document.getElementById('rate_date');
+            if (dateInput) {
+                const today = new Date();
+                dateInput.value = today.toISOString().split('T')[0];
+            }
+            rateModal.classList.add('modal-open');
+        }
+
+        function hideRateCollectorForm() {
+            if (!rateModal) return;
+            rateModal.classList.remove('modal-open');
+            const form = document.getElementById('rateCollectorForm');
+            if (form) form.reset();
+            // restore customer name/address defaults
+            const custName = document.getElementById('rate_customer_name');
+            if (custName) custName.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
+            const addr = document.getElementById('rate_address');
+            if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
+        }
+
         function showEditRequestForm(requestId) {
             const modal = editModal;
             if (!modal) return;
@@ -816,6 +888,44 @@ if (!function_exists('customer_pickup_format_datetime')) {
             }
         }
 
+        async function submitRateCollector(event) {
+            event.preventDefault();
+            const form = event.target;
+            const payload = {
+                customerName: form.customerName.value.trim(),
+                address: form.address.value.trim(),
+                date: form.date.value,
+                collectorName: form.collectorName.value.trim(),
+                rating: parseInt(form.rating.value, 10),
+                description: form.description.value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/customer/collector-ratings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    const detail = result?.errors?.detail ? ` (${result.errors.detail})` : '';
+                    throw new Error((result.message || 'Failed to submit rating') + detail);
+                }
+
+                hideRateCollectorForm();
+                showAlert('Thank you — your rating has been submitted.');
+            } catch (error) {
+                console.error(error);
+                showAlert(error.message || 'Failed to submit rating.', 'error');
+            }
+        }
+
         function updateRequestStatusInState(requestId, status, fullObject) {
             const id = String(requestId ?? '');
             const index = state.requests.findIndex((r) => String(r.id) === id);
@@ -877,9 +987,16 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 editForm.addEventListener('submit', submitEditRequest);
             }
 
+            const rateForm = document.getElementById('rateCollectorForm');
+            if (rateForm) {
+                rateForm.addEventListener('submit', submitRateCollector);
+            }
+
             window.showNewRequestForm = showNewRequestForm;
             window.hideNewRequestForm = hideNewRequestForm;
             window.hideEditRequestForm = hideEditRequestForm;
+            window.showRateCollectorForm = showRateCollectorForm;
+            window.hideRateCollectorForm = hideRateCollectorForm;
         }
 
         function initialize() {

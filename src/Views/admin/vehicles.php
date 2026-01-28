@@ -59,6 +59,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
 <script>
     window.__VEHICLES = <?php echo json_encode($vehicles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    window.__COLLECTORS = <?php echo json_encode($collectors ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <div>
@@ -131,6 +132,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                             <th>Plate Number</th>
                             <th>Type</th>
                             <th>Capacity (kg)</th>
+                            <th>Assigned Collector</th>
                             <th>Status</th>
                             <th>Last Maintenance</th>
                             <th>Next Maintenance</th>
@@ -144,6 +146,20 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                                 <td data-field="plateNumber"><?= htmlspecialchars($vehicle['plateNumber'] ?? '') ?></td>
                                 <td data-field="type"><?= htmlspecialchars($vehicle['type'] ?? '') ?></td>
                                 <td data-field="capacity"><?= number_format((int) ($vehicle['capacity'] ?? 0)) ?></td>
+                                <td data-field="assignedCollector">
+                                    <?php
+                                    $assignedCollector = '-';
+                                    if (!empty($collectors)) {
+                                        foreach ($collectors as $c) {
+                                            if (($c['vehicleId'] ?? null) == $vehicle['id']) {
+                                                $assignedCollector = htmlspecialchars($c['name']);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    echo $assignedCollector;
+                                    ?>
+                                </td>
                                 <td data-field="status"><?= getStatusBadge($vehicle['status'] ?? 'available') ?></td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -617,12 +633,20 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const idValue = vehicle.id;
         const idString = String(idValue);
         const idLiteral = JSON.stringify(idValue);
+
+        let assignedCollectorName = '-';
+        if (window.__COLLECTORS) {
+            const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
+            if (found) assignedCollectorName = found.name;
+        }
+
         tr.setAttribute('data-id', idString);
         tr.innerHTML = `
             <td class="font-medium" data-field="id">${escapeHtml(idString)}</td>
             <td data-field="plateNumber">${escapeHtml(vehicle.plateNumber || '')}</td>
             <td data-field="type">${escapeHtml(vehicle.type || '')}</td>
             <td data-field="capacity">${formatCapacity(vehicle.capacity)}</td>
+            <td data-field="assignedCollector">${escapeHtml(assignedCollectorName)}</td>
             <td data-field="status">${renderStatusBadge(vehicle.status)}</td>
             <td>
                 <div style="display:flex;align-items:center;gap:8px;">
@@ -690,6 +714,16 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
         const capacityCell = row.querySelector('[data-field="capacity"]');
         if (capacityCell) capacityCell.textContent = formatCapacity(vehicle.capacity);
+
+        const collectorCell = row.querySelector('[data-field="assignedCollector"]');
+        if (collectorCell) {
+            let assignedCollectorName = '-';
+            if (window.__COLLECTORS) {
+                const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
+                if (found) assignedCollectorName = found.name;
+            }
+            collectorCell.textContent = assignedCollectorName;
+        }
 
         const statusCell = row.querySelector('[data-field="status"]');
         if (statusCell) statusCell.innerHTML = renderStatusBadge(vehicle.status);

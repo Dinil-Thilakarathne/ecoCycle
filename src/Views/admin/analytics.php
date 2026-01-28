@@ -1,72 +1,19 @@
 <?php
-// Centralized dummy data usage
-$dummy = require base_path('config/dummy.php');
-$wasteCategories = getWasteCategories();
-$payments = $dummy['payments'];
+/** @var array $analyticsSummary */
+/** @var array $wasteCategories */
+/** @var array $chartData */
 
-// Compute revenue (completed company payments) and payouts (completed customer payouts)
-$totalRevenue = 0; // Rs
-$customerPayouts = 0; // Rs
-foreach ($payments as $p) {
-    if ($p['type'] === 'payment' && $p['status'] === 'completed') {
-        $totalRevenue += $p['amount'];
-    } elseif ($p['type'] === 'payout' && $p['status'] === 'completed') {
-        $customerPayouts += $p['amount'];
-    }
-}
-$netProfit = $totalRevenue - $customerPayouts;
+// Extract summary data for easier access
+$totalWasteCollected = $analyticsSummary['totalWasteCollected'] ?? 0;
+$avgCollectionPerDay = $analyticsSummary['avgCollectionPerDay'] ?? 0;
+$totalRevenue = $analyticsSummary['totalRevenue'] ?? 0;
+$customerPayouts = $analyticsSummary['customerPayouts'] ?? 0;
+$netProfit = $analyticsSummary['netProfit'] ?? 0;
 
-$totalWasteCollected = array_sum(array_column($wasteCategories, 'volume'));
-$avgCollectionPerDay = $totalWasteCollected > 0 ? round($totalWasteCollected / 30) : 0;
-
-// Prepare revenue & payouts series for the last 30 days
-$chartDays = [];
-for ($i = 29; $i >= 0; $i--) {
-    $chartDays[] = date('Y-m-d', strtotime("-{$i} days"));
-}
-
-$revenueMap = array_fill_keys($chartDays, 0.0);
-$payoutsMap = array_fill_keys($chartDays, 0.0);
-
-try {
-    // Try to load real aggregates from the database using project's DB wrapper
-    $db = new \Core\Database();
-    $sql = "SELECT DATE(`date`) AS day, `type`, SUM(amount) AS total
-            FROM payments
-            WHERE `date` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY day, type
-            ORDER BY day";
-    $rows = $db->fetchAll($sql);
-    foreach ($rows as $r) {
-        $d = $r['day'];
-        if (!in_array($d, $chartDays, true))
-            continue;
-        $val = isset($r['total']) ? (float) $r['total'] : 0.0;
-        if (($r['type'] ?? '') === 'payment') {
-            $revenueMap[$d] = $val;
-        } elseif (($r['type'] ?? '') === 'payout') {
-            $payoutsMap[$d] = $val;
-        }
-    }
-} catch (Throwable $e) {
-    // Fallback: use dummy payments array (from config/dummy.php)
-    foreach ($payments as $p) {
-        $d = date('Y-m-d', strtotime($p['date'] ?? 'now'));
-        if (!in_array($d, $chartDays, true))
-            continue;
-        $amt = isset($p['amount']) ? (float) $p['amount'] : 0.0;
-        if (($p['type'] ?? '') === 'payment')
-            $revenueMap[$d] += $amt;
-        if (($p['type'] ?? '') === 'payout')
-            $payoutsMap[$d] += $amt;
-    }
-}
-
-$chartLabelsJson = json_encode(array_values($chartDays));
-$revenueJson = json_encode(array_values($revenueMap));
-$payoutsJson = json_encode(array_values($payoutsMap));
-// Short labels (day of month like 04,05) for compact x-axis
-$chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d)), array_values($chartDays)));
+// Prepare JSON data for charts from controller data
+$chartShortLabelsJson = json_encode($chartData['shortLabels'] ?? []);
+$revenueJson = json_encode($chartData['revenueSeries'] ?? []);
+$payoutsJson = json_encode($chartData['payoutSeries'] ?? []);
 ?>
 
 <div>
@@ -186,6 +133,13 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
     </div>
 
     <!-- Financial Summary -->
+    <?php
+    $financialStats = [
+        ['value' => 'Rs ' . number_format($totalRevenue, 2), 'period' => 'Total Revenue'],
+        ['value' => 'Rs ' . number_format($customerPayouts, 2), 'period' => 'Customer Payouts'],
+        ['value' => 'Rs ' . number_format($netProfit, 2), 'period' => 'Net Profit'],
+    ];
+    ?>
     <div class="activity-card" style="margin-top: var(--space-8);">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
@@ -195,26 +149,13 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
             <p class="activity-card__description">Monthly financial performance overview</p>
         </div>
         <div class="activity-card__content">
-            <div
+            <div class="financial-grid"
                 style="display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #16a34a;">
-                        Rs <?= number_format($totalRevenue, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Total Revenue</p>
-                </div>
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #dc2626;">
-                        Rs <?= number_format($customerPayouts, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Customer Payouts</p>
-                </div>
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #2563eb;">
-                        Rs <?= number_format($netProfit, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Net Profit</p>
-                </div>
+                <?php foreach ($financialStats as $stat): ?>
+                    <feature-card unwrap value="<?= htmlspecialchars($stat['value']) ?>"
+                        period="<?= htmlspecialchars($stat['period']) ?>">
+                    </feature-card>
+                <?php endforeach; ?>
             </div>
         </div>
     </div>
@@ -274,8 +215,8 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
 
 <!-- Revenue & Payouts Chart script -->
 <script>
-    // Labels and data prepared by PHP
-    const revenueLabels = <?= $chartShortLabelsJson ?>; // short day labels (DD)
+    // Labels and data prepared by PHP (from controller)
+    const revenueLabels = <?= $chartShortLabelsJson ?>;
     const revenueSeries = <?= $revenueJson ?>;
     const payoutsSeries = <?= $payoutsJson ?>;
 

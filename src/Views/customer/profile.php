@@ -123,7 +123,7 @@ $csrfToken = csrf_token();
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">See
+        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">Edit
             Bank Details</a></p>
       </div>
     </div>
@@ -202,18 +202,18 @@ $csrfToken = csrf_token();
     <form method="POST">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankName) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayBankName) ?>" >
       </div>
       <div class="form-group"><label class="form-lable">Branch</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankBranch) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayBankBranch) ?>" >
       </div>
       <div class="form-group"><label class="form-lable">Account Holder's Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankHolder) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayBankHolder) ?>" >
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankAccount) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayBankAccount) ?>" >
       </div>
-      <button type="button" class="btn btn-primary outline" style="width: 100%" disabled>Save Details</button>
+      <button type="button" class="btn btn-primary outline" style="width: 100%" >Save Details</button>
     </form>
   </div>
 </div>

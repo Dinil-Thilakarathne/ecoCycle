@@ -116,6 +116,9 @@ class Application
 
         // Load configuration
         $this->loadConfiguration();
+
+        // Set application timezone
+        date_default_timezone_set(Config::get('app.timezone', 'UTC'));
     }
 
     /**

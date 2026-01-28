@@ -10,6 +10,7 @@ use Models\Vehicle;
 class VehicleController extends BaseController
 {
     private Vehicle $vehicles;
+    private $userModel;
     private const VEHICLE_TYPE_CAPACITY = [
         'Pickup Truck' => 2000,
         'Small Truck' => 3000,
@@ -20,6 +21,7 @@ class VehicleController extends BaseController
     public function __construct()
     {
         $this->vehicles = new Vehicle();
+        $this->userModel = new \Models\User();
     }
 
     public function index(Request $request): Response
@@ -149,6 +151,103 @@ class VehicleController extends BaseController
             'vehicle' => $existing,
         ]);
     }
+
+    public function listAvailable(Request $request): Response
+    {
+        try {
+            // Can add filter logic here if Vehicles model supports it, e.g. listByStatus('available')
+            // For now, fetching all and filtering in PHP or assumes listAll returns all status
+            $all = $this->vehicles->listAll();
+            $available = array_values(array_filter($all, fn($v) => ($v['status'] ?? '') === 'available'));
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to load available vehicles', 500, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::json([
+            'vehicles' => $available,
+        ]);
+    }
+
+    public function assignSelf(Request $request): Response
+    {
+        $user = auth();
+
+        if (!$user) {
+            return Response::errorJson('Unauthorized', 401);
+        }
+
+        $input = $request->json();
+        $vehicleId = $input['vehicleId'] ?? null;
+
+        if (!$vehicleId) {
+            return Response::errorJson('Vehicle ID is required', 400);
+        }
+
+        $vehicleId = (int) $vehicleId;
+
+        // Verify vehicle is available
+        $vehicle = $this->vehicles->find($vehicleId);
+        if (!$vehicle) {
+            return Response::errorJson('Vehicle not found', 404);
+        }
+
+        if (($vehicle['status'] ?? '') !== 'available') {
+            return Response::errorJson('Vehicle is not available', 409);
+        }
+
+        try {
+            // Handle current vehicle if exists
+            $currentVehicleId = $user['vehicle_id'] ?? null; // NOTE: auth()->user() might return raw DB row or normalized. Adjust based on auth implementation.
+            // If current user object from auth() is array:
+            if (!$currentVehicleId && isset($user['vehicleId'])) {
+                $currentVehicleId = $user['vehicleId'];
+            }
+            // If using session data which might not be fresh, we should refetch user
+            $freshUser = $this->userModel->findById($user['id']);
+            $currentVehicleId = $freshUser['vehicleId'] ?? null;
+
+            if ($currentVehicleId) {
+                $this->vehicles->markStatus((int) $currentVehicleId, 'available');
+            }
+
+            // Assign new
+            $this->vehicles->markStatus($vehicleId, 'in-use');
+            $this->userModel->updateUser($user['id'], ['vehicle_id' => $vehicleId]);
+
+            return Response::json(['success' => true, 'message' => 'Vehicle assigned successfully']);
+
+        } catch (\Throwable $e) {
+            return Response::errorJson('Assignment failed', 500, ['detail' => $e->getMessage()]);
+        }
+    }
+
+    public function releaseSelf(Request $request): Response
+    {
+        $user = auth();
+        if (!$user) {
+            return Response::errorJson('Unauthorized', 401);
+        }
+
+        try {
+            $freshUser = $this->userModel->findById($user['id']);
+            $currentVehicleId = $freshUser['vehicleId'] ?? null;
+
+            if (!$currentVehicleId) {
+                return Response::errorJson('No vehicle currently assigned', 400);
+            }
+
+            // Mark available
+            $this->vehicles->markStatus((int) $currentVehicleId, 'available');
+            // Unassign from user
+            $this->userModel->updateUser($user['id'], ['vehicle_id' => null]);
+
+            return Response::json(['success' => true, 'message' => 'Vehicle released successfully']);
+
+        } catch (\Throwable $e) {
+            return Response::errorJson('Release failed', 500, ['detail' => $e->getMessage()]);
+        }
+    }
+
 
     private function mergeJsonBody(Request $request): void
     {
