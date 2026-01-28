@@ -73,7 +73,7 @@
 
   &.pending,
   &.Pending,
-  &.in-transit{
+  &.in-transit {
     border: 1px solid var(--warning);
     background-color: var(--warning-light);
     color: #b45309;
@@ -119,6 +119,7 @@
   border-radius: var(--rounded-2xl);
   padding: var(--space-8) var(--space-16);
   overflow: hidden;
+  height: fit-content;
 
   & .activity-card__header {
     margin-bottom: var(--space-6);

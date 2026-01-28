@@ -10,10 +10,12 @@ use Controllers\BaseController;
 class CollectorStatsController extends BaseController
 {
     private Database $db;
+    private \Models\Notification $notificationModel;
 
     public function __construct()
     {
         $this->db = new Database();
+        $this->notificationModel = new \Models\Notification();
     }
 
     /**
@@ -48,10 +50,10 @@ class CollectorStatsController extends BaseController
             return $this->json([
                 'status' => 'success',
                 'data' => [
-                    'todays_tasks' => (int)($tasks['count'] ?? 0),
-                    'completed' => (int)($completed['count'] ?? 0),
-                    'pending' => (int)($pending['count'] ?? 0),
-                    'total_weight' => (float)($weight['total_weight'] ?? 0),
+                    'todays_tasks' => (int) ($tasks['count'] ?? 0),
+                    'completed' => (int) ($completed['count'] ?? 0),
+                    'pending' => (int) ($pending['count'] ?? 0),
+                    'total_weight' => (float) ($weight['total_weight'] ?? 0),
                     'timestamp' => date('Y-m-d H:i:s')
                 ]
             ]);
@@ -91,15 +93,8 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            // Fetch notifications for this collector
-            $notificationsSql = "SELECT id, type, title, message, recipients, recipient_group, status, sent_at, created_at, created_by, update_by 
-                                FROM notifications 
-                                WHERE (recipients LIKE ? OR recipient_group = ? OR created_by = ?)
-                                ORDER BY created_at DESC 
-                                LIMIT 100";
-            
-            $recipientLike = '%' . $collectorId . '%';
-            $notifications = $this->db->fetchAll($notificationsSql, [$recipientLike, 'collector', $collectorId]);
+            // Fetch notifications for this collector using the model
+            $notifications = $this->notificationModel->forUser($collectorId, 'collector', 100);
 
             return $this->json([
                 'status' => 'success',
