@@ -77,7 +77,7 @@ class Notification extends BaseModel
         $recipients = isset($data['recipients']) ? json_encode($data['recipients']) : null;
         $sentAt = $data['sent_at'] ?? date('Y-m-d H:i:s');
         $createdAt = date('Y-m-d H:i:s');
-
+      
         $params = [
             $data['type'] ?? 'info',
             $data['title'] ?? '',

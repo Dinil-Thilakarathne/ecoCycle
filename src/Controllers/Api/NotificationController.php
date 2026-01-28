@@ -90,30 +90,61 @@ class NotificationController extends BaseController
     /**
      * Mark a notification as read
      */
-    public function markAsRead(int $id): Response
+    /**
+     * Mark a notification as read
+     */
+    public function markAsRead(Request $request): Response
     {
         $user = auth();
         if (!$user) {
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-        $this->model->markAsRead($id, $user['id']);
+        // Method 3: From request input
+        if ($id === null) {
+            $id = $request->input('id');
+        }
+
+        $id = (int) $id;
+
+        error_log("Received ID: " . $id . " from URI: " . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
+
+        if ($id <= 0) {
+            return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
+        }
 
         return $this->json(['message' => 'Notification marked as read']);
     }
+    
 
     /**
      * Mark all notifications as read
      */
-    public function markAllAsRead(): Response
+    public function markAllAsRead(Request $request): Response
     {
         $user = auth();
         if (!$user) {
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-        $this->model->markAllAsRead($user['id']);
+        error_log("markAllAsRead called for user ID: " . $user['id']);
 
+        try {
+            $result = $this->model->markAllAsRead($user['id']);
+
+            error_log("markAllAsRead result: " . ($result ? 'true' : 'false'));
+
+            return $this->json([
+                'success' => true,
+                'message' => 'All notifications marked as read'
+            ]);
+        } catch (\Exception $e) {
+            error_log("markAllAsRead exception: " . $e->getMessage());
+            return $this->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
         return $this->json(['message' => 'All notifications marked as read']);
     }
 

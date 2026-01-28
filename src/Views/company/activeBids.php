@@ -83,7 +83,7 @@ $formSuccess = $formSuccess ?? null;
             </div>
             <input type="hidden" name="waste_type" id="waste_type_hidden" value="">
 
-            <label>Bid for 1kg of waste</label>
+            <label>Bid Amount (per 1kg)</label>
             <input type="number" id="bid_amount" name="bid_amount" step="100" placeholder="Enter bid amount" required>
 
             <label>Waste Amount (kg)</label>

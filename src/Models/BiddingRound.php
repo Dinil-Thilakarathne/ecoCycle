@@ -380,12 +380,13 @@ class BiddingRound extends BaseModel
 
         $sql = "SELECT br.*, wc.name AS waste_category_name
                 FROM {$this->table} br
-                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
-                WHERE br.leading_company_id = ?";
+                INNER JOIN bids b ON b.bidding_round_id = br.id AND b.company_id = ? AND b.is_winner IS TRUE
+                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id";
+
         $params = [$companyId];
 
         if ($status !== null) {
-            $sql .= " AND br.status = ?";
+            $sql .= " WHERE br.status <> ?";
             $params[] = $status;
         }
 
@@ -400,11 +401,7 @@ class BiddingRound extends BaseModel
             $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
             $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
             $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
-            $leadingCompanyId = $row['leading_company_id'] ?? null;
-
-            if ($leadingCompanyId === null || $currentHighestBid <= 0) {
-                $currentHighestBid = 0.0;
-            }
+        
 
             $reservePrice = ($startingBid > 0 && $quantity > 0)
                 ? round($startingBid * $quantity, 2)
