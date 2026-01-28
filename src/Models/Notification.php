@@ -69,16 +69,16 @@ class Notification extends BaseModel
         return $this->formatRows($rows);
     }
 
-    public function create(array $data): int
+    public function create(array $data): string
     {
         $sql = "INSERT INTO {$this->table} (type, title, message, recipient_group, recipients, sent_at, created_at, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
+
         $recipients = isset($data['recipients']) ? json_encode($data['recipients']) : null;
         $sentAt = $data['sent_at'] ?? date('Y-m-d H:i:s');
         $createdAt = date('Y-m-d H:i:s');
-        
-        $this->db->query($sql, [
+
+        $params = [
             $data['type'] ?? 'info',
             $data['title'] ?? '',
             $data['message'] ?? '',
@@ -87,9 +87,16 @@ class Notification extends BaseModel
             $sentAt,
             $createdAt,
             $data['status'] ?? 'pending'
-        ]);
+        ];
 
-        return (int) $this->db->lastInsertId();
+        if ($this->db->isPgsql()) {
+            $sql .= " RETURNING id";
+            $row = $this->db->fetch($sql, $params);
+            return (string) ($row['id'] ?? '');
+        }
+
+        $this->db->query($sql, $params);
+        return (string) $this->db->lastInsertId();
     }
 
     public function forUser(int $userId, string $role, int $limit = 20): array
@@ -99,7 +106,7 @@ class Notification extends BaseModel
         }
 
         $limit = max(1, (int) $limit);
-        
+
         // Map singular role to plural group name if needed, or check both
         $roleGroup = $role . 's'; // e.g. customer -> customers
 
@@ -142,8 +149,8 @@ class Notification extends BaseModel
 
     public function markAllAsRead(int $userId): bool
     {
-         if ($this->db->isPgsql()) {
-             return $this->db->query(
+        if ($this->db->isPgsql()) {
+            return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
@@ -153,16 +160,16 @@ class Notification extends BaseModel
                         WHERE value = ?
                     )",
                 ['user:' . $userId]
-             );
-         } else {
-             return $this->db->query(
+            );
+        } else {
+            return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
                    AND JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))",
                 [$userId]
-             );
-         }
+            );
+        }
     }
 
     public function getUnreadCount(int $userId, string $role = ''): int
@@ -196,7 +203,7 @@ class Notification extends BaseModel
                 [$role, $roleGroup, $userId]
             );
         }
-        
+
         return (int) ($result['count'] ?? 0);
     }
 

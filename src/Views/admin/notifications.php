@@ -90,6 +90,16 @@ function getAlertStatusTag($status)
                         </select>
                     </div>
 
+                    <!-- Title -->
+                    <div>
+                        <label
+                            style="display: block; font-weight: var(--font-weight-medium); margin-bottom: var(--space-2); font-size: var(--text-sm);">
+                            Title
+                        </label>
+                        <input type="text" id="title" name="title" required placeholder="Enter notification title..."
+                            style="width: 100%; padding: var(--space-3); border: 2px solid var(--neutral-300); border-radius: var(--radius-md);">
+                    </div>
+
                     <!-- Message -->
                     <div>
                         <label
@@ -184,65 +194,6 @@ function getAlertStatusTag($status)
         }
     }
 
-    // Handle notification form submission
-    document.getElementById('notificationForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const recipient = document.getElementById('recipient').value;
-        const notificationType = document.getElementById('notificationType').value;
-        const message = document.getElementById('message').value;
-
-        if (!recipient || !notificationType || !message.trim()) {
-            showToast('Please fill in all required fields', 'error');
-            return;
-        }
-
-        // In a real application, this would send the data to your backend
-        console.log('Sending notification:', {
-            recipient: recipient,
-            type: notificationType,
-            message: message
-        });
-
-        // Show success message
-        showToast(`Notification sent successfully to ${recipient}!`, 'success');
-
-        // Reset form
-        document.getElementById('recipient').value = '';
-        document.getElementById('notificationType').value = '';
-        document.getElementById('message').value = '';
-
-        // In a real application, you would make an API call:
-        /*
-        fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                recipient: recipient,
-                type: notificationType,
-                message: message,
-                title: getNotificationTitle(notificationType)
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Notification sent successfully!', 'success');
-                // Refresh the page or update the recent notifications list
-                location.reload();
-            } else {
-                showToast('Failed to send notification: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Failed to send notification. Please try again.', 'error');
-        });
-        */
-    });
 
     // Generate notification title based on type
     function getNotificationTitle(type) {

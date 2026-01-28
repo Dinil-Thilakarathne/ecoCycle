@@ -27,7 +27,7 @@ async function fetchNotifications() {
   }
 
   try {
-    const response = await fetch("/api/notifications?limit=10", {
+    const response = await fetch("/api/notifications?limit=5", {
       headers: {
         Accept: "application/json",
         "X-Requested-With": "XMLHttpRequest",
@@ -83,8 +83,8 @@ function renderNotifications(notifications) {
 
       return `
             <alert-box type="${alertType}" title="${escapeHtml(
-        notification.title || "Notification"
-      )}" dismissible>
+              notification.title || "Notification",
+            )}" dismissible>
                 <p style="margin:0; color: var(--neutral-700); font-size: var(--text-sm);">
                     ${escapeHtml(notification.message)}
                 </p>
@@ -95,7 +95,7 @@ function renderNotifications(notifications) {
                         (Array.isArray(notification.recipients)
                           ? notification.recipients.join(", ")
                           : notification.recipients) ||
-                        "All"
+                        "All",
                     )}</span>
                     &nbsp;&middot;&nbsp;
                     <span>${formattedDate}</span>
@@ -103,7 +103,7 @@ function renderNotifications(notifications) {
 
                 <div class="tag ${statusClass} alert-action">
                     ${escapeHtml(
-                      status.charAt(0).toUpperCase() + status.slice(1)
+                      status.charAt(0).toUpperCase() + status.slice(1),
                     )}
                 </div>
             </alert-box>
@@ -126,14 +126,18 @@ function setupNotificationForm() {
 
     const recipient = document.getElementById("recipient").value;
     const notificationType = document.getElementById("notificationType").value;
+    const titleInput = document.getElementById("title");
     const message = document.getElementById("message").value;
 
-    if (!recipient || !notificationType || !message.trim()) {
+    // Use manual title if input exists, otherwise fallback to auto-generated
+    const title = titleInput
+      ? titleInput.value
+      : getNotificationTitle(notificationType);
+
+    if (!recipient || !notificationType || !message.trim() || !title.trim()) {
       showToast("Please fill in all required fields", "error");
       return;
     }
-
-    const title = getNotificationTitle(notificationType);
 
     try {
       isSubmitting = true;
@@ -162,12 +166,14 @@ function setupNotificationForm() {
       if (response.ok) {
         showToast("Notification sent successfully!", "success");
         form.reset();
+        // Explicitly clear title if form.reset() doesn't catch it (though it should)
+        if (titleInput) titleInput.value = "";
         fetchNotifications(); // Refresh list
       } else {
         throw new Error(
           result.errors
             ? Object.values(result.errors).flat().join(", ")
-            : result.message || "Failed to send"
+            : result.message || "Failed to send",
         );
       }
     } catch (error) {
