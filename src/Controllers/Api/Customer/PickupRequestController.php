@@ -12,11 +12,13 @@ class PickupRequestController extends BaseController
 {
     private PickupRequest $pickupRequest;
     private WasteCategory $wasteCategory;
+    private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->pickupRequest = new PickupRequest();
         $this->wasteCategory = new WasteCategory();
+        $this->notification = new \Models\Notification();
     }
 
     public function index(Request $request): Response
@@ -56,6 +58,18 @@ class PickupRequestController extends BaseController
 
         try {
             $record = $this->pickupRequest->createForCustomer((int) $user['id'], $payload['data']);
+
+            // Trigger Notification to Admins
+            if ($record && isset($record['id'])) {
+                $this->notification->create([
+                    'type' => 'pickup_request',
+                    'title' => 'New Pickup Request',
+                    'message' => "New pickup request received (ID: {$record['id']}) from Customer " . ($user['username'] ?? $user['name'] ?? 'Unknown'),
+                    'recipient_group' => 'admin',
+                    'status' => 'pending'
+                ]);
+            }
+
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create pickup request', 500, ['detail' => $e->getMessage()]);
         }

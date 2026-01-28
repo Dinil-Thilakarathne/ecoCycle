@@ -217,8 +217,15 @@ function closeDetailModal() {
 
         const current = normalizeStatusValue(window.__PICKUP_DATA[idx].status);
         let nextTarget = '';
-        if (current === 'assigned') nextTarget = 'in_progress';
+        if (current === 'assigned') nextTarget = 'in_progress'; // backend expects 'in_progress' usually
         else if (current === 'in progress') nextTarget = 'completed';
+        else if (current === 'in_progress') nextTarget = 'completed'; // handle both
+        
+        // Correct nextTarget for backend if needed. 
+        // The PHP switch (line 13) uses 'assigned', 'in progress', 'completed'.
+        // The API likely expects snake_case or specific enum. 
+        // Existing code used "in_progress" (line 220).
+        
         if (!nextTarget) return;
 
         const btn = document.getElementById('taskActionBtn');
@@ -236,7 +243,7 @@ function closeDetailModal() {
 
                 inputs.forEach(input => {
                     const val = parseFloat(input.value);
-                    if (isNaN(val) || val < 0) { // Allow 0, but usually weight > 0
+                    if (isNaN(val) || val < 0) {
                         allValid = false;
                     }
                     weights.push({
@@ -256,15 +263,14 @@ function closeDetailModal() {
                 payloadBody.weights = weights;
             }
 
-    try {
-        const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({ status: 'in progress' })
-        });
+            const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify(payloadBody)
+            });
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -273,7 +279,9 @@ function closeDetailModal() {
             }
 
             const updated = payload.data || {};
+            // The normalized status for UI
             const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
+            
             window.__PICKUP_DATA[idx] = {
                 ...window.__PICKUP_DATA[idx],
                 ...updated,
@@ -326,7 +334,6 @@ function closeDetailModal() {
         }
         return value;
     }
-}
 
 
 </script>

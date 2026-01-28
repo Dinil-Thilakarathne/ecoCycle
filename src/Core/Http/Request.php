@@ -164,6 +164,16 @@ class Request
 
         $query = $_GET;
         $body = $_POST;
+
+        // Parse JSON body if Content-Type is application/json
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? $headers['Content-Type'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $input = file_get_contents('php://input');
+            $json = json_decode($input, true);
+            if (is_array($json)) {
+                $body = array_merge($body, $json);
+            }
+        }
         $files = $_FILES ?? [];
 
         return new static($uri, $method, $headers, $query, $body, $files);
@@ -253,7 +263,7 @@ class Request
      */
     public function input(string $key, $default = null)
     {
-        return $this->body[$key] ?? $default;
+        return $this->body[$key] ?? $this->query[$key] ?? $default;
     }
 
     /**

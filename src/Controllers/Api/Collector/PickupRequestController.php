@@ -10,10 +10,12 @@ use Models\PickupRequest;
 class PickupRequestController extends BaseController
 {
     private PickupRequest $pickupRequest;
+    private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->pickupRequest = new PickupRequest();
+        $this->notification = new \Models\Notification();
     }
 
     public function updateStatus(Request $request): Response
@@ -109,6 +111,18 @@ class PickupRequestController extends BaseController
 
         if (!$success) {
             return Response::errorJson('Pickup request not found or cannot be updated', 404);
+        }
+
+        // Trigger Notification to Customer
+        if ($success && !empty($record['customerId'])) {
+            $statusMsg = ucfirst($normalizedStatus);
+            $this->notification->create([
+                'type' => 'pickup_status_update',
+                'title' => 'Pickup Status Updated',
+                'message' => "Your pickup request status has been updated to: {$statusMsg}",
+                'recipients' => ['user:' . $record['customerId']],
+                'status' => 'pending'
+            ]);
         }
 
         // [FUTURE] Wallet Integration
