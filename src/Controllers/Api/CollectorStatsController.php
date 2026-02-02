@@ -11,11 +11,13 @@ class CollectorStatsController extends BaseController
 {
     private Database $db;
     private \Models\Notification $notificationModel;
+    private \Models\User $userModel;
 
     public function __construct()
     {
         $this->db = new Database();
         $this->notificationModel = new \Models\Notification();
+        $this->userModel = new \Models\User();
     }
 
     /**
@@ -93,8 +95,12 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
+            // Fetch user profile to get created_at date
+            $userProfile = $this->userModel->findById($collectorId);
+            $createdAt = $userProfile['created_at'] ?? '2000-01-01 00:00:00';
+
             // Fetch notifications for this collector using the model
-            $notifications = $this->notificationModel->forUser($collectorId, 'collector', 100);
+            $notifications = $this->notificationModel->forUser($collectorId, 'collector', $createdAt, 100);
 
             return $this->json([
                 'status' => 'success',
