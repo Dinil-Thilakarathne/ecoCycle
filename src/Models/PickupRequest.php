@@ -484,8 +484,8 @@ class PickupRequest extends BaseModel
             'collectorName' => $row['collector_name'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
-            'weight' => isset($row['weight']) ? (float)$row['weight'] : null,   // pickup_requests weight
-            'price' => isset($row['price']) ? (float)$row['price'] : null,      // pickup_requests price
+            'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
+            'price' => isset($row['price']) ? (float) $row['price'] : null,      // pickup_requests price
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
@@ -499,10 +499,12 @@ class PickupRequest extends BaseModel
 
         foreach ($categories as $category) {
             $categoryId = $category['id'] ?? null;
-            if ($categoryId === null) continue;
+            if ($categoryId === null)
+                continue;
 
             $weight = $category['weight'] ?? null;
-            if ($weight !== null) $weight = (float) $weight;
+            if ($weight !== null)
+                $weight = (float) $weight;
 
             $unit = $category['unit'] ?? null;
 
@@ -513,7 +515,7 @@ class PickupRequest extends BaseModel
         }
     }
 
-    public function updateStatus(int $pickupId, string $status): void
+    public function updateStatus(string $pickupId, string $status): void
     {
         $this->db->query(
             "UPDATE {$this->table}
@@ -523,7 +525,7 @@ class PickupRequest extends BaseModel
         );
     }
 
-  private function generateId(): string
+    private function generateId(): string
     {
         do {
             $id = 'PR' . strtoupper(bin2hex(random_bytes(5)));
@@ -565,12 +567,12 @@ class PickupRequest extends BaseModel
     }
 
     /**
- * Get all pickups for a collector (for dashboard)
- * Includes waste categories, weights, and price per unit
- */
-public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
-{
-    $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
+     * Get all pickups for a collector (for dashboard)
+     * Includes waste categories, weights, and price per unit
+     */
+    public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
+    {
+        $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
                    c.name AS customer_name,
                    wc.id AS waste_category_id, wc.name AS waste_category_name, wc.unit, wc.price_per_unit,
                    prw.weight
@@ -580,54 +582,54 @@ public function listForCollectorDashboard(int $collectorId, ?string $status = nu
             LEFT JOIN waste_categories wc ON prw.waste_category_id = wc.id
             WHERE pr.collector_id = ?";
 
-    $params = [$collectorId];
+        $params = [$collectorId];
 
-    if ($status !== null && $status !== '') {
-        $sql .= " AND pr.status = ?";
-        $params[] = $status;
-    }
-
-    $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
-
-    $rows = $this->db->fetchAll($sql, $params);
-    if (!$rows) {
-        return [];
-    }
-
-    // Map pickups
-    $map = [];
-    foreach ($rows as $row) {
-        $pid = $row['id'];
-        if (!isset($map[$pid])) {
-            $map[$pid] = [
-                'id' => $pid,
-                'customerId' => $row['customer_id'],
-                'customerName' => $row['customer_name'] ?? '',
-                'collectorId' => $row['collector_id'],
-                'address' => $row['address'] ?? '',
-                'timeSlot' => $row['time_slot'] ?? '',
-                'status' => $this->normalizeStatusValue($row['status'] ?? 'pending'),
-                'createdAt' => $row['created_at'] ?? null,
-                'scheduledAt' => $row['scheduled_at'] ?? null,
-                'wasteCategories' => [],
-                'weight' => 0,
-                'price' => 0
-            ];
+        if ($status !== null && $status !== '') {
+            $sql .= " AND pr.status = ?";
+            $params[] = $status;
         }
 
-        if (isset($row['waste_category_id'])) {
-            $map[$pid]['wasteCategories'][] = [
-                'id' => $row['waste_category_id'],
-                'name' => $row['waste_category_name'],
-                'weight' => $row['weight'] !== null ? (float)$row['weight'] : 0,
-                'unit' => $row['unit'] ?? null,
-                'price_per_unit' => (float)$row['price_per_unit']
-            ];
-            $map[$pid]['weight'] += $row['weight'] !== null ? (float)$row['weight'] : 0;
-        }
-    }
+        $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
 
-    return array_values($map);
-}
+        $rows = $this->db->fetchAll($sql, $params);
+        if (!$rows) {
+            return [];
+        }
+
+        // Map pickups
+        $map = [];
+        foreach ($rows as $row) {
+            $pid = $row['id'];
+            if (!isset($map[$pid])) {
+                $map[$pid] = [
+                    'id' => $pid,
+                    'customerId' => $row['customer_id'],
+                    'customerName' => $row['customer_name'] ?? '',
+                    'collectorId' => $row['collector_id'],
+                    'address' => $row['address'] ?? '',
+                    'timeSlot' => $row['time_slot'] ?? '',
+                    'status' => $this->normalizeStatusValue($row['status'] ?? 'pending'),
+                    'createdAt' => $row['created_at'] ?? null,
+                    'scheduledAt' => $row['scheduled_at'] ?? null,
+                    'wasteCategories' => [],
+                    'weight' => 0,
+                    'price' => 0
+                ];
+            }
+
+            if (isset($row['waste_category_id'])) {
+                $map[$pid]['wasteCategories'][] = [
+                    'id' => $row['waste_category_id'],
+                    'name' => $row['waste_category_name'],
+                    'weight' => $row['weight'] !== null ? (float) $row['weight'] : 0,
+                    'unit' => $row['unit'] ?? null,
+                    'price_per_unit' => (float) $row['price_per_unit']
+                ];
+                $map[$pid]['weight'] += $row['weight'] !== null ? (float) $row['weight'] : 0;
+            }
+        }
+
+        return array_values($map);
+    }
 
 }

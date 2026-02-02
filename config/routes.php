@@ -152,11 +152,11 @@ $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\Co
     'Middleware\Roles\CustomerOnly',
 ]);
 
-$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
-    'Middleware\AuthMiddleware',
-    'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CollectorOnly',
-]);
+// $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+//     'Middleware\AuthMiddleware',
+//     'Middleware\CsrfMiddleware',
+//     'Middleware\Roles\CollectorOnly',
+// ]);
 
 $router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
     'Middleware\AuthMiddleware',

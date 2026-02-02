@@ -11,22 +11,30 @@ function getStatusBadge($status)
     $status = strtolower($status);
     $class = '';
     switch ($status) {
-        case 'pending': $class = 'pending'; break;
-        case 'assigned': $class = 'assigned'; break;
-        case 'in progress': $class = 'inprogress'; break;
-        case 'completed': $class = 'completed'; break;
+        case 'pending':
+            $class = 'pending';
+            break;
+        case 'assigned':
+            $class = 'assigned';
+            break;
+        case 'in progress':
+            $class = 'inprogress';
+            break;
+        case 'completed':
+            $class = 'completed';
+            break;
     }
     return "<div class='tag $class'>" . ucfirst($status) . "</div>";
 }
 ?>
 
 <script>
-window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-window.__FILTERS = {
-    timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
-    status: <?php echo json_encode($selectedStatus); ?>
-};
-const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
+    window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    window.__FILTERS = {
+        timeSlot: <?php echo json_encode($selectedTimeSlot); ?>,
+        status: <?php echo json_encode($selectedStatus); ?>
+    };
+    const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <div class="page-header">
@@ -66,7 +74,8 @@ const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>
                                 <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
                                 <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
                                 <td>
-                                    <button class="icon-button" onclick="viewDetails(this, '<?= htmlspecialchars($r['id'] ?? '') ?>')">
+                                    <button class="icon-button"
+                                        onclick="viewDetails(this, '<?= htmlspecialchars($r['id'] ?? '') ?>')">
                                         <i class="fa-solid fa-eye"></i>
                                     </button>
                                 </td>
@@ -89,12 +98,18 @@ const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div><div class="pd-id"></div>
-            <div><strong>Customer</strong></div><div class="pd-customer"></div>
-            <div><strong>Address</strong></div><div class="pd-address"></div>
-            <div><strong>Waste Categories</strong></div><div class="pd-waste"></div>
-            <div><strong>Time Slot</strong></div><div class="pd-timeslot"></div>
-            <div><strong>Status</strong></div><div class="pd-status"></div>
+            <div><strong>Request ID</strong></div>
+            <div class="pd-id"></div>
+            <div><strong>Customer</strong></div>
+            <div class="pd-customer"></div>
+            <div><strong>Address</strong></div>
+            <div class="pd-address"></div>
+            <div><strong>Waste Categories</strong></div>
+            <div class="pd-waste"></div>
+            <div><strong>Time Slot</strong></div>
+            <div class="pd-timeslot"></div>
+            <div><strong>Status</strong></div>
+            <div class="pd-status"></div>
         </div>
 
         <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
@@ -111,24 +126,24 @@ const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>
 
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
-            <button class="btn btn-primary" id="taskActionBtn" onclick="startOrUpdateTask()">Start Task</button>
+            <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
     </div>
 </div>
 
 <script>
-// Grab modal elements
-const weightInput = document.getElementById('weightInput');
-const calculatedPriceEl = document.getElementById('calculatedPrice');
-const weightError = document.getElementById('weightError');
-const enterBtn = document.getElementById('enterWeightBtn');
+    // Grab modal elements
+    const weightInput = document.getElementById('weightInput');
+    const calculatedPriceEl = document.getElementById('calculatedPrice');
+    const weightError = document.getElementById('weightError');
+    const enterBtn = document.getElementById('enterWeightBtn');
 
-// Close modal
-function closeDetailModal() {
-    const modal = document.getElementById('pickup-detail-modal');
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
-}
+    // Close modal
+    function closeDetailModal() {
+        const modal = document.getElementById('pickup-detail-modal');
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 
     function viewDetails(el, pickupId) {
         const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
@@ -204,10 +219,10 @@ function closeDetailModal() {
             btn.style.display = 'none';
         }
 
-    modal.setAttribute('data-current-id', record.id);
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
-}
+        modal.setAttribute('data-current-id', record.id);
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
 
     async function updateTaskStatus() {
         const modal = document.getElementById('pickup-detail-modal');
@@ -220,12 +235,12 @@ function closeDetailModal() {
         if (current === 'assigned') nextTarget = 'in_progress'; // backend expects 'in_progress' usually
         else if (current === 'in progress') nextTarget = 'completed';
         else if (current === 'in_progress') nextTarget = 'completed'; // handle both
-        
+
         // Correct nextTarget for backend if needed. 
         // The PHP switch (line 13) uses 'assigned', 'in progress', 'completed'.
         // The API likely expects snake_case or specific enum. 
         // Existing code used "in_progress" (line 220).
-        
+
         if (!nextTarget) return;
 
         const btn = document.getElementById('taskActionBtn');
@@ -281,7 +296,7 @@ function closeDetailModal() {
             const updated = payload.data || {};
             // The normalized status for UI
             const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
-            
+
             window.__PICKUP_DATA[idx] = {
                 ...window.__PICKUP_DATA[idx],
                 ...updated,
