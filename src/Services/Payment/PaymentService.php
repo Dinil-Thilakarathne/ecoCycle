@@ -9,11 +9,13 @@ class PaymentService
 {
     private Payment $payments;
     private User $users;
+    private \Models\Notification $notifications;
 
-    public function __construct(?Payment $payments = null, ?User $users = null)
+    public function __construct(?Payment $payments = null, ?User $users = null, ?\Models\Notification $notifications = null)
     {
         $this->payments = $payments ?? new Payment();
         $this->users = $users ?? new User();
+        $this->notifications = $notifications ?? new \Models\Notification();
     }
 
     public function createManualPayment(array $data): array
@@ -78,6 +80,19 @@ class PaymentService
             }
         }
 
+        // Send notification
+        try {
+            $msgType = ($status === 'failed') ? 'alert' : 'info';
+            $this->notifications->create([
+                'type' => $msgType,
+                'title' => 'New Transaction: ' . ucfirst($type),
+                'message' => "A {$type} of {$amount} has been recorded. Status: {$status}.",
+                'recipients' => ['user:' . $recipientId],
+            ]);
+        } catch (\Throwable $e) {
+            // Ignore notification errors to not block payment flow
+        }
+
         return $record;
     }
 
@@ -120,7 +135,26 @@ class PaymentService
             throw new \RuntimeException('Failed to update payment record.');
         }
 
-        return $this->payments->findById($id) ?? [];
+        $updatedRecord = $this->payments->findById($id) ?? [];
+
+        if (!empty($updatedRecord)) {
+            try {
+                $newStatus = $updatedRecord['status'] ?? 'unknown';
+                $recpId = $updatedRecord['recipientId'] ?? 0;
+
+                // Truncate logic to avoid spamming if needed, but for now send on every update
+                $this->notifications->create([
+                    'type' => 'info',
+                    'title' => 'Transaction Updated',
+                    'message' => "Transaction {$id} is now {$newStatus}.",
+                    'recipients' => ['user:' . $recpId],
+                ]);
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+        }
+
+        return $updatedRecord;
     }
 }
 
