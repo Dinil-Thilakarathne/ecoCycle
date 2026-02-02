@@ -169,7 +169,12 @@ $formSuccess = $formSuccess ?? null;
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <?php if (($bid['status'] ?? '') === 'Leading' || ($bid['status'] ?? '') === 'Active'): ?>
+                                <?php
+                                $status = $bid['status'] ?? '';
+                                $roundStatus = $bid['roundStatus'] ?? '';
+                                $allowActions = $status === 'Leading' || $status === 'Active' || ($status === 'Lost' && $roundStatus === 'active');
+                                ?>
+                                    <?php if ($allowActions): ?>
                                     <button class="icon-button" title="Edit Bid" data-action="edit-bid"
                                         data-bid-id="<?= htmlspecialchars($bid['id']) ?>">
                                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
@@ -438,7 +443,8 @@ $formSuccess = $formSuccess ?? null;
         function renderBidRow(bid) {
             const status = bid.status || 'Pending';
             const statusClass = status.toLowerCase();
-            const allowActions = status === 'Leading' || status === 'Active';
+            const roundStatus = bid.roundStatus || '';
+            const allowActions = status === 'Leading' || status === 'Active' || (status === 'Lost' && roundStatus === 'active');
             const quantityNumber = Number(bid.quantity);
             const quantityLabel = Number.isFinite(quantityNumber)
                 ? quantityNumber.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + (bid.unit || 'kg')
@@ -675,7 +681,8 @@ $formSuccess = $formSuccess ?? null;
             </div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
                 <label style="width:120px;">Waste amount</label>
-                <input type="number" id="edit-waste-amount" name="wasteAmount" step="any" required />
+                <input type="number" id="edit-waste-amount" name="wasteAmount" step="any" readonly
+                    style="background-color: #f3f4f6; color: #6b7280; cursor: not-allowed;" />
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
                 <button type="button" class="btn" id="edit-bid-cancel">Cancel</button>
@@ -686,8 +693,16 @@ $formSuccess = $formSuccess ?? null;
 </div>
 
 <script>
+
     (function () {
         const modal = document.getElementById('edit-bid-modal');
+        const updaters = window.__COMPANY_BIDDING_UPDATERS || {};
+        const toast = updaters.toast || ((msg) => alert(msg));
+        const upsertBidHistoryRow = updaters.upsertBidHistoryRow || (() => { });
+        const upsertLotCard = updaters.upsertLotCard || (() => { });
+        const removeBidHistoryRow = updaters.removeBidHistoryRow || (() => { });
+        const cssEscape = updaters.cssEscape || ((v) => String(v));
+
         if (!modal) return;
 
         function openEditModal(bid) {
@@ -747,15 +762,14 @@ $formSuccess = $formSuccess ?? null;
                         if (!res.ok || !body || !body.success) {
                             throw new Error((body && body.message) ? body.message : 'Delete failed');
                         }
-                        const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
-                        if (typeof helpers.removeBidHistoryRow === 'function') {
-                            helpers.removeBidHistoryRow(bidId);
+                        if (typeof removeBidHistoryRow === 'function') {
+                            removeBidHistoryRow(bidId);
                         } else {
                             const row = document.querySelector(`tr[data-bid-id="${cssEscape(String(bidId))}"]`);
                             if (row) row.remove();
                         }
-                        if (body.lot && typeof helpers.upsertLotCard === 'function') {
-                            helpers.upsertLotCard(body.lot);
+                        if (body.lot && typeof upsertLotCard === 'function') {
+                            upsertLotCard(body.lot);
                         }
                         toast('Bid cancelled.', 'success');
                     })
@@ -811,11 +825,18 @@ $formSuccess = $formSuccess ?? null;
 </script>
 
 <script>
+
     (function () {
         const deleteModal = document.getElementById('delete-bid-modal');
         const deleteConfirmBtn = document.getElementById('delete-bid-confirm');
         const deleteCancelBtn = document.getElementById('delete-bid-cancel');
         const deleteCloseBtn = document.getElementById('delete-bid-close');
+        const updaters = window.__COMPANY_BIDDING_UPDATERS || {};
+        const toast = updaters.toast || ((msg) => alert(msg));
+        const removeBidHistoryRow = updaters.removeBidHistoryRow || (() => { });
+        const upsertLotCard = updaters.upsertLotCard || (() => { });
+        const cssEscape = updaters.cssEscape || ((v) => String(v));
+
         let pendingDeleteId = null;
 
         function escapeSelector(value) {
@@ -871,15 +892,14 @@ $formSuccess = $formSuccess ?? null;
                     if (!res.ok || !body || !body.success) {
                         throw new Error((body && body.message) ? body.message : 'Delete failed');
                     }
-                    const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
-                    if (typeof helpers.removeBidHistoryRow === 'function') {
-                        helpers.removeBidHistoryRow(pendingDeleteId);
+                    if (typeof removeBidHistoryRow === 'function') {
+                        removeBidHistoryRow(pendingDeleteId);
                     } else {
                         const row = document.querySelector(`tr[data-bid-id="${escapeSelector(String(pendingDeleteId))}"]`);
                         if (row) row.remove();
                     }
-                    if (body.lot && typeof helpers.upsertLotCard === 'function') {
-                        helpers.upsertLotCard(body.lot);
+                    if (body.lot && typeof upsertLotCard === 'function') {
+                        upsertLotCard(body.lot);
                     }
                     closeDeleteModal();
                     toast('Bid cancelled.', 'success');

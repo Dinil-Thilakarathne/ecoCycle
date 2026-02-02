@@ -12,12 +12,14 @@ class BidController extends BaseController
 {
     private Bid $bids;
     private BiddingRound $rounds;
+    private \Models\Notification $notification;
     private array $minimumBids;
 
     public function __construct()
     {
         $this->bids = new Bid();
         $this->rounds = new BiddingRound();
+        $this->notification = new \Models\Notification();
         $this->minimumBids = (array) config('data.minimum_bids', []);
     }
 
@@ -45,8 +47,49 @@ class BidController extends BaseController
 
         $newTotal = round($bidPerUnit * $wasteAmount, 2);
 
+        // Fetch existing bid and round details for notifications
+        $existingBid = $this->bids->findForCompanyById($bidId, $companyId);
+        if (!$existingBid) {
+            return Response::errorJson('Bid not found.', 404);
+        }
+
+        $roundId = $existingBid['roundId'] ?? null;
+        $round = $roundId ? $this->rounds->findById((string) $roundId) : null;
+
+        if (!$round) {
+            return Response::errorJson('Associated bidding round not found.', 404);
+        }
+
         try {
             $this->bids->updateBid($bidId, $companyId, $newTotal);
+
+            // --- Notification Logic ---
+            $previousLeaderId = isset($round['leadingCompanyId']) ? (int) $round['leadingCompanyId'] : null;
+            $categoryName = $round['wasteCategory'] ?? 'Unknown Category';
+            $lotId = $round['lotId'] ?? 'Unknown Lot';
+
+            // 1. Notify Admin: Bid Updated
+            $this->notification->create([
+                'type' => 'info',
+                'title' => 'Bid Updated',
+                'message' => "Company #{$companyId} updated their bid to {$newTotal} on {$categoryName} ({$lotId}).",
+                'recipient_group' => 'admin',
+                'status' => 'pending'
+            ]);
+
+            // 2. Notify Previous Leader: Outbid (if there was a different leader before)
+            // Note: If the company itself was already the leader, we don't notify them.
+            if ($previousLeaderId && $previousLeaderId !== $companyId) {
+                $this->notification->create([
+                    'type' => 'alert',
+                    'title' => 'You have been outbid!',
+                    'message' => "Your bid on {$categoryName} ({$lotId}) has been outbid. New highest bid: {$newTotal}.",
+                    'recipients' => ['company:' . $previousLeaderId],
+                    'status' => 'pending'
+                ]);
+            }
+            // --------------------------
+
         } catch (\DomainException $e) {
             return Response::errorJson($e->getMessage(), 422);
         } catch (\Throwable $e) {
@@ -54,11 +97,7 @@ class BidController extends BaseController
         }
 
         $updated = $this->bids->findForCompanyById($bidId, $companyId);
-        $roundId = $updated['roundId'] ?? null;
-        $round = null;
-        if ($roundId) {
-            $round = $this->rounds->findById($roundId);
-        }
+        $round = $this->rounds->findById((string) $roundId);
 
         return Response::json([
             'success' => true,
@@ -149,6 +188,10 @@ class BidController extends BaseController
             return Response::errorJson('This bidding round has already ended.', 422);
         }
 
+        // Check if company already has a bid on this round
+        $existingBid = $this->bids->findByRoundAndCompany($round['id'], $companyId);
+        $isUpdate = $existingBid !== null;
+
         $wasteType = $this->extractString($request, 'wasteType');
         if ($wasteType === null || $wasteType === '') {
             $wasteType = (string) ($round['wasteCategory'] ?? '');
@@ -195,12 +238,56 @@ class BidController extends BaseController
             ]);
         }
 
+        if ($isUpdate) {
+            // Check if new amount is higher than existing amount
+            $currentAmount = isset($existingBid['amount']) ? (float) $existingBid['amount'] : 0.0;
+            if ($totalAmount <= $currentAmount) {
+                return Response::errorJson('You already have a higher or equal bid on this lot. You can only update to a higher amount.', 422, [
+                    'bidPerUnit' => 'Total bid amount must be higher than your current bid of Rs ' . number_format($currentAmount, 2)
+                ]);
+            }
+        }
+
         try {
-            $bidId = $this->bids->placeBid($round['id'], $companyId, $totalAmount);
+            if ($isUpdate) {
+                $bidId = (int) $existingBid['id'];
+                $this->bids->updateBid($bidId, $companyId, $totalAmount);
+                $actionMessage = 'Bid updated successfully.';
+            } else {
+                $bidId = $this->bids->placeBid($round['id'], $companyId, $totalAmount);
+                $actionMessage = 'Bid placed successfully.';
+            }
+
+            // --- Notification Logic ---
+            $previousLeaderId = isset($round['leadingCompanyId']) ? (int) $round['leadingCompanyId'] : null;
+            $categoryName = $round['wasteCategory'] ?? 'Unknown Category';
+            $lotId = $round['lotId'] ?? 'Unknown Lot';
+
+            // 1. Notify Admin: New Bid Placed or Updated
+            $this->notification->create([
+                'type' => 'info',
+                'title' => $isUpdate ? 'Bid Updated' : 'New Bid Placed',
+                'message' => "Company #{$companyId} " . ($isUpdate ? "updated their" : "placed a") . " bid of {$totalAmount} on {$categoryName} ({$lotId}).",
+                'recipient_group' => 'admin',
+                'status' => 'pending'
+            ]);
+
+            // 2. Notify Previous Leader: Outbid
+            if ($previousLeaderId && $previousLeaderId !== $companyId) {
+                $this->notification->create([
+                    'type' => 'alert',
+                    'title' => 'You have been outbid!',
+                    'message' => "Your bid on {$categoryName} ({$lotId}) has been outbid. New highest bid: {$totalAmount}.",
+                    'recipients' => ['company:' . $previousLeaderId],
+                    'status' => 'pending'
+                ]);
+            }
+            // --------------------------
+
         } catch (\DomainException $e) {
             return Response::errorJson($e->getMessage(), 422);
         } catch (\Throwable $e) {
-            return Response::errorJson('Failed to place bid.', 500, [
+            return Response::errorJson('Failed to ' . ($isUpdate ? 'update' : 'place') . ' bid.', 500, [
                 'detail' => $e->getMessage(),
             ]);
         }
@@ -211,7 +298,7 @@ class BidController extends BaseController
 
         return Response::json([
             'success' => true,
-            'message' => 'Bid placed successfully.',
+            'message' => $actionMessage,
             'bid' => $bid,
             'round' => $updatedRound,
             'lot' => $lot,

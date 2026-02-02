@@ -43,6 +43,18 @@ class Bid extends BaseModel
         return array_map(fn(array $row): array => $this->mapCompanyHistoryRow($row, $companyId), $rows);
     }
 
+    public function findByRoundAndCompany(string $roundId, int $companyId): ?array
+    {
+        if ($roundId === '' || $companyId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT id, amount, company_id, bidding_round_id FROM {$this->table} WHERE bidding_round_id = ? AND company_id = ? LIMIT 1";
+        $row = $this->db->fetch($sql, [$roundId, $companyId]);
+
+        return $row ?: null;
+    }
+
     public function findForCompanyById(int $bidId, int $companyId): ?array
     {
         if ($bidId <= 0 || $companyId <= 0) {
@@ -282,7 +294,7 @@ class Bid extends BaseModel
 
         $status = 'Pending';
         if ($roundStatus === 'active') {
-            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Active';
+            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Lost';
         } elseif ($roundStatus === 'completed') {
             $status = $isWinner ? 'Won' : 'Lost';
         }

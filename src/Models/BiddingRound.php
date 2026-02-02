@@ -401,7 +401,7 @@ class BiddingRound extends BaseModel
             $quantity = isset($row['quantity']) ? (float) $row['quantity'] : 0.0;
             $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
             $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
-        
+
 
             $reservePrice = ($startingBid > 0 && $quantity > 0)
                 ? round($startingBid * $quantity, 2)
@@ -588,5 +588,36 @@ class BiddingRound extends BaseModel
              SET status = 'completed', updated_at = NOW()
              WHERE status = 'active' AND end_time <= NOW()"
         );
+    }
+    /**
+     * Get all unique company IDs that have placed bids on this round.
+     */
+    public function getParticipatingCompanies(string $roundId): array
+    {
+        if (trim($roundId) === '') {
+            return [];
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT company_id FROM bids WHERE bidding_round_id = ?",
+            [$roundId]
+        );
+
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(fn($r) => (int) $r['company_id'], $rows);
+    }
+
+    /**
+     * Get all company IDs that bid on this round but are not the winner.
+     */
+    public function getLosingBidders(string $roundId, int $winnerId): array
+    {
+        $participants = $this->getParticipatingCompanies($roundId);
+
+        // Filter out the winner
+        return array_filter($participants, fn($id) => $id !== $winnerId);
     }
 }

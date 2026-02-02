@@ -189,6 +189,7 @@ class AuthController extends BaseController
                 'email' => $email,
                 'type' => $role,
                 'password' => $password,
+                'created_at' => date('Y-m-d H:i:s'),
             ];
 
             if ($roleId !== null) {

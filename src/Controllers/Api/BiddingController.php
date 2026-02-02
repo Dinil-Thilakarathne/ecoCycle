@@ -52,7 +52,7 @@ class BiddingController extends BaseController
                 $this->notification->create([
                     'type' => 'bidding_round_opened',
                     'title' => 'New Bidding Round',
-                    'message' => "New bidding round available: {$round['quantity']}{$round['unit']} of {$round['waste_category_id']}", // In a real app we'd fetch category name
+                    'message' => "New bidding round available: {$round['quantity']}{$round['unit']} of {$round['wasteCategory']}",
                     'recipient_group' => 'company',
                     'status' => 'pending'
                 ]);
@@ -154,6 +154,27 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->updateRound($id, $payload);
+
+            // Notification: Bidding Round Updated
+            if ($round) {
+                // Get companies that have already bid
+                $participants = $this->rounds->getParticipatingCompanies($id);
+                if (!empty($participants)) {
+                    $categoryName = $round['wasteCategory'] ?? 'Unknown Category';
+                    $lotId = $round['lotId'] ?? $id;
+
+                    // Format recipients like 'company:123'
+                    $recipients = array_map(fn($cid) => "company:$cid", $participants);
+
+                    $this->notification->create([
+                        'type' => 'info',
+                        'title' => 'Bidding Round Updated',
+                        'message' => "The details for bidding round {$categoryName} ({$lotId}) have been updated. Please review the changes.",
+                        'recipients' => $recipients,
+                        'status' => 'pending'
+                    ]);
+                }
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update bidding round', 500, ['detail' => $e->getMessage()]);
         }
@@ -262,10 +283,24 @@ class BiddingController extends BaseController
                 $this->notification->create([
                     'type' => 'bid_won',
                     'title' => 'Bid Won!',
-                    'message' => "Congratulations! You have won the bid for Lot {$round['lotId']}. Please check your invoices.",
+                    'message' => "Congratulations! You have won the bid for {$round['wasteCategory']} (Lot {$round['lotId']}). Please check your invoices.",
                     'recipients' => ['company:' . $companyId],
                     'status' => 'pending'
                 ]);
+
+                // Notify Losing Bidders
+                $losingBidders = $this->rounds->getLosingBidders($id, $companyId);
+                if (!empty($losingBidders)) {
+                    $loserRecipients = array_map(fn($cid) => "company:$cid", $losingBidders);
+
+                    $this->notification->create([
+                        'type' => 'info',
+                        'title' => 'Bidding Round Ended',
+                        'message' => "The bidding round for {$round['wasteCategory']} (Lot {$round['lotId']}) has ended. Another bid was accepted.",
+                        'recipients' => $loserRecipients,
+                        'status' => 'pending'
+                    ]);
+                }
             }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to approve bidding round', 500, ['detail' => $e->getMessage()]);
