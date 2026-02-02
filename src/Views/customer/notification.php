@@ -32,7 +32,12 @@ if ($userId && $action === 'mark_all_read') {
 }
 
 // Fetch real notifications from database
-$allNotifications = $notificationModel->forUser($userId, $userRole, 50);
+// Fetch full user profile to get created_at if not available in session
+$userModel = new \Models\User();
+$fullUser = $userModel->findById($userId);
+$createdAt = $fullUser['created_at'] ?? '2000-01-01 00:00:00';
+
+$allNotifications = $notificationModel->forUser($userId, $userRole, $createdAt, 50);
 
 // Map DB format to View format if necessary (though they seem compatible)
 // The model returns: id, type, title, message, timestamp, status ('pending'/'read'), recipients
@@ -276,7 +281,8 @@ $showSettings = ($action === 'settings');
                                     <div class="notification-title"><?php echo htmlspecialchars($notification['title']); ?>
                                     </div>
                                     <div class="notification-message">
-                                        <?php echo htmlspecialchars(truncateMessage($notification['message'])); ?></div>
+                                        <?php echo htmlspecialchars(truncateMessage($notification['message'])); ?>
+                                    </div>
                                 </div>
                             </td>
                             <td>

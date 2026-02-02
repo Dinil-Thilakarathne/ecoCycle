@@ -101,7 +101,7 @@ function renderNotifications(notifications) {
                     <span>${formattedDate}</span>
                 </div>
 
-                <div class="tag ${statusClass} alert-action">
+                <div class="tag ${statusClass} alert-action hidden">
                     ${escapeHtml(
                       status.charAt(0).toUpperCase() + status.slice(1),
                     )}

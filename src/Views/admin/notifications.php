@@ -157,7 +157,7 @@ function getAlertStatusTag($status)
                     <div class="alert-box">
                         <div style="display: flex; align-items: center; justify-content: space-between;">
                             <h4 class="alert-box__title"><?= htmlspecialchars($alert['name']) ?></h4>
-                            <?= getAlertStatusTag($alert['status']) ?>
+                            <!-- <?= getAlertStatusTag($alert['status']) ?> -->
                         </div>
                         <p style="font-size: var(--text-sm); color: var(--neutral-600);">
                             <?= htmlspecialchars($alert['description']) ?>

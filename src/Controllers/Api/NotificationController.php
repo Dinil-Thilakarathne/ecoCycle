@@ -7,14 +7,17 @@ use Core\Http\Request;
 use Core\Http\Response;
 use Core\Validator;
 use Models\Notification;
+use Models\User;
 
 class NotificationController extends BaseController
 {
     private Notification $model;
+    private User $userModel;
 
     public function __construct()
     {
         $this->model = new Notification();
+        $this->userModel = new User();
     }
 
     /**
@@ -37,10 +40,16 @@ class NotificationController extends BaseController
 
         if ($user['role'] === 'admin') {
             $notifications = $this->model->getAll($limit);
-        } elseif ($user['role'] === 'company') {
-            $notifications = $this->model->forCompany($user['id'], $limit);
         } else {
-            $notifications = $this->model->forUser($user['id'], $user['role'], $limit);
+            // Fetch full user to get created_at
+            $fullUser = $this->userModel->findById($user['id']);
+            $createdAt = $fullUser['created_at'] ?? '2000-01-01 00:00:00';
+
+            if ($user['role'] === 'company') {
+                $notifications = $this->model->forCompany($user['id'], $createdAt, $limit);
+            } else {
+                $notifications = $this->model->forUser($user['id'], $user['role'], $createdAt, $limit);
+            }
         }
         $unreadCount = $this->model->getUnreadCount($user['id'], $user['role']);
 
@@ -101,6 +110,7 @@ class NotificationController extends BaseController
         }
 
         // Method 3: From request input
+        $id = $request->route('id');
         if ($id === null) {
             $id = $request->input('id');
         }
@@ -115,7 +125,7 @@ class NotificationController extends BaseController
 
         return $this->json(['message' => 'Notification marked as read']);
     }
-    
+
 
     /**
      * Mark all notifications as read

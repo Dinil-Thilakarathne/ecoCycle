@@ -31,7 +31,7 @@ class Notification extends BaseModel
         }, $rows);
     }
 
-    public function forCompany(int $companyId, int $limit = 20): array
+    public function forCompany(int $companyId, string $createdAfter, int $limit = 20): array
     {
         if ($companyId <= 0) {
             return [];
@@ -43,26 +43,28 @@ class Notification extends BaseModel
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
+                 WHERE (recipient_group IN ('company','companies')
                     OR EXISTS (
                         SELECT 1
                         FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ? OR value = ?
-                    )
+                    ))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [(string) $companyId, 'company:' . $companyId]
+                [(string) $companyId, 'company:' . $companyId, $createdAfter, $createdAfter]
             );
         } else {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
+                 WHERE (recipient_group IN ('company','companies')
                     OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR)))))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$companyId, $companyId]
+                [$companyId, $companyId, $createdAfter, $createdAfter]
             );
         }
 
@@ -77,7 +79,7 @@ class Notification extends BaseModel
         $recipients = isset($data['recipients']) ? json_encode($data['recipients']) : null;
         $sentAt = $data['sent_at'] ?? date('Y-m-d H:i:s');
         $createdAt = date('Y-m-d H:i:s');
-      
+
         $params = [
             $data['type'] ?? 'info',
             $data['title'] ?? '',
@@ -99,7 +101,7 @@ class Notification extends BaseModel
         return (string) $this->db->lastInsertId();
     }
 
-    public function forUser(int $userId, string $role, int $limit = 20): array
+    public function forUser(int $userId, string $role, string $createdAfter, int $limit = 20): array
     {
         if ($userId <= 0) {
             return [];
@@ -114,25 +116,27 @@ class Notification extends BaseModel
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users', ?, ?)
+                 WHERE (recipient_group IN ('all', 'users', ?, ?)
                     OR EXISTS (
                         SELECT 1
                         FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ?
-                    )
+                    ))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$role, $roleGroup, 'user:' . $userId]
+                [$role, $roleGroup, 'user:' . $userId, $createdAfter, $createdAfter]
             );
         } else {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users', ?, ?)
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                 WHERE (recipient_group IN ('all', 'users', ?, ?)
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR)))))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$role, $roleGroup, $userId]
+                [$role, $roleGroup, $userId, $createdAfter, $createdAfter]
             );
         }
 
