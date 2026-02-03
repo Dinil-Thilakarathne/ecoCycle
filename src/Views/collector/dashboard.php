@@ -9,6 +9,11 @@
   </div>
 </div>
 
+<!-- Availability Widget -->
+<!-- <div style="margin-bottom: 2rem;">
+  <?php include __DIR__ . '/availability-widget.php'; ?>
+</div> -->
+
 <div class="feature-cards">
   <div class="feature-card">
     <div class="feature-card__header">
@@ -83,8 +88,8 @@
               </span>
             </div>
             <div class="task-meta">
-              <i class="fa-solid fa-location-dot"></i> 
-              <?= htmlspecialchars($pickup['address'] ?? 'Not provided') ?> · 
+              <i class="fa-solid fa-location-dot"></i>
+              <?= htmlspecialchars($pickup['address'] ?? 'Not provided') ?> ·
               <?= htmlspecialchars(implode(', ', $pickup['wasteCategories'] ?? [])) ?>
             </div>
           </div>

@@ -123,11 +123,13 @@ function getAlertStatusTag($status)
         <!-- Recent Notifications Card -->
         <div class="activity-card">
             <div class="activity-card__header">
-                <h3 class="activity-card__title">
-                    <i class="fa-solid fa-bell" style="margin-right: var(--space-2);"></i>
-                    Recent Notifications
-                </h3>
-                <p class="activity-card__description">Recently sent notifications and their status</p>
+                <div>
+                    <h3 class="activity-card__title">
+                        <i class="fa-solid fa-bell" style="margin-right: var(--space-2);"></i>
+                        Recent Notifications
+                    </h3>
+                    <p class="activity-card__description">Recently sent notifications and their status</p>
+                </div>
                 <!-- Optional: Refresh Button -->
                 <button onclick="fetchNotifications()" class="btn btn-sm btn-outline" style="margin-top:var(--space-2)">
                     <i class="fa-solid fa-sync"></i> Refresh

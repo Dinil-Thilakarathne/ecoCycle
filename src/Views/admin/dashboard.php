@@ -12,7 +12,7 @@ $recentActivity = $recentActivity ?? [];
             <?php foreach ($stats as $stat): ?>
                 <feature-card unwrap title="<?= htmlspecialchars($stat['title']) ?>"
                     value="<?= htmlspecialchars($stat['value']) ?>" icon="<?= htmlspecialchars($stat['icon']) ?>"
-                    change="<?= htmlspecialchars($stat['change']) ?>" period="from last month" <?php if (strpos($stat['change'], '-') === 0): ?>change-negative<?php endif; ?>></feature-card>
+                    change="<?= htmlspecialchars($stat['change']) ?>"  <?php if (strpos($stat['change'], '-') === 0): ?>change-negative<?php endif; ?>></feature-card>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>

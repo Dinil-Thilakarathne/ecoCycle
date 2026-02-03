@@ -32,6 +32,7 @@
             <link rel="stylesheet" href="/css/customer.css">
         <?php elseif (isset($userType) && $userType === 'admin'): ?>
             <link rel="stylesheet" href="/css/admin.css">
+            <link rel="stylesheet" href="/css/components/bid-history.css">
         <?php endif; ?>
     <?php endif; ?>
 
