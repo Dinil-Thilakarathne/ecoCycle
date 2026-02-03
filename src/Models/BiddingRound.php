@@ -79,6 +79,90 @@ class BiddingRound extends BaseModel
         return $this->findById($id) ?? [];
     }
 
+    /**
+     * Create a bidding round from collected waste
+     * Links the round to source pickup requests for traceability
+     * 
+     * @param array $payload Bidding round data
+     * @param array $sourcePickupIds Array of pickup request IDs that provide the waste
+     * @return array Created bidding round
+     * @throws \Throwable If transaction fails
+     */
+    public function createFromCollectedWaste(array $payload, array $sourcePickupIds = []): array
+    {
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            // Create the bidding round
+            $round = $this->createRound($payload);
+
+            // Link source pickups if provided
+            if (!empty($sourcePickupIds)) {
+                foreach ($sourcePickupIds as $pickupId) {
+                    $this->db->query(
+                        "INSERT INTO bidding_round_sources (bidding_round_id, pickup_id, created_at) 
+                         VALUES (?, ?, NOW())
+                         ON CONFLICT (bidding_round_id, pickup_id) DO NOTHING",
+                        [$round['id'], $pickupId]
+                    );
+                }
+            }
+
+            $pdo->commit();
+            return $round;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Get source pickup requests for a bidding round
+     * 
+     * @param string $roundId The bidding round ID
+     * @return array Array of pickup request details
+     */
+    public function getSourcePickups(string $roundId): array
+    {
+        if (trim($roundId) === '') {
+            return [];
+        }
+
+        $sql = "SELECT 
+                    pr.id,
+                    pr.customer_id,
+                    pr.created_at,
+                    u.name AS customer_name,
+                    prw.weight,
+                    prw.amount
+                FROM bidding_round_sources brs
+                INNER JOIN pickup_requests pr ON pr.id = brs.pickup_id
+                INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                INNER JOIN bidding_rounds br ON br.id = brs.bidding_round_id
+                LEFT JOIN users u ON u.id = pr.customer_id
+                WHERE brs.bidding_round_id = ?
+                AND prw.waste_category_id = br.waste_category_id
+                ORDER BY pr.created_at DESC";
+
+        $rows = $this->db->fetchAll($sql, [$roundId]);
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            return [
+                'pickupId' => $row['id'],
+                'customerId' => (int) $row['customer_id'],
+                'customerName' => $row['customer_name'] ?? 'Unknown',
+                'weight' => isset($row['weight']) ? (float) $row['weight'] : 0.0,
+                'amount' => isset($row['amount']) ? (float) $row['amount'] : 0.0,
+                'createdAt' => $row['created_at'] ?? null,
+            ];
+        }, $rows);
+    }
+
+
     public function updateRound(string $id, array $attributes): ?array
     {
         if (empty($attributes)) {
@@ -475,6 +559,78 @@ class BiddingRound extends BaseModel
         return $rows ?: [];
     }
 
+    public function searchHistory(array $filters = [], int $limit = 50): array
+    {
+        $this->expireEndedRounds();
+        $limit = max(1, (int) $limit);
+
+        $sql = "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name,
+                       (SELECT amount FROM bids WHERE bidding_round_id = br.id AND is_winner = true LIMIT 1) as winning_bid_amount
+                FROM {$this->table} br
+                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+                LEFT JOIN users u ON u.id = br.leading_company_id
+                WHERE br.status <> 'active'";
+
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $searchTerm = trim($filters['search']);
+            if ($searchTerm !== '') {
+                // Search by Lot ID or Category Name
+                $sql .= " AND (br.lot_id LIKE ? OR wc.name LIKE ?)";
+                $params[] = "%{$searchTerm}%";
+                $params[] = "%{$searchTerm}%";
+            }
+        }
+
+        $sql .= " ORDER BY br.end_time DESC, br.created_at DESC LIMIT {$limit}";
+
+        $rows = $this->db->fetchAll($sql, $params);
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            $normalized = $this->normalizeRound($row);
+            // Ensure winning info is explicit for history
+            if (isset($row['winning_bid_amount'])) {
+                $normalized['winningBid'] = (float) $row['winning_bid_amount'];
+            }
+            return $normalized;
+        }, $rows);
+    }
+
+    /**
+     * Calculate available waste for a category based on Collection vs Commitment
+     */
+    public function getEffectiveAvailableWaste(int $categoryId): float
+    {
+        if ($categoryId <= 0) {
+            return 0.0;
+        }
+
+        // 1. Total Collected (from completed pickups)
+        // We join pickup_requests to ensure status is completed
+        $collectedSql = "SELECT SUM(prw.weight) 
+                         FROM pickup_request_wastes prw
+                         JOIN pickup_requests pr ON pr.id = prw.pickup_id
+                         WHERE prw.waste_category_id = ? 
+                         AND pr.status = 'completed'";
+        $totalCollected = (float) $this->db->fetchColumn($collectedSql, [$categoryId]);
+
+        // 2. Total Committed (in Active/Completed/Awarded bidding rounds)
+        // We exclude 'cancelled' rounds as those lots are effectively returned to pool
+        $committedSql = "SELECT SUM(quantity) 
+                         FROM bidding_rounds 
+                         WHERE waste_category_id = ? 
+                         AND status <> 'cancelled'";
+        $totalCommitted = (float) $this->db->fetchColumn($committedSql, [$categoryId]);
+
+        // Available = Collected - Committed
+        // We normally shouldn't have negative availability, but max(0) ensures sanity
+        return max(0.0, $totalCollected - $totalCommitted);
+    }
+
     private function fetchDetailedRow(string $id): ?array
     {
         $row = $this->db->fetch(
@@ -619,5 +775,129 @@ class BiddingRound extends BaseModel
 
         // Filter out the winner
         return array_filter($participants, fn($id) => $id !== $winnerId);
+    }
+    public function getBids(string $roundId): array
+    {
+        if (trim($roundId) === '') {
+            return [];
+        }
+
+        $sql = "SELECT b.*, u.name as company_name 
+                FROM bids b
+                LEFT JOIN users u ON u.id = b.company_id
+                WHERE b.bidding_round_id = ?
+                ORDER BY b.amount DESC, b.created_at DESC";
+
+        $rows = $this->db->fetchAll($sql, [$roundId]);
+
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function ($row) {
+            return [
+                'id' => $row['id'],
+                'companyId' => $row['company_id'],
+                'companyName' => $row['company_name'] ?? 'Unknown',
+                'amount' => (float) $row['amount'],
+                'isWinner' => !empty($row['is_winner']),
+                'createdAt' => $row['created_at'],
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Get all bids across all rounds or for a specific round
+     * Includes company name and round information
+     * 
+     * @param string|null $roundId Optional round ID to filter by
+     * @param int $limit Maximum number of records to return
+     * @return array Array of bids with round info
+     */
+    public function getAllBidsWithRoundInfo(?string $roundId = null, int $limit = 100): array
+    {
+        $sql = "SELECT 
+                    b.id AS bid_id,
+                    b.amount,
+                    b.is_winner,
+                    b.created_at,
+                    br.id AS round_id,
+                    br.lot_id,
+                    wc.name AS waste_category,
+                    br.quantity,
+                    br.unit,
+                    br.status AS round_status,
+                    u.name AS company_name
+                FROM bids b
+                INNER JOIN bidding_rounds br ON b.bidding_round_id = br.id
+                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+                LEFT JOIN users u ON u.id = b.company_id
+                WHERE 1=1";
+
+        $params = [];
+
+        if ($roundId !== null && trim($roundId) !== '') {
+            $sql .= " AND br.id = ?";
+            $params[] = $roundId;
+        }
+
+        $sql .= " ORDER BY b.created_at DESC LIMIT ?";
+        $params[] = $limit;
+
+        $rows = $this->db->fetchAll($sql, $params);
+
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function ($row) {
+            return [
+                'bidId' => $row['bid_id'],
+                'roundId' => $row['round_id'],
+                'lotId' => $row['lot_id'],
+                'roundName' => $row['waste_category'] . ' - ' . $row['quantity'] . ' ' . $row['unit'],
+                'companyName' => $row['company_name'] ?? 'Unknown',
+                'amount' => (float) $row['amount'],
+                'isWinner' => !empty($row['is_winner']),
+                'roundStatus' => $row['round_status'],
+                'createdAt' => $row['created_at'],
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Get list of all rounds for dropdown filter
+     * Returns rounds that have at least one bid
+     * 
+     * @return array Array of rounds with id and display name
+     */
+    public function getRoundsWithBids(): array
+    {
+        $sql = "SELECT DISTINCT 
+                    br.id,
+                    br.lot_id,
+                    wc.name AS waste_category,
+                    br.quantity,
+                    br.unit,
+                    br.created_at
+                FROM bidding_rounds br
+                INNER JOIN bids b ON b.bidding_round_id = br.id
+                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+                ORDER BY br.created_at DESC
+                LIMIT 100";
+
+        $rows = $this->db->fetchAll($sql);
+
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function ($row) {
+            return [
+                'id' => $row['id'],
+                'lotId' => $row['lot_id'],
+                'name' => $row['waste_category'] . ' - ' . $row['quantity'] . ' ' . $row['unit'],
+            ];
+        }, $rows);
     }
 }

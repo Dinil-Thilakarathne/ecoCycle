@@ -135,15 +135,15 @@ $bidStatCards = [
     <?php endforeach; ?>
 </div>
 
-<!-- Bidding Rounds Table -->
-<div class="activity-card">
+<!-- Active Bidding Rounds Section -->
+<div class="activity-card" style="margin-bottom: var(--space-24);">
     <div class="activity-card__header" style="display: flex; justify-content: space-between;">
         <div>
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-gavel" style="margin-right: 8px;"></i>
                 Active Bidding Rounds
             </h3>
-            <p class="activity-card__description">Current bidding rounds and their status</p>
+            <p class="activity-card__description">Current ongoing auctions</p>
         </div>
         <div class="activity-card__actions">
             <button type="button" onclick="createNewLot()" class="btn btn-primary">
@@ -160,7 +160,8 @@ $bidStatCards = [
                         <th>Lot ID</th>
                         <th>Waste Category</th>
                         <th>Quantity</th>
-                        <th>Current Highest Bid</th>
+                        <th>Starting Bid</th>
+                        <th>Current Highest</th>
                         <th>Leading Company</th>
                         <th>Time Remaining</th>
                         <th>Status</th>
@@ -168,97 +169,60 @@ $bidStatCards = [
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($biddingRounds as $round): ?>
-                        <?php
-                        $roundId = $round['id'] ?? '';
-                        $status = $round['status'] ?? 'pending';
-
-                        // Skip cancelled rounds - they shouldn't be displayed in the table
-                        if (strtolower($status) === 'cancelled') {
-                            continue;
-                        }
-
-                        $lotId = $round['lotId'] ?? '';
-                        $wasteCategory = $round['wasteCategory'] ?? '';
-                        $quantity = $round['quantity'] ?? '';
-                        $unit = $round['unit'] ?? '';
-                        $currentBid = isset($round['currentHighestBid']) ? (float) $round['currentHighestBid'] : 0;
-                        if ($currentBid <= 0) {
-                            if (isset($round['reservePrice']) && $round['reservePrice'] > 0) {
-                                $currentBid = (float) $round['reservePrice'];
-                            } elseif (isset($round['startingBid'], $round['quantity'])) {
-                                $currentBid = (float) $round['startingBid'] * (float) $round['quantity'];
-                            }
-                        }
-                        $biddingCompany = $round['biddingCompany'] ?? '—';
-                        $endTime = $round['endTime'] ?? null;
-                        ?>
-                        <tr data-id="<?= htmlspecialchars($roundId) ?>">
-                            <td class="font-medium"><?= htmlspecialchars($lotId) ?></td>
-                            <td><?= htmlspecialchars($wasteCategory) ?></td>
-                            <td>
-                                <?= htmlspecialchars($quantity) ?>     <?= htmlspecialchars($unit) ?>
-                            </td>
-                            <td>
-                                <div class="cell-with-icon">
-                                    Rs <?= htmlspecialchars(number_format($currentBid, 2)) ?>
-                                </div>
-                            </td>
-                            <td><?= htmlspecialchars($biddingCompany) ?></td>
-                            <td>
-                                <div class="cell-with-icon">
-                                    <i class="fa-solid fa-clock"></i>
-                                    <?= htmlspecialchars(formatTimeRemaining($endTime)) ?>
-                                </div>
-                            </td>
-                            <td><?= getStatusBadge($status) ?></td>
-                            <td>
-                                <div class="action-buttons">
-                                    <?php if ($status === 'completed'): ?>
-                                        <button class="icon-button"
-                                            onclick="viewBiddingDetails(this, '<?= htmlspecialchars($roundId) ?>')"
-                                            title="View Details">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <button class="icon-button"
-                                            onclick="viewBiddingDetails(this, '<?= htmlspecialchars($roundId) ?>')"
-                                            title="View Details">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                        <?php if ($status === 'active'): ?>
-                                            <?php
-                                            // Only allow edit/delete when there is no leading company and no bids above starting bid
-                                            $hasLeadingCompany = !empty($biddingCompany) && $biddingCompany !== '—';
-                                            $startingBid = isset($round['startingBid']) ? (float) $round['startingBid'] : 0;
-                                            $hasBids = $currentBid > $startingBid;
-
-                                            // Edit should only be available when there are no bids/leading company
-                                            if (!$hasLeadingCompany && !$hasBids): ?>
-                                                <button class="icon-button"
-                                                    onclick="editBiddingRound('<?= htmlspecialchars($roundId) ?>')"
-                                                    title="Edit Bid Round">
-                                                    <i class="fa-solid fa-edit"></i>
-                                                </button>
-
-                                                <button class="icon-button danger"
-                                                    onclick="cancelBiddingRound('<?= htmlspecialchars($roundId) ?>')"
-                                                    title="Cancel Bid Round">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            <?php endif; ?>
+                    <?php if (!empty($activeRounds)): ?>
+                        <?php foreach ($activeRounds as $round): ?>
+                            <tr data-id="<?= htmlspecialchars($round['id']) ?>">
+                                <td class="font-medium"><?= htmlspecialchars($round['lotId']) ?></td>
+                                <td><?= htmlspecialchars($round['category']) ?></td>
+                                <td><?= htmlspecialchars($round['quantity'] . ' ' . $round['unit']) ?></td>
+                                <td>
+                                    <div class="cell-with-icon">
+                                        Rs <?= htmlspecialchars(number_format($round['startingBid'], 2)) ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="cell-with-icon">
+                                        <?php if (isset($round['currentHighestBid']) && $round['currentHighestBid'] > 0): ?>
+                                            Rs <?= htmlspecialchars(number_format($round['currentHighestBid'], 2)) ?>
+                                        <?php else: ?>
+                                            <span style="color: #9ca3af;">-</span>
                                         <?php endif; ?>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-
-                    <?php if (empty($biddingRounds)): ?>
+                                    </div>
+                                </td>
+                                <td><?= htmlspecialchars($round['biddingCompany'] ?: '—') ?></td>
+                                <td>
+                                    <div class="cell-with-icon">
+                                        <i class="fa-solid fa-clock"></i>
+                                        <?= htmlspecialchars(formatTimeRemaining($round['endTime'])) ?>
+                                    </div>
+                                </td>
+                                <td><?= getStatusBadge($round['status']) ?></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="icon-button"
+                                            onclick="viewBiddingDetails(this, '<?= htmlspecialchars($round['id']) ?>')"
+                                            title="View Details">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                        <?php if ((float) $round['currentHighestBid'] <= 0): ?>
+                                            <button class="icon-button"
+                                                onclick="editBiddingRound('<?= htmlspecialchars($round['id']) ?>')" title="Edit">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </button>
+                                            <button class="icon-button danger"
+                                                onclick="cancelBiddingRound('<?= htmlspecialchars($round['id']) ?>')"
+                                                title="Cancel">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
                         <tr>
-                            <td colspan="8"
-                                style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">
-                                No bidding rounds found.
+                            <td colspan="9" style="text-align: center; padding: 1.5rem; color: var(--neutral-500);">
+                                No active bidding rounds at the moment.
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -267,8 +231,128 @@ $bidStatCards = [
         </div>
     </div>
 </div>
+
+<!-- Round History Section -->
+<div class="activity-card">
+    <div class="activity-card__header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-history" style="margin-right: 8px;"></i>
+                Round History
+            </h3>
+            <p class="activity-card__description">Past bidding rounds (Completed, Awarded, Cancelled)</p>
+        </div>
+        <div>
+            <form method="GET" action="" style="display: flex; gap: 0.5rem;">
+                <input type="text" name="q" placeholder="Search Lot ID or Category..."
+                    value="<?= htmlspecialchars($searchQuery ?? '') ?>" class="form-input"
+                    style="padding: 0.5rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.875rem;">
+                <button type="submit" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Search</button>
+            </form>
+        </div>
+    </div>
+    <div class="activity-card__content">
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Lot ID</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Winner / Leader</th>
+                        <th>Winning Bid</th>
+                        <th>Ended</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($historyRounds)): ?>
+                        <?php foreach ($historyRounds as $round): ?>
+                            <tr>
+                                <td class="font-medium"><?= htmlspecialchars($round['lotId']) ?></td>
+                                <td><?= htmlspecialchars($round['wasteCategory']) ?></td>
+                                <td><?= htmlspecialchars($round['quantity'] . ' ' . $round['unit']) ?></td>
+                                <td>
+                                    <?php if (!empty($round['awardedCompany'])): ?>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <i class="fa-solid fa-trophy" style="color: var(--warning-500);"></i>
+                                            <span><?= htmlspecialchars($round['awardedCompany']) ?></span>
+                                        </div>
+                                    <?php elseif (!empty($round['biddingCompany'])): ?>
+                                        <?= htmlspecialchars($round['biddingCompany']) ?>
+                                    <?php else: ?>
+                                        <span style="color: var(--neutral-400);">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    $finalBid = isset($round['winningBid']) ? $round['winningBid'] : $round['currentHighestBid'];
+                                    ?>
+                                    Rs <?= number_format((float) $finalBid, 2) ?>
+                                </td>
+                                <td><?= htmlspecialchars(date('M j, Y H:i', strtotime($round['endTime'] ?? $round['updated_at']))) ?>
+                                </td>
+                                <td><?= getStatusBadge($round['status']) ?></td>
+                                <td>
+                                    <button class="icon-button"
+                                        onclick="viewBiddingDetails(this, '<?= htmlspecialchars($round['id']) ?>')"
+                                        title="View Details">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 1.5rem; color: var(--neutral-500);">
+                                No history records found.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bid Activity Log Section -->
+<div class="activity-card" style="margin-top: 2rem;">
+    <div class="activity-card__header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-history"></i> Bid Activity Log
+            </h3>
+            <p class="activity-card__description">Bid activity log</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="roundFilter" style="font-weight: 600; margin: 0;">Filter by Round:</label>
+            <select id="roundFilter"
+                style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; min-width: 250px;">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+    </div>
+    <div class="activity-card__content">
+        <div id="bidLogContainer" style="max-height: 600px; overflow-y: auto;">
+            <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                <p style="margin-top: 1rem;">Loading bid history...</p>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <script src="/js/admin/bidding.js"></script>
+<script>
+    // Initialize bid history on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof window.loadBidHistory === 'function') {
+            window.loadBidHistory();
+        }
+    });
+</script>
 
 <!-- Note: Bidding Details Modal is now handled generically by ModalManager in bidding.js -->
