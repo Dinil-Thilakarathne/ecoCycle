@@ -52,12 +52,6 @@ $collectorFeedback = []; // Will be populated by JavaScript
         </div>
     </div>
 
-    <!-- Waste Collection Chart -->
-    <div class="pc-card">
-        <h3 style="font-size: 20px; font-weight: bold;">Monthly Waste Collection by Type (kg)</h3>
-        <canvas id="wasteChart" style="max-height: 380px;"></canvas>
-    </div>
-
     <!-- Waste Collection Table -->
     <div class="activity-card">
         <div class="activity-card__header">
@@ -127,7 +121,7 @@ $collectorFeedback = []; // Will be populated by JavaScript
 
 <script>
     // Helper function for rating stars
-    function renderStars(count) {
+  /*  function renderStars(count) {
         let stars = '';
         for (let i = 0; i < count; i++) {
             stars += '<i class="fa-solid fa-star filled"></i>';
@@ -242,64 +236,69 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <tr><td colspan="5" style="text-align: center; color: red;">Error loading waste collection data</td></tr>
             `;
         }
-    }
+    }*/
 
-    // Load and render waste collection chart
-    function loadWasteChart(wasteData) {
-        // Organize waste data by month and type
-        const monthlyData = {};
-        const categories = new Set();
 
-        (wasteData || []).forEach(item => {
-            if (item.total_collected) {
-                const month = new Date(item.month).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-                if (!monthlyData[month]) monthlyData[month] = {};
-                monthlyData[month][item.name] = parseFloat(item.total_collected);
-                categories.add(item.name);
+function renderStars(count) {
+    let stars = '';
+    for (let i = 0; i < count; i++) stars += '<i class="fa-solid fa-star filled"></i>';
+    for (let i = count; i < 5; i++) stars += '<i class="fa-regular fa-star"></i>';
+    return stars;
+}
+
+function getFeedbackBadge(status) {
+    const badgeMap = {
+        'active': '<span class="status info"><i class="fa-solid fa-circle-info"></i> Active</span>',
+        'flagged': '<span class="status warning"><i class="fa-solid fa-flag"></i> Flagged</span>',
+        'archived': '<span class="status secondary"><i class="fa-solid fa-archive"></i> Archived</span>'
+    };
+    return badgeMap[status] || `<span class="status secondary">${status}</span>`;
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+async function loadAnalyticsData() {
+    try {
+        // Metrics
+        const metricsResp = await fetch('/collector/analytics/getMetrics', { credentials: 'include' });
+        if (metricsResp.ok) {
+            const metricsData = await metricsResp.json();
+            const metrics = metricsData.data.feedbackMetrics;
+            document.getElementById('avgRatingValue').textContent = metrics.averageRating.toFixed(1);
+            document.getElementById('pendingReportsValue').textContent = metrics.pendingReview;
+            document.getElementById('totalFeedbackValue').textContent = metrics.totalFeedback;
+        }
+
+        // Feedback Table
+        const feedbackResp = await fetch('/collector/analytics/getFeedback?limit=50', { credentials: 'include' });
+        if (feedbackResp.ok) {
+            const feedbackData = await feedbackResp.json();
+            const tableBody = document.getElementById('feedbackTableBody');
+
+            if (feedbackData.data.length) {
+                tableBody.innerHTML = feedbackData.data.map(fb => `
+                    <tr>
+                        <td>${escapeHtml(fb.collector_name || 'Unknown')}</td>
+                        <td>${new Date(fb.created_at).toLocaleDateString()}</td>
+                        <td>${escapeHtml(fb.feedback || '-')}</td>
+                        <td>${renderStars(fb.rating)}</td>
+                        <td>${getFeedbackBadge(fb.status)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No feedback records found.</td></tr>';
             }
-        });
-
-        const months = Object.keys(monthlyData).slice(-6);
-        const colors = {
-            'Organic': '#8b5a2b',
-            'Glass': '#ff0000',
-            'Paper': '#008000',
-            'Metal': '#ffa500',
-            'Plastic': '#0000ff'
-        };
-
-        const datasets = Array.from(categories).map(category => ({
-            label: category,
-            data: months.map(month => monthlyData[month][category] || 0),
-            backgroundColor: colors[category] || '#cccccc'
-        }));
-
-        const ctx = document.getElementById('wasteChart').getContext('2d');
-        if (window.wasteChartInstance) window.wasteChartInstance.destroy();
-
-        window.wasteChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: months.length > 0 ? months : ['No Data'],
-                datasets: datasets.length > 0 ? datasets : [{
-                    label: 'No Data',
-                    data: [0],
-                    backgroundColor: '#cccccc'
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'top', labels: { font: { size: 13 } } },
-                    tooltip: { mode: 'index', intersect: false }
-                },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Kilograms (kg)', font: { size: 14 } } },
-                    x: { title: { display: true, text: 'Months', font: { size: 14 } } }
-                }
-            }
-        });
+        }
+    } catch (e) {
+        console.error('Error loading analytics:', e);
     }
+}
+
+document.addEventListener('DOMContentLoaded', loadAnalyticsData);
+
 
     // Utility: escape HTML special characters
     function escapeHtml(text) {

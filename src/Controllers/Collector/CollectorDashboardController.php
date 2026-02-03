@@ -8,6 +8,9 @@ use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
+use Models\CollectorFeedback;
+use Models\CollectorRating;
+
 
 /**
  * Collector Dashboard Controller
@@ -543,79 +546,6 @@ class CollectorDashboardController extends DashboardController
         return [$first, $last];
     }
 
-    /**
-     * Save measured weight and calculate amount
-     */
-   /* public function saveWeight($pickupId)
-    {
-        header('Content-Type: application/json; charset=utf-8');
-
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!is_array($data)) throw new \Exception('Invalid JSON input');
-
-            $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
-            if (empty($pickupId) || $weight <= 0) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or weight']);
-                exit;
-            }
-
-            // Save weight & calculate amount
-            $incomeWaste = new IncomeWaste();
-            $amount = $incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
-
-            // Optional: update pickup status to 'in progress'
-            $pickupRequest = new PickupRequest();
-            $pickupRequest->updateStatus((int)$pickupId, 'in progress');
-
-            echo json_encode([
-                'success' => true,
-                'data' => [
-                    'weight' => $weight,
-                    'amount' => $amount
-                ]
-            ]);
-            exit;
-
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to save weight']);
-            exit;
-        }
-    }*/
-
-    /**
-     * Update status for a pickup
-     */
-/*public function updateStatus($pickupId)
-    {
-        header('Content-Type: application/json; charset=utf-8');
-
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!is_array($data)) throw new \Exception('Invalid JSON input');
-
-            $status = trim($data['status'] ?? '');
-            if (empty($pickupId) || $status === '') {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or status']);
-                exit;
-            }
-
-            $pickupRequest = new PickupRequest();
-            $pickupRequest->updateStatus((int)$pickupId, $status);
-
-            echo json_encode(['success' => true, 'data' => ['status' => $status]]);
-            exit;
-
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to update status']);
-            exit;
-        }
-    }*/
-
     public function saveWeight(\Core\Http\Request $request)
 {
     header('Content-Type: text/html; charset=utf-8');
@@ -699,6 +629,102 @@ public function updateStatus(\Core\Http\Request $request)
         exit;
     }
 }
+
+// Inside CollectorDashboardController
+
+/**
+ * Get analytics metrics (feedback & waste stats)
+ */
+public function getMetrics(\Core\Http\Request $request)
+{
+    header('Content-Type: application/json; charset=utf-8');
+
+    try {
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) throw new \Exception('Invalid collector ID');
+
+        $feedbackModel = new \Models\CollectorFeedback();
+
+        $data = [
+            'feedbackMetrics' => [
+                'averageRating' => $feedbackModel->getAverageRating($collectorId),
+                'totalFeedback' => $feedbackModel->getCollectorFeedbackCount($collectorId),
+                'pendingReview' => count($feedbackModel->getPendingFeedback(50)),
+                'lowRatings' => count($feedbackModel->getLowRatings(2, 50))
+            ],
+            'wasteCollection' => [] // Implement if needed
+        ];
+
+        echo json_encode(['success' => true, 'data' => $data]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
+/**
+ * Get collector feedback list
+ */
+public function getFeedback(\Core\Http\Request $request)
+{
+    header('Content-Type: application/json; charset=utf-8');
+
+    try {
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        $limit = (int) $request->query('limit', 50);
+
+        if ($collectorId <= 0) throw new \Exception('Invalid collector ID');
+
+        $feedbackModel = new \Models\CollectorFeedback();
+        $feedback = $feedbackModel->getCollectorFeedback($collectorId, $limit);
+
+        echo json_encode(['success' => true, 'data' => $feedback]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
+/**
+ * Add new feedback (from admin or API)
+ */
+public function addFeedback(\Core\Http\Request $request)
+{
+    header('Content-Type: application/json; charset=utf-8');
+
+    try {
+        $data = $request->json();
+        $collectorId = (int) ($data['collector_id'] ?? 0);
+        $rating = (int) ($data['rating'] ?? 0);
+        $feedback = trim($data['feedback'] ?? '');
+
+        if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $feedback === '') {
+            throw new \Exception('Invalid input');
+        }
+
+        $feedbackModel = new \Models\CollectorFeedback();
+        $feedbackModel->create([
+            'collector_id' => $collectorId,
+            'rating' => $rating,
+            'feedback' => $feedback
+        ]);
+
+        echo json_encode(['success' => true]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
 
     
 }
