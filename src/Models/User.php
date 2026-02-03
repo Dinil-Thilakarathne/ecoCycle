@@ -242,6 +242,12 @@ class User
         return $row ?: null;
     }
 
+    public function findByVehicleId(int $vehicleId): array|null
+    {
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.vehicle_id = ? LIMIT 1", [$vehicleId]);
+        return $row ?: null;
+    }
+
     public function verifyPassword(array $user, string $password): bool
     {
         // Assuming password_hash stored in password_hash column

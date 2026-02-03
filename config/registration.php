@@ -56,69 +56,6 @@ return [
 
             ],
         ],
-        'collector' => [
-            'label' => 'Collector',
-            'option' => 'Collector — Manage pickups & routes',
-            'summary' => 'Optimized for field teams coordinating route assignments and pickups.',
-            'fields' => [
-                [
-                    'name' => 'phone',
-                    'label' => 'Contact number',
-                    'type' => 'tel',
-                    'placeholder' => '07XXXXXXXX',
-                    'rules' => ['required', 'regex:/^0\d{9}$/'],
-                    'help' => 'Reachable mobile number for dispatch.',
-                    'store' => 'user',
-                    'column' => 'phone',
-                    'attributes' => [
-                        'pattern' => '^0\\d{9}$',
-                        'maxlength' => '10',
-                        'inputmode' => 'numeric',
-                    ],
-                ],
-                [
-                    'name' => 'serviceArea',
-                    'label' => 'Primary service area',
-                    'type' => 'select',
-                    'options' => [
-                        'Colombo 1-15' => 'Colombo 1-15',
-                        'Dehiwala-Mount Lavinia' => 'Dehiwala-Mount Lavinia',
-                        'Kolonnawa' => 'Kolonnawa',
-                        'Kotte' => 'Kotte',
-                        'Kaduwela' => 'Kaduwela',
-                        'Moratuwa' => 'Moratuwa',
-                        'Other' => 'Other',
-                    ],
-                    'rules' => ['required'],
-                    'store' => 'metadata',
-                ],
-                [
-                    'name' => 'vehiclePreference',
-                    'label' => 'Preferred vehicle type',
-                    'type' => 'select',
-                    'options' => [
-                        'Pickup Truck' => 'Pickup Truck',
-                        'Small Truck' => 'Small Truck',
-                        'Large Truck' => 'Large Truck',
-                    ],
-                    'rules' => ['required', 'in:Pickup Truck,Small Truck,Large Truck'],
-                    'store' => 'metadata',
-                ],
-                [
-                    'name' => 'licenseNumber',
-                    'label' => 'License number',
-                    'type' => 'text',
-                    'placeholder' => 'Driving license or permit',
-                    'rules' => ['required', 'max:40'],
-                    'store' => 'metadata',
-                    'help' => 'Valid driving license number (e.g. alphanumeric).',
-                    // Updated to allow alphanumeric including NIC-style or new smart cards
-                    'attributes' => [
-                        'pattern' => '^[A-Z0-9]{5,12}$',
-                    ],
-                ],
-            ],
-        ],
         'company' => [
             'label' => 'Company',
             'option' => 'Company — Operations & analytics',

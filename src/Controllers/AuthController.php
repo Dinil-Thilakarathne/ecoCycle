@@ -214,6 +214,18 @@ class AuthController extends BaseController
             $roleInput = (string) $request->input('role');
             $role = $this->resolveRegistrationRole($roleInput, $rolesConfig);
 
+            // Prevent collectors from self-registering via public registration
+            if ($role === 'collector') {
+                error_log("[Register] Blocked collector self-registration attempt for role: " . $roleInput);
+
+                if ($wantsJson) {
+                    return Response::errorJson('Collector accounts can only be created by administrators. Please contact an administrator if you need a collector account.', 403);
+                }
+
+                return Response::redirect('/register')
+                    ->with('error', 'Collector accounts can only be created by administrators. Please contact an administrator if you need a collector account.');
+            }
+
             $name = trim((string) $request->input('name'));
             $email = trim((string) $request->input('email'));
             $password = (string) $request->input('password');

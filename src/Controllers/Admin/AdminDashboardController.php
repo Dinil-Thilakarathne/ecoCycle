@@ -156,10 +156,22 @@ class AdminDashboardController extends DashboardController
         $vehicles = (new Vehicle())->listAll();
         $collectors = (new User())->listByType('collector');
 
+        // Fetch today's availability statuses
+        $statusModel = new \Models\CollectorDailyStatus();
+        $todayStatuses = $statusModel->getAllTodayStatuses();
+
+        // Create a map of collector ID to availability status
+        $availabilityMap = [];
+        foreach ($todayStatuses as $status) {
+            $availabilityMap[$status['collectorId']] = $status;
+        }
+
         $data = [
             'pageTitle' => 'Vehicle Management',
             'vehicles' => $vehicles,
             'collectors' => $collectors,
+            'availabilityStatuses' => $todayStatuses,
+            'availabilityMap' => $availabilityMap,
         ];
 
         return $this->renderDashboard('vehicles', $data);
@@ -197,20 +209,37 @@ class AdminDashboardController extends DashboardController
 
     public function bidding(): Response
     {
+        $request = app('request');
+        $searchQuery = $request->query('q', '');
+
         $biddingModel = new BiddingRound();
-        $rounds = $biddingModel->listAll();
+
+        // 1. Fetch Active Rounds (Always show all active)
+        $activeRounds = $biddingModel->activeLots();
+
+        // 2. Fetch History Rounds (Filtered / Paginated)
+        $historyResult = $biddingModel->searchHistory(['search' => $searchQuery], 50);
+
+        // 3. Stats
         $stats = $biddingModel->stats();
 
         $db = new Database();
         $categoryRows = $db->fetchAll('SELECT name FROM waste_categories ORDER BY name');
         $wasteCategories = array_map(static fn($row) => $row['name'] ?? '', $categoryRows ?: []);
 
-        $minimumBids = Config::get('data.minimum_bids', []);
-        $minimumBids = is_array($minimumBids) ? array_change_key_case($minimumBids, CASE_LOWER) : [];
+        // Fetch minimum bids from database instead of hardcoded config
+        $categoryPrices = $db->fetchAll('SELECT name, price_per_unit FROM waste_categories WHERE price_per_unit IS NOT NULL');
+        $minimumBids = [];
+        foreach ($categoryPrices as $cat) {
+            $minimumBids[strtolower($cat['name'])] = (float) $cat['price_per_unit'];
+        }
 
         $data = [
             'pageTitle' => 'Bidding Management',
-            'biddingRounds' => $rounds,
+            'activeRounds' => $activeRounds,
+            'historyRounds' => $historyResult,
+            'searchQuery' => $searchQuery,
+            'biddingRounds' => $activeRounds, // Backwards compat if view uses this variable name for active
             'bidStats' => $stats,
             'wasteCategories' => $wasteCategories,
             'minimumBids' => $minimumBids,
