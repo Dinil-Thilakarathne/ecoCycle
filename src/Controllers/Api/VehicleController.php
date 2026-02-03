@@ -63,9 +63,38 @@ class VehicleController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
+        $data = $payload['data'];
+        $assignedCollectorId = $data['assigned_collector_id'] ?? null;
+        unset($data['assigned_collector_id']);
+
         try {
-            $record = $this->vehicles->create($payload['data']);
+            if ($assignedCollectorId) {
+                // Verify collector
+                $collector = $this->userModel->findById($assignedCollectorId);
+                if (!$collector || ($collector['type'] ?? '') !== 'collector') {
+                    return Response::errorJson('Invalid collector assigned', 422);
+                }
+
+                // If collector has a vehicle, unassign it first
+                if (!empty($collector['vehicleId'])) {
+                    $this->vehicles->markStatus((int) $collector['vehicleId'], 'available');
+                }
+
+                $data['status'] = 'in-use';
+            } else {
+                $data['status'] = 'available';
+            }
+
+            $record = $this->vehicles->create($data);
+
+            if ($assignedCollectorId) {
+                $this->userModel->updateUser($assignedCollectorId, ['vehicle_id' => $record['id']]);
+            }
+
         } catch (\Throwable $e) {
+            if (str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'unique constraint')) {
+                return Response::errorJson('A vehicle with this plate number already exists.', 409);
+            }
             return Response::errorJson('Failed to create vehicle', 500, ['detail' => $e->getMessage()]);
         }
 
@@ -94,7 +123,12 @@ class VehicleController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
-        if (empty($payload['data'])) {
+        $data = $payload['data'];
+        $assignmentChanged = array_key_exists('assigned_collector_id', $data);
+        $newCollectorId = $data['assigned_collector_id'] ?? null;
+        unset($data['assigned_collector_id']);
+
+        if (empty($data) && !$assignmentChanged) {
             return Response::json([
                 'message' => 'No changes detected',
                 'vehicle' => $existing,
@@ -102,19 +136,52 @@ class VehicleController extends BaseController
         }
 
         try {
-            $ok = $this->vehicles->update($id, $payload['data']);
+            if ($assignmentChanged) {
+                // Find currently assigned collector
+                $currentCollector = $this->userModel->findByVehicleId($id);
+                $currentCollectorId = $currentCollector ? $currentCollector['id'] : null;
+
+                if ($newCollectorId !== $currentCollectorId) {
+                    // Unassign current
+                    if ($currentCollectorId) {
+                        $this->userModel->updateUser($currentCollectorId, ['vehicle_id' => null]);
+                    }
+
+                    if ($newCollectorId) {
+                        // Assign new
+                        $collector = $this->userModel->findById($newCollectorId);
+                        if (!$collector || ($collector['type'] ?? '') !== 'collector') {
+                            return Response::errorJson('Invalid collector assigned', 422);
+                        }
+
+                        // If collector has a DIFFERENT vehicle, free it
+                        if (!empty($collector['vehicleId']) && $collector['vehicleId'] != $id) {
+                            $this->vehicles->markStatus((int) $collector['vehicleId'], 'available');
+                        }
+
+                        $this->userModel->updateUser($newCollectorId, ['vehicle_id' => $id]);
+                        $data['status'] = 'in-use';
+                    } else {
+                        // Just unassigning, make vehicle available
+                        $data['status'] = 'available';
+                    }
+                }
+            }
+
+            if (!empty($data)) {
+                $ok = $this->vehicles->update($id, $data);
+                if (!$ok) {
+                    return Response::errorJson('Vehicle update failed', 500);
+                }
+            }
         } catch (\Throwable $e) {
+            if (str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'unique constraint')) {
+                return Response::errorJson('Duplicated vehicle id.', 409);
+            }
             return Response::errorJson('Failed to update vehicle', 500, ['detail' => $e->getMessage()]);
         }
 
-        if (!$ok) {
-            return Response::errorJson('Vehicle not found or not updated', 404);
-        }
-
         $fresh = $this->vehicles->find($id);
-        if (!$fresh) {
-            return Response::errorJson('Vehicle not found after update', 404);
-        }
 
         return Response::json([
             'message' => 'Vehicle updated',
@@ -134,9 +201,13 @@ class VehicleController extends BaseController
             return Response::errorJson('Vehicle not found', 404);
         }
 
-        // Perform a permanent delete from the database. If business rules require
-        // soft-delete instead, switch to markStatus('removed') and adjust frontend.
         try {
+            // Unassign any collector
+            $currentCollector = $this->userModel->findByVehicleId($id);
+            if ($currentCollector) {
+                $this->userModel->updateUser($currentCollector['id'], ['vehicle_id' => null]);
+            }
+
             $deleted = $this->vehicles->delete($id);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to delete vehicle', 500, ['detail' => $e->getMessage()]);
@@ -330,6 +401,7 @@ class VehicleController extends BaseController
 
         if ($isCreate || array_key_exists('status', $source)) {
             if ($isCreate) {
+                // Initial status will be set based on assignment later
                 $data['status'] = 'available';
             } else {
                 $status = strtolower(trim((string) ($source['status'] ?? '')));
@@ -343,47 +415,16 @@ class VehicleController extends BaseController
             }
         }
 
-        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
-        $lastMaintenanceDate = null;
-
-        if ($isCreate || array_key_exists('lastMaintenance', $source)) {
-            $lastMaintenance = $source['lastMaintenance'] ?? null;
-            if ($lastMaintenance !== null && $lastMaintenance !== '') {
-                $date = \DateTimeImmutable::createFromFormat('Y-m-d', (string) $lastMaintenance);
-                if (!$date || $date->format('Y-m-d') !== (string) $lastMaintenance) {
-                    $errors['lastMaintenance'] = 'Invalid last maintenance date.';
+        if (array_key_exists('assignedCollectorId', $source)) {
+            $collectorId = $source['assignedCollectorId'];
+            if ($collectorId !== null && $collectorId !== '') {
+                if (!is_numeric($collectorId)) {
+                    $errors['assignedCollectorId'] = 'Invalid collector ID format.';
                 } else {
-                    $formatted = $date->format('Y-m-d');
-                    if ($formatted > $today) {
-                        $errors['lastMaintenance'] = 'Last maintenance date cannot be in the future.';
-                    } else {
-                        $lastMaintenanceDate = $formatted;
-                        $data['last_maintenance'] = $formatted;
-                    }
+                    $data['assigned_collector_id'] = (int) $collectorId;
                 }
             } else {
-                $data['last_maintenance'] = null;
-            }
-        }
-
-        if ($isCreate || array_key_exists('nextMaintenance', $source)) {
-            $nextMaintenance = $source['nextMaintenance'] ?? null;
-            if ($nextMaintenance !== null && $nextMaintenance !== '') {
-                $date = \DateTimeImmutable::createFromFormat('Y-m-d', (string) $nextMaintenance);
-                if (!$date || $date->format('Y-m-d') !== (string) $nextMaintenance) {
-                    $errors['nextMaintenance'] = 'Invalid next maintenance date.';
-                } else {
-                    $formatted = $date->format('Y-m-d');
-                    if ($formatted < $today) {
-                        $errors['nextMaintenance'] = 'Next maintenance date cannot be in the past.';
-                    } elseif ($lastMaintenanceDate && $formatted < $lastMaintenanceDate) {
-                        $errors['nextMaintenance'] = 'Next maintenance must be on or after the last maintenance date.';
-                    } else {
-                        $data['next_maintenance'] = $formatted;
-                    }
-                }
-            } else {
-                $data['next_maintenance'] = null;
+                $data['assigned_collector_id'] = null;
             }
         }
 
