@@ -632,4 +632,95 @@ class PickupRequest extends BaseModel
         return array_values($map);
     }
 
+    /**
+     * Get all completed pickups that haven't been allocated to bidding rounds yet
+     * Returns waste grouped by category
+     * 
+     * @return array Array of waste categories with unallocated quantities
+     */
+    public function getUnallocatedWaste(): array
+    {
+        $sql = "SELECT 
+                    wc.id AS category_id,
+                    wc.name AS category_name,
+                    wc.unit,
+                    wc.price_per_unit,
+                    SUM(COALESCE(prw.weight, 0)) AS total_weight,
+                    SUM(COALESCE(prw.amount, 0)) AS total_value,
+                    COUNT(DISTINCT pr.id) AS pickup_count
+                FROM pickup_requests pr
+                INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
+                WHERE pr.status = 'completed'
+                AND prw.weight IS NOT NULL
+                AND prw.weight > 0
+                AND NOT EXISTS (
+                    SELECT 1 FROM bidding_round_sources brs 
+                    WHERE brs.pickup_id = pr.id
+                )
+                GROUP BY wc.id, wc.name, wc.unit, wc.price_per_unit
+                ORDER BY wc.name";
+
+        $rows = $this->db->fetchAll($sql);
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            return [
+                'categoryId' => (int) $row['category_id'],
+                'categoryName' => $row['category_name'] ?? 'Unknown',
+                'unit' => $row['unit'] ?? 'kg',
+                'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
+                'totalWeight' => isset($row['total_weight']) ? (float) $row['total_weight'] : 0.0,
+                'totalValue' => isset($row['total_value']) ? (float) $row['total_value'] : 0.0,
+                'pickupCount' => isset($row['pickup_count']) ? (int) $row['pickup_count'] : 0,
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Get pickup IDs that contributed to unallocated waste for a specific category
+     * Used when creating bidding rounds to link source pickups
+     * 
+     * @param int $categoryId The waste category ID
+     * @param float|null $maxQuantity Maximum quantity to allocate (optional)
+     * @return array Array of pickup IDs
+     */
+    public function getUnallocatedPickupIds(int $categoryId, ?float $maxQuantity = null): array
+    {
+        $sql = "SELECT 
+                    pr.id,
+                    prw.weight
+                FROM pickup_requests pr
+                INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                WHERE pr.status = 'completed'
+                AND prw.waste_category_id = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM bidding_round_sources brs 
+                    WHERE brs.pickup_id = pr.id
+                )
+                ORDER BY pr.created_at ASC";
+
+        $rows = $this->db->fetchAll($sql, [$categoryId]);
+        if (!$rows) {
+            return [];
+        }
+
+        $pickupIds = [];
+        $totalAllocated = 0.0;
+
+        foreach ($rows as $row) {
+            if ($maxQuantity !== null && $totalAllocated >= $maxQuantity) {
+                break;
+            }
+
+            $pickupIds[] = $row['id'];
+            $totalAllocated += (float) ($row['weight'] ?? 0);
+        }
+
+        return $pickupIds;
+    }
+
+
 }

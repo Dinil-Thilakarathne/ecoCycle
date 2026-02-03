@@ -125,6 +125,18 @@ class PickupRequestController extends BaseController
             ]);
         }
 
+        // Notify admins when waste collection is completed
+        if ($success && $normalizedStatus === 'completed') {
+            $this->notification->create([
+                'type' => 'waste_collected',
+                'title' => 'New Waste Collected',
+                'message' => "Pickup #{$id} completed. Waste is now available for bidding round creation.",
+                'recipient_group' => 'admin',
+                'status' => 'pending'
+            ]);
+        }
+
+
         // [FUTURE] Wallet Integration
         // When status is 'completed', we should calculate the total value of the pickup
         // (based on waste weights * price per unit) and credit the customer's wallet.
