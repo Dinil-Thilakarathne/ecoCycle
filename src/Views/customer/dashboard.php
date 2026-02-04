@@ -199,184 +199,118 @@ if (!function_exists('customer_pickup_format_datetime')) {
     </div>
 </div>
 
-<!-- Chart.js Library -->
+<!-- Chart.js library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    let chartInstance = null;
+// --- Dashboard data & chart logic ---
+let chartInstance = null;
 
-    function navigateTo(url) {
-        window.location.href = url;
-    }
+function navigateTo(url) { window.location.href = url; }
 
-    // Fetch dashboard data from API
-    function loadDashboardData() {
-        fetch('/api/customer/dashboard/stats', {
-            method: 'GET',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'include'
-        })
-        .then(response => response.json())
+function loadDashboardData() {
+    fetch('/api/customer/dashboard/stats', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : Promise.reject(r))
         .then(data => {
-            if (data.success && data.data) {
+            if (data && data.data) {
                 updateFeatureCards(data.data);
                 updateChart(data.data);
             }
         })
-        .catch(error => console.error('Error loading dashboard stats:', error));
+        .catch(() => console.error('Error loading dashboard stats'));
+}
+
+function updateFeatureCards(stats) {
+    const setText = (selector, text) => {
+        const el = document.querySelector(selector);
+        if (el) el.querySelector('.feature-card__body').textContent = text;
+    };
+    setText('[data-stat="pickups"]', stats.totalPickups || 0);
+    setText('[data-stat="income"]', 'Rs ' + ((stats.totalIncome || 0).toFixed(2)));
+    setText('[data-stat="weight"]', (stats.totalWeight || 0) + ' kg');
+}
+
+function updateChart(stats) {
+    const canvas = document.getElementById('statusChart');
+    if (!canvas) return;
+
+    const pending = stats.pendingCount || 0;
+    const scheduled = stats.scheduledCount || 0;
+    const completed = stats.completedCount || 0;
+
+    if (!chartInstance) {
+        chartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'Scheduled', 'Completed'],
+                datasets: [{ data: [pending, scheduled, completed], backgroundColor: ['#f59e0b', '#06b6d4', '#10b981'], borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    } else {
+        chartInstance.data.datasets[0].data = [pending, scheduled, completed];
+        chartInstance.update();
     }
 
-    // Update feature cards with API data
-    function updateFeatureCards(stats) {
-        const pickupCard = document.querySelector('[data-stat="pickups"]');
-        const incomeCard = document.querySelector('[data-stat="income"]');
-        const weightCard = document.querySelector('[data-stat="weight"]');
+    // update custom legend counts
+    const setLegend = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setLegend('legend-pending', pending);
+    setLegend('legend-scheduled', scheduled);
+    setLegend('legend-completed', completed);
+}
 
-        if (pickupCard) {
-            pickupCard.querySelector('.feature-card__body').textContent = stats.totalPickups || 0;
-        }
-        if (incomeCard) {
-            incomeCard.querySelector('.feature-card__body').textContent = 'Rs ' + ((stats.totalIncome || 0).toFixed(2));
-        }
-        if (weightCard) {
-            weightCard.querySelector('.feature-card__body').textContent = (stats.totalWeight || 0) + ' kg';
-        }
-    }
-
-    // Update or initialize chart
-    function updateChart(stats) {
-        const chartCanvas = document.getElementById('statusChart');
-        if (!chartCanvas) return;
-
-        const pendingCount = stats.pendingCount || 0;
-        const scheduledCount = stats.scheduledCount || 0;
-        const completedCount = stats.completedCount || 0;
-
-        if (!chartInstance) {
-            chartInstance = new Chart(chartCanvas, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Pending', 'Scheduled', 'Completed'],
-                    datasets: [{
-                        data: [pendingCount, scheduledCount, completedCount],
-                        backgroundColor: ['#1ce36a', '#3b82f6', '#10b981'],
-                        borderColor: ['#08682d', '#1e40af', '#047857'],
-                        borderWidth: 2,
-                        hoverOffset: 8,
-                        borderRadius: 4,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        // disable built-in legend because we use a custom HTML legend on the right
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                            padding: 12,
-                            titleFont: {size: 12, weight: '600'},
-                            bodyFont: {size: 12},
-                            borderColor: '#1ce36a',
-                            borderWidth: 1,
-                            usePointStyle: true,
-                            callbacks: {
-                                label: function(context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                    return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        } else {
-            chartInstance.data.datasets[0].data = [pendingCount, scheduledCount, completedCount];
-            chartInstance.update();
-        }
-
-        // Update legend numbers
-        const elPending = document.getElementById('legend-pending');
-        const elScheduled = document.getElementById('legend-scheduled');
-        const elCompleted = document.getElementById('legend-completed');
-        if (elPending) elPending.textContent = pendingCount;
-        if (elScheduled) elScheduled.textContent = scheduledCount;
-        if (elCompleted) elCompleted.textContent = completedCount;
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        loadDashboardData();
-    });
+document.addEventListener('DOMContentLoaded', loadDashboardData);
 </script>
 
 <script>
-    (function() {
-        var endpoint = '/api/collector/material-prices';
-        var container = document.getElementById('material-prices-container');
-        if (!container) return;
+// --- Price panel: fetch live material prices with fallback ---
+(function() {
+    const endpoint = '/api/collector/material-prices';
+    const container = document.getElementById('material-prices-container');
+    if (!container) return;
 
-        var fallback = [
-            { name: 'Plastic', price_per_unit: 15.00 },
-            { name: 'Paper', price_per_unit: 8.50 },
-            { name: 'Glass', price_per_unit: 12.00 },
-            { name: 'Metal', price_per_unit: 25.00 },
-            { name: 'Organic', price_per_unit: 5.00 }
-        ];
+    const fallback = [
+        { name: 'Plastic', price_per_unit: 15.00 },
+        { name: 'Paper', price_per_unit: 8.50 },
+        { name: 'Glass', price_per_unit: 12.00 },
+        { name: 'Metal', price_per_unit: 25.00 },
+        { name: 'Organic', price_per_unit: 5.00 }
+    ];
 
-        function formatPrice(val) {
-            if (val === null || val === undefined) return 'Rs 0.00';
-            var num = parseFloat(val);
-            return isNaN(num) ? 'Rs 0.00' : 'Rs ' + num.toFixed(2);
+    const formatPrice = v => (v === null || v === undefined) ? 'Rs 0.00' : ('Rs ' + (parseFloat(v) || 0).toFixed(2));
+    const getColor = name => ({ plastic: '#f59e0b', glass: '#3b82f6', metal: '#8b5cf6', paper: '#10b981', organic: '#f97316' }[(name||'').toLowerCase()] || '#64748b');
+    const escapeHtml = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+
+    function render(list) {
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div class="customer-price-unit__empty"><i class="fa-solid fa-info-circle"></i><p>No material prices available right now.</p></div>';
+            return;
         }
+        container.innerHTML = list.map(m => {
+            const name = m.name || 'Material';
+            const price = (m.price_per_unit != null) ? m.price_per_unit : (m.price != null ? m.price : 0);
+            const color = getColor(name);
+            return `<div class="customer-price-unit__row" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">
+                <span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:${color}"></span>${escapeHtml(name)}</span>
+                <span style="font-weight:700;">${formatPrice(price)} <small style="font-weight:400; color:#6b7280;">/ kg</small></span>
+            </div>`;
+        }).join('');
+    }
 
-        function getColor(name) {
-            var lower = (name || '').toLowerCase();
-            var map = { plastic: '#f59e0b', glass: '#3b82f6', metal: '#8b5cf6', paper: '#10b981', organic: '#f97316' };
-            return map[lower] || '#64748b';
-        }
+    function fetchPrices() {
+        fetch(endpoint, { credentials: 'include', headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : Promise.reject(r))
+            .then(json => {
+                if (json && (json.status === 'success' || json.success) && Array.isArray(json.data)) return render(json.data);
+                if (Array.isArray(json)) return render(json);
+                render(fallback);
+            })
+            .catch(() => render(fallback));
+    }
 
-        function escapeHtml(s) {
-            var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML;
-        }
-
-        function render(list) {
-            if (!Array.isArray(list) || list.length === 0) {
-                container.innerHTML = '<div class="customer-price-unit__empty"><i class="fa-solid fa-info-circle"></i><p>No material prices available right now.</p></div>';
-                return;
-            }
-            container.innerHTML = list.map(function(m) {
-                var name = m.name || 'Material';
-                var price = (m.price_per_unit != null) ? m.price_per_unit : (m.price != null ? m.price : 0);
-                var color = getColor(name);
-                return '<div class="customer-price-unit__row" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">' +
-                    '<span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:' + color + '"></span>' + escapeHtml(name) + '</span>' +
-                    '<span style="font-weight:700;">' + formatPrice(price) + ' <small style="font-weight:400; color:#6b7280;">/ kg</small></span>' +
-                    '</div>';
-            }).join('');
-        }
-
-        function fetchPrices() {
-            fetch(endpoint, { credentials: 'include', headers: { 'Accept': 'application/json' } })
-                .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
-                .then(function(json) {
-                    if (json && (json.status === 'success' || json.success) && Array.isArray(json.data)) {
-                        render(json.data);
-                    } else if (Array.isArray(json)) {
-                        render(json);
-                    } else {
-                        render(fallback);
-                    }
-                })
-                .catch(function() {
-                    render(fallback);
-                });
-        }
-
-        // initial render (use fallback immediately for minimal layout shift)
-        render(fallback);
-        // then try live fetch and refresh every 15s
-        fetchPrices();
-        setInterval(fetchPrices, 15000);
-    })();
+    // render fallback immediately, then try live fetch
+    render(fallback);
+    fetchPrices();
+    setInterval(fetchPrices, 15000);
+})();
 </script>
