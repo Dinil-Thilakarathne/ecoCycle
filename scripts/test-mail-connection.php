@@ -7,28 +7,25 @@
  * Run: php scripts/test-mail-connection.php
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Bootstrap the application
+$basePath = dirname(__DIR__);
 
 // Load environment
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0)
-            continue;
+require_once $basePath . '/src/Core/Environment.php';
+Core\Environment::load($basePath);
 
-        list($name, $value) = explode('=', $line, 2);
-        $name = trim($name);
-        $value = trim($value);
+// Load helpers
+require_once $basePath . '/src/helpers.php';
 
-        if (!array_key_exists($name, $_ENV)) {
-            $_ENV[$name] = $value;
-        }
-    }
-}
+// Load configuration system
+require_once $basePath . '/src/Core/Config.php';
 
-// Load config helper
-require_once __DIR__ . '/../src/helpers.php';
+// Load mail classes
+require_once $basePath . '/src/Core/Mail/SmtpMailer.php';
+require_once $basePath . '/src/Core/Mail/Mailer.php';
+
+// Load ONLY the mail configuration file
+Core\Config::load($basePath . '/config/mail.php', 'mail');
 
 echo "=== SMTP Connection Test ===\n\n";
 
@@ -52,7 +49,7 @@ try {
     // Create SMTP mailer instance
     $smtp = new \Core\Mail\SmtpMailer();
 
-    echo "✅ SMTP connection successful!\n";
+    echo "✅ SMTP mailer instance created successfully!\n";
     echo "\nYour SMTP configuration is working correctly.\n";
 
 } catch (\Exception $e) {
@@ -62,6 +59,6 @@ try {
     echo "  - Invalid SMTP credentials\n";
     echo "  - Firewall blocking SMTP port\n";
     echo "  - SMTP server not allowing connections from your IP\n";
-    echo "  - For Gmail: Enable 'Less secure app access' or use App Password\n";
+    echo "  - For Gmail: Enable 2FA and use App Password\n";
     exit(1);
 }

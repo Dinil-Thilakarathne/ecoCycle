@@ -7,28 +7,25 @@
  * Run: php scripts/test-send-mail.php your-email@example.com
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Bootstrap the application
+$basePath = dirname(__DIR__);
 
 // Load environment
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0)
-            continue;
+require_once $basePath . '/src/Core/Environment.php';
+Core\Environment::load($basePath);
 
-        list($name, $value) = explode('=', $line, 2);
-        $name = trim($name);
-        $value = trim($value);
+// Load helpers
+require_once $basePath . '/src/helpers.php';
 
-        if (!array_key_exists($name, $_ENV)) {
-            $_ENV[$name] = $value;
-        }
-    }
-}
+// Load configuration system
+require_once $basePath . '/src/Core/Config.php';
 
-// Load config helper
-require_once __DIR__ . '/../src/helpers.php';
+// Load mail classes
+require_once $basePath . '/src/Core/Mail/SmtpMailer.php';
+require_once $basePath . '/src/Core/Mail/Mailer.php';
+
+// Load ONLY the mail configuration file
+Core\Config::load($basePath . '/config/mail.php', 'mail');
 
 echo "=== Email Sending Test ===\n\n";
 
@@ -90,5 +87,6 @@ try {
 } catch (\Exception $e) {
     echo "❌ Error sending email!\n";
     echo "Error: " . $e->getMessage() . "\n";
+    echo "\nStack trace:\n" . $e->getTraceAsString() . "\n";
     exit(1);
 }
