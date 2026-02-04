@@ -1,0 +1,117 @@
+/* Bid History Timeline Styles */
+
+.bid-timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+
+.bid-log-entry {
+  position: relative;
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.bid-log-entry:last-child {
+  border-bottom: none;
+}
+
+
+.bid-timestamp {
+  min-width: 80px;
+  text-align: right;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.bid-timestamp .time {
+  font-weight: 600;
+  color: #374151;
+}
+
+.bid-timestamp .date {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.bid-content {
+  flex: 1;
+}
+
+.bid-company {
+  font-weight: 600;
+  color: #111827;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.bid-details {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.bid-details strong {
+  color: #059669;
+  font-weight: 700;
+}
+
+.bid-details em {
+  color: #3b82f6;
+  font-style: normal;
+}
+
+.winner-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  animation: pulse-winner 2s ease-in-out infinite;
+}
+
+@keyframes pulse-winner {
+  0%,
+  100% {
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+.bid-log-entry:hover {
+  background: #f9fafb;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .bid-log-entry {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .bid-timestamp {
+    text-align: left;
+    min-width: auto;
+  }
+
+  .bid-timeline {
+    padding-left: 1.5rem;
+  }
+
+  .bid-log-entry::before {
+    left: -1.9rem;
+  }
+}

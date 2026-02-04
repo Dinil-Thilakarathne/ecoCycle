@@ -28,7 +28,6 @@ function getStatusBadge($status)
 }
 ?>
 
-<!-- JavaScript data for front-end -->
 <script>
     window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     window.__FILTERS = {
@@ -38,26 +37,18 @@ function getStatusBadge($status)
     const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Page Header -->
 <div class="page-header">
     <div class="page-header__content">
-        <h2 class="page-header__title">
-            My Assigned Pickups & Daily Tasks
-        </h2>
+        <h2 class="page-header__title">My Assigned Pickups & Daily Tasks</h2>
         <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
     </div>
 </div>
 
-<!-- Task Table -->
 <div class="activity-card">
     <div class="activity-card__header">
-        <h3 class="activity-card__title">
-            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
-            My Tasks
-        </h3>
+        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
         <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
-
     <div class="activity-card__content">
         <div style="overflow-x:auto;">
             <table class="data-table">
@@ -101,7 +92,7 @@ function getStatusBadge($status)
     </div>
 </div>
 
-<!-- Modal for Task Details -->
+<!-- Pickup Details Modal -->
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
@@ -120,6 +111,19 @@ function getStatusBadge($status)
             <div><strong>Status</strong></div>
             <div class="pd-status"></div>
         </div>
+
+        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
+            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+            <div>
+                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50"
+                    style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
+                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+                    enter a valid weight greater than 0.</div>
+            </div>
+
+            <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div>
+        </div>
+
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
@@ -128,6 +132,13 @@ function getStatusBadge($status)
 </div>
 
 <script>
+    // Grab modal elements
+    const weightInput = document.getElementById('weightInput');
+    const calculatedPriceEl = document.getElementById('calculatedPrice');
+    const weightError = document.getElementById('weightError');
+    const enterBtn = document.getElementById('enterWeightBtn');
+
+    // Close modal
     function closeDetailModal() {
         const modal = document.getElementById('pickup-detail-modal');
         modal.classList.remove('open');
@@ -150,10 +161,60 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
+
+        const weightRow = document.getElementById('weight-entry-row');
+        weightRow.style.display = 'none';
+        weightRow.innerHTML = ''; // Clear previous inputs
+
         if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
         } else if (statusValue === 'in progress') {
             btn.textContent = 'Mark as Completed';
+
+            // Show weight input for each category
+            weightRow.style.display = 'block';
+            weightRow.innerHTML = '<div style="margin-bottom:0.5rem;font-weight:600;">Enter Measured Weights:</div>';
+
+            if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
+                record.wasteCategoryDetails.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '0.75rem';
+
+                    const label = document.createElement('label');
+                    label.textContent = `${cat.name} (kg)`;
+                    label.style.display = 'block';
+                    label.style.fontSize = '0.9rem';
+                    label.style.marginBottom = '0.25rem';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = '0.01';
+                    input.min = '0';
+                    input.className = 'weight-input';
+                    input.style.width = '100%';
+                    input.style.padding = '0.5rem';
+                    input.style.border = '1px solid #e5e7eb';
+                    input.style.borderRadius = '4px';
+                    input.setAttribute('data-cat-id', cat.id);
+                    input.placeholder = '0.00';
+
+                    div.appendChild(label);
+                    div.appendChild(input);
+                    weightRow.appendChild(div);
+                });
+            } else {
+                weightRow.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'weightError';
+            errorDiv.style.color = '#dc2626';
+            errorDiv.style.marginTop = '0.5rem';
+            errorDiv.style.display = 'none';
+            errorDiv.style.fontSize = '0.95rem';
+            errorDiv.textContent = 'Please enter valid weights for all categories.';
+            weightRow.appendChild(errorDiv);
+
         } else {
             btn.style.display = 'none';
         }
@@ -171,8 +232,15 @@ function getStatusBadge($status)
 
         const current = normalizeStatusValue(window.__PICKUP_DATA[idx].status);
         let nextTarget = '';
-        if (current === 'assigned') nextTarget = 'in_progress';
+        if (current === 'assigned') nextTarget = 'in_progress'; // backend expects 'in_progress' usually
         else if (current === 'in progress') nextTarget = 'completed';
+        else if (current === 'in_progress') nextTarget = 'completed'; // handle both
+
+        // Correct nextTarget for backend if needed. 
+        // The PHP switch (line 13) uses 'assigned', 'in progress', 'completed'.
+        // The API likely expects snake_case or specific enum. 
+        // Existing code used "in_progress" (line 220).
+
         if (!nextTarget) return;
 
         const btn = document.getElementById('taskActionBtn');
@@ -181,14 +249,42 @@ function getStatusBadge($status)
         btn.textContent = 'Updating...';
 
         try {
-            const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
+            const payloadBody = { status: nextTarget };
+
+            if (nextTarget === 'completed') {
+                const inputs = modal.querySelectorAll('.weight-input');
+                let allValid = true;
+                const weights = [];
+
+                inputs.forEach(input => {
+                    const val = parseFloat(input.value);
+                    if (isNaN(val) || val < 0) {
+                        allValid = false;
+                    }
+                    weights.push({
+                        category_id: parseInt(input.getAttribute('data-cat-id')),
+                        weight: val
+                    });
+                });
+
+                if (!allValid || weights.length === 0) {
+                    const err = document.getElementById('weightError');
+                    if (err) err.style.display = 'block';
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                payloadBody.weights = weights;
+            }
+
+            const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ status: nextTarget })
+                body: JSON.stringify(payloadBody)
             });
 
             const payload = await response.json().catch(() => ({}));
@@ -198,7 +294,9 @@ function getStatusBadge($status)
             }
 
             const updated = payload.data || {};
+            // The normalized status for UI
             const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
+
             window.__PICKUP_DATA[idx] = {
                 ...window.__PICKUP_DATA[idx],
                 ...updated,
@@ -213,15 +311,9 @@ function getStatusBadge($status)
 
             modal.querySelector('.pd-status').textContent = normalizedStatus;
 
-            if (normalizedStatus === 'in progress') {
-                btn.textContent = 'Mark as Completed';
-                btn.disabled = false;
-            } else if (normalizedStatus === 'completed') {
-                btn.style.display = 'none';
-            } else {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
+            // Refresh the view logic to update buttons/inputs
+            viewDetails(null, pickupId);
+
         } catch (error) {
             btn.textContent = originalText;
             btn.disabled = false;
@@ -257,4 +349,6 @@ function getStatusBadge($status)
         }
         return value;
     }
+
+
 </script>

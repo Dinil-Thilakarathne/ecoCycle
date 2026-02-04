@@ -73,7 +73,8 @@
 
   &.pending,
   &.Pending,
-  &.in-transit{
+  &.leading,
+  &.in-transit {
     border: 1px solid var(--warning);
     background-color: var(--warning-light);
     color: #b45309;
@@ -119,9 +120,16 @@
   border-radius: var(--rounded-2xl);
   padding: var(--space-8) var(--space-16);
   overflow: hidden;
+  height: fit-content;
 
   & .activity-card__header {
     margin-bottom: var(--space-6);
+
+    &:has(button) {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
     & .activity-card__title {
       font-size: var(--text-xl);
@@ -224,14 +232,14 @@
 
   & .page-header__content {
     & .page-header__title {
-      font-size: var(--text-2xl);
+      font-size: var(--text-3xl);
       font-weight: var(--font-weight-bold);
       color: var(--neutral-900);
       margin-bottom: var(--space-2);
     }
 
     & .page-header__description {
-      font-size: var(--text-sm);
+      font-size: var(--text-lg);
       color: var(--neutral-600);
     }
   }

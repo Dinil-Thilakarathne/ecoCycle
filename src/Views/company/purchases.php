@@ -25,7 +25,7 @@ $purchaseHistory = $purchaseHistory ?? [];
                     <p>Price: <span class="price"><?= htmlspecialchars($purchase['price'] ?? format_rs(0)) ?></span></p>
                     <p>Pickup Date: <?= htmlspecialchars($purchase['pickup_date'] ?? 'TBD') ?></p>
                     <span class="tag <?= strtolower(str_replace(' ', '-', $purchase['status'] ?? 'pending')) ?>"
-                        style="position: absolute; top: 15px; right: 20px;"><?= strtoupper($purchase['status'] ?? 'PENDING') ?>
+                        style="position: absolute; top: 15px; right: 20px;"><?= strtoupper($purchase['status'] ?? 'Confirmed') ?>
                     </span>
                     <a href="#paymentModal" class="btn btn-primary outline" style="width: 100%; margin-top: 15px;">Make
                         Payment</a>

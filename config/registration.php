@@ -53,64 +53,7 @@ return [
                         'inputmode' => 'numeric',
                     ],
                 ],
-                [
-                    'name' => 'bankAccount',
-                    'label' => 'Bank account number',
-                    'type' => 'text',
-                    'placeholder' => 'e.g. 1234567890',
-                    'rules' => ['nullable', 'min:4', 'max:32'],
-                    'store' => 'metadata',
-                ],
-            ],
-        ],
-        'collector' => [
-            'label' => 'Collector',
-            'option' => 'Collector — Manage pickups & routes',
-            'summary' => 'Optimized for field teams coordinating route assignments and pickups.',
-            'fields' => [
-                [
-                    'name' => 'phone',
-                    'label' => 'Contact number',
-                    'type' => 'tel',
-                    'placeholder' => '07XXXXXXXX',
-                    'rules' => ['required', 'regex:/^0\d{9}$/'],
-                    'help' => 'Reachable mobile number for dispatch.',
-                    'store' => 'user',
-                    'column' => 'phone',
-                    'attributes' => [
-                        'pattern' => '^0\\d{9}$',
-                        'maxlength' => '10',
-                        'inputmode' => 'numeric',
-                    ],
-                ],
-                [
-                    'name' => 'serviceArea',
-                    'label' => 'Primary service area',
-                    'type' => 'text',
-                    'placeholder' => 'District / zone you operate in',
-                    'rules' => ['required', 'max:120'],
-                    'store' => 'metadata',
-                ],
-                [
-                    'name' => 'vehiclePreference',
-                    'label' => 'Preferred vehicle type',
-                    'type' => 'select',
-                    'options' => [
-                        'Pickup Truck' => 'Pickup Truck',
-                        'Small Truck' => 'Small Truck',
-                        'Large Truck' => 'Large Truck',
-                    ],
-                    'rules' => ['required', 'in:Pickup Truck,Small Truck,Large Truck'],
-                    'store' => 'metadata',
-                ],
-                [
-                    'name' => 'licenseNumber',
-                    'label' => 'License number',
-                    'type' => 'text',
-                    'placeholder' => 'Driving license or permit',
-                    'rules' => ['required', 'max:40'],
-                    'store' => 'metadata',
-                ],
+
             ],
         ],
         'company' => [
@@ -130,24 +73,19 @@ return [
                     'rules' => ['required', 'max:150'],
                     'store' => 'metadata',
                 ],
-                [
-                    'name' => 'contactPerson',
-                    'label' => 'Primary contact person',
-                    'type' => 'text',
-                    'placeholder' => 'Who should we reach out to?',
-                    'rules' => ['required', 'max:120'],
-                    'store' => 'metadata',
-                ],
+
                 [
                     'name' => 'companyPhone',
-                    'label' => 'Company phone',
+                    'label' => 'Company phone (Fixed Line)',
                     'type' => 'tel',
-                    'placeholder' => '07XXXXXXXX',
-                    'rules' => ['required', 'regex:/^0\d{9}$/'],
+                    'placeholder' => '011XXXXXXX',
+                    // Regex enforces 0 followed by NOT 7, then 8 digits. 
+                    // Matches 011..., 038... but NOT 07...
+                    'rules' => ['required', 'regex:/^0(?!7)\d{9}$/'],
                     'store' => 'user',
                     'column' => 'phone',
                     'attributes' => [
-                        'pattern' => '^0\\d{9}$',
+                        'pattern' => '^0(?!7)\\d{9}$',
                         'maxlength' => '10',
                         'inputmode' => 'numeric',
                     ],
@@ -175,21 +113,6 @@ return [
                 ],
             ],
         ],
-        'admin' => [
-            'label' => 'Admin',
-            'option' => 'Admin — Platform configuration',
-            'summary' => 'Reserved for administrators configuring roles, permissions, and platform settings.',
-            'fields' => [
-                [
-                    'name' => 'invitationCode',
-                    'label' => 'Invitation code',
-                    'type' => 'text',
-                    'placeholder' => 'Enter provided code',
-                    'rules' => ['required', 'equals:ADMIN2025'],
-                    'store' => 'metadata',
-                    'help' => 'Only authorized administrators have this code.',
-                ],
-            ],
-        ],
+
     ],
 ];

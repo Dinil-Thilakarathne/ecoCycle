@@ -33,29 +33,16 @@ $payment_methods = [
     ]
 ];
 
-$invoice_history = [
-    [
-        'id' => 'INV-2024-01-01',
-        'date' => '2024-01-01',
-        'amount' => 29.99,
-        'status' => 'paid',
-        'description' => 'Premium Plan - January'
-    ],
-    [
-        'id' => 'INV-2023-12-01',
-        'date' => '2023-12-01',
-        'amount' => 29.99,
-        'status' => 'paid',
-        'description' => 'Premium Plan - December'
-    ],
-    [
-        'id' => 'INV-2023-11-01',
-        'date' => '2023-11-01',
-        'amount' => 19.99,
-        'status' => 'paid',
-        'description' => 'Basic Plan - November'
-    ]
-];
+$payments = $payments ?? [];
+
+// Calculate stats from real data
+$total_received = 0;
+foreach ($payments as $p) {
+    if (($p['status'] ?? '') === 'completed') {
+        $total_received += ($p['amount'] ?? 0);
+    }
+}
+$transaction_count = count($payments);
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -91,7 +78,7 @@ function formatCurrency($amount)
 <div class="container" style="background: var(--neutral-1);">
     <header class="page-header">
 
-        <h1><b>Manage your subscription and billing information</b></h1>
+        <h1><b>Manage your billing and view transaction history</b></h1>
     </header>
 
     <?php if (isset($success_message)): ?>
@@ -107,11 +94,11 @@ function formatCurrency($amount)
             <!-- Next Payment card removed -->
             <div class="feature-card">
                 <div class="feature-card__header">
-                    <h3 class="feature-card__title">Total Paid</h3>
+                    <h3 class="feature-card__title">Total Earnings</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-money-bill-wave"></i></div>
                 </div>
                 <p class="feature-card__body">
-                    <?= formatCurrency(array_sum(array_column($invoice_history, 'amount'))) ?>
+                    <?= formatCurrency($total_received) ?>
                 </p>
                 <div class="feature-card__footer">
                     <span class="tag success">All time</span>
@@ -120,14 +107,14 @@ function formatCurrency($amount)
             <!-- Subscription Status card removed -->
             <div class="feature-card">
                 <div class="feature-card__header">
-                    <h3 class="feature-card__title">Invoices</h3>
+                    <h3 class="feature-card__title">Transactions</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-file-invoice"></i></div>
                 </div>
                 <p class="feature-card__body">
-                    <?= count($invoice_history) ?>
+                    <?= $transaction_count ?>
                 </p>
                 <div class="feature-card__footer">
-                    <span class="tag success">Total invoices</span>
+                    <span class="tag success">Total payouts</span>
                 </div>
             </div>
         </div>
@@ -138,34 +125,43 @@ function formatCurrency($amount)
         <!-- Invoice History Section -->
         <div class="section">
             <div class="section-header">
-                <h2 class="section-title">Invoice History</h2>
-                <p class="section-subtitle">All your past payments and invoices</p>
+                <h2 class="section-title">Transaction History</h2>
+                <p class="section-subtitle">All your past transactions and payouts</p>
             </div>
             <div class="invoice-grid"
                 style="display: grid; grid-template-columns: 1.2fr 0.9fr 0.7fr 0.6fr; gap: 0.15rem; background: #fff; border-radius: 1rem; box-shadow: 0 2px 12px rgba(34,197,94,0.08); padding: 1.2rem; margin-top: 1rem;">
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;">Invoice</div>
+                <div class="invoice-header" style="font-weight:600;color:#1e293b;">Transaction ID</div>
                 <div class="invoice-header" style="font-weight:600;color:#1e293b;">Date</div>
                 <div class="invoice-header" style="font-weight:600;color:#1e293b;">Amount</div>
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;text-align:center;">Actions</div>
-                <?php foreach ($invoice_history as $invoice): ?>
-                    <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9;">
-                        <strong><?php echo htmlspecialchars($invoice['id']); ?></strong>
-                        <div class="invoice-desc" style="color:#64748b;font-size:0.95em;">
-                            <?php echo htmlspecialchars($invoice['description']); ?> </div>
-                    </div>
-                    <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#475569;">
-                        <?php echo formatDate($invoice['date']); ?>
-                    </div>
+                <div class="invoice-header" style="font-weight:600;color:#1e293b;text-align:center;">Status</div>
+                <?php if (empty($payments)): ?>
                     <div class="invoice-cell"
-                        style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#22c55e;font-weight:500;">
-                        <?php echo formatCurrency($invoice['amount']); ?>
+                        style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #64748b;">
+                        No transactions found.
                     </div>
-                    <div class="invoice-cell"
-                        style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; text-align:center;">
-                        <button class="btn btn-outline btn-sm" style="min-width:90px;"
-                            onclick="downloadInvoice('<?php echo $invoice['id']; ?>')">Download</button>
-                    </div>
-                <?php endforeach; ?>
+                <?php else: ?>
+                    <?php foreach ($payments as $payment): ?>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9;">
+                            <strong><?php echo htmlspecialchars($payment['txnId'] ?? $payment['id']); ?></strong>
+                            <div class="invoice-desc" style="color:#64748b;font-size:0.95em;">
+                                <?php echo htmlspecialchars(ucfirst($payment['type'] ?? 'Payout')); ?>
+                            </div>
+                        </div>
+                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#475569;">
+                            <?php echo formatDate($payment['date']); ?>
+                        </div>
+                        <div class="invoice-cell"
+                            style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#22c55e;font-weight:500;">
+                            <?php echo formatCurrency($payment['amount']); ?>
+                        </div>
+                        <div class="invoice-cell"
+                            style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; text-align:center;">
+                            <span class="tag <?php echo ($payment['status'] === 'completed') ? 'success' : 'warning'; ?>">
+                                <?php echo htmlspecialchars(ucfirst($payment['status'])); ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -5,3 +5,142 @@
     justify-content: space-between;
   }
 }
+
+/* Shared Modal Component */
+body.modal-open {
+  overflow: hidden;
+}
+
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal-layer.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-layer__dialog {
+  width: min(100%, var(--modal-width, 560px));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 25px 65px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-height: calc(100vh - 3rem);
+  padding: 1.75rem;
+  position: relative;
+}
+
+.modal-layer__dialog[data-size="sm"] {
+  --modal-width: 420px;
+}
+
+.modal-layer__dialog[data-size="lg"] {
+  --modal-width: 720px;
+}
+
+.modal-layer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-layer__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-layer__description {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.modal-layer__body {
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.modal-layer__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.modal-layer__footer:empty {
+  display: none;
+}
+
+.modal-layer__close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.modal-layer__close:hover {
+  color: #111827;
+}
+
+.modal-layer__backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.modal-layer__buttons .btn,
+.modal-layer__footer .btn {
+  min-width: 120px;
+}
+
+.modal-layer__dialog .form-control,
+.modal-layer__dialog select,
+.modal-layer__dialog textarea,
+.modal-layer__dialog input[type="text"],
+.modal-layer__dialog input[type="number"] {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.modal-layer__dialog .stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.modal-layer__dialog label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: #111827;
+}
+
+.modal-layer__dialog .hint {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.modal-layer .btn.is-loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
