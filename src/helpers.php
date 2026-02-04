@@ -711,3 +711,117 @@ if (!function_exists('sendMail')) {
         }
     }
 }
+
+// ============================================================================
+// Email Verification & Password Reset Helper Functions
+// ============================================================================
+
+if (!function_exists('generateVerificationToken')) {
+    /**
+     * Generate a secure email verification token
+     * 
+     * @return string 64-character hex token
+     */
+    function generateVerificationToken(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+}
+
+if (!function_exists('generatePasswordResetToken')) {
+    /**
+     * Generate a secure password reset token
+     * 
+     * @return string 64-character hex token
+     */
+    function generatePasswordResetToken(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+}
+
+if (!function_exists('createPasswordResetToken')) {
+    /**
+     * Create a password reset token in the database
+     * 
+     * @param string $email User email
+     * @param string $token Reset token
+     * @param int $expiresInHours Token expiration time in hours (default: 1)
+     * @return bool True on success
+     */
+    function createPasswordResetToken(string $email, string $token, int $expiresInHours = 1): bool
+    {
+        try {
+            $db = new \Core\Database();
+
+            $expiresAt = date('Y-m-d H:i:s', time() + ($expiresInHours * 3600));
+
+            $db->query(
+                'INSERT INTO password_reset_tokens (email, token, created_at, expires_at, used) 
+                 VALUES (?, ?, NOW(), ?, FALSE)',
+                [$email, $token, $expiresAt]
+            );
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Failed to create password reset token: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('validatePasswordResetToken')) {
+    /**
+     * Validate a password reset token
+     * 
+     * @param string $token Reset token
+     * @return array|null Token data if valid, null otherwise
+     */
+    function validatePasswordResetToken(string $token): ?array
+    {
+        try {
+            $db = new \Core\Database();
+
+            $result = $db->fetch(
+                'SELECT * FROM password_reset_tokens 
+                 WHERE token = ? 
+                 AND used = FALSE 
+                 AND expires_at > NOW()
+                 LIMIT 1',
+                [$token]
+            );
+
+            return $result ?: null;
+        } catch (\Exception $e) {
+            error_log("Failed to validate password reset token: " . $e->getMessage());
+            return null;
+        }
+    }
+}
+
+if (!function_exists('markPasswordResetTokenAsUsed')) {
+    /**
+     * Mark a password reset token as used
+     * 
+     * @param string $token Reset token
+     * @return bool True on success
+     */
+    function markPasswordResetTokenAsUsed(string $token): bool
+    {
+        try {
+            $db = new \Core\Database();
+
+            $db->query(
+                'UPDATE password_reset_tokens 
+                 SET used = TRUE, used_at = NOW() 
+                 WHERE token = ?',
+                [$token]
+            );
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Failed to mark password reset token as used: " . $e->getMessage());
+            return false;
+        }
+    }
+}

@@ -80,13 +80,18 @@ class BidController extends BaseController
             // 2. Notify Previous Leader: Outbid (if there was a different leader before)
             // Note: If the company itself was already the leader, we don't notify them.
             if ($previousLeaderId && $previousLeaderId !== $companyId) {
-                $this->notification->create([
+                $notificationData = [
                     'type' => 'alert',
                     'title' => 'You have been outbid!',
                     'message' => "Your bid on {$categoryName} ({$lotId}) has been outbid. New highest bid: {$newTotal}.",
                     'recipients' => ['company:' . $previousLeaderId],
                     'status' => 'pending'
-                ]);
+                ];
+
+                $this->notification->create($notificationData);
+
+                // Send email notification
+                sendNotificationEmail($notificationData);
             }
             // --------------------------
 
@@ -274,13 +279,18 @@ class BidController extends BaseController
 
             // 2. Notify Previous Leader: Outbid
             if ($previousLeaderId && $previousLeaderId !== $companyId) {
-                $this->notification->create([
+                $notificationData = [
                     'type' => 'alert',
                     'title' => 'You have been outbid!',
                     'message' => "Your bid on {$categoryName} ({$lotId}) has been outbid. New highest bid: {$totalAmount}.",
                     'recipients' => ['company:' . $previousLeaderId],
                     'status' => 'pending'
-                ]);
+                ];
+
+                $this->notification->create($notificationData);
+
+                // Send email notification
+                sendNotificationEmail($notificationData);
             }
             // --------------------------
 

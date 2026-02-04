@@ -290,6 +290,16 @@ $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/forget-password', 'AuthController@showForgetPassword');
 
+// Email verification routes
+$router->get('/verify-email', 'AuthController@verifyEmail');
+$router->post('/resend-verification-email', 'AuthController@resendVerificationEmail');
+$router->post('/api/auth/resend-verification', 'AuthController@resendVerification');
+
+// Password reset routes
+$router->post('/api/auth/send-password-reset-link', 'AuthController@sendPasswordResetLink');
+$router->get('/reset-password', 'AuthController@showResetPassword');
+$router->post('/api/auth/reset-password', 'AuthController@resetPassword');
+
 // API Authentication routes (Returns JSON only)
 $router->post('/api/auth/login', 'Controllers\Api\AuthController@login');
 $router->post('/api/auth/logout', 'Controllers\Api\AuthController@logout', [

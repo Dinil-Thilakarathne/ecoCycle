@@ -17,13 +17,35 @@ class SmtpMailer
     {
         $smtpConfig = config('mail.smtp');
 
+        // Fallback to environment variables if config not loaded
+        if (!$smtpConfig || !isset($smtpConfig['host'])) {
+            $smtpConfig = [
+                'host' => $_ENV['SMTP_HOST'] ?? getenv('SMTP_HOST'),
+                'port' => $_ENV['SMTP_PORT'] ?? getenv('SMTP_PORT'),
+                'username' => $_ENV['SMTP_USER'] ?? getenv('SMTP_USER'),
+                'password' => $_ENV['SMTP_PASS'] ?? getenv('SMTP_PASS'),
+                'encryption' => $_ENV['SMTP_ENCRYPTION'] ?? getenv('SMTP_ENCRYPTION'),
+                'timeout' => (int) ($_ENV['SMTP_TIMEOUT'] ?? getenv('SMTP_TIMEOUT') ?? 30),
+            ];
+        }
+
+        if (empty($smtpConfig['host'])) {
+            throw new \RuntimeException('SMTP host not configured');
+        }
+        if (empty($smtpConfig['username'])) {
+            throw new \RuntimeException('SMTP username not configured');
+        }
+        if (empty($smtpConfig['password'])) {
+            throw new \RuntimeException('SMTP password not configured');
+        }
+
         $this->host = $smtpConfig['host'];
         $this->port = $smtpConfig['port'] ??
             ($smtpConfig['encryption'] === 'ssl' ? 465 : 587);
         $this->username = $smtpConfig['username'];
         $this->password = $smtpConfig['password'];
-        $this->encryption = $smtpConfig['encryption'];
-        $this->timeout = $smtpConfig['timeout'];
+        $this->encryption = $smtpConfig['encryption'] ?? 'tls';
+        $this->timeout = $smtpConfig['timeout'] ?? 30;
     }
 
     private function connect()
