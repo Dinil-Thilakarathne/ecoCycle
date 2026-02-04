@@ -670,3 +670,44 @@ if (!function_exists('logout')) {
         return $response;
     }
 }
+
+if (!function_exists('mailer')) {
+    /**
+     * Get the Mailer instance
+     * 
+     * @return Core\Mail\Mailer
+     */
+    function mailer(): Core\Mail\Mailer
+    {
+        static $mailer = null;
+
+        if ($mailer === null) {
+            $transport = new Core\Mail\SmtpMailer();
+            $mailer = new Core\Mail\Mailer($transport);
+        }
+
+        return $mailer;
+    }
+}
+
+if (!function_exists('sendMail')) {
+    /**
+     * Send an email using a template
+     * 
+     * @param string $to Recipient email address
+     * @param string $template Template name (without .html.php or .text.php extension)
+     * @param array $data Data to pass to the template
+     * @param string|null $subject Email subject (optional, can be in $data['subject'])
+     * @return bool True on success, false on failure
+     */
+    function sendMail(string $to, string $template, array $data = [], ?string $subject = null): bool
+    {
+        try {
+            return mailer()->sendTemplate($to, $template, $data, $subject);
+        } catch (\Exception $e) {
+            // Log the error
+            error_log("Mail sending failed: " . $e->getMessage());
+            return false;
+        }
+    }
+}
