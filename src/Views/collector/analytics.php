@@ -24,9 +24,9 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
             </div>
             <div class="feature-card__body" id="avgRatingValue">-</div>
-            <div class="feature-card__footer">
+            <!-- <div class="feature-card__footer">
                 <span class="desc">Based on customer feedback</span>
-            </div>
+            </div> -->
         </div>
 
         <div class="feature-card">
@@ -35,9 +35,9 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <div class="feature-card__icon"><i class="fa-solid fa-flag"></i></div>
             </div>
             <div class="feature-card__body" id="pendingReportsValue">-</div>
-            <div class="feature-card__footer">
+            <!-- <div class="feature-card__footer">
                 <span class="desc">Need Attention</span>
-            </div>
+            </div> -->
         </div>
 
         <div class="feature-card">
@@ -46,9 +46,9 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <div class="feature-card__icon"><i class="fa-solid fa-comment"></i></div>
             </div>
             <div class="feature-card__body" id="totalFeedbackValue">-</div>
-            <div class="feature-card__footer">
+            <!-- <div class="feature-card__footer">
                 <span class="desc">Received from customers</span>
-            </div>
+            </div> -->
         </div>
     </div>
 
@@ -120,124 +120,6 @@ $collectorFeedback = []; // Will be populated by JavaScript
 </div>
 
 <script>
-    // Helper function for rating stars
-  /*  function renderStars(count) {
-        let stars = '';
-        for (let i = 0; i < count; i++) {
-            stars += '<i class="fa-solid fa-star filled"></i>';
-        }
-        for (let i = count; i < 5; i++) {
-            stars += '<i class="fa-regular fa-star"></i>';
-        }
-        return stars;
-    }
-
-    // Helper for status badge
-    function getFeedbackBadge(status) {
-        const badgeMap = {
-            'positive': '<span class="status success"><i class="fa-solid fa-circle-check"></i> Positive</span>',
-            'review': '<span class="status danger"><i class="fa-solid fa-circle-exclamation"></i> Needs Review</span>',
-            'active': '<span class="status info"><i class="fa-solid fa-circle-info"></i> Active</span>',
-            'flagged': '<span class="status warning"><i class="fa-solid fa-flag"></i> Flagged</span>',
-            'archived': '<span class="status secondary"><i class="fa-solid fa-archive"></i> Archived</span>'
-        };
-        return badgeMap[status] || `<span class="status secondary">${status}</span>`;
-    }
-
-    // Load analytics data from API
-    async function loadAnalyticsData() {
-        try {
-            // Load metrics
-            const metricsResponse = await fetch('/api/analytics/metrics', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (metricsResponse.ok) {
-                const metricsData = await metricsResponse.json();
-                const metrics = metricsData.data.feedback_metrics;
-
-                // Update metric cards
-                document.getElementById('avgRatingValue').textContent = metrics.average_rating.toFixed(1);
-                document.getElementById('pendingReportsValue').textContent = metrics.pending_review_count;
-                document.getElementById('totalFeedbackValue').textContent = metrics.total_feedback;
-
-                // Load waste stats for chart
-                loadWasteChart(metricsData.data.waste_collection);
-            }
-
-            // Load waste collection details
-            loadWasteCollectionTable();
-
-            // Load feedback
-            const feedbackResponse = await fetch('/api/analytics/collector-feedback?limit=50', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (feedbackResponse.ok) {
-                const feedbackData = await feedbackResponse.json();
-                const tableBody = document.getElementById('feedbackTableBody');
-
-                if (feedbackData.data && feedbackData.data.length > 0) {
-                    tableBody.innerHTML = feedbackData.data.map(fb => `
-                        <tr>
-                            <td>${escapeHtml(fb.collector_name || 'Unknown')}</td>
-                            <td>${new Date(fb.created_at).toLocaleDateString()}</td>
-                            <td>${escapeHtml(fb.feedback || '-')}</td>
-                            <td>${renderStars(fb.rating)}</td>
-                            <td>${getFeedbackBadge(fb.status)}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No feedback records found.</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading analytics data:', error);
-            document.getElementById('feedbackTableBody').innerHTML = `
-                <tr><td colspan="5" style="text-align: center; color: red;">Error loading feedback data</td></tr>
-            `;
-        }
-    }
-
-    // Load waste collection details
-    async function loadWasteCollectionTable() {
-        try {
-            const response = await fetch('/api/analytics/waste-stats?limit=50', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const tableBody = document.getElementById('wasteCollectionTableBody');
-
-                if (data.data && data.data.length > 0) {
-                    tableBody.innerHTML = data.data.map(item => `
-                        <tr>
-                            <td>${escapeHtml(item.customer_id || '-')}</td>
-                            <td>${escapeHtml(item.customer_name || 'Unknown')}</td>
-                            <td><span class="badge" style="background-color: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px;">${escapeHtml(item.waste_category || '-')}</span></td>
-                            <td>${parseFloat(item.weight || 0).toFixed(2)} kg</td>
-                            <td style="font-weight: 600;">Rs ${parseFloat(item.amount || 0).toFixed(2)}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No waste collection records found.</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading waste collection data:', error);
-            document.getElementById('wasteCollectionTableBody').innerHTML = `
-                <tr><td colspan="5" style="text-align: center; color: red;">Error loading waste collection data</td></tr>
-            `;
-        }
-    }*/
-
 
 function renderStars(count) {
     let stars = '';
