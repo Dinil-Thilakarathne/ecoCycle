@@ -75,54 +75,29 @@ if (!function_exists('customer_pickup_format_datetime')) {
     }
 }
 
-$customerStats = [
-    [
-        'title' => 'Total Pickups',
-        'value' => $totalCount,
-        'icon' => 'fa-solid fa-truck',
-        'subtitle' => 'All time',
-    ],
-    [
-        'title' => 'Total Income',
-        'value' => 'Rs 0.00',
-        'icon' => 'fa-solid fa-wallet',
-        'subtitle' => 'Earnings',
-    ],
-    [
-        'title' => 'Total Weight',
-        'value' => '0 kg',
-        'icon' => 'fa-solid fa-weight',
-        'subtitle' => 'Waste collected',
-    ],
-];
 ?>
 
 <!-- Main Content -->
 <div class="main-content">
-    <div class="dashboard-page" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); min-height: 100vh; padding: 2rem; display: flex; flex-direction: column;">
+    <div class="dashboard-page">
         
-        <!-- Welcome Section with CTA -->
-        <div class="welcome-section" style="margin-bottom: 2.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; flex-wrap: wrap;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
-                        <?php
-                        $profileData = $userProfile ?? [];
-                        $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
-                        $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
-                        $imagePath = $profileData['profileImage'] ?? null;
-                        $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
-                        ?>
-                        <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar" style="width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(28, 227, 106, 0.15);">
-                        <div>
-                            <h1 style="margin: 0; color: #111827; font-size: 1.75rem; font-weight: 700;">Welcome, <?= htmlspecialchars($firstName) ?>!</h1>
-                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.95rem;">Your waste collection dashboard</p>
-                        </div>
+        <!-- Welcome + CTA -->
+        <div class="page-header" style="margin-bottom: 2rem;">
+            <div class="page-header__content">
+                <?php
+                $profileData = $userProfile ?? [];
+                $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
+                $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
+                $imagePath = $profileData['profileImage'] ?? null;
+                $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
+                ?>
+                <div style="display: flex; align-items: center; gap: 1.25rem;">
+                    <img src="<?= e($profilePic) ?>" alt="" class="customer-dashboard-avatar">
+                    <div>
+                        <h1 class="page-header__title" style="margin: 0;">Welcome, <?= e($firstName) ?>!</h1>
+                        <p class="page-header__description" style="margin: 0.25rem 0 0 0;">Your waste collection dashboard</p>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="navigateTo('/customer/pickup')" style="height: fit-content; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 600; background: #1ce36a; color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(28, 227, 106, 0.25);">
-                    <i class="fa-solid fa-plus" style="margin-right: 0.5rem;"></i> New Request
-                </button>
             </div>
         </div>
 
@@ -154,145 +129,69 @@ $customerStats = [
             </div>
         </div>
 
-        <!-- Main Content Grid -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; flex: 1; margin-bottom: 0; align-items: start;">
+        <!-- Main Content Grid: Chart + Price per unit -->
+        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 2rem;">
             
-            <!-- Left Column: Chart & Recent Activity -->
-            <div style="display: flex; flex-direction: column; gap: 2rem;">
-                
-                <!-- Activity Doughnut Chart -->
-                <div style="background: white; border-radius: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden; padding: 2rem;">
-                    <div style="margin-bottom: 1.5rem;">
-                        <h2 style="margin: 0; color: #111827; font-size: 1.25rem; font-weight: 700;">Request Status Overview</h2>
-                        <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
-                    </div>
-                    <div style="height: 280px; position: relative; display: flex; justify-content: center; align-items: center;">
-                        <canvas id="statusChart" style="max-height: 280px;"></canvas>
-                    </div>
-                    <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1ce36a;"><?= $pendingCount ?></div>
-                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Pending</p>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;"><?= $scheduledCount ?></div>
-                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Scheduled</p>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;"><?= $completedCount ?></div>
-                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Completed</p>
-                        </div>
-                    </div>
+            <!-- Left: Request Status Chart -->
+            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+                <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
+                    <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">Request Status Overview</h2>
+                    <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
                 </div>
-
-                <!-- Recent Activity -->
-                <div style="background: white; border-radius: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden;">
-                    <div style="padding: 2rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h2 style="margin: 0; color: #111827; font-size: 1.25rem; font-weight: 700;">Recent Activity</h2>
-                            <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Last 5 pickup requests</p>
+                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 2rem; display:flex; align-items:center; gap:1.25rem;">
+                        <div style="flex:1; height:220px; position: relative;">
+                            <canvas id="statusChart"></canvas>
                         </div>
-                        <a href="/customer/pickup" style="color: #1ce36a; text-decoration: none; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.3s;">
-                            View All <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
-                        </a>
-                    </div>
-
-                    <div style="max-height: 350px; overflow-y: auto;">
-                        <?php if (empty($recentPickupsWidget)): ?>
-                            <div style="padding: 3rem 2rem; text-align: center; color: #6b7280;">
-                                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📦</div>
-                                <p style="margin: 0; font-weight: 500;">No pickup requests yet</p>
-                                <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Create your first pickup request to get started</p>
+                        <div id="statusChartLegend" style="width:180px; display:flex; flex-direction:column; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#f59e0b; border-radius:3px;"></div>
+                                <div style="flex:1;">Pending</div>
+                                <div id="legend-pending"><?= (int) $pendingCount ?></div>
                             </div>
-                        <?php else: ?>
-                            <div style="list-style: none; padding: 0; margin: 0;">
-                                <?php foreach ($recentPickupsWidget as $request): 
-                                    $status = strtolower((string) ($request['status'] ?? 'pending'));
-                                    $statusColors = [
-                                        'pending' => ['#1ce36a', '#f0fdf4'],
-                                        'assigned' => ['#3b82f6', '#eff6ff'],
-                                        'confirmed' => ['#10b981', '#f0fdf4'],
-                                        'completed' => ['#059669', '#d1fae5'],
-                                        'cancelled' => ['#ef4444', '#fee2e2'],
-                                    ];
-                                    $colors = $statusColors[$status] ?? ['#6b7280', '#f9fafb'];
-                                    ?>
-                                    <div style="padding: 1.25rem 2rem; border-bottom: 1px solid #f3f4f6; transition: background 0.3s;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='transparent'">
-                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
-                                            <div style="flex: 1;">
-                                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                                                    <span style="font-weight: 700; color: #111827; font-size: 0.95rem;">Request #<?= e((string) $request['id']) ?></span>
-                                                    <span style="background: <?= e($colors[1]) ?>; color: <?= e($colors[0]) ?>; padding: 0.25rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;"><?= e(ucfirst($status)) ?></span>
-                                                </div>
-                                                <p style="margin: 0.5rem 0 0 0; color: #4b5563; font-size: 0.875rem;">
-                                                    <i class="fa-solid fa-map-marker-alt" style="color: #1ce36a; margin-right: 0.5rem;"></i>
-                                                    <?= e((string) ($request['address'] ?? 'Address not provided')) ?>
-                                                </p>
-                                                <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.75rem;">
-                                                    <i class="fa-solid fa-calendar" style="margin-right: 0.5rem;"></i>
-                                                    <?php 
-                                                    $createdAt = strtotime($request['createdAt'] ?? 'now');
-                                                    echo date('M d, Y', $createdAt);
-                                                    ?>
-                                                </p>
-                                            </div>
-                                            <a href="/customer/pickup?edit=<?= e((string) $request['id']) ?>" style="padding: 0.5rem 1rem; background: #f3f4f6; color: #1ce36a; text-decoration: none; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap; transition: all 0.3s;" onmouseenter="this.style.background='#e5e7eb'" onmouseleave="this.style.background='#f3f4f6'">View Details</a>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#06b6d4; border-radius:3px;"></div>
+                                <div style="flex:1;">Scheduled</div>
+                                <div id="legend-scheduled"><?= (int) $scheduledCount ?></div>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#10b981; border-radius:3px;"></div>
+                                <div style="flex:1;">Completed</div>
+                                <div id="legend-completed"><?= (int) $completedCount ?></div>
+                            </div>
+                        </div>
                 </div>
             </div>
 
-            <!-- Right Column: Quick Stats & Actions -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                
-                <!-- Performance Card -->
-                <div style="background: linear-gradient(135deg, #1ce36a 0%, #08682d 100%); border-radius: 1.25rem; padding: 2rem; color: white; box-shadow: 0 8px 16px rgba(28, 227, 106, 0.25);">
-                    <h3 style="margin: 0; font-size: 1rem; opacity: 0.9; font-weight: 600; margin-bottom: 0.5rem;">Completion Rate</h3>
-                    <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem;">
-                        <?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%
-                    </div>
-                    <p style="margin: 0; font-size: 0.875rem; opacity: 0.95;">of your requests completed</p>
-                    <div style="margin-top: 1rem; background: rgba(255,255,255,0.2); border-radius: 0.5rem; height: 6px; overflow: hidden;">
-                        <div style="background: white; height: 100%; width: <?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%; transition: width 0.5s ease;"></div>
-                    </div>
+            <!-- Right: Price per unit -->
+            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+                <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
+                    <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">
+                        <i class="fa-solid fa-leaf" style="margin-right: 0.75rem; color: #1ce36a;"></i>
+                        Price Per Unit
+                    </h2>
+                    <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Current rates per kg — earn based on these</p>
                 </div>
-
-                <!-- Quick Actions -->
-                <div style="background: white; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                    <h3 style="margin: 0 0 1rem 0; color: #111827; font-size: 1rem; font-weight: 700;">Quick Actions</h3>
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <a href="/customer/pickup" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
-                            <i class="fa-solid fa-plus" style="color: #1ce36a;"></i> New Pickup Request
-                        </a>
-                        <a href="/customer/analytics" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
-                            <i class="fa-solid fa-chart-line" style="color: #3b82f6;"></i> View Analytics
-                        </a>
-                        <a href="/customer/profile" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #f9fafb; color: #111827; text-decoration: none; border-radius: 0.75rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s; border: 1px solid #e5e7eb;" onmouseenter="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'" onmouseleave="this.style.background='#f9fafb'; this.style.borderColor='#e5e7eb'">
-                            <i class="fa-solid fa-user" style="color: #f59e0b;"></i> Edit Profile
-                        </a>
+                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Dummy price data -->
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(245, 158, 11, 0.08); border-radius: 0.75rem; border-left: 4px solid #f59e0b;">
+                        <span style="color: #4b5563; font-weight: 600;">Plastic</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 15.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
                     </div>
-                </div>
-
-                <!-- Stats Summary -->
-                <div style="background: white; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                    <h3 style="margin: 0 0 1rem 0; color: #111827; font-size: 1rem; font-weight: 700;">Summary</h3>
-                    <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
-                            <span style="color: #4b5563; font-size: 0.875rem;">Total Requests</span>
-                            <span style="font-weight: 700; color: #111827; font-size: 1.125rem;"><?= $totalCount ?></span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
-                            <span style="color: #4b5563; font-size: 0.875rem;">Success Rate</span>
-                            <span style="font-weight: 700; color: #1ce36a; font-size: 1.125rem;"><?= $totalCount > 0 ? round(($completedCount / $totalCount) * 100) : 0 ?>%</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #4b5563; font-size: 0.875rem;">Awaiting Action</span>
-                            <span style="font-weight: 700; color: #f59e0b; font-size: 1.125rem;"><?= $pendingCount ?></span>
-                        </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(16, 185, 129, 0.08); border-radius: 0.75rem; border-left: 4px solid #10b981;">
+                        <span style="color: #4b5563; font-weight: 600;">Paper</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 8.50 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(59, 130, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #3b82f6;">
+                        <span style="color: #4b5563; font-weight: 600;">Glass</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 12.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(139, 92, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #8b5cf6;">
+                        <span style="color: #4b5563; font-weight: 600;">Metal</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 25.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(249, 115, 22, 0.08); border-radius: 0.75rem; border-left: 4px solid #f97316;">
+                        <span style="color: #4b5563; font-weight: 600;">Organic</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 5.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
                     </div>
                 </div>
             </div>
@@ -371,11 +270,8 @@ $customerStats = [
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {font: {size: 12, weight: '600'}, color: '#4b5563', padding: 15, usePointStyle: true, pointStyle: 'circle', boxWidth: 8}
-                        },
+                        // disable built-in legend because we use a custom HTML legend on the right
+                        legend: { display: false },
                         tooltip: {
                             backgroundColor: 'rgba(17, 24, 39, 0.9)',
                             padding: 12,
@@ -400,17 +296,87 @@ $customerStats = [
             chartInstance.update();
         }
 
-        // Update status numbers below chart
-        const statusDivs = document.querySelectorAll('[style*="text-align: center"]');
-        if (statusDivs.length >= 3) {
-            statusDivs[0].querySelector('div:first-child').textContent = pendingCount;
-            statusDivs[1].querySelector('div:first-child').textContent = scheduledCount;
-            statusDivs[2].querySelector('div:first-child').textContent = completedCount;
-        }
+        // Update legend numbers
+        const elPending = document.getElementById('legend-pending');
+        const elScheduled = document.getElementById('legend-scheduled');
+        const elCompleted = document.getElementById('legend-completed');
+        if (elPending) elPending.textContent = pendingCount;
+        if (elScheduled) elScheduled.textContent = scheduledCount;
+        if (elCompleted) elCompleted.textContent = completedCount;
     }
 
-    // Load data when page loads
     document.addEventListener('DOMContentLoaded', function() {
         loadDashboardData();
     });
+</script>
+
+<script>
+    (function() {
+        var endpoint = '/api/collector/material-prices';
+        var container = document.getElementById('material-prices-container');
+        if (!container) return;
+
+        var fallback = [
+            { name: 'Plastic', price_per_unit: 15.00 },
+            { name: 'Paper', price_per_unit: 8.50 },
+            { name: 'Glass', price_per_unit: 12.00 },
+            { name: 'Metal', price_per_unit: 25.00 },
+            { name: 'Organic', price_per_unit: 5.00 }
+        ];
+
+        function formatPrice(val) {
+            if (val === null || val === undefined) return 'Rs 0.00';
+            var num = parseFloat(val);
+            return isNaN(num) ? 'Rs 0.00' : 'Rs ' + num.toFixed(2);
+        }
+
+        function getColor(name) {
+            var lower = (name || '').toLowerCase();
+            var map = { plastic: '#f59e0b', glass: '#3b82f6', metal: '#8b5cf6', paper: '#10b981', organic: '#f97316' };
+            return map[lower] || '#64748b';
+        }
+
+        function escapeHtml(s) {
+            var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML;
+        }
+
+        function render(list) {
+            if (!Array.isArray(list) || list.length === 0) {
+                container.innerHTML = '<div class="customer-price-unit__empty"><i class="fa-solid fa-info-circle"></i><p>No material prices available right now.</p></div>';
+                return;
+            }
+            container.innerHTML = list.map(function(m) {
+                var name = m.name || 'Material';
+                var price = (m.price_per_unit != null) ? m.price_per_unit : (m.price != null ? m.price : 0);
+                var color = getColor(name);
+                return '<div class="customer-price-unit__row" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">' +
+                    '<span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:' + color + '"></span>' + escapeHtml(name) + '</span>' +
+                    '<span style="font-weight:700;">' + formatPrice(price) + ' <small style="font-weight:400; color:#6b7280;">/ kg</small></span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function fetchPrices() {
+            fetch(endpoint, { credentials: 'include', headers: { 'Accept': 'application/json' } })
+                .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+                .then(function(json) {
+                    if (json && (json.status === 'success' || json.success) && Array.isArray(json.data)) {
+                        render(json.data);
+                    } else if (Array.isArray(json)) {
+                        render(json);
+                    } else {
+                        render(fallback);
+                    }
+                })
+                .catch(function() {
+                    render(fallback);
+                });
+        }
+
+        // initial render (use fallback immediately for minimal layout shift)
+        render(fallback);
+        // then try live fetch and refresh every 15s
+        fetchPrices();
+        setInterval(fetchPrices, 15000);
+    })();
 </script>

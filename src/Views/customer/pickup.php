@@ -4,7 +4,6 @@ use function htmlspecialchars as e;
 
 $csrfToken = csrf_token();
 $timeSlots = $timeSlots ?? [];
-consoleLog($timeSlots);
 $wasteCategories = $wasteCategories ?? [];
 $pickupRequests = array_values($pickupRequests ?? []);
 // Remove any cancelled requests from the initial server-side list so they don't show anywhere
@@ -79,23 +78,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
     }
 }
 ?>
-
-<style>
-    .checkbox-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
-
-    .checkbox-grid label {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-    }
-</style>
 
 <div class="dashboard-page">
     <div class="page-header" style="margin-bottom:2rem;">

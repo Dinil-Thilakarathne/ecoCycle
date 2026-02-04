@@ -4,13 +4,6 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 ?>
 
     <div class="dashboard-page">
-        <!-- small styles to highlight unread notifications (dot + subtle background) -->
-        <style>
-            .notification-row.unread .notification-title { font-weight: 700; }
-            .notification-row.unread { background: #dff4dbff; }
-            /* keep table row hover readable */
-            .notifications-table .notification-row:hover { background: #f5f5f5; }
-        </style>
         <!-- Header -->
         <div class="header">
             <!-- header-actions removed -->
