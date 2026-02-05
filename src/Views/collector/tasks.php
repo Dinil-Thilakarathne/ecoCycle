@@ -132,6 +132,7 @@ function getStatusBadge($status)
 </div>
 
 <script>
+
     // Grab modal elements
     const weightInput = document.getElementById('weightInput');
     const calculatedPriceEl = document.getElementById('calculatedPrice');
@@ -310,6 +311,21 @@ function getStatusBadge($status)
             }
 
             modal.querySelector('.pd-status').textContent = normalizedStatus;
+
+            function showToast(message, type = 'info') {
+                if (typeof window.__createToast === 'function') {
+                    window.__createToast(message, type, 5000);
+                } else {
+                    const prefix = type === 'error' ? 'Error: ' : '';
+                    alert(prefix + message);
+                }
+            }
+
+            // Display success message with price if completed
+            if (nextTarget === 'completed' && updated.price) {
+                const message = `Pickup completed successfully!`;
+                showToast(message, 'success', 6000);
+            }
 
             // Refresh the view logic to update buttons/inputs
             viewDetails(null, pickupId);

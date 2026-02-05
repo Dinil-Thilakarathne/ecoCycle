@@ -326,22 +326,27 @@ class PickupRequest extends BaseModel
                 }
 
                 // 2. Update the main request with totals and status
-                $this->db->query(
+                error_log("Updating pickup {$id}: status={$status}, weight={$totalWeight}, price={$totalPrice}, collector_id={$collectorId}");
+
+                $updateResult = $this->db->query(
                     "UPDATE {$this->table} 
                      SET status = ?, weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
                      WHERE id = ? AND collector_id = ?",
                     [$status, $totalWeight, $totalPrice, $id, $collectorId]
                 );
 
+                if (!$updateResult) {
+                    throw new \Exception("Failed to update pickup request. Pickup may not be assigned to collector {$collectorId}");
+                }
+
                 $pdo->commit();
                 return true;
 
             } catch (\Throwable $e) {
                 $pdo->rollBack();
-                // rethrow or log? For now, return false to indicate failure.
-                // ideally we should facilitate error bubbling, but matching interface return bool
+                // Re-throw the exception so the controller can handle it with proper error messages
                 error_log("Failed updating pickup weights: " . $e->getMessage());
-                return false;
+                throw $e;
             }
         }
 
