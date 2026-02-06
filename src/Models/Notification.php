@@ -176,6 +176,21 @@ class Notification extends BaseModel
         }
     }
 
+    public function findById(int $id): ?array
+{
+    $row = $this->db->fetch(
+        "SELECT * FROM {$this->table} WHERE id = ?",
+        [$id]
+    );
+
+    if (!$row) {
+        return null;
+    }
+
+    return $this->formatRows([$row])[0];
+}
+
+
     public function getUnreadCount(int $userId, string $role = ''): int
     {
         $roleGroup = $role ? $role . 's' : '';

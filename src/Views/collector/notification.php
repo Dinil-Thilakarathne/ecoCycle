@@ -65,81 +65,6 @@ function truncateMessage($message, $length = 80) {
       <p class="page-header__description">Stay on top of your platform updates</p>
     </div>
   </header>
-
-  <!-- <div id="alert-container"></div>
-
-  <div id="notification-detail" style="display: none; margin-bottom: 1rem;">
-    <div class="activity-card">
-      <div class="activity-card__header">
-        <h3 class="activity-card__title">
-          <i class="fa-solid fa-envelope-open-text"></i>
-          <span id="detail-title"></span>
-        </h3>
-        <button onclick="closeDetail()" style="background: none; border: none; cursor: pointer; font-size: 1.2rem;">&times;</button>
-      </div>
-      <div class="activity-card__content">
-        <p style="margin-bottom: 0.5rem;">Type: <strong id="detail-type"></strong></p>
-        <p style="margin-bottom: 0.5rem;">Date: <strong id="detail-date"></strong></p>
-        <p style="margin: 0; line-height: 1.6;" id="detail-message"></p>
-      </div>
-    </div>
-  </div> -->
-
-   <!-- <div class="tabs">
-    <div class="tabs-list">
-      <button class="tabs-trigger<?= $currentTab === 'total' ? ' active' : '' ?>" onclick="showTab('total')" id="total-tab">
-        Total (<span id="total-count">0</span>)
-      </button>
-      <button class="tabs-trigger<?= $currentTab === 'unread' ? ' active' : '' ?>" onclick="showTab('unread')" id="unread-tab">
-        Unread (<span id="unread-count">0</span>)
-      </button>
-      <button class="tabs-trigger<?= $currentTab === 'read' ? ' active' : '' ?>" onclick="showTab('read')" id="read-tab">
-        Read (<span id="read-count">0</span>)
-      </button>
-    </div>  -->
-
-    <!-- <div class="tabs-content<?= $currentTab === 'total' ? ' active' : '' ?>" id="total-content">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Notification</th>
-            <th>Type</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="total-tbody"></tbody>
-      </table>
-    </div>
-
-    <div class="tabs-content<?= $currentTab === 'unread' ? ' active' : '' ?>" id="unread-content">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Notification</th>
-            <th>Type</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="unread-tbody"></tbody>
-      </table>
-    </div>
-
-    <div class="tabs-content<?= $currentTab === 'read' ? ' active' : '' ?>" id="read-content">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Notification</th>
-            <th>Type</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="read-tbody"></tbody>
-      </table>
-    </div> 
-  </div>-->
 </main>
 
    <div class="dashboard-page">
@@ -155,18 +80,10 @@ function truncateMessage($message, $length = 80) {
        <!--   Stats will be updated in real-time via JS  -->
     </div> 
 
-    <!-- <div class="action-buttons" style="margin-bottom:2rem;">
-        <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread (<span id="stat-unread-count">0</span>)</a>
-        <a href="?filter=pickup" class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
-         <a href="?filter=payment" class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a> 
-        <a href="?action=mark_all_read" class="btn btn-outline">Mark All Read</a> 
-    </div> -->
-
-
     <div class="action-buttons" style="margin-bottom:2rem;">
-    <a href="?tab=total" class="btn <?= $currentTab === 'total' ? 'btn-primary' : 'btn-outline' ?>">Total (<span id="total-count"><?= $totalNotifications ?></span>)</a>
-    <a href="?tab=unread" class="btn <?= $currentTab === 'unread' ? 'btn-primary' : 'btn-outline' ?>">Unread (<span id="unread-count"><?= $unreadNotifications ?></span>)</a>
-    <a href="?tab=read" class="btn <?= $currentTab === 'read' ? 'btn-primary' : 'btn-outline' ?>">Read (<span id="read-count"><?= $totalNotifications - $unreadNotifications ?></span>)</a>
+    <a href="?tab=total" class="tabs-trigger <?= $currentTab === 'total' ? 'btn-primary' : 'btn-outline' ?>">Total (<span id="total-count"><?= $totalNotifications ?></span>)</a>
+    <a href="?tab=unread" class="tabs-trigger <?= $currentTab === 'unread' ? 'btn-primary' : 'btn-outline' ?>">Unread (<span id="unread-count"><?= $unreadNotifications ?></span>)</a>
+    <a href="?tab=read" class="tabs-trigger <?= $currentTab === 'read' ? 'btn-primary' : 'btn-outline' ?>">Read (<span id="read-count"><?= $totalNotifications - $unreadNotifications ?></span>)</a>
 </div>
 
  <div style="margin: 12px 0;">
@@ -176,12 +93,6 @@ function truncateMessage($message, $length = 80) {
     <div class="table-container" style="overflow-x:auto;">
         <table class="notifications-table data-table" style="width:100%; table-layout: fixed;">
             <thead>
-                <!-- <tr>
-                    <th>Notification</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr> -->
                 <tr>
                 <th style="width:40%;">Notification</th>
                 <th style="width:20%;">Type</th>
@@ -195,6 +106,27 @@ function truncateMessage($message, $length = 80) {
         </table>
     </div>
 </div> 
+
+<!-- Notification Detail Modal -->
+<div id="notification-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content" style="max-width:600px;">
+    <div class="modal-header">
+      <h2 id="modal-title"></h2>
+      <button class="modal-close" onclick="closeNotificationModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p id="modal-message"></p>
+      <div class="detail-timestamp">
+        <strong>Type:</strong> <span id="modal-type"></span><br>
+        <strong>Received:</strong> <span id="modal-date"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-mark-read" class="btn-primary" onclick="">Mark as Read</button>
+      <button class="btn-secondary" onclick="closeNotificationModal()">Close</button>
+    </div>
+  </div>
+</div>
 
 <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
     <?php $id = $_GET['id']; $view = null; foreach ($normalized as $n) { if ($n['id'] === $id) { $view = $n; break; }} ?>
@@ -238,40 +170,8 @@ function truncateMessage($message, $length = 80) {
       return status === 'read' ? 'Read' : 'Unread';
     }
 
-    // function renderStats(notifications) {
-    //   const total = notifications.length;
-    //   const unread = notifications.filter(n => n.status !== 'read').length;
-    //   const today = notifications.filter(n => {
-    //     const nDate = new Date(n.created_at).toLocaleDateString();
-    //     const nowDate = new Date().toLocaleDateString();
-    //     return nDate === nowDate;
-    //   }).length;
-
-    //   const stats = [
-    //     { title: 'Total Notifications', value: total, icon: 'fa-solid fa-bell', subtitle: 'All time' },
-    //     { title: 'Unread', value: unread, icon: 'fa-solid fa-envelope-open', subtitle: 'Need attention' },
-    //     { title: 'Today', value: today, icon: 'fa-solid fa-calendar-day', subtitle: 'Received today' }
-    //   ];
-
-    //   statsContainer.innerHTML = '';
-    //   stats.forEach(stat => {
-    //     const div = document.createElement('div');
-    //     div.className = 'feature-card';
-    //     div.innerHTML = `
-    //       <div class="feature-card__header">
-    //         <h3 class="feature-card__title">${stat.title}</h3>
-    //         <div class="feature-card__icon"><i class="${stat.icon}"></i></div>
-    //       </div>
-    //       <p class="feature-card__body">${stat.value}</p>
-    //       <div class="feature-card__footer"><span class="tag success">${stat.subtitle}</span></div>
-    //     `;
-    //     statsContainer.appendChild(div);
-    //   });
-
-    //   if (unreadCountEl) unreadCountEl.textContent = unread;
-    // }
-
     function renderNotifications(notifications) {
+      if (!tbody) return;
       tbody.innerHTML = '';
       if (notifications.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
@@ -292,7 +192,7 @@ function truncateMessage($message, $length = 80) {
             </div>
           </td>
           <td><span class="type-badge ${notif.type}">${notif.type}</span></td>
-          <td class="time-cell">${timeAgo(notif.created_at)}</td>
+         <td class="time-cell">${timeAgo(notif.timestamp)}</td>
         <td class="actions-cell">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap; justify-content: center;">
         ${isUnread ? `<button class="icon-button" onclick="markAsRead('${notif.id}')" title="Mark as Read">
@@ -323,6 +223,68 @@ function truncateMessage($message, $length = 80) {
         // silent fail
       }
     }
+
+window.viewNotification = async function (id) {
+  try {
+    const res = await fetch(`/api/notifications/${id}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    if (!res.ok) return;
+
+    const json = await res.json();
+    if (!json.success) return;
+
+    const n = json.data;
+
+    document.getElementById('modal-title').textContent = n.title || 'Notification';
+    document.getElementById('modal-message').textContent = n.message || '';
+    document.getElementById('modal-type').textContent = n.type || 'general';
+    document.getElementById('modal-date').textContent =
+      new Date(n.timestamp).toLocaleString();
+
+    const markBtn = document.getElementById('modal-mark-read');
+    if (n.status !== 'read') {
+      markBtn.style.display = 'inline-block';
+      markBtn.onclick = () => markAsRead(id, true);
+    } else {
+      markBtn.style.display = 'none';
+    }
+
+    document.getElementById('notification-modal').style.display = 'flex';
+
+    if (n.status !== 'read') {
+      markAsRead(id);
+    }
+
+  } catch (e) {
+    console.error('View failed', e);
+  }
+}
+
+window.markAsRead = async function (id, refresh = false) {
+  try {
+    const res = await fetch(`/api/notifications/${id}/read`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+
+    const json = await res.json();
+    if (!json.success) return;
+
+    // Refresh table after marking read
+    if (refresh) closeNotificationModal();
+  } catch (e) {
+    console.error('Mark read failed', e);
+  }
+}
+
+window.closeNotificationModal = function () {
+  document.getElementById('notification-modal').style.display = 'none';
+}
 
     // Initial fetch and interval
     fetchNotifications();
