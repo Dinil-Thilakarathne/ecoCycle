@@ -77,13 +77,12 @@ function truncateMessage($message, $length = 80) {
     <div class="header"></div>
 
     <div class="stats-grid" id="notification-stats">
-       <!--   Stats will be updated in real-time via JS  -->
-    </div> 
-
-    <div class="action-buttons" style="margin-bottom:2rem;">
+       <!--   Stats will be updated in real-time via JS  -->  
+       <div class="action-buttons" style="margin-bottom:0.5rem;">
     <a href="?tab=total" class="tabs-trigger <?= $currentTab === 'total' ? 'btn-primary' : 'btn-outline' ?>">Total (<span id="total-count"><?= $totalNotifications ?></span>)</a>
     <a href="?tab=unread" class="tabs-trigger <?= $currentTab === 'unread' ? 'btn-primary' : 'btn-outline' ?>">Unread (<span id="unread-count"><?= $unreadNotifications ?></span>)</a>
     <a href="?tab=read" class="tabs-trigger <?= $currentTab === 'read' ? 'btn-primary' : 'btn-outline' ?>">Read (<span id="read-count"><?= $totalNotifications - $unreadNotifications ?></span>)</a>
+</div>
 </div>
 
  <div style="margin: 12px 0;">
@@ -94,7 +93,7 @@ function truncateMessage($message, $length = 80) {
         <table class="notifications-table data-table" style="width:100%; table-layout: fixed;">
             <thead>
                 <tr>
-                <th style="width:40%;">Notification</th>
+                  <th style="width:40%;">Notification</th>
                 <th style="width:20%;">Type</th>
                 <th style="width:20%;">Date</th>
                 <th style="width:20%;">Actions</th>
@@ -127,6 +126,25 @@ function truncateMessage($message, $length = 80) {
     </div>
   </div>
 </div>
+
+<div id="notification-detail" style="display:none; margin-bottom:1rem;">
+  <div class="activity-card">
+    <div class="activity-card__header">
+      <h3 class="activity-card__title">
+        <i class="fa-solid fa-envelope-open-text"></i>
+        <span id="detail-title"></span>
+      </h3>
+      <button onclick="closeDetail()" style="background:none;border:none;font-size:1.2rem;">×</button>
+    </div>
+
+    <div class="activity-card__content">
+      <p>Type: <strong id="detail-type"></strong></p>
+      <p>Date: <strong id="detail-date"></strong></p>
+      <p id="detail-message" style="line-height:1.6;"></p>
+    </div>
+  </div>
+</div>
+
 
 <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
     <?php $id = $_GET['id']; $view = null; foreach ($normalized as $n) { if ($n['id'] === $id) { $view = $n; break; }} ?>
