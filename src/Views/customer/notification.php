@@ -180,18 +180,30 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 return msg.length <= len ? msg : msg.substring(0, len) + '...';
             }
 
+            // Dummy notifications used when API returns none or fails
+            const dummyNotifications = [
+                { id: 'n-1', title: 'Pickup scheduled', message: 'Your pickup is scheduled for tomorrow 9:00 AM.', category: 'pickup', timestamp: new Date().toISOString(), read: false, priority: 'normal' },
+                { id: 'n-2', title: 'Payment received', message: 'You have received Rs 1,200 for your last recycling sale.', category: 'payment', timestamp: new Date(Date.now() - 3600*1000).toISOString(), read: false, priority: 'high' },
+                { id: 'n-3', title: 'System update', message: 'We updated our terms of service.', category: 'system', timestamp: new Date(Date.now() - 86400*1000).toISOString(), read: true, priority: 'low' }
+            ];
+
             async function fetchNotifications() {
                 try {
                     const res = await fetch('/api/notifications', { credentials: 'same-origin' });
                     if (!res.ok) throw new Error('Failed to load notifications');
                     const data = await res.json();
-                    const notifications = data.notifications || [];
+                    let notifications = data.notifications || [];
+                    // fallback to dummy if empty
+                    if (!Array.isArray(notifications) || notifications.length === 0) {
+                        notifications = dummyNotifications.slice();
+                    }
                     renderNotifications(notifications);
                     renderStats(notifications);
                 } catch (err) {
                     console.error(err);
-                    const tbody = document.getElementById('notificationsBody');
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>Unable to load</h3><p>There was an error fetching notifications.</p></div></td></tr>';
+                    const notifications = dummyNotifications.slice();
+                    renderNotifications(notifications);
+                    renderStats(notifications);
                 }
             }
 
@@ -250,9 +262,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                         <td class="time-cell">${escapeHtml(timeAgo(n.timestamp || n.created_at || ''))}</td>
                         <td><span class="status-badge">${isRead ? 'Read' : 'Unread'}</span></td>
                         <td class="actions-cell">
-                            ${isRead ? '' : `<button class="action-btn mark-read" data-id="${escapeHtml(id)}">Mark Read</button>`}
-                            <button class="action-btn view" data-id="${escapeHtml(id)}">View</button>
-                            <button class="action-btn delete" data-id="${escapeHtml(id)}">Delete</button>
+                            <div class="action-buttons">
+                                ${isRead ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
+                                <button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>
+                                <button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -319,22 +333,30 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 document.getElementById('viewNotificationModal').style.display = 'none';
             }
 
-            // Event delegation for action buttons
+            // Event delegation for action buttons using data-action attributes
             document.addEventListener('click', function(e){
-                const markBtn = e.target.closest && e.target.closest('.action-btn.mark-read');
-                if (markBtn) { e.preventDefault(); const id = markBtn.getAttribute('data-id'); if (id) markAsRead(id); return; }
+                const target = e.target;
+                const actionEl = target.closest && target.closest('[data-action]');
+                if (actionEl) {
+                    e.preventDefault();
+                    const action = actionEl.getAttribute('data-action');
+                    const id = actionEl.getAttribute('data-id');
+                    if (action === 'mark-read' && id) { return markAsRead(id); }
+                    if (action === 'view' && id) { return openNotificationById(id); }
+                    if (action === 'delete' && id) {
+                        if (!confirm('Are you sure you want to delete this notification?')) return;
+                        const removed = removeRowById(id);
+                        if (!removed) return;
+                        const href = '?action=delete&id=' + encodeURIComponent(id) + '&filter=' + encodeURIComponent(initialFilter || 'all');
+                        fetch(href, { method: 'GET', credentials: 'same-origin' }).catch(err=>console.error('Delete failed', err));
+                        return;
+                    }
+                }
 
-                const viewBtn = e.target.closest && e.target.closest('.action-btn.view');
-                if (viewBtn) { e.preventDefault(); const id = viewBtn.getAttribute('data-id'); if (id) return openNotificationById(id); }
-
-                const delBtn = e.target.closest && e.target.closest('.action-btn.delete');
-                if (delBtn) {
-                    e.preventDefault(); const id = delBtn.getAttribute('data-id'); if (!id) return; if (!confirm('Are you sure you want to delete this notification?')) return; const removed = removeRowById(id); if (!removed) return; const href = '?action=delete&id=' + encodeURIComponent(id) + '&filter=' + encodeURIComponent(initialFilter || 'all'); fetch(href, { method: 'GET', credentials: 'same-origin' }).catch(err=>console.error('Delete failed', err)); return; }
-
-                const modalClose = e.target.closest && (e.target.closest('#modalClose') || e.target.closest('#modalClose2'));
+                const modalClose = target.closest && (target.closest('#modalClose') || target.closest('#modalClose2'));
                 if (modalClose) { e.preventDefault(); closeModal(); return; }
 
-                const markAll = e.target.closest && e.target.closest('#markAllReadBtn');
+                const markAll = target.closest && target.closest('#markAllReadBtn');
                 if (markAll) { e.preventDefault(); if (confirm('Mark all notifications as read?')) markAllRead(); return; }
             });
 

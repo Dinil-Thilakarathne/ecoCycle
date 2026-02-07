@@ -159,8 +159,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         <table class="data-table" style="min-width:900px;">
             <thead>
                 <tr>
-                    <th style="width:60px;">PID</th>
-                    <th>Address</th>
+                    <th style="width:50px;">#</th>
                     <th>Time Slot</th>
                     <th>Waste Categories</th>
                     <th>Created</th>
@@ -182,17 +181,17 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         </td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($filteredRequests as $request):
+                    <?php foreach ($filteredRequests as $idx => $request):
                         $status = (string) ($request['status'] ?? 'pending');
                         $collector = $request['collectorName'] ?? '';
                         $categoryList = $request['wasteCategories'] ?? [];
                         $normalizedStatus = strtolower($status);
-                        $canEdit = in_array($normalizedStatus, ['pending', 'assigned'], true);
-                        $canCancel = in_array($normalizedStatus, ['pending', 'assigned', 'confirmed'], true);
+                        $isPending = $normalizedStatus === 'pending';
+                        $isAssigned = in_array($normalizedStatus, ['assigned', 'confirmed'], true);
+                        $isCompleted = $normalizedStatus === 'completed';
                         ?>
                         <tr data-request-id="<?= e((string) $request['id']) ?>">
-                            <td>#<?= e((string) $request['id']) ?></td>
-                            <td><?= e((string) ($request['address'] ?? '')) ?></td>
+                            <td><?= ($idx + 1) ?></td>
                             <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
                             <td>
                                 <?php
@@ -217,24 +216,33 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                 </span>
                             </td>
                             <td>
-                                <?php if ($canEdit || $canCancel || $normalizedStatus === 'completed'): ?>
-                                    <?php if ($canEdit): ?>
-                                        <button class="action-btn view" data-action="edit"
-                                            data-id="<?= e((string) $request['id']) ?>">Edit</button>
+                                <div class="action-buttons">
+                                    <?php if ($isPending): ?>
+                                        <button class="icon-button" data-action="edit" data-id="<?= e((string) $request['id']) ?>" title="Edit Request">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </button>
+                                    <?php elseif ($isAssigned): ?>
+                                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Edit (Assigned)">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </button>
                                     <?php endif; ?>
 
-                                    <?php if ($normalizedStatus === 'completed'): ?>
-                                        <button class="action-btn view" data-action="rate"
-                                            data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>">Rate</button>
+                                    <?php if ($isCompleted): ?>
+                                        <button class="icon-button" data-action="rate" data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>" title="Rate Collector">
+                                            <i class="fa-solid fa-star"></i>
+                                        </button>
                                     <?php endif; ?>
 
-                                    <?php if ($canCancel || $normalizedStatus === 'completed'): ?>
-                                        <button class="action-btn delete" data-action="cancel"
-                                            data-id="<?= e((string) $request['id']) ?>">Cancel</button>
+                                    <?php if ($isPending): ?>
+                                        <button class="icon-button danger" data-action="cancel" data-id="<?= e((string) $request['id']) ?>" title="Cancel Request">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    <?php elseif ($isAssigned || $isCompleted): ?>
+                                        <button class="icon-button danger" disabled style="opacity:0.5;cursor:not-allowed;" title="Delete (Disabled)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    <span style="color:#64748b;">-</span>
-                                <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -584,7 +592,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (!filtered.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="empty-state">
+                        <td colspan="8" class="empty-state">
                             <div class="empty-content">
                                 <div class="empty-icon">📦</div>
                                 <h3>No pickup requests found</h3>
@@ -596,30 +604,64 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 return;
             }
 
-            const rows = filtered.map((request) => {
+            const rows = filtered.map((request, idx) => {
                 const status = (request.status || 'pending');
                 const normalizedStatus = status.toLowerCase();
                 const collector = request.collectorName ? request.collectorName : '-';
-                const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
-                const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
+                const isPending = normalizedStatus === 'pending';
+                const isAssigned = ['assigned', 'confirmed'].includes(normalizedStatus);
+                const isCompleted = normalizedStatus === 'completed';
+
+                let actionButtons = '<div class="action-buttons">';
+                
+                if (isPending) {
+                    actionButtons += `
+                        <button class="icon-button" data-action="edit" data-id="${request.id}" title="Edit Request">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                    `;
+                } else if (isAssigned) {
+                    actionButtons += `
+                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Edit (Assigned)">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                    `;
+                }
+
+                if (isCompleted) {
+                    actionButtons += `
+                        <button class="icon-button" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}" title="Rate Collector">
+                            <i class="fa-solid fa-star"></i>
+                        </button>
+                    `;
+                }
+
+                if (isPending) {
+                    actionButtons += `
+                        <button class="icon-button danger" data-action="cancel" data-id="${request.id}" title="Cancel Request">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                } else if (isAssigned || isCompleted) {
+                    actionButtons += `
+                        <button class="icon-button danger" disabled style="opacity:0.5;cursor:not-allowed;" title="Delete (Disabled)">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                actionButtons += '</div>';
 
                 return `
                     <tr data-request-id="${request.id}">
-                        <td>${request.id}</td>
-                        <td>${escapeHtml(request.address || '')}</td>
+                        <td>${idx + 1}</td>
                         <td>${escapeHtml(request.timeSlot || '')}</td>
                         <td>${renderWasteCategories(request.wasteCategories)}</td>
                         <td>${escapeHtml(formatDate(request.createdAt))}</td>
                         <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
                         <td>${escapeHtml(collector)}</td>
                         <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
-                        <td>
-                            ${canEdit || canCancel || normalizedStatus === 'completed'
-                                ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
-                                   ${normalizedStatus === 'completed' ? `<button class="action-btn view" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}">Rate</button>` : ''}
-                                   ${(canCancel || normalizedStatus === 'completed') ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}`
-                                : '<span style="color:#64748b;">-</span>'}
-                        </td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
             });
