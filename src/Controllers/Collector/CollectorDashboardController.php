@@ -8,6 +8,7 @@ use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
+use Models\Notification;
 
 /**
  * Collector Dashboard Controller
@@ -629,5 +630,29 @@ class CollectorDashboardController extends DashboardController
             exit;
         }
     }
+
+public function notifications(): \Core\Http\Response
+{
+    $userId = (int) ($this->user['id'] ?? 0);
+    $role = $this->user['role'] ?? 'collector'; // adjust if needed
+
+    $notificationModel = new Notification();
+
+    // Fetch latest 100 notifications for this user
+    $notifications = $notificationModel->forUser(
+        $userId,
+        $role,
+        date('Y-m-d 00:00:00'),
+        100
+    );
+
+    $data = [
+        'pageTitle' => 'Notifications',
+        'notifications' => $notifications, // Pass to the view
+        'authUser' => $this->user
+    ];
+
+    return $this->renderDashboard('notification', $data);
+}
 
 }

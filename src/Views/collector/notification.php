@@ -27,6 +27,7 @@ $normalized = array_map(function ($n) {
     ];
 }, $notifications);
 
+
 // Calculate stats
 $totalNotifications = count($normalized);
 $unreadNotifications = count(array_filter($normalized, fn($x) => !$x['isRead'])) ;
@@ -107,7 +108,7 @@ function truncateMessage($message, $length = 80) {
 </div> 
 
 <!-- Notification Detail Modal -->
-<div id="notification-modal" class="modal-overlay" style="display:none;">
+<!-- <div id="notification-modal" class="modal-overlay" style="display:none;">
   <div class="modal-content" style="max-width:600px;">
     <div class="modal-header">
       <h2 id="modal-title"></h2>
@@ -125,7 +126,7 @@ function truncateMessage($message, $length = 80) {
       <button class="btn-secondary" onclick="closeNotificationModal()">Close</button>
     </div>
   </div>
-</div>
+</div> -->
 
 <div id="notification-detail" style="display:none; margin-bottom:1rem;">
   <div class="activity-card">
@@ -146,7 +147,7 @@ function truncateMessage($message, $length = 80) {
 </div>
 
 
-<?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
+<!-- <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
     <?php $id = $_GET['id']; $view = null; foreach ($normalized as $n) { if ($n['id'] === $id) { $view = $n; break; }} ?>
     <?php if ($view): ?>
         <div class="modal-overlay">
@@ -160,10 +161,11 @@ function truncateMessage($message, $length = 80) {
             </div>
         </div>
     <?php endif; ?>
-<?php endif; ?>
+<?php endif; ?> -->
 
 <script>
   // Poll collector notifications endpoint and update in real time
+  const notificationsData = <?= json_encode($normalized) ?>;
   (function () {
     const endpoint = '/api/collector/notifications';
     const statsContainer = document.getElementById('notification-stats');
@@ -242,6 +244,7 @@ function truncateMessage($message, $length = 80) {
       }
     }
 
+
 window.viewNotification = async function (id) {
   try {
     const res = await fetch(`/api/notifications/${id}`, {
@@ -255,22 +258,16 @@ window.viewNotification = async function (id) {
 
     const n = json.data;
 
-    document.getElementById('modal-title').textContent = n.title || 'Notification';
-    document.getElementById('modal-message').textContent = n.message || '';
-    document.getElementById('modal-type').textContent = n.type || 'general';
-    document.getElementById('modal-date').textContent =
-      new Date(n.timestamp).toLocaleString();
+    // Populate detail card
+    document.getElementById('detail-title').textContent = n.title || 'Notification';
+    document.getElementById('detail-message').textContent = n.message || '';
+    document.getElementById('detail-type').textContent = n.type || 'general';
+    document.getElementById('detail-date').textContent = new Date(n.timestamp).toLocaleString();
 
-    const markBtn = document.getElementById('modal-mark-read');
-    if (n.status !== 'read') {
-      markBtn.style.display = 'inline-block';
-      markBtn.onclick = () => markAsRead(id, true);
-    } else {
-      markBtn.style.display = 'none';
-    }
+    // Show the card
+    document.getElementById('notification-detail').style.display = 'block';
 
-    document.getElementById('notification-modal').style.display = 'flex';
-
+    // Mark as read if unread
     if (n.status !== 'read') {
       markAsRead(id);
     }
@@ -278,7 +275,12 @@ window.viewNotification = async function (id) {
   } catch (e) {
     console.error('View failed', e);
   }
+};
+
+function closeDetail() {
+  document.getElementById('notification-detail').style.display = 'none';
 }
+
 
 window.markAsRead = async function (id, refresh = false) {
   try {
@@ -302,6 +304,28 @@ window.markAsRead = async function (id, refresh = false) {
 
 window.closeNotificationModal = function () {
   document.getElementById('notification-modal').style.display = 'none';
+}
+
+function toggleDetail(id) {
+  // Close all other open detail rows
+  document.querySelectorAll('[id^="detail-row-"]').forEach(row => {
+    if (row.id !== `detail-row-${id}`) {
+      row.style.display = 'none';
+    }
+  });
+
+  const detailRow = document.getElementById(`detail-row-${id}`);
+  if (!detailRow) return;
+
+  // Toggle current row
+  detailRow.style.display =
+    detailRow.style.display === 'none' ? 'table-row' : 'none';
+
+  // Mark as read when opened
+  const notification = notificationsState.find(n => n.id == id);
+  if (notification && !notification.isRead) {
+    markAsRead(id);
+  }
 }
 
     // Initial fetch and interval
