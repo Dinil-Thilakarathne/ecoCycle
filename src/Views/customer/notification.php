@@ -42,6 +42,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
         <!-- Filter Tabs + Actions -->
         <div class="action-buttons" style="margin-bottom:2rem;">
+            <a href="?filter=all" class="btn <?php echo $filter === 'all' ? 'btn-primary' : 'btn-outline'; ?>">All</a>
             <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread (<span id="unreadCountInline">0</span>)</a>
             <a href="?filter=pickup" class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
             <a href="?filter=payment" class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
@@ -189,16 +190,26 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
             async function fetchNotifications() {
                 try {
-                    const res = await fetch('/api/notifications', { credentials: 'same-origin' });
+                    const url = '/api/notifications?limit=100'; // Get more for client-side filtering if needed, or implement server-side filter
+                    const res = await fetch(url, { credentials: 'same-origin' });
                     if (!res.ok) throw new Error('Failed to load notifications');
                     const data = await res.json();
                     let notifications = data.notifications || [];
-                    // fallback to dummy if empty
-                    if (!Array.isArray(notifications) || notifications.length === 0) {
-                        notifications = dummyNotifications.slice();
+                    
+                    if (!Array.isArray(notifications)) {
+                        notifications = [];
                     }
+                    
+                    // Render list
                     renderNotifications(notifications);
-                    renderStats(notifications);
+                    
+                    // Render stats from API if available, else calc
+                    if (data.stats) {
+                        renderStatsFromApi(data.stats);
+                    } else {
+                        renderStats(notifications); 
+                    }
+                    
                 } catch (err) {
                     console.error(err);
                     const notifications = dummyNotifications.slice();
@@ -207,20 +218,40 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 }
             }
 
+            function renderStatsFromApi(stats) {
+                document.getElementById('totalNotifications').textContent = stats.total || 0;
+                document.getElementById('unreadNotifications').textContent = stats.unread || 0;
+                document.getElementById('todayNotifications').textContent = stats.today || 0;
+                const inline = document.getElementById('unreadCountInline'); 
+                if (inline) inline.textContent = stats.unread || 0;
+            }
+
             function renderStats(notifications) {
                 const total = notifications.length;
                 const unread = notifications.filter(n => !($booleanToBool(n.read ?? n.is_read ?? n.isRead))).length;
                 const today = notifications.filter(n => new Date(n.timestamp || n.created_at).toDateString() === new Date().toDateString()).length;
+                
                 document.getElementById('totalNotifications').textContent = total;
                 document.getElementById('unreadNotifications').textContent = unread;
                 document.getElementById('todayNotifications').textContent = today;
-                const inline = document.getElementById('unreadCountInline'); if (inline) inline.textContent = unread;
+                const inline = document.getElementById('unreadCountInline'); 
+                if (inline) inline.textContent = unread;
             }
 
             // Helper to defensively read boolean-like values
             function $booleanToBool(v){
-                if (v === true || v === 1 || v === '1' || v === 'true') return true;
+                if (v === true || v === 1 || v === '1' || v === 'true' || v === 'read') return true;
+                if (v === 'unread' || v === 'pending') return false; // Handle status strings
+                
+                // If status field is present
+                if (typeof v === 'string' && v.toLowerCase() === 'read') return true;
+                
                 return false;
+            }
+            
+            function isRead(n) {
+                const status = n.status || n.read || n.is_read || 'unread';
+                return status === 'read' || status === true || status === 1 || status === '1';
             }
 
             function renderNotifications(notifications){
@@ -228,11 +259,12 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 if (!tbody) return;
                 const f = initialFilter;
                 const filtered = notifications.filter(n => {
-                    // hide system notifications
-                    if ((n.category || n.type || '').toLowerCase() === 'system') return false;
-                    if (f === 'unread') return !($booleanToBool(n.read ?? n.is_read ?? n.isRead));
-                    if (f === 'pickup') return (n.category || '').toLowerCase() === 'pickup';
-                    if (f === 'payment') return (n.category || '').toLowerCase() === 'payment';
+                    // hide system notifications unless specifically looked for or in all?
+                    // if ((n.category || n.type || '').toLowerCase() === 'system') return false; 
+                    
+                    if (f === 'unread') return !isRead(n);
+                    if (f === 'pickup') return (n.category || n.type || '').toLowerCase() === 'pickup';
+                    if (f === 'payment') return (n.category || n.type || '').toLowerCase() === 'payment';
                     return true;
                 });
 
@@ -244,26 +276,26 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 tbody.innerHTML = '';
                 filtered.forEach(function(n){
                     const id = n.id || n._id || n.notification_id;
-                    const isRead = $booleanToBool(n.read ?? n.is_read ?? n.isRead);
+                    const read = isRead(n);
                     const tr = document.createElement('tr');
-                    tr.className = 'notification-row ' + (isRead ? '' : 'unread');
+                    tr.className = 'notification-row ' + (read ? '' : 'unread');
                     tr.setAttribute('data-id', id);
                     tr.innerHTML = `
                         <td class="notification-info">
                             <div class="notification-details">
-                                ${isRead ? '' : '<span class="unread-dot" aria-hidden="true"></span>'}
+                                ${read ? '' : '<span class="unread-dot" aria-hidden="true"></span>'}
                                 <div class="notification-title">${escapeHtml(n.title || n.title_text || '')}</div>
                                 <div class="notification-message">${escapeHtml(truncateMessage(n.message || n.body || ''))}</div>
                             </div>
                         </td>
                         <td>
-                            <span class="type-badge ${escapeHtml(n.category || '')}">${escapeHtml((n.category || '').charAt(0).toUpperCase() + (n.category || '').slice(1))}</span>
+                            <span class="type-badge ${escapeHtml(n.category || n.type || 'info')}">${escapeHtml((n.category || n.type || 'info').charAt(0).toUpperCase() + (n.category || n.type || 'info').slice(1))}</span>
                         </td>
                         <td class="time-cell">${escapeHtml(timeAgo(n.timestamp || n.created_at || ''))}</td>
-                        <td><span class="status-badge">${isRead ? 'Read' : 'Unread'}</span></td>
+                        <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
                         <td class="actions-cell">
                             <div class="action-buttons">
-                                ${isRead ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
+                                ${read ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
                                 <button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>
                                 <button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>
                             </div>
@@ -283,14 +315,17 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 try {
                     const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'PUT', credentials: 'same-origin' });
                     if (!res.ok) throw new Error('Failed to mark as read');
-                    // Update row UI
+                    
+                    // Update row UI immediately without refetch
                     const row = document.querySelector('.notification-row[data-id="' + id + '"]');
                     if (row) {
                         row.classList.remove('unread');
-                        const btn = row.querySelector('.action-btn.mark-read'); if (btn) btn.remove();
+                        const btn = row.querySelector('button[data-action="mark-read"]'); if (btn) btn.remove();
                         const badge = row.querySelector('.status-badge'); if (badge) badge.textContent = 'Read';
+                        const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
                     }
-                    // Refresh counts
+                    
+                    // Refresh counts (optional, but good for sync)
                     fetchNotifications();
                 } catch (err) {
                     console.error(err);
@@ -309,21 +344,48 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     alert('Could not mark all as read');
                 }
             }
+            
+            async function deleteNotification(id) {
+                if (!confirm('Are you sure you want to delete this notification?')) return;
+                
+                try {
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id), { 
+                        method: 'DELETE', 
+                        credentials: 'same-origin' 
+                    });
+                    
+                    if (!res.ok) throw new Error('Failed to delete');
+                    
+                    // Remove row
+                    const row = document.querySelector('.notification-row[data-id="' + id + '"]');
+                    if (row) row.remove();
+                    
+                    // Refresh counts
+                    fetchNotifications();
+                    
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not delete notification');
+                }
+            }
 
             function openModal(notification){
                 document.getElementById('modalTitle').textContent = notification.title || '';
-                document.getElementById('modalCategory').textContent = (notification.category || '').charAt(0).toUpperCase() + (notification.category || '').slice(1);
-                document.getElementById('modalPriority').textContent = (notification.priority || '').charAt(0).toUpperCase() + (notification.priority || '').slice(1);
+                document.getElementById('modalCategory').textContent = (notification.category || notification.type || '').charAt(0).toUpperCase() + (notification.category || notification.type || '').slice(1);
+                document.getElementById('modalPriority').textContent = (notification.priority || 'Normal').charAt(0).toUpperCase() + (notification.priority || 'Normal').slice(1);
                 document.getElementById('modalTime').textContent = timeAgo(notification.timestamp || notification.created_at || '');
                 document.getElementById('modalMessage').textContent = notification.message || notification.body || '';
                 document.getElementById('modalReceived').textContent = new Date(notification.timestamp || notification.created_at || '').toLocaleString();
                 const markBtn = document.getElementById('modalMarkRead');
                 if (markBtn) {
-                    if ($booleanToBool(notification.read ?? notification.is_read ?? notification.isRead)) {
+                    if (isRead(notification)) {
                         markBtn.style.display = 'none';
                     } else {
                         markBtn.style.display = '';
-                        markBtn.onclick = function(){ markAsRead(notification.id || notification._id); };
+                        markBtn.onclick = function(){ 
+                            markAsRead(notification.id || notification._id); 
+                            closeModal();
+                        };
                     }
                 }
                 document.getElementById('viewNotificationModal').style.display = 'block';
@@ -343,14 +405,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     const id = actionEl.getAttribute('data-id');
                     if (action === 'mark-read' && id) { return markAsRead(id); }
                     if (action === 'view' && id) { return openNotificationById(id); }
-                    if (action === 'delete' && id) {
-                        if (!confirm('Are you sure you want to delete this notification?')) return;
-                        const removed = removeRowById(id);
-                        if (!removed) return;
-                        const href = '?action=delete&id=' + encodeURIComponent(id) + '&filter=' + encodeURIComponent(initialFilter || 'all');
-                        fetch(href, { method: 'GET', credentials: 'same-origin' }).catch(err=>console.error('Delete failed', err));
-                        return;
-                    }
+                    if (action === 'delete' && id) { return deleteNotification(id); }
                 }
 
                 const modalClose = target.closest && (target.closest('#modalClose') || target.closest('#modalClose2'));
@@ -360,19 +415,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 if (markAll) { e.preventDefault(); if (confirm('Mark all notifications as read?')) markAllRead(); return; }
             });
 
-            function removeRowById(id) {
-                var row = document.querySelector('.notification-row[data-id="' + id + '"]');
-                if (!row) return false;
-                var unread = row.classList.contains('unread');
-                row.parentNode.removeChild(row);
-                // refresh counts by refetching
-                fetchNotifications();
-                return true;
-            }
-
             // Find a notification by id and open modal (uses already loaded list from the DOM)
             function openNotificationById(id){
-                // As a fallback, re-fetch and find
+                // Re-fetch to be sure or find in current list
+                // For simplicity, find in rendered rows or globally stored list. 
+                // We didn't store list globally, so let's refetch single if possible, or just fetch all
                 fetch('/api/notifications', { credentials: 'same-origin' }).then(r=>r.json()).then(data=>{
                     var found = (data.notifications || []).find(n => (n.id || n._id || n.notification_id) == id);
                     if (found) openModal(found);

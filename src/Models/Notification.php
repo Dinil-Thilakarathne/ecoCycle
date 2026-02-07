@@ -146,27 +146,38 @@ class Notification extends BaseModel
         );
     }
 
-    public function markAllAsRead(int $userId): bool
+    public function markAllAsRead(int $userId, string $role = ''): bool
     {
+        $roleGroup = $role ? $role . 's' : '';
+        // Same logic as forUser/getStats to target correct notifications
+        
          if ($this->db->isPgsql()) {
+             // PGSQL update with complex where
              return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ?
-                    )",
-                ['user:' . $userId]
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            WHERE value = ?
+                        )
+                   )",
+                [$role, $roleGroup, 'user:' . $userId]
              );
          } else {
+             // MySQL update
              return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))",
-                [$userId]
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                   )",
+                [$role, $roleGroup, $userId]
              );
          }
     }
@@ -203,7 +214,60 @@ class Notification extends BaseModel
             );
         }
         
+        
         return (int) ($result['count'] ?? 0);
+    }
+
+    public function getStats(int $userId, string $role = ''): array
+    {
+        $roleGroup = $role ? $role . 's' : '';
+        
+        // Base where clause for user targeting
+        $userWhere = "
+            (
+                recipient_group IN ('all', 'users', ?, ?)
+                OR 
+        ";
+
+        // DB specific JSON check
+        if ($this->db->isPgsql()) {
+            $userWhere .= "
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                    WHERE value = ?
+                )
+            )";
+            $params = [$role, $roleGroup, 'user:' . $userId];
+        } else {
+            $userWhere .= "
+                JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+            )";
+            $params = [$role, $roleGroup, $userId];
+        }
+
+        // Queries
+        // Total
+        $totalSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE {$userWhere}";
+        $total = $this->db->fetch($totalSql, $params)['count'] ?? 0;
+
+        // Unread
+        $unreadSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE status != 'read' AND {$userWhere}";
+        $unread = $this->db->fetch($unreadSql, $params)['count'] ?? 0;
+
+        // Today
+        if ($this->db->isPgsql()) {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE created_at::date = CURRENT_DATE AND {$userWhere}";
+        } else {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE DATE(created_at) = CURDATE() AND {$userWhere}";
+        }
+        $today = $this->db->fetch($todaySql, $params)['count'] ?? 0;
+
+        return [
+            'total' => (int)$total,
+            'unread' => (int)$unread,
+            'today' => (int)$today
+        ];
     }
 
     public function getAll(int $limit = 100): array
@@ -241,5 +305,10 @@ class Notification extends BaseModel
                 'recipients' => $recipients,
             ];
         }, $rows);
+    }
+
+    public function delete(int $id): bool
+    {
+        return $this->db->query("DELETE FROM {$this->table} WHERE id = ?", [$id]);
     }
 }

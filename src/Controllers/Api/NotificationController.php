@@ -36,16 +36,23 @@ class NotificationController extends BaseController
         $limit = (int) $request->input('limit', 20);
         if($user['role'] === 'admin') {
             $notifications = $this->model->getAll($limit);
+            // Admin stats might be different, but for now reuse user logic or implement admin specific
+            // Since admin sees all, we might want system-wide stats.
+            // For simplicity, let's just return 0s or implement admin stats later if needed.
+            // Or better, let's just count all for admin.
+            $stats = ['total' => 0, 'unread' => 0, 'today' => 0]; // Placeholder or implement for admin
         } elseif ($user['role'] === 'company') {
             $notifications = $this->model->forCompany($user['id'], $limit);
+             // TODO: implement forCompanyStats
+            $stats = ['total' => 0, 'unread' => 0, 'today' => 0];
         } else {
             $notifications = $this->model->forUser($user['id'], $user['role'], $limit);
+            $stats = $this->model->getStats($user['id'], $user['role']);
         }
-        $unreadCount = $this->model->getUnreadCount($user['id'], $user['role']);
-
+        
         return $this->json([
             'notifications' => $notifications,
-            'unread_count' => $unreadCount
+            'stats' => $stats
         ]);
     }
 
@@ -111,7 +118,7 @@ class NotificationController extends BaseController
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-        $this->model->markAllAsRead($user['id']);
+        $this->model->markAllAsRead($user['id'], $user['role']);
 
         return $this->json(['message' => 'All notifications marked as read']);
     }
@@ -129,5 +136,20 @@ class NotificationController extends BaseController
         $count = $this->model->getUnreadCount($user['id'], $user['role']);
 
         return $this->json(['count' => $count]);
+    }
+
+    /**
+     * Delete a notification
+     */
+    public function destroy(int $id): Response
+    {
+        $user = auth();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $this->model->delete($id);
+
+        return $this->json(['message' => 'Notification deleted']);
     }
 }
