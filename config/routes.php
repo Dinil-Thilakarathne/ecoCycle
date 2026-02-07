@@ -480,6 +480,10 @@ $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationCon
     'Middleware\AuthMiddleware',
 ]);
 
+$router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
+    'Middleware\AuthMiddleware',
+]);
+
 $router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
