@@ -268,6 +268,8 @@
   width: min(640px, 95vw);
   position: relative;
   box-shadow: 0 35px 60px rgba(15, 23, 42, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .form-modal .close {
@@ -485,9 +487,17 @@
   color: var(--neutral-900);
 }
 
-.customer-dashboard-legend__item:nth-child(1) .customer-dashboard-legend__value { color: #1ce36a; }
-.customer-dashboard-legend__item:nth-child(2) .customer-dashboard-legend__value { color: #3b82f6; }
-.customer-dashboard-legend__item:nth-child(3) .customer-dashboard-legend__value { color: #10b981; }
+.customer-dashboard-legend__item:nth-child(1) .customer-dashboard-legend__value {
+  color: #1ce36a;
+}
+
+.customer-dashboard-legend__item:nth-child(2) .customer-dashboard-legend__value {
+  color: #3b82f6;
+}
+
+.customer-dashboard-legend__item:nth-child(3) .customer-dashboard-legend__value {
+  color: #10b981;
+}
 
 .customer-dashboard-legend__label {
   font-size: var(--text-sm);
