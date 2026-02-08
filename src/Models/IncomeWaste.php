@@ -13,46 +13,6 @@ class IncomeWaste
         $this->db = new Database();
     }
 
-    /**
-     * ONE weight → ONE amount
-     */
-    /*public function saveWeightAndCalculateSingle(string $pickupId, float $weight): float
-    {
-        $row = $this->db->fetch(
-            "SELECT wc.price_per_unit
-             FROM pickup_request_wastes prw
-             JOIN waste_categories wc ON wc.id = prw.waste_category_id
-             WHERE prw.pickup_id = ?
-             LIMIT 1",
-            [$pickupId]
-        );
-
-        if (!$row) {
-            throw new \Exception('No waste found');
-        }
-
-        $pricePerUnit = (float)$row['price_per_unit'];
-        $amount       = $weight * $pricePerUnit;
-
-        // update ALL wastes with same weight & amount
-        $this->db->query(
-            "UPDATE pickup_request_wastes
-             SET weight = ?, amount = ?
-             WHERE pickup_id = ?",
-            [$weight, $amount, $pickupId]
-        );
-
-        // update main pickup
-        $this->db->query(
-            "UPDATE pickup_requests
-             SET weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?",
-            [$weight, $amount, $pickupId]
-        );
-
-        return $amount;
-    }*/
-
 public function saveWeightAndCalculateSingle(string $pickupId, float $weight): float
 {
     // 1️⃣ Get ONE predefined price_per_unit
@@ -93,5 +53,25 @@ public function saveWeightAndCalculateSingle(string $pickupId, float $weight): f
     return $amount;
 }
 
+public function getWasteCollectionForCollector(int $collectorId, int $limit = 50): array
+    {
+        $sql = "
+            SELECT 
+                pr.id AS pickup_id,
+                pr.customer_id,
+                u.name AS customer_name,
+                wc.name AS category,
+                prw.weight,
+                prw.amount
+            FROM pickup_requests pr
+            LEFT JOIN users u ON u.id = pr.customer_id
+            LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+            LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
+            WHERE pr.collector_id = ?
+            ORDER BY pr.id DESC
+            LIMIT ?
+        ";
 
+        return $this->db->fetchAll($sql, [$collectorId, $limit]);
+    }
 }

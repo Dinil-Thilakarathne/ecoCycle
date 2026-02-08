@@ -618,3 +618,30 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
     'Middleware\Roles\AdminOnly',
 ]);
 
+
+$router->get(
+    '/api/collector/metrics',
+    'Controllers\Collector\CollectorFeedbackController@getMetrics',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+$router->get(
+    '/api/collector/feedback',
+    'Controllers\Collector\CollectorFeedbackController@getFeedback',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+$router->post(
+    '/api/collector/feedback',
+    'Controllers\Collector\CollectorFeedbackController@addFeedback',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
