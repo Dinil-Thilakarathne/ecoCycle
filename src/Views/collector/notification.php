@@ -107,8 +107,8 @@ function truncateMessage($message, $length = 80) {
     </div>
 </div> 
 
-<!-- Notification Detail Modal -->
-<!-- <div id="notification-modal" class="modal-overlay" style="display:none;">
+<!-- Notification Detail Modal
+<div id="notification-modal" class="modal-overlay" style="display:none;">
   <div class="modal-content" style="max-width:600px;">
     <div class="modal-header">
       <h2 id="modal-title"></h2>
@@ -118,7 +118,7 @@ function truncateMessage($message, $length = 80) {
       <p id="modal-message"></p>
       <div class="detail-timestamp">
         <strong>Type:</strong> <span id="modal-type"></span><br>
-        <strong>Received:</strong> <span id="modal-date"></span>
+        <strong>Date:</strong> <span id="modal-date"></span>
       </div>
     </div>
     <div class="modal-footer">
@@ -128,23 +128,50 @@ function truncateMessage($message, $length = 80) {
   </div>
 </div> -->
 
-<div id="notification-detail" style="display:none; margin-bottom:1rem;">
-  <div class="activity-card">
-    <div class="activity-card__header">
-      <h3 class="activity-card__title">
-        <i class="fa-solid fa-envelope-open-text"></i>
-        <span id="detail-title"></span>
-      </h3>
-      <button onclick="closeDetail()" style="background:none;border:none;font-size:1.2rem;">×</button>
+<!-- Notification Detail Modal -->
+<div id="notification-detail-modal"
+     class="user-modal"
+     role="dialog"
+     aria-modal="true"
+     aria-hidden="true">
+
+  <div class="user-modal__dialog">
+    <button class="close"
+            aria-label="Close"
+            onclick="closeNotificationModal()">
+      &times;
+    </button>
+
+    <h3>Notification Details</h3>
+
+    <div class="user-modal__grid">
+      <div><strong>Title</strong></div>
+      <div class="nd-title"></div>
+
+      <div><strong>Message</strong></div>
+      <div class="nd-message"></div>
+
+      <div><strong>Type</strong></div>
+      <div class="nd-type"></div>
+
+      <div><strong>Date</strong></div>
+      <div class="nd-date"></div>
+
+      <div><strong>Status</strong></div>
+      <div class="nd-status"></div>
     </div>
 
-    <div class="activity-card__content">
-      <p>Type: <strong id="detail-type"></strong></p>
-      <p>Date: <strong id="detail-date"></strong></p>
-      <p id="detail-message" style="line-height:1.6;"></p>
+    <div style="margin-top: var(--space-8); text-align: right;">
+      <button class="btn" onclick="closeNotificationModal()">Close</button>
+      <button class="btn btn-primary"
+              id="markNotificationReadBtn"
+              onclick="markNotificationAsRead()">
+        Mark as Read
+      </button>
     </div>
   </div>
 </div>
+
 
 
 <!-- <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
@@ -245,66 +272,179 @@ function truncateMessage($message, $length = 80) {
     }
 
 
-window.viewNotification = async function (id) {
-  try {
-    const res = await fetch(`/api/notifications/${id}`, {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    });
+// window.viewNotification = async function (id) {
+//   try {
+//     const res = await fetch(`/api/notifications/${id}`, {
+//       headers: { 'X-Requested-With': 'XMLHttpRequest' }
+//     });
 
-    if (!res.ok) return;
+//     if (!res.ok) return;
 
-    const json = await res.json();
-    if (!json.success) return;
+//     const json = await res.json();
+//     if (!json.success) return;
 
-    const n = json.data;
+//     const n = json.data;
 
-    // Populate detail card
-    document.getElementById('detail-title').textContent = n.title || 'Notification';
-    document.getElementById('detail-message').textContent = n.message || '';
-    document.getElementById('detail-type').textContent = n.type || 'general';
-    document.getElementById('detail-date').textContent = new Date(n.timestamp).toLocaleString();
+//     // Populate detail card
+//     document.getElementById('detail-title').textContent = n.title || 'Notification';
+//     document.getElementById('detail-message').textContent = n.message || '';
+//     document.getElementById('detail-type').textContent = n.type || 'general';
+//     document.getElementById('detail-date').textContent = new Date(n.timestamp).toLocaleString();
 
-    // Show the card
-    document.getElementById('notification-detail').style.display = 'block';
+//     // Show the card
+//     document.getElementById('notification-detail').style.display = 'block';
 
-    // Mark as read if unread
-    if (n.status !== 'read') {
-      markAsRead(id);
+//     // Mark as read if unread
+//     if (n.status !== 'read') {
+//       markAsRead(id);
+//     }
+
+//   } catch (e) {
+//     console.error('View failed', e);
+//   }
+// };
+
+function viewNotification(el, notificationId) {
+    const record = (window.__NOTIFICATION_DATA || [])
+        .find(n => (n.id || '') == notificationId);
+
+    const modal = document.getElementById('notification-detail-modal');
+    if (!record || !modal) return;
+
+    // Populate modal fields
+    modal.querySelector('#modal-title').textContent =
+        record.title || 'Notification';
+
+    modal.querySelector('#modal-message').textContent =
+        record.message || '';
+
+    modal.querySelector('#modal-type').textContent =
+        record.type || 'general';
+
+    modal.querySelector('#modal-date').textContent =
+        new Date(record.created_at || record.timestamp).toLocaleString();
+
+    // Save current id (IMPORTANT for markAsRead)
+    modal.setAttribute('data-current-id', record.id);
+
+    // Show / hide mark-read button
+    const markBtn = document.getElementById('modal-mark-read');
+    if (record.status === 'read') {
+        markBtn.style.display = 'none';
+    } else {
+        markBtn.style.display = '';
+        markBtn.disabled = false;
+        markBtn.textContent = 'Mark as Read';
     }
 
-  } catch (e) {
-    console.error('View failed', e);
-  }
-};
+    // Open modal (same style as pickup)
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
 
-function closeDetail() {
-  document.getElementById('notification-detail').style.display = 'none';
+    // OPTIONAL: visually update list immediately
+    if (record.status !== 'read') {
+        record.status = 'read';
+        const row = document.querySelector(`tr[data-id="${record.id}"]`);
+        if (row) row.classList.remove('unread');
+    }
 }
 
 
-window.markAsRead = async function (id, refresh = false) {
-  try {
-    const res = await fetch(`/api/notifications/${id}/read`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    });
-
-    const json = await res.json();
-    if (!json.success) return;
-
-    // Refresh table after marking read
-    if (refresh) closeNotificationModal();
-  } catch (e) {
-    console.error('Mark read failed', e);
-  }
+// function closeDetail() {
+//   document.getElementById('notification-detail').style.display = 'none';
+// }
+function closeNotificationModal() {
+  const modal = document.getElementById('notification-detail-modal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
 }
 
-window.closeNotificationModal = function () {
-  document.getElementById('notification-modal').style.display = 'none';
+
+
+// window.markAsRead = async function (id, refresh = false) {
+//   try {
+//     const res = await fetch(`/api/notifications/${id}/read`, {
+//       method: 'PUT',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'X-Requested-With': 'XMLHttpRequest'
+//       }
+//     });
+
+//     const json = await res.json();
+//     if (!json.success) return;
+
+//     // Refresh table after marking read
+//     if (refresh) closeNotificationModal();
+//   } catch (e) {
+//     console.error('Mark read failed', e);
+//   }
+// }
+
+// window.closeNotificationModal = function () {
+//   document.getElementById('notification-modal').style.display = 'none';
+// }
+
+// function closeDetailModal() {
+//         const modal = document.getElementById('notification-modal');
+//         modal.classList.remove('open');
+//         modal.setAttribute('aria-hidden', 'true');
+//     }
+
+async function markAsRead() {
+    const modal = document.getElementById('notification-detail-modal');
+    const notificationId = modal.getAttribute('data-current-id');
+    if (!notificationId) return;
+
+    const btn = document.getElementById('modal-mark-read');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Marking...';
+
+    try {
+        const response = await fetch(`/api/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok || !payload.success) {
+            const msg = payload.message || 'Failed to mark notification as read.';
+            throw new Error(msg);
+        }
+
+        /* ---------- UI UPDATE ---------- */
+
+        // Update row visually (if notification list exists)
+        const row = document.querySelector(`tr[data-id="${notificationId}"]`);
+        if (row) {
+            row.classList.remove('unread');
+            const badge = row.querySelector('.status-badge');
+            if (badge) badge.textContent = 'Read';
+        }
+
+        // Optional: decrease unread count badge
+        const badgeCount = document.getElementById('notificationCount');
+        if (badgeCount) {
+            const count = Math.max(0, parseInt(badgeCount.textContent || '1') - 1);
+            badgeCount.textContent = count;
+            if (count === 0) badgeCount.style.display = 'none';
+        }
+
+        // Close modal after success
+        closeNotificationModal();
+
+    } catch (error) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert(error.message || 'Unable to mark notification as read.');
+    }
 }
+
 
 function toggleDetail(id) {
   // Close all other open detail rows
