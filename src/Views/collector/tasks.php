@@ -120,11 +120,8 @@ function getStatusBadge($status)
                 <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
                     enter a valid weight greater than 0.</div>
             </div>
-<div id="totalPriceRow" style="margin-top:0.5rem; font-weight:600; display:none;">
-    Total Price: Rs.<span id="calculatedPrice">0.00</span>
-</div>
 
-            <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div>
+            <!-- <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div> -->
         </div>
 
         <div style="margin-top: var(--space-8); text-align: right;">
