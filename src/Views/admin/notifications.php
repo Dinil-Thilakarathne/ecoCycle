@@ -1,27 +1,4 @@
 <?php
-// System alert configurations (keeping these hardcoded for now as they seem to be feature toggles/static config)
-$systemAlerts = [
-    [
-        'name' => 'Pickup Reminders',
-        'description' => 'Automatically remind customers about scheduled pickups',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'Bid Notifications',
-        'description' => 'Notify companies about new bidding opportunities',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'Payment Alerts',
-        'description' => 'Alert users about payment status changes',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'System Maintenance',
-        'description' => 'Notify all users about scheduled maintenance',
-        'status' => 'scheduled'
-    ]
-];
 
 function getAlertStatusTag($status)
 {
@@ -140,38 +117,6 @@ function getAlertStatusTag($status)
                     <!-- Notifications will be loaded here via JS -->
                     <div style="padding:2rem;text-align:center;color:var(--neutral-500);">Loading notifications...</div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- System Alerts Card -->
-    <div class="activity-card" style="margin-top: var(--space-8);">
-        <div class="activity-card__header">
-            <h3 class="activity-card__title">
-                <i class="fa-solid fa-triangle-exclamation" style="margin-right: var(--space-2);"></i>
-                System Alerts
-            </h3>
-            <p class="activity-card__description">Configure automatic system alerts and notifications</p>
-        </div>
-        <div class="activity-card__content">
-            <div style="display: grid; gap: var(--space-4); grid-template-columns: repeat(3, 1fr);">
-                <?php foreach ($systemAlerts as $alert): ?>
-                    <div class="alert-box">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <h4 class="alert-box__title"><?= htmlspecialchars($alert['name']) ?></h4>
-                            <!-- <?= getAlertStatusTag($alert['status']) ?> -->
-                        </div>
-                        <p style="font-size: var(--text-sm); color: var(--neutral-600);">
-                            <?= htmlspecialchars($alert['description']) ?>
-                        </p>
-                        <div style="margin-top: var(--space-2);">
-                            <button class="btn btn-sm btn-outline"
-                                onclick="toggleAlert('<?= htmlspecialchars($alert['name']) ?>')">
-                                Configure
-                            </button>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
             </div>
         </div>
     </div>

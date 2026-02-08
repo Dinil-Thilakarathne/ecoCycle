@@ -72,10 +72,11 @@ class PickupRequest extends BaseModel
 
     public function listAll(?string $timeSlot = null): array
     {
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id";
+                LEFT JOIN users col ON col.id = pr.collector_id
+                LEFT JOIN vehicles v ON v.id = pr.vehicle_id";
         $params = [];
         if ($timeSlot !== null && $timeSlot !== '') {
             $sql .= " WHERE pr.time_slot = ?";
@@ -101,10 +102,11 @@ class PickupRequest extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
              FROM {$this->table} pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN users col ON col.id = pr.collector_id
+             LEFT JOIN vehicles v ON v.id = pr.vehicle_id
              WHERE pr.id = ?
              LIMIT 1",
             [$id]
@@ -175,7 +177,7 @@ class PickupRequest extends BaseModel
 
     public function update(string $id, array $data): bool
     {
-        $allowed = ['collector_id', 'collector_name', 'status', 'time_slot', 'scheduled_at', 'address'];
+        $allowed = ['collector_id', 'collector_name', 'vehicle_id', 'status', 'time_slot', 'scheduled_at', 'address'];
         $filtered = [];
         foreach ($data as $column => $value) {
             if (in_array($column, $allowed, true)) {
@@ -487,6 +489,9 @@ class PickupRequest extends BaseModel
             'statusRaw' => $row['status'] ?? 'pending',
             'collectorId' => $row['collector_id'],
             'collectorName' => $row['collector_name'] ?? '',
+            'vehicleId' => $row['vehicle_id'] ?? null,
+            'vehiclePlate' => $row['vehicle_plate'] ?? '',
+            'vehicleType' => $row['vehicle_type'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
             'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
