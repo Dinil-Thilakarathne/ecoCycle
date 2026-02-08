@@ -67,10 +67,13 @@ function resolveReservePrice(round) {
 
 function getDisplayBidValue(round) {
   if (!round) return 0;
+  // ONLY return the current highest bid if it exists and is > 0
   const highest = Number(round.currentHighestBid ?? round.current_highest_bid);
   if (Number.isFinite(highest) && highest > 0) return highest;
-  const reserve = resolveReservePrice(round);
-  return reserve !== null ? reserve : 0;
+
+  // Do NOT fallback to reserve price for "Current Highest" column
+  // The column should show "-" if no bids are placed.
+  return 0;
 }
 
 function parseEndTime(raw) {
@@ -201,7 +204,12 @@ function renderBiddingRow(round) {
     escapeHtml(String(round.quantity || "")) +
     " " +
     escapeHtml(round.unit || "");
-  const currentBid = formatCurrency(getDisplayBidValue(round));
+  const currentBidVal = getDisplayBidValue(round);
+  const currentBid =
+    currentBidVal > 0
+      ? formatCurrency(currentBidVal)
+      : '<span style="color:#9ca3af;">-</span>';
+
   const biddingCompany = escapeHtml(round.biddingCompany || "—");
   const timeRemaining = formatTimeRemainingText(round.endTime);
   const status = renderStatusBadge(round.status || "pending");
@@ -241,6 +249,7 @@ function renderBiddingRow(round) {
         <td class="font-medium">${lotId}</td>
         <td>${wasteCategory}</td>
         <td>${quantity}</td>
+        <td><div class="cell-with-icon">${formatCurrency(startingBid)}</div></td>
         <td><div class="cell-with-icon">${currentBid}</div></td>
         <td>${biddingCompany}</td>
         <td><div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${timeRemaining}</div></td>
@@ -258,16 +267,28 @@ function updateBiddingRow(round) {
   if (cells[1]) cells[1].textContent = round.wasteCategory || "";
   if (cells[2])
     cells[2].textContent = `${round.quantity || ""} ${round.unit || ""}`;
+
+  // Update starting bid at index 3
   if (cells[3])
-    cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(
-      getDisplayBidValue(round),
-    )}</div>`;
-  if (cells[4]) cells[4].textContent = round.biddingCompany || "—";
-  if (cells[5])
-    cells[5].innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(
+    cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(round.startingBid || 0)}</div>`;
+
+  // Update current highest bid at index 4
+  if (cells[4]) {
+    const val = getDisplayBidValue(round);
+    cells[4].innerHTML = `<div class="cell-with-icon">${val > 0 ? formatCurrency(val) : '<span style="color:#9ca3af;">-</span>'}</div>`;
+  }
+
+  // Update leading company at index 5
+  if (cells[5]) cells[5].textContent = round.biddingCompany || "—";
+
+  // Update time remaining at index 6
+  if (cells[6])
+    cells[6].innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(
       round.endTime,
     )}</div>`;
-  if (cells[6]) cells[6].innerHTML = renderStatusBadge(round.status);
+
+  // Update status at index 7
+  if (cells[7]) cells[7].innerHTML = renderStatusBadge(round.status);
 }
 
 function removeBiddingRow(roundId) {
@@ -333,6 +354,7 @@ window.createNewLot = function () {
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:6px;">Starting Bid (Rs)</label>
                     <input type="number" name="startingBid" min="0" step="0.01" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
+                    <small style="color:#6b7280;font-size:0.8em;">Auto-calculated based on quantity & market price</small>
                 </div>
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:6px;">End Time</label>
@@ -382,6 +404,10 @@ window.createNewLot = function () {
           const avail = parseFloat(res.available);
           const unit = res.unit || "kg";
 
+          // Store pricing info on the element for easy access
+          quantityInput.dataset.pricePerUnit = res.pricePerUnit || 0;
+          quantityInput.dataset.markupPercentage = res.markupPercentage || 0;
+
           if (avail > 0) {
             availableDisplay.value = `${avail.toLocaleString()} ${unit}`;
           } else {
@@ -391,6 +417,7 @@ window.createNewLot = function () {
           if (avail > 0) {
             quantityInput.disabled = false;
             quantityInput.setAttribute("max", avail);
+            quantityInput.classList.remove("not-allowed");
 
             qtyHint.style.color = "#6b7280";
             qtyHint.textContent = `Max: ${avail}`;
@@ -410,7 +437,6 @@ window.createNewLot = function () {
           }
 
           // Ensure unit matches if possible or warn?
-          // unique select usually defaults to kg, backend handles conversion if needed but here we assume strict unit match for simplicity or just display
           if (unitSelect) unitSelect.value = unit;
         }
       } catch (e) {
@@ -418,18 +444,29 @@ window.createNewLot = function () {
         availableDisplay.value = "Error";
       }
 
-      // Min Bid Logic
-      const minMap = window.__MINIMUM_BIDS || {};
-      const minValRaw = minMap[cat.toLowerCase()];
-      const minVal =
-        typeof minValRaw !== "undefined" ? parseFloat(minValRaw) : NaN;
-      if (!isNaN(minVal)) {
-        startingBidInput.value = Number(minVal).toFixed(2);
-        startingBidInput.setAttribute("min", String(minVal));
-      } else {
-        startingBidInput.removeAttribute("min");
-      }
+      // Min Bid Logic removed or replaced by auto-calc
+      // We will add an event listener to quantityInput to recalculate bid
+      calculateStartingBid();
     });
+
+    quantityInput.addEventListener("input", calculateStartingBid);
+
+    function calculateStartingBid() {
+      const qty = parseFloat(quantityInput.value) || 0;
+      const price = parseFloat(quantityInput.dataset.pricePerUnit) || 0;
+      const markup = parseFloat(quantityInput.dataset.markupPercentage) || 0;
+
+      if (qty > 0 && price > 0) {
+        // Formula: Quantity * (Price + (Price * Markup / 100))
+        // This assumes markup is a percentage added to the base price
+        const unitPriceWithMarkup = price + (price * markup) / 100;
+        const total = qty * unitPriceWithMarkup;
+
+        startingBidInput.value = total.toFixed(2);
+      } else {
+        startingBidInput.value = "";
+      }
+    }
   }
 
   Modal.open({
@@ -526,6 +563,12 @@ window.createNewLot = function () {
 
             const tbody = document.querySelector(".data-table tbody");
             if (tbody) {
+              // Remove empty state row if exists
+              const emptyRow = tbody.querySelector('tr[data-empty="true"]');
+              if (emptyRow) {
+                emptyRow.remove();
+              }
+
               const tr = document.createElement("tr");
               tr.setAttribute("data-id", created.id);
               tr.innerHTML = renderBiddingRow(created);
