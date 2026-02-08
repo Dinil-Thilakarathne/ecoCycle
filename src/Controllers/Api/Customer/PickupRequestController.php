@@ -61,13 +61,18 @@ class PickupRequestController extends BaseController
 
             // Trigger Notification to Admins
             if ($record && isset($record['id'])) {
-                $this->notification->create([
+                $notificationData = [
                     'type' => 'pickup_request',
                     'title' => 'New Pickup Request',
                     'message' => "New pickup request received (ID: {$record['id']}) from Customer " . ($user['username'] ?? $user['name'] ?? 'Unknown'),
                     'recipient_group' => 'admin',
                     'status' => 'pending'
-                ]);
+                ];
+
+                $this->notification->create($notificationData);
+
+                // Send email notification
+                sendNotificationEmail($notificationData);
             }
 
         } catch (\Throwable $e) {
