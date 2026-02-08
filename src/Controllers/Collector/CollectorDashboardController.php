@@ -666,6 +666,8 @@ public function getMetrics(Request $request)
         exit;
     }
 }
+
+
     /**
      * GET /api/collector/feedback
      * Returns recent feedback records
@@ -753,7 +755,10 @@ public function getWasteCollection(\Core\Http\Request $request)
         }
 
         $incomeWaste = new \Models\IncomeWaste();
-        $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
+        // $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
+        $limit = (int) ($request->query('limit') ?? 50);
+$records = $incomeWaste->getWasteCollectionForCollector($collectorId, $limit);
+
 
         // Clean the data to ensure JS can parse numbers correctly
         $formattedRecords = array_map(function($r) {
@@ -779,6 +784,19 @@ public function getWasteCollection(\Core\Http\Request $request)
         exit;
     }
 }
+
+public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
+{
+    $sql = "
+        SELECT COUNT(*) AS count
+        FROM {$this->table}
+        WHERE collector_id = ? AND rating <= ?
+    ";
+
+    $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
+    return (int) ($row['count'] ?? 0);
+}
+
 }
 
 

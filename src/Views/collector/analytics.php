@@ -277,7 +277,9 @@ $collectorFeedback = []; // Will be populated by JavaScript
 
 // 1. Configuration: Set the collector ID here 
 // (In a real app, this might come from a hidden input or session variable)
-const CURRENT_COLLECTOR_ID = 1; 
+// const CURRENT_COLLECTOR_ID = 1; 
+
+const CURRENT_COLLECTOR_ID = <?= (int)($this->user['id'] ?? 0) ?>;
 
 /**
  * Main Orchestrator: Fetches all data for the page
@@ -296,7 +298,11 @@ async function refreshDashboard() {
 
         if (metricsReq.ok) {
             const mData = await metricsReq.json();
-            updateMetricsCards(mData.data.feedbackMetrics);
+            // updateMetricsCards(mData.data.feedbackMetrics);
+            if (mData.success && mData.data?.feedbackMetrics) {
+    updateMetricsCards(mData.data.feedbackMetrics);
+}
+
         }
 
         if (feedbackReq.ok) {
