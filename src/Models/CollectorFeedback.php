@@ -15,203 +15,88 @@ class CollectorFeedback
     }
 
     /**
-     * Get all feedback for a specific collector
+     * Get feedback for a specific collector
      */
     public function getCollectorFeedback(int $collectorId, int $limit = 50, int $offset = 0): array
     {
         return $this->db->fetchAll(
-            "SELECT cf.id, cf.rating, cf.feedback, cf.feedback_type, cf.status, 
-                    cf.created_at, u.name as collector_name, cu.name as customer_name
-             FROM {$this->table} cf
-             LEFT JOIN users u ON cf.collector_id = u.id
-             LEFT JOIN users cu ON cf.customer_id = cu.id
-             WHERE cf.collector_id = ? AND cf.status = 'active'
-             ORDER BY cf.created_at DESC
+            "SELECT
+                id,
+                collector_id,
+                collector_name,
+                rating,
+                description AS feedback,
+                created_at
+             FROM {$this->table}
+             WHERE collector_id = ?
+             ORDER BY created_at DESC
              LIMIT ? OFFSET ?",
             [$collectorId, $limit, $offset]
         );
     }
 
     /**
-     * Get average rating for a collector
+     * Get average rating for collector
      */
     public function getAverageRating(int $collectorId): float
     {
-        $result = $this->db->fetchOne(
-            "SELECT AVG(rating) as avg_rating FROM {$this->table} 
-             WHERE collector_id = ? AND status = 'active'",
-            [$collectorId]
-        );
-        return (float)($result['avg_rating'] ?? 0);
-    }
-
-    /**
-     * Get rating breakdown (count by star rating)
-     */
-    public function getRatingBreakdown(int $collectorId): array
-    {
-        return $this->db->fetchAll(
-            "SELECT rating, COUNT(*) as count
+        $row = $this->db->fetchOne(
+            "SELECT AVG(rating) AS avg_rating
              FROM {$this->table}
-             WHERE collector_id = ? AND status = 'active'
-             GROUP BY rating
-             ORDER BY rating DESC",
+             WHERE collector_id = ?",
             [$collectorId]
         );
+
+        return (float) ($row['avg_rating'] ?? 0);
     }
 
     /**
-     * Get all feedback with optional filtering
-     */
-    public function getAllFeedback(
-        int $limit = 50,
-        int $offset = 0,
-        string $status = 'active',
-        ?string $sortBy = 'created_at'
-    ): array {
-        $allowed_sorts = ['created_at', 'rating', 'collector_id'];
-        $sortBy = in_array($sortBy, $allowed_sorts) ? $sortBy : 'created_at';
-
-        return $this->db->fetchAll(
-            "SELECT cf.id, cf.collector_id, cf.rating, cf.feedback, cf.feedback_type, 
-                    cf.status, cf.created_at, u.name as collector_name, cu.name as customer_name
-             FROM {$this->table} cf
-             LEFT JOIN users u ON cf.collector_id = u.id
-             LEFT JOIN users cu ON cf.customer_id = cu.id
-             WHERE cf.status = ?
-             ORDER BY cf.{$sortBy} DESC
-             LIMIT ? OFFSET ?",
-            [$status, $limit, $offset]
-        );
-    }
-
-    /**
-     * Add new feedback
-     */
-    public function create(array $data): array
-    {
-        $this->db->insert($this->table, [
-            'collector_id' => $data['collector_id'],
-            'customer_id' => $data['customer_id'] ?? null,
-            'pickup_request_id' => $data['pickup_request_id'] ?? null,
-            'rating' => $data['rating'],
-            'feedback' => $data['feedback'] ?? null,
-            'status' => $data['status'] ?? 'active',
-            'feedback_type' => $data['feedback_type'] ?? 'general',
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        $id = $this->db->lastInsertId();
-        return $this->findById($id);
-    }
-
-    /**
-     * Find feedback by ID
-     */
-    public function findById(int $id): ?array
-    {
-        return $this->db->fetchOne(
-            "SELECT cf.*, u.name as collector_name, cu.name as customer_name
-             FROM {$this->table} cf
-             LEFT JOIN users u ON cf.collector_id = u.id
-             LEFT JOIN users cu ON cf.customer_id = cu.id
-             WHERE cf.id = ?",
-            [$id]
-        );
-    }
-
-    /**
-     * Update feedback
-     */
-    public function update(int $id, array $data): bool
-    {
-        $updateFields = [];
-        $values = [];
-
-        if (isset($data['rating'])) {
-            $updateFields[] = 'rating = ?';
-            $values[] = $data['rating'];
-        }
-        if (isset($data['feedback'])) {
-            $updateFields[] = 'feedback = ?';
-            $values[] = $data['feedback'];
-        }
-        if (isset($data['status'])) {
-            $updateFields[] = 'status = ?';
-            $values[] = $data['status'];
-        }
-        if (isset($data['feedback_type'])) {
-            $updateFields[] = 'feedback_type = ?';
-            $values[] = $data['feedback_type'];
-        }
-
-        if (empty($updateFields)) {
-            return false;
-        }
-
-        $updateFields[] = 'updated_at = ?';
-        $values[] = date('Y-m-d H:i:s');
-        $values[] = $id;
-
-        $sql = "UPDATE {$this->table} SET " . implode(', ', $updateFields) . " WHERE id = ?";
-        $this->db->query($sql, $values);
-
-        return true;
-    }
-
-    /**
-     * Delete feedback (soft delete - mark as archived)
-     */
-    public function delete(int $id): bool
-    {
-        return $this->update($id, ['status' => 'archived']);
-    }
-
-    /**
-     * Get feedback count for collector
+     * Get total feedback count
      */
     public function getCollectorFeedbackCount(int $collectorId): int
     {
-        $result = $this->db->fetchOne(
-            "SELECT COUNT(*) as count FROM {$this->table} 
-             WHERE collector_id = ? AND status = 'active'",
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS count
+             FROM {$this->table}
+             WHERE collector_id = ?",
             [$collectorId]
         );
-        return (int)($result['count'] ?? 0);
+
+        return (int) ($row['count'] ?? 0);
     }
 
     /**
-     * Get pending feedback (flagged for review)
+     * Get low ratings (≤ 2)
      */
-    public function getPendingFeedback(int $limit = 20): array
+    public function getLowRatings(int $collectorId, int $maxRating = 2): array
     {
         return $this->db->fetchAll(
-            "SELECT cf.*, u.name as collector_name, cu.name as customer_name
-             FROM {$this->table} cf
-             LEFT JOIN users u ON cf.collector_id = u.id
-             LEFT JOIN users cu ON cf.customer_id = cu.id
-             WHERE cf.status = 'flagged'
-             ORDER BY cf.created_at DESC
-             LIMIT ?",
-            [$limit]
+            "SELECT
+                id,
+                collector_id,
+                collector_name,
+                rating,
+                description AS feedback,
+                created_at
+             FROM {$this->table}
+             WHERE collector_id = ? AND rating <= ?
+             ORDER BY created_at DESC",
+            [$collectorId, $maxRating]
         );
     }
 
     /**
-     * Get low ratings (complaints)
+     * Create new feedback
      */
-    public function getLowRatings(int $maxRating = 2, int $limit = 20): array
+    public function create(array $data): bool
     {
-        return $this->db->fetchAll(
-            "SELECT cf.*, u.name as collector_name, cu.name as customer_name
-             FROM {$this->table} cf
-             LEFT JOIN users u ON cf.collector_id = u.id
-             LEFT JOIN users cu ON cf.customer_id = cu.id
-             WHERE cf.rating <= ? AND cf.status = 'active'
-             ORDER BY cf.created_at DESC
-             LIMIT ?",
-            [$maxRating, $limit]
-        );
+        return $this->db->insert($this->table, [
+            'collector_id'   => $data['collector_id'],
+            'customer_id'    => $data['customer_id'] ?? null,
+            'collector_name' => $data['collector_name'] ?? null,
+            'rating'         => $data['rating'],
+            'description'    => $data['feedback'], // mapped correctly
+            'created_at'     => date('Y-m-d H:i:s')
+        ]);
     }
 }
