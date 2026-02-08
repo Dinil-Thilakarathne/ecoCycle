@@ -84,11 +84,11 @@ $formSuccess = $formSuccess ?? null;
             <input type="hidden" name="waste_type" id="waste_type_hidden" value="">
 
             <label>Bid Amount (per 1kg)</label>
-            <input type="number" id="bid_amount" name="bid_amount" step="100" placeholder="Enter bid amount" required>
+            <input type="number" id="bid_amount" name="bid_amount" step="50" placeholder="Enter bid amount" required min="0">
 
             <label>Waste Amount (kg)</label>
             <input type="number" id="waste_amount" name="waste_amount" step="any" required
-                placeholder="Enter waste amount" min="100" max="10000">
+                placeholder="Waste amount" min="100" max="10000" readonly style="padding:10px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;font-weight:600;color:#6b7280;">
 
             <label>Total Bid Amount</label>
             <div class="input-readonly" id="bid_total_display"
@@ -115,6 +115,11 @@ $formSuccess = $formSuccess ?? null;
                     <div class="lot-details">
                         <p data-role="lot-quantity"><strong>Quantity:</strong>
                             <?= htmlspecialchars(number_format($lot['quantity'] ?? 0) . ' ' . ($lot['unit'] ?? 'kg')) ?></p>
+                            <!-- Show end date/time if available -->
+                        <p data-role="lot-end-time"><strong>Ends:</strong>
+                            <?= htmlspecialchars(!empty($lot['endTime']) ? date('Y-m-d H:i', strtotime($lot['endTime'])) : 'TBD') ?>
+                        </p>
+
                         <?php
                         $lotCurrentBid = isset($lot['currentHighestBid']) ? (float) $lot['currentHighestBid'] : 0.0;
                         if ($lotCurrentBid <= 0) {
@@ -125,6 +130,7 @@ $formSuccess = $formSuccess ?? null;
                             }
                         }
                         ?>
+
                         <p data-role="lot-current-bid"><strong>Current Bid:</strong>
                             <?= htmlspecialchars(format_rs($lotCurrentBid)) ?>
                         </p>

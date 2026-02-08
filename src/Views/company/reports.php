@@ -24,28 +24,6 @@ $successRate = $reportData['successRate'];
             <h2 class="page-header__title">Reports & Analytics</h2>
         </div>
     </header>
-    <div class="filters">
-        <input type="text" placeholder="Search reports...">
-        <select>
-            <option>Report type</option>
-        </select>
-        <select>
-            <option>Date range</option>
-        </select>
-        <button class="btn btn-outline">Filter</button>
-        <button class="btn btn-primary">Export</button>
-    </div>
-
-    <div class="charts">
-        <div class="chart-box">
-            <h3 style="font-size: 20px; font-weight: bold;">Bidding Values for Each Waste Type</h3>
-            <canvas id="biddingChart"></canvas>
-        </div>
-        <div class="chart-box">
-            <h3 style="font-size: 20px; font-weight: bold;">Monthly Performance</h3>
-            <canvas id="performanceChart"></canvas>
-        </div>
-    </div>
 
     <div class="stats">
         <div class="stat blue">
@@ -61,8 +39,17 @@ $successRate = $reportData['successRate'];
             <p>Success Rate</p>
         </div>
     </div>
+
+        <div class="chart-box">
+            <h3 style="font-size: 20px; font-weight: bold;">Bidding Values for Each Waste Type</h3>
+            <canvas id="biddingChart"></canvas>
+        </div>
+
+        <div class="chart-box">
+            <h3 style="font-size: 20px; font-weight: bold;">Monthly Performance</h3>
+            <canvas id="performanceChart"></canvas>
+        </div>
 </main>
-</div>
 
 <script>
     // PHP to JS data
