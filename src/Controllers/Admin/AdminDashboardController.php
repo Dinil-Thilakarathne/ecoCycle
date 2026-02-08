@@ -86,11 +86,13 @@ class AdminDashboardController extends DashboardController
         ];
 
         $recentActivity = $this->buildRecentActivity($pickupModel, $paymentModel, $biddingModel);
+        $wasteCategories = (new \Models\WasteCategory())->listAll();
 
         $data = [
             'pageTitle' => 'Admin Dashboard',
             'stats' => $stats,
             'recentActivity' => $recentActivity,
+            'wasteCategories' => $wasteCategories,
         ];
 
         return $this->renderDashboard('dashboard', $data);

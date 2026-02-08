@@ -31,11 +31,15 @@ $recentActivity = $recentActivity ?? [];
             <?php endif; ?>
         </activity-card>
 
-        <activity-card title="System Health" description="Current system status and performance">
-            <status-item label="Server Status" state="Online" state-class="online"></status-item>
-            <status-item label="Database" state="Healthy" state-class="healthy"></status-item>
-            <status-item label="Payment Gateway" state="Connected" state-class="connected"></status-item>
-            <status-item label="Notification Service" state="Warning" state-class="warning"></status-item>
+        <activity-card title="Current Waste Prices" description="Latest market prices per unit">
+            <?php if (empty($wasteCategories)): ?>
+                <p style="color: var(--neutral-500); font-size: var(--text-sm);">No waste categories found.</p>
+            <?php else: ?>
+                <?php foreach ($wasteCategories as $category): ?>
+                    <status-item label="<?= htmlspecialchars($category['name']) ?>"
+                        state="Rs <?= number_format($category['pricePerUnit'], 2) ?>" state-class="text-primary"></status-item>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </activity-card>
     </div>
 </div>
