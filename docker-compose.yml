@@ -38,6 +38,8 @@ services:
   db:
     image: postgres:15-alpine
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: ${DB_DATABASE:-eco_cycle}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
@@ -67,6 +69,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/var/www/html/public
     depends_on:
       - app
     networks:
@@ -75,7 +78,7 @@ services:
 networks:
   web:
   internal:
-    internal: true
+    # internal: true
 
 volumes:
   db_data:
