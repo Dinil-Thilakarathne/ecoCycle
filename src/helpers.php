@@ -170,12 +170,20 @@ if (!function_exists('base_path')) {
     function base_path(string $path = ''): string
     {
         // In CLI scripts the Application singleton may not be initialized.
-        $app = Core\Application::getInstance();
-        if ($app) {
-            $basePath = $app->basePath();
-        } else {
-            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
-            $basePath = dirname(__DIR__, 2);
+        $basePath = null;
+
+        if (class_exists('Core\Application')) {
+            $app = Core\Application::getInstance();
+            if ($app) {
+                $basePath = $app->basePath();
+            }
+        }
+
+        if (!$basePath) {
+            // Fallback using file system heuristic: src/helpers.php -> src -> root
+            // __DIR__ is .../src
+            // dirname(__DIR__) is .../ (root)
+            $basePath = dirname(__DIR__);
         }
 
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
