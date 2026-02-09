@@ -79,6 +79,33 @@ if (!function_exists('customer_pickup_format_datetime')) {
 }
 ?>
 
+<style>
+/* Star Rating Styles */
+.star-rating {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 1.75rem;
+    color: #cbd5e1; /* Default slate color */
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.star-rating .star {
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.star-rating .star.active,
+.star-rating .star.hover {
+    color: #f59e0b; /* Amber/Gold */
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5)); /* Glow effect */
+}
+
+/* "Lightning" pop effect on hover */
+.star-rating .star:hover {
+    transform: scale(1.2);
+}
+</style>
+
 <div class="dashboard-page">
     <div class="page-header" style="margin-bottom:2rem;">
         <div class="header-content">
@@ -329,8 +356,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="rate_score">Rating (1-5)</label>
-                    <input type="number" id="rate_score" name="rating" min="1" max="5" step="1" required>
+                    <label>Rating</label>
+                    <div class="star-rating" id="star_rating_container">
+                        <i class="fa-solid fa-star star" data-value="1"></i>
+                        <i class="fa-solid fa-star star" data-value="2"></i>
+                        <i class="fa-solid fa-star star" data-value="3"></i>
+                        <i class="fa-solid fa-star star" data-value="4"></i>
+                        <i class="fa-solid fa-star star" data-value="5"></i>
+                    </div>
+                    <input type="hidden" id="rate_score" name="rating" required>
                 </div>
                 <div class="form-group">
                     <label for="rate_description">Description</label>
@@ -779,6 +813,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
             const collectorInput = document.getElementById('rate_collector');
             if (collectorInput) collectorInput.readOnly = false;
+            
+            // Reset stars
+            const stars = document.querySelectorAll('#star_rating_container .star');
+            stars.forEach(s => {
+                s.classList.remove('active');
+                s.classList.remove('hover');
+            });
+            const rateInput = document.getElementById('rate_score');
+            if (rateInput) rateInput.value = '';
         }
 
         function showEditRequestForm(requestId) {
@@ -1096,7 +1139,50 @@ if (!function_exists('customer_pickup_format_datetime')) {
             window.hideRateCollectorForm = hideRateCollectorForm;
         }
 
+        function setupStarRating() {
+            const container = document.getElementById('star_rating_container');
+            const input = document.getElementById('rate_score');
+            if (!container || !input) return;
+
+            const stars = container.querySelectorAll('.star');
+
+            function updateStars(value, isHover = false) {
+                stars.forEach(star => {
+                    const starVal = parseInt(star.getAttribute('data-value'), 10);
+                    if (starVal <= value) {
+                        star.classList.add(isHover ? 'hover' : 'active');
+                    } else {
+                        star.classList.remove(isHover ? 'hover' : 'active');
+                    }
+                });
+            }
+
+            stars.forEach(star => {
+                star.addEventListener('mouseenter', () => {
+                    // Reset hover state first
+                    stars.forEach(s => s.classList.remove('hover'));
+                    const val = parseInt(star.getAttribute('data-value'), 10);
+                    updateStars(val, true);
+                });
+
+                star.addEventListener('click', () => {
+                    const val = parseInt(star.getAttribute('data-value'), 10);
+                    input.value = val;
+                    // Remove hover classes and set active classes
+                    stars.forEach(s => s.classList.remove('hover'));
+                    updateStars(val, false);
+                });
+            });
+
+            container.addEventListener('mouseleave', () => {
+                 stars.forEach(s => s.classList.remove('hover'));
+                 const currentVal = parseInt(input.value || '0', 10);
+                 updateStars(currentVal, false);
+            });
+        }
+
         function initialize() {
+            setupStarRating();
             attachEventListeners();
             renderStats();
             renderTable();
