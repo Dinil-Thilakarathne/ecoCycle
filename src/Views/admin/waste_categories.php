@@ -23,7 +23,6 @@ $categories = $categories ?? [];
                     <tr>
                         <th>Category Name</th>
                         <th>Unit</th>
-                        <th>Color Code</th>
                         <th>Purchase Price (Per Unit)</th>
                         <th>Markup (%)</th>
                         <th style="text-align:right;">Actions</th>
@@ -53,11 +52,6 @@ $categories = $categories ?? [];
                                     </div>
                                 </td>
                                 <td><?= htmlspecialchars($cat['unit'] ?? 'kg') ?></td>
-                                <td>
-                                    <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.85rem;">
-                                                                        <?= htmlspecialchars($cat['color'] ?? 'N/A') ?>
-                                                                    </code>
-                                </td>
                                 <td>
                                     <span style="font-weight:600;color:var(--primary-600);">
                                         Rs <?= number_format((float) ($cat['price_per_unit'] ?? 0), 2) ?>
