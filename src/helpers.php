@@ -170,20 +170,12 @@ if (!function_exists('base_path')) {
     function base_path(string $path = ''): string
     {
         // In CLI scripts the Application singleton may not be initialized.
-        $basePath = null;
-
-        if (class_exists('Core\Application')) {
-            $app = Core\Application::getInstance();
-            if ($app) {
-                $basePath = $app->basePath();
-            }
-        }
-
-        if (!$basePath) {
-            // Fallback using file system heuristic: src/helpers.php -> src -> root
-            // __DIR__ is .../src
-            // dirname(__DIR__) is .../ (root)
-            $basePath = dirname(__DIR__);
+        $app = Core\Application::getInstance();
+        if ($app) {
+            $basePath = $app->basePath();
+        } else {
+            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
+            $basePath = dirname(__DIR__, 2);
         }
 
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
@@ -830,6 +822,79 @@ if (!function_exists('markPasswordResetTokenAsUsed')) {
         } catch (\Exception $e) {
             error_log("Failed to mark password reset token as used: " . $e->getMessage());
             return false;
+        }
+    }
+}
+
+if (!function_exists('sendNotificationEmail')) {
+    /**
+     * Send a notification email
+     *
+     * @param array $notificationData
+     * @return bool
+     */
+    function sendNotificationEmail(array $notificationData): bool
+    {
+        // Add safeguard to prevent recursion or errors if used where Model is not available
+        try {
+            $recipientGroup = $notificationData['recipient_group'] ?? null;
+            $recipients = [];
+
+            // If we're sending to admins, fetch all admin emails
+            if ($recipientGroup === 'admin') {
+                $userModel = new \Models\User();
+                $admins = $userModel->listByType('admin');
+                foreach ($admins as $admin) {
+                    if (!empty($admin['email'])) {
+                        $recipients[] = $admin['email'];
+                    }
+                }
+            }
+            // Handle specific recipient ID
+            // If the notification data has a specific user_id targeted (not standard but possible)
+            elseif (isset($notificationData['user_id'])) {
+                $userModel = new \Models\User();
+                $user = $userModel->findById((int) $notificationData['user_id']);
+                if ($user && !empty($user['email'])) {
+                    $recipients[] = $user['email'];
+                }
+            }
+
+            // Also check if strict 'recipients' array is provided in data (email string list)
+            if (isset($notificationData['recipients']) && is_array($notificationData['recipients'])) {
+                foreach ($notificationData['recipients'] as $r) {
+                    if (is_string($r) && filter_var($r, FILTER_VALIDATE_EMAIL)) {
+                        $recipients[] = $r;
+                    }
+                }
+            }
+
+            if (empty($recipients)) {
+                // If no recipients found (e.g. no admins), we just return true to not block execution
+                // logging might be good though
+                error_log("sendNotificationEmail: No recipients found for group {$recipientGroup}");
+                return true;
+            }
+
+            // Unique emails
+            $recipients = array_unique($recipients);
+
+            $subject = $notificationData['title'] ?? 'New Notification';
+            $template = 'notification'; // corresponds to resources/emails/notification.html.php
+
+            $success = true;
+            foreach ($recipients as $to) {
+                // Pass the whole notification data to the template
+                if (!sendMail($to, $template, $notificationData, $subject)) {
+                    $success = false;
+                }
+            }
+
+            return $success;
+        } catch (\Throwable $e) {
+            error_log("sendNotificationEmail Error: " . $e->getMessage());
+            // Return true to avoid breaking the main flow (e.g. pickup request creation)
+            return true;
         }
     }
 }
