@@ -247,4 +247,70 @@ class Notification extends BaseModel
             ];
         }, $rows);
     }
+    public function search(array $filters = [], int $limit = 20, int $offset = 0): array
+    {
+        $limit = max(1, (int) $limit);
+        $offset = max(0, (int) $offset);
+
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $searchTerm = '%' . $filters['search'] . '%';
+            if ($this->db->isPgsql()) {
+                $where[] = "(title ILIKE ? OR message ILIKE ?)";
+            } else {
+                $where[] = "(title LIKE ? OR message LIKE ?)";
+            }
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        if (!empty($filters['type'])) {
+            $where[] = "type = ?";
+            $params[] = $filters['type'];
+        }
+
+        if (!empty($filters['status'])) {
+            $where[] = "status = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['recipient_group'])) {
+            $where[] = "recipient_group = ?";
+            $params[] = $filters['recipient_group'];
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where[] = "created_at >= ?";
+            $params[] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where[] = "created_at <= ?";
+            $params[] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        // Get total count
+        $countSql = "SELECT COUNT(*) as count FROM {$this->table} {$whereClause}";
+        $countResult = $this->db->fetch($countSql, $params);
+        $total = (int) ($countResult['count'] ?? 0);
+
+        // Get records
+        $sql = "SELECT * FROM {$this->table} {$whereClause} 
+                ORDER BY created_at DESC 
+                LIMIT {$limit} OFFSET {$offset}";
+
+        $rows = $this->db->fetchAll($sql, $params);
+
+        return [
+            'notifications' => $this->formatRows($rows),
+            'total' => $total,
+            'page' => floor($offset / $limit) + 1,
+            'per_page' => $limit,
+            'last_page' => ceil($total / $limit)
+        ];
+    }
 }
