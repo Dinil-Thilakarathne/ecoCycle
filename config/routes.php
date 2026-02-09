@@ -399,6 +399,9 @@ $router->get('/test', function () {
     ]);
 });
 
+// Toast Test Page
+$router->get('/test/toast', 'Controllers\TestController@index');
+
 // Debug route to list all registered routes
 $router->get('/api/debug/routes', function () use ($router) {
     if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {

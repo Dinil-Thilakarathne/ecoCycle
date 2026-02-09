@@ -433,7 +433,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.default_minimum_bid
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -464,6 +464,7 @@ class PickupRequest extends BaseModel
                     'name' => $name,
                     'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
                     'unit' => $row['unit'] ?? null,
+                    'price_per_unit' => isset($row['default_minimum_bid']) ? (float) $row['default_minimum_bid'] : 0.0,
                 ];
             }
         }
