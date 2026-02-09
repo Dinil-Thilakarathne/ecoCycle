@@ -646,8 +646,6 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
 //     ]
 // );
 
-<?php
-use Core\Router;
 
 // 1️⃣ Get all feedback for the collector
 $router->get(
