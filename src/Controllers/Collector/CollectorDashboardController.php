@@ -165,7 +165,7 @@ class CollectorDashboardController extends DashboardController
             $today = date('Y-m-d');
             $count = 0;
             foreach ($allPickups as $pickup) {
-                $createdDate = isset($pickup['created_at']) ? substr($pickup['created_at'], 0, 10) : '';
+                $createdDate = isset($pickup['rating_date']) ? substr($pickup['rating_date'], 0, 10) : '';
                 $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
                 
                 if (($createdDate === $today || $scheduledDate === $today) && 
@@ -667,20 +667,7 @@ public function getMetrics(Request $request)
     }
 }
 
-
-    /**
-     * GET /api/collector/feedback
-     * Returns recent feedback records
-     */
-    /**
-     * POST /api/collector/feedback
-     * Add new feedback
-     */
-
-//     **
-//  * FIXED: Standardized collectorId detection
-//  */
-public function getFeedback(\Core\Http\Request $request)
+    public function getFeedback(\Core\Http\Request $request)
 {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -697,8 +684,42 @@ public function getFeedback(\Core\Http\Request $request)
 
         echo json_encode([
             'success' => true,
-            'data' => $feedback // Your Model already aliases 'description' to 'feedback'
+            'data' => $feedback
         ]);
+        exit;
+
+    } catch (\Throwable $e) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
+    public function addFeedback(Request $request)
+{
+    header('Content-Type: application/json; charset=utf-8');
+
+    try {
+        $data = $request->json();
+
+        $collectorId = (int) ($data['collector_id'] ?? 0);
+        $customerId  = (int) ($data['customer_id'] ?? 0);
+        $rating      = (int) ($data['rating'] ?? 0);
+        $description = trim($data['description'] ?? '');
+
+        if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
+            throw new \Exception('Invalid input');
+        }
+
+        $model = new CollectorFeedback();
+        $model->create([
+            'collector_id' => $collectorId,
+            'customer_id'  => $customerId ?: null,
+            'rating'       => $rating,
+            'description'  => $description
+        ]);
+
+        echo json_encode(['success' => true]);
         exit;
 
     } catch (\Throwable $e) {
@@ -707,39 +728,7 @@ public function getFeedback(\Core\Http\Request $request)
         exit;
     }
 }
-    public function addFeedback(Request $request)
-    {
-        header('Content-Type: application/json; charset=utf-8');
 
-        try {
-            $data = $request->json();
-
-            $collectorId = (int) ($data['collector_id'] ?? 0);
-            $customerId  = (int) ($data['customer_id'] ?? 0);
-            $rating      = (int) ($data['rating'] ?? 0);
-            $feedback    = trim($data['feedback'] ?? '');
-
-            if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $feedback === '') {
-                throw new \Exception('Invalid input');
-            }
-
-            $model = new CollectorFeedback();
-            $model->create([
-                'collector_id' => $collectorId,
-                'customer_id'  => $customerId ?: null,
-                'rating'       => $rating,
-                'feedback'     => $feedback
-            ]);
-
-            echo json_encode(['success' => true]);
-            exit;
-
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-            exit;
-        }
-    }
 
 public function getWasteCollection(\Core\Http\Request $request)
 {

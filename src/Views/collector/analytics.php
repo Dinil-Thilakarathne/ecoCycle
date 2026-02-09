@@ -171,8 +171,8 @@ function updateFeedbackTable(data) {
           <tr>
             <td>${escapeHtml(String(fb.customer_id))}</td>
             <td>${escapeHtml(fb.customer_name)}</td>
-            <td>${new Date(fb.created_at).toLocaleDateString()}</td>
-            <td>${escapeHtml(fb.feedback)}</td>
+            <td>${new Date(fb.rating_date).toLocaleDateString()}</td>
+            <td>${escapeHtml(fb.description)}</td>
             <td>${renderStars(fb.rating)}</td>
           </tr>
         `).join('');

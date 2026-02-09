@@ -619,27 +619,70 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
 ]);
 
 
-$router->get(
-    '/api/collector/metrics',
-    'Controllers\Collector\CollectorFeedbackController@getMetrics',
-    [
-        'Middleware\AuthMiddleware',
-        'Middleware\Roles\CollectorOnly',
-    ]
-);
+// $router->get(
+//     '/api/collector/metrics',
+//     'Controllers\Collector\CollectorFeedbackController@getMetrics',
+//     [
+//         'Middleware\AuthMiddleware',
+//         'Middleware\Roles\CollectorOnly',
+//     ]
+// );
 
+// $router->get(
+//     '/api/collector/feedback',
+//     'Controllers\Collector\CollectorFeedbackController@getFeedback',
+//     [
+//         'Middleware\AuthMiddleware',
+//         'Middleware\Roles\CollectorOnly',
+//     ]
+// );
+
+// $router->post(
+//     '/api/collector/feedback',
+//     'Controllers\Collector\CollectorFeedbackController@addFeedback',
+//     [
+//         'Middleware\AuthMiddleware',
+//         'Middleware\Roles\CollectorOnly',
+//     ]
+// );
+
+<?php
+use Core\Router;
+
+// 1️⃣ Get all feedback for the collector
 $router->get(
     '/api/collector/feedback',
-    'Controllers\Collector\CollectorFeedbackController@getFeedback',
+    'Controllers\Collector\CollectorDashboardController@getFeedback',
     [
         'Middleware\AuthMiddleware',
         'Middleware\Roles\CollectorOnly',
     ]
 );
 
+// 2️⃣ Add new feedback
 $router->post(
     '/api/collector/feedback',
-    'Controllers\Collector\CollectorFeedbackController@addFeedback',
+    'Controllers\Collector\CollectorDashboardController@addFeedback',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// 3️⃣ Get waste collection details
+$router->get(
+    '/api/collector/waste-collection',
+    'Controllers\Collector\CollectorDashboardController@getWasteCollection',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// 4️⃣ Get metrics for dashboard cards
+$router->get(
+    '/api/collector/metrics',
+    'Controllers\Collector\CollectorDashboardController@getMetrics',
     [
         'Middleware\AuthMiddleware',
         'Middleware\Roles\CollectorOnly',
