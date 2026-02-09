@@ -122,7 +122,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Vehicle ID</th>
                             <th>Plate Number</th>
                             <th>Type</th>
                             <th>Capacity (kg)</th>
@@ -133,7 +132,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <tbody>
                         <?php foreach ($vehicles as $vehicle): ?>
                             <tr data-id="<?= htmlspecialchars($vehicle['id'] ?? '') ?>">
-                                <td class="font-medium" data-field="id"><?= htmlspecialchars($vehicle['id'] ?? '') ?></td>
                                 <td data-field="plateNumber"><?= htmlspecialchars($vehicle['plateNumber'] ?? '') ?></td>
                                 <td data-field="type"><?= htmlspecialchars($vehicle['type'] ?? '') ?></td>
                                 <td data-field="capacity"><?= number_format((int) ($vehicle['capacity'] ?? 0)) ?></td>
