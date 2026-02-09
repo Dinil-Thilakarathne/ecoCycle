@@ -116,13 +116,18 @@ class PickupRequestController extends BaseController
         // Trigger Notification to Customer
         if ($success && !empty($record['customerId'])) {
             $statusMsg = ucfirst($normalizedStatus);
-            $this->notification->create([
+            $notificationData = [
                 'type' => 'pickup_status_update',
                 'title' => 'Pickup Status Updated',
                 'message' => "Your pickup request status has been updated to: {$statusMsg}",
                 'recipients' => ['user:' . $record['customerId']],
                 'status' => 'pending'
-            ]);
+            ];
+
+            $this->notification->create($notificationData);
+
+            // Send email notification
+            sendNotificationEmail($notificationData);
         }
 
         // Notify admins when waste collection is completed

@@ -258,6 +258,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
             <a href="/" class="btn btn-outline signup-btn">Back to home</a>
         </div>
 
+        <script src="/js/toast.js"></script>
         <script>
             (function () {
                 // Keep client-side validations. If validation passes, redirect to /login.
@@ -389,10 +390,54 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                         return;
                     }
 
-                    // All validations passed — submit the form to server
+                    // All validations passed — submit via AJAX
                     if (btn) btn.textContent = 'Creating account...';
-                    // Allow normal POST submission
-                    form.submit();
+                    
+                    var formData = new FormData(form);
+
+                    fetch(form.action || '/register', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(function (resp) {
+                        return resp.json().catch(function () {
+                            return { success: false, message: 'Invalid server response' };
+                        });
+                    }).then(function (data) {
+                        if (data && data.success) {
+                            // Show success toast
+                            try {
+                                if (typeof __createToast === 'function') {
+                                    __createToast(data.message || 'Account created successfully!', 'success', 2000);
+                                }
+                            } catch (e) {
+                                // ignore
+                            }
+                            
+                            // Redirect to login page
+                            setTimeout(function () {
+                                window.location.href = data.redirect || '/login';
+                            }, 700);
+                            return;
+                        }
+
+                        // Show error message
+                        var msg = (data && data.message) ? data.message : 'Failed to create account';
+                        showError(msg);
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Create account';
+                        }
+                    }).catch(function (err) {
+                        showError('Network error. Please try again.');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Create account';
+                        }
+                    });
                 });
 
                 // If server-side success was flashed (redirect from POST), show toast

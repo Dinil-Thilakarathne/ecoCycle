@@ -125,7 +125,12 @@ if (empty($timeSlots)) {
             statusCell.innerHTML = renderPickupStatusBadge(pickup.status);
         }
 
-        const collectorCell = row.querySelector('[data-field="collector"]') || row.querySelectorAll('td')[6];
+        const vehicleCell = row.querySelector('[data-field="vehicle"]') || row.querySelectorAll('td')[6];
+        if (vehicleCell) {
+            vehicleCell.textContent = pickup.vehiclePlate || '-';
+        }
+
+        const collectorCell = row.querySelector('[data-field="collector"]') || row.querySelectorAll('td')[7];
         if (collectorCell) {
             if (pickup.collectorName) {
                 collectorCell.textContent = pickup.collectorName;
@@ -179,6 +184,7 @@ if (empty($timeSlots)) {
         setText('.pd-waste', Array.isArray(pickup.wasteCategories) ? pickup.wasteCategories.join(', ') : '');
         setText('.pd-timeslot', pickup.timeSlot ?? '');
         setText('.pd-status', pickup.status ? String(pickup.status).charAt(0).toUpperCase() + String(pickup.status).slice(1) : '');
+        setText('.pd-vehicle', pickup.vehiclePlate ?? '');
 
         let weightText = '';
         if (pickup.weight !== null && pickup.weight !== undefined) {
@@ -192,7 +198,7 @@ if (empty($timeSlots)) {
 
 <!-- Pickup Detail Modal -->
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="user-modal__dialog">
+    <div class="user-modal__dialog" style="width: fit-content;">
         <button class="close" aria-label="Close">&times;</button>
         <h3>Pickup Request Details</h3>
         <div class="user-modal__grid">
@@ -213,6 +219,9 @@ if (empty($timeSlots)) {
 
             <div><strong>Status</strong></div>
             <div class="pd-status"></div>
+
+            <div><strong>Vehicle</strong></div>
+            <div class="pd-vehicle"></div>
 
             <div><strong>Measured Weight</strong></div>
             <div class="pd-weight"></div>
@@ -237,7 +246,7 @@ if (empty($timeSlots)) {
 
 <!-- Edit Pickup Modal -->
 <div id="pickup-edit-modal" class="user-modal" role="dialog" aria-modal="true">
-    <div class="user-modal__dialog">
+    <div class="user-modal__dialog" style="width: fit-content;">
         <button class="close" aria-label="Close">&times;</button>
         <h3>Edit Pickup Request</h3>
         <div class="user-modal__grid">
@@ -251,6 +260,15 @@ if (empty($timeSlots)) {
             <div>
                 <div class="form-select" style="width: fit-content;">
                     <select id="pe-collector-select">
+                        <option value="">-- Unassigned --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div><strong>Assign Vehicle</strong></div>
+            <div>
+                <div class="form-select" style="width: fit-content;">
+                    <select id="pe-vehicle-select">
                         <option value="">-- Unassigned --</option>
                     </select>
                 </div>
@@ -272,6 +290,10 @@ if (empty($timeSlots)) {
         const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${pickupId}"]`);
 
         if (!record && !row) return;
+
+        if (record && String(record.status || '').toLowerCase() === 'completed') {
+            return;
+        }
 
         // Populate fields
         modal.querySelector('.pe-id').textContent = record ? record.id : pickupId;
@@ -295,9 +317,56 @@ if (empty($timeSlots)) {
             sel.appendChild(o);
         });
 
-        // Set currently assigned collector if present
+        // Set currently assigned collector
         const current = record ? (record.collectorId || '') : '';
         sel.value = current;
+
+        // Populate vehicles select
+        const vSel = document.getElementById('pe-vehicle-select');
+        vSel.innerHTML = '<option value="">Loading...</option>';
+
+        // Fetch vehicles (using cache if possible)
+        const fetchVehicles = async () => {
+            try {
+                if (!window.__VEHICLE_CACHE) {
+                    const res = await pickupApiRequest('/api/vehicles');
+                    window.__VEHICLE_CACHE = res.vehicles || [];
+                }
+
+                vSel.innerHTML = '<option value="">-- Unassigned --</option>';
+                const currentVehicleId = record ? (record.vehicleId || '') : '';
+
+                window.__VEHICLE_CACHE.forEach(v => {
+                    const o = document.createElement('option');
+                    o.value = v.id;
+                    const statusLabel = v.status === 'available' ? 'Available' : (v.status === 'in-use' ? 'In Use' : v.status);
+                    o.textContent = `${v.plateNumber} (${v.type}) - ${statusLabel}`;
+
+                    // Disable if unavailable AND not the currently assigned vehicle
+                    // But wait, if vehicle is in-use by THIS request, it is fine.
+                    // Since we don't know easily if it's THIS request holding it (backend logic knows),
+                    // we should be careful. 
+                    // Logic: If v.id == currentVehicleId, enable (selected).
+                    // If v.status != available, disable?
+                    // If I change away, I can't change back?
+                    // Better: Mark non-available as disabled unless it is the current one.
+
+                    if (v.status !== 'available' && v.id != currentVehicleId) {
+                        o.disabled = true;
+                        o.textContent += ' [Unavailable]';
+                    }
+
+                    vSel.appendChild(o);
+                });
+
+                vSel.value = currentVehicleId;
+
+            } catch (e) {
+                console.error('Failed to lead vehicles', e);
+                vSel.innerHTML = '<option value="">Failed to load</option>';
+            }
+        };
+        fetchVehicles(); // execute async
 
         // Store current editing id on modal element
         modal.setAttribute('data-editing-id', pickupId);
@@ -330,6 +399,14 @@ if (empty($timeSlots)) {
             payload.collectorId = collectorIdValue;
         }
 
+        const vSelect = document.getElementById('pe-vehicle-select');
+        const vehicleIdValue = vSelect ? vSelect.value : '';
+        if (vehicleIdValue === '') {
+            payload.vehicleId = null;
+        } else {
+            payload.vehicleId = vehicleIdValue;
+        }
+
         const currentRecord = (window.__PICKUP_DATA || []).find(function (item) {
             return String(item.id).toLowerCase() === String(pickupId).toLowerCase();
         });
@@ -360,6 +437,9 @@ if (empty($timeSlots)) {
             syncPickupCache(updated);
             updatePickupRow(updated);
             refreshPickupDetailModal(updated);
+
+            // Invalidate vehicle cache to reflect status changes (e.g. if vehicle is now in-use)
+            window.__VEHICLE_CACHE = null;
 
             closeEditModal();
 
@@ -449,6 +529,7 @@ function getStatusBadge($status)
                             <th>Waste Categories</th>
                             <th>Time Slot</th>
                             <th>Status</th>
+                            <th>Vehicle</th>
                             <th>Collector</th>
                             <th>Actions</th>
                         </tr>
@@ -484,6 +565,9 @@ function getStatusBadge($status)
                                     </div>
                                 </td>
                                 <td data-field="status"><?= getStatusBadge($request['status'] ?? 'pending') ?></td>
+                                <td data-field="vehicle">
+                                    <?= htmlspecialchars($request['vehiclePlate'] ?? '-') ?>
+                                </td>
                                 <td data-field="collector">
                                     <?php if (!empty($request['collectorName'])): ?>
                                         <?= htmlspecialchars($request['collectorName']) ?>
@@ -500,9 +584,11 @@ function getStatusBadge($status)
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
+                                        <?php $isCompleted = ($request['status'] ?? '') === 'completed'; ?>
                                         <button class="icon-button"
                                             onclick="openEditModal(this, '<?= htmlspecialchars($request['id'] ?? '') ?>')"
-                                            title="Edit / Assign Collector">
+                                            title="<?= $isCompleted ? 'Completed (Cannot Edit)' : 'Edit / Assign Collector' ?>"
+                                            <?= $isCompleted ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : '' ?>>
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
                                     </div>
@@ -604,7 +690,8 @@ function getStatusBadge($status)
                 wasteCategories: Array.from(el.querySelectorAll('.badge-group .tag')).map(t => t.textContent.trim()),
                 timeSlot: (cells[4] && cells[4].textContent.trim()) || '',
                 status: (cells[5] && cells[5].textContent.trim()) || '',
-                collectorName: (cells[6] && cells[6].textContent.trim()) || ''
+                vehiclePlate: (cells[6] && cells[6].textContent.trim()) || '',
+                collectorName: (cells[7] && cells[7].textContent.trim()) || ''
             };
         }
 
@@ -635,6 +722,7 @@ function getStatusBadge($status)
         setText('.pd-waste', (record.wasteCategories && record.wasteCategories.join(', ')) || '');
         setText('.pd-timeslot', record.timeSlot || '');
         setText('.pd-status', record.status || '');
+        setText('.pd-vehicle', record.vehiclePlate || '');
         setText('.pd-collector', record.collectorName || '');
 
         modal.classList.add('open');

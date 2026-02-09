@@ -117,15 +117,7 @@ $bidStatCards = [
         'change' => '',
         'period' => 'Finished today',
         'negative' => false,
-    ],
-    [
-        'title' => 'Avg. Winning Bid',
-        'value' => 'Rs ' . number_format($avgWinningBid, 2),
-        'icon' => 'fa-solid fa-chart-line',
-        'change' => '',
-        'period' => 'Across completed rounds',
-        'negative' => false,
-    ],
+    ]
 ];
 ?>
 <div class="stats-grid">

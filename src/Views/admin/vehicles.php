@@ -60,7 +60,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
 <script>
     window.__VEHICLES = <?php echo json_encode($vehicles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-    window.__COLLECTORS = <?php echo json_encode($collectors ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <div>
@@ -96,16 +95,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             'value' => $inUseVehicles,
             'icon' => 'fa-solid fa-truck-moving',
             'period' => 'Currently deployed',
-        ],
-        [
-            'title' => 'In Maintenance',
-            'value' => $inMaintenanceVehicles,
-            'icon' => 'fa-solid fa-wrench',
-            'period' => 'Under service',
-        ],
+        ]
     ];
     ?>
-    <div class="dashboard-grid feature-cards">
+    <div class="stats-grid">
         <?php foreach ($vehicleStats as $card): ?>
             <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
                 value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
@@ -133,8 +126,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                             <th>Plate Number</th>
                             <th>Type</th>
                             <th>Capacity (kg)</th>
-                            <th>Assigned Collector</th>
-                            <!-- <th>Today's Availability</th> -->
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -146,41 +137,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                                 <td data-field="plateNumber"><?= htmlspecialchars($vehicle['plateNumber'] ?? '') ?></td>
                                 <td data-field="type"><?= htmlspecialchars($vehicle['type'] ?? '') ?></td>
                                 <td data-field="capacity"><?= number_format((int) ($vehicle['capacity'] ?? 0)) ?></td>
-                                <td data-field="assignedCollector">
-                                    <?php
-                                    $assignedCollector = '-';
-                                    $assignedCollectorId = null;
-                                    if (!empty($collectors)) {
-                                        foreach ($collectors as $c) {
-                                            if (($c['vehicleId'] ?? null) == $vehicle['id']) {
-                                                $assignedCollector = htmlspecialchars($c['name']);
-                                                $assignedCollectorId = $c['id'];
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    echo $assignedCollector;
-                                    ?>
-                                </td>
-                                <!-- <td data-field="availability">
-                                    <?php
-                                    if ($assignedCollectorId && isset($availabilityMap[$assignedCollectorId])) {
-                                        $availability = $availabilityMap[$assignedCollectorId];
-                                        $isAvailable = $availability['isAvailable'] ?? true;
-                                        $badgeClass = $isAvailable ? 'online' : 'danger';
-                                        $badgeText = $isAvailable ? 'Available' : 'Unavailable';
-                                        $icon = $isAvailable ? 'fa-check-circle' : 'fa-times-circle';
-                                        echo '<div class="tag ' . $badgeClass . '"><i class="fa-solid ' . $icon . '"></i> ' . $badgeText . '</div>';
-                                        if (!empty($availability['notes'])) {
-                                            echo '<small style="display:block;margin-top:4px;color:var(--text-muted);">' . htmlspecialchars($availability['notes']) . '</small>';
-                                        }
-                                    } elseif ($assignedCollectorId) {
-                                        echo '<div class="tag"><i class="fa-solid fa-question-circle"></i> Not Set</div>';
-                                    } else {
-                                        echo '<span style="color:var(--text-muted);">-</span>';
-                                    }
-                                    ?>
-                                </td> -->
                                 <td data-field="status"><?= getStatusBadge($vehicle['status'] ?? 'available') ?></td>
                                 <td>
                                     <div class="action-buttons">
@@ -188,12 +144,11 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
-                                        <button class="icon-button" onclick="editVehicle('<?= $vehicle['id'] ?>')"
-                                            title="Edit Vehicle">
-                                            <i class="fa-solid fa-edit"></i>
-                                        </button>
+
+                                        <?php $isInUse = ($vehicle['status'] ?? '') === 'in-use'; ?>
                                         <button class="icon-button danger" onclick="removeVehicle('<?= $vehicle['id'] ?>')"
-                                            title="Remove Vehicle">
+                                            title="<?= $isInUse ? 'Cannot delete (In Use)' : 'Remove Vehicle' ?>"
+                                            <?= $isInUse ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : '' ?>>
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </div>
@@ -385,7 +340,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             type: '',
             capacity: '',
             status: 'available',
-            assignedCollectorId: null,
         };
 
         const values = Object.assign({}, defaults, initialValues);
@@ -402,15 +356,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             : '';
         const capacityValue = selectedType ? VEHICLE_TYPE_CAPACITY[selectedType] : '';
         const isCreate = modeIsCreate(values);
-
-        // Build collector options
-        const collectors = window.__COLLECTORS || [];
-        const collectorOptions = ['<option value="">No Collector Assigned</option>']
-            .concat(collectors.map((collector) => {
-                const selected = collector.id == values.assignedCollectorId ? 'selected' : '';
-                return `<option value="${collector.id}" ${selected}>${escapeHtml(collector.name)}</option>`;
-            }))
-            .join('');
 
         const statusField = isCreate
             ? `
@@ -463,13 +408,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <small style="color:#6b7280;display:block;margin-top:0.25rem;">Capacity auto-fills per vehicle type.</small>
                 </div>
                 ${statusField}
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Assigned Collector</label>
-                    <select name="assignedCollectorId" style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;">
-                        ${collectorOptions}
-                    </select>
-                    <small style="color:#6b7280;display:block;margin-top:0.25rem;">Assign a permanent collector to this vehicle.</small>
-                </div>
             </div>
         `;
 
@@ -514,15 +452,11 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const capacity = capacityRaw === null || capacityRaw === '' ? null : Number(capacityRaw);
         const statusRaw = formData.get('status');
         const status = statusRaw === null ? null : statusRaw.toString().toLowerCase();
-        const assignedCollectorIdRaw = formData.get('assignedCollectorId');
-        const assignedCollectorId = assignedCollectorIdRaw ? Number(assignedCollectorIdRaw) : null;
-
         return {
             plateNumber,
             type,
             capacity,
-            status: status || 'available',
-            assignedCollectorId
+            status: status || 'available'
         };
     }
 
@@ -618,20 +552,12 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const idString = String(idValue);
         const idLiteral = JSON.stringify(idValue);
 
-        let assignedCollectorName = '-';
-        if (window.__COLLECTORS) {
-            const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-            if (found) assignedCollectorName = found.name;
-        }
-
         tr.setAttribute('data-id', idString);
         tr.innerHTML = `
             <td class="font-medium" data-field="id">${escapeHtml(idString)}</td>
             <td data-field="plateNumber">${escapeHtml(vehicle.plateNumber || '')}</td>
             <td data-field="type">${escapeHtml(vehicle.type || '')}</td>
             <td data-field="capacity">${formatCapacity(vehicle.capacity)}</td>
-            <td data-field="assignedCollector">${escapeHtml(assignedCollectorName)}</td>
-            <td data-field="availability">-</td>
             <td data-field="status">${renderStatusBadge(vehicle.status)}</td>
 
             <td>
@@ -639,10 +565,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <button class="icon-button" onclick="viewVehicleDetails(${idLiteral})" title="View Details">
                         <i class="fa-solid fa-eye"></i>
                     </button>
-                    <button class="icon-button" onclick="editVehicle(${idLiteral})" title="Edit Vehicle">
-                        <i class="fa-solid fa-edit"></i>
-                    </button>
-                    <button class="icon-button danger" onclick="removeVehicle(${idLiteral})" title="Remove Vehicle">
+
+                    <button class="icon-button danger" onclick="removeVehicle(${idLiteral})" 
+                            title="${(vehicle.status || '').toLowerCase() === 'in-use' ? 'Cannot delete (In Use)' : 'Remove Vehicle'}"
+                            ${(vehicle.status || '').toLowerCase() === 'in-use' ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -685,16 +611,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
         const capacityCell = row.querySelector('[data-field="capacity"]');
         if (capacityCell) capacityCell.textContent = formatCapacity(vehicle.capacity);
-
-        const collectorCell = row.querySelector('[data-field="assignedCollector"]');
-        if (collectorCell) {
-            let assignedCollectorName = '-';
-            if (window.__COLLECTORS) {
-                const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-                if (found) assignedCollectorName = found.name;
-            }
-            collectorCell.textContent = assignedCollectorName;
-        }
 
         const statusCell = row.querySelector('[data-field="status"]');
         if (statusCell) statusCell.innerHTML = renderStatusBadge(vehicle.status);
@@ -739,27 +655,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             const vehicle = response.vehicle;
 
             syncVehicleCache(vehicle);
-
-            // Update collector cache checks
-            if (window.__COLLECTORS) {
-                const newCollectorId = payload.assignedCollectorId;
-
-                // 1. Unassign from old collector who had this vehicle
-                const oldCollector = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-                if (oldCollector) {
-                    oldCollector.vehicleId = null;
-                }
-
-                // 2. Assign to new collector
-                if (newCollectorId) {
-                    const newCollector = window.__COLLECTORS.find(c => c.id == newCollectorId);
-                    if (newCollector) {
-                        // If this collector had another vehicle, technically that vehicle is now available/unassigned
-                        // logic dependent on backend implementation details, but for this vehicle:
-                        newCollector.vehicleId = vehicle.id;
-                    }
-                }
-            }
 
             if (mode === 'create') {
                 appendVehicleRow(vehicle);
@@ -831,20 +726,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                             <span>${renderStatusBadge(vehicle.status)}</span>
                         </div>
                     </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Assigned Collector</span>
-                            <strong>${escapeHtml((function () {
-                let assignedCollectorName = 'None';
-                if (window.__COLLECTORS) {
-                    const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-                    if (found) assignedCollectorName = found.name;
-                }
-                return assignedCollectorName;
-            })())}</strong>
-                        </div>
-                    </div>
                 </div>
             `;
 
@@ -861,31 +742,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
     }
 
-    async function editVehicle(vehicleId) {
-        try {
-            const vehicle = await fetchVehicle(vehicleId);
-            if (!vehicle) {
-                showToast('Vehicle not found.', 'error');
-                return;
-            }
 
-            const form = buildVehicleForm(vehicle);
-            createModal({
-                title: `Edit Vehicle ${escapeHtml(vehicle.plateNumber || vehicle.id)}`,
-                content: form,
-                buttons: [
-                    { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
-                    {
-                        label: 'Save Changes',
-                        variant: 'primary',
-                        onClick: (close) => handleVehicleSave({ mode: 'update', vehicleId: vehicle.id, form, close })
-                    }
-                ]
-            });
-        } catch (error) {
-            showToast(error.message, 'error');
-        }
-    }
 
     async function removeVehicle(vehicleId) {
         try {
@@ -900,15 +757,18 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 return;
             }
 
+            if ((vehicle.status || '').toLowerCase() === 'in-use') {
+                showToast('Cannot delete vehicle because it is currently in use.', 'error');
+                return;
+            }
+
             const label = escapeHtml(vehicle.plateNumber || `Vehicle #${vehicle.id}`);
             const container = document.createElement('div');
             container.innerHTML = `
                 <p style="margin:0 0 0.75rem 0;line-height:1.5;color:#374151;">
                     This action will mark <strong>${label}</strong> as <strong>Removed</strong>. The vehicle will remain in the list for record keeping, but will no longer be considered active.
                 </p>
-                <p style="margin:0;color:#6b7280;font-size:0.9rem;">
-                    You can restore the vehicle later by editing it and updating the status.
-                </p>
+
             `;
 
             createModal({

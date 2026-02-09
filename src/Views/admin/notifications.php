@@ -1,27 +1,4 @@
 <?php
-// System alert configurations (keeping these hardcoded for now as they seem to be feature toggles/static config)
-$systemAlerts = [
-    [
-        'name' => 'Pickup Reminders',
-        'description' => 'Automatically remind customers about scheduled pickups',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'Bid Notifications',
-        'description' => 'Notify companies about new bidding opportunities',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'Payment Alerts',
-        'description' => 'Alert users about payment status changes',
-        'status' => 'active'
-    ],
-    [
-        'name' => 'System Maintenance',
-        'description' => 'Notify all users about scheduled maintenance',
-        'status' => 'scheduled'
-    ]
-];
 
 function getAlertStatusTag($status)
 {
