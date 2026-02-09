@@ -281,10 +281,20 @@ class PickupRequest extends BaseModel
         }
 
         if ($weights === null) {
-            return $this->db->query(
+            $updated = $this->db->query(
                 "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
                 [$status, $id, $collectorId]
             );
+
+            if ($updated && $status === 'completed') {
+                $this->db->query(
+                    "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                    [$id]
+                );
+            }
+
+            return $updated;
         }
 
         // Handle the new array format for weights
@@ -341,6 +351,15 @@ class PickupRequest extends BaseModel
                     throw new \Exception("Failed to update pickup request. Pickup may not be assigned to collector {$collectorId}");
                 }
 
+                // 3. Release vehicle if completed
+                if ($status === 'completed') {
+                    $this->db->query(
+                        "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                         WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                        [$id]
+                    );
+                }
+
                 $pdo->commit();
                 return true;
 
@@ -354,10 +373,20 @@ class PickupRequest extends BaseModel
 
         // Fallback for legacy calls (if any) passing single float
         // logic should ideally be deprecated or removed if we are sure no legacy calls remain
-        return $this->db->query(
+        $legacyResult = $this->db->query(
             "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
             [$status, (float) $weights, $id, $collectorId]
         );
+
+        if ($legacyResult && $status === 'completed') {
+            $this->db->query(
+                "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                 WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                [$id]
+            );
+        }
+
+        return $legacyResult;
     }
 
     public function cancelForCustomer(string $id, int $customerId): bool

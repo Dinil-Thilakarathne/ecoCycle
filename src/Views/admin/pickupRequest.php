@@ -153,7 +153,7 @@ if (empty($timeSlots)) {
 
     function refreshPickupDetailModal(pickup) {
         const modal = document.getElementById('pickup-detail-modal');
-        if (!modal || !modal.classList.contains('open')) {
+        if (!modal) {
             return;
         }
 
@@ -192,6 +192,13 @@ if (empty($timeSlots)) {
         }
         setText('.pd-weight', weightText);
 
+        // Price field - only show if completed or price exists
+        let priceText = '';
+        if ((pickup.status === 'completed' || pickup.price > 0) && pickup.price !== null && pickup.price !== undefined) {
+            priceText = 'Rs. ' + parseFloat(pickup.price).toFixed(2);
+        }
+        setText('.pd-price', priceText);
+
         setText('.pd-collector', pickup.collectorName ?? '');
     }
 </script>
@@ -225,6 +232,9 @@ if (empty($timeSlots)) {
 
             <div><strong>Measured Weight</strong></div>
             <div class="pd-weight"></div>
+
+            <div><strong>Total Price</strong></div>
+            <div class="pd-price"></div>
 
             <div><strong>Collector</strong></div>
             <div class="pd-collector"></div>
@@ -701,29 +711,10 @@ function getStatusBadge($status)
         // Do not open if no record
         if (!record) return;
 
-        const setText = (sel, txt) => {
-            const elm = modal.querySelector(sel);
-            if (!elm) return;
-            if (!txt || String(txt).trim() === '') {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-                elm.style.display = '';
-                elm.textContent = String(txt).trim();
-            }
-        };
-
-        setText('.pd-id', record.id || '');
-        setText('.pd-customer', record.customerName || '');
-        setText('.pd-address', record.address || '');
-        setText('.pd-waste', (record.wasteCategories && record.wasteCategories.join(', ')) || '');
-        setText('.pd-timeslot', record.timeSlot || '');
-        setText('.pd-status', record.status || '');
-        setText('.pd-vehicle', record.vehiclePlate || '');
-        setText('.pd-collector', record.collectorName || '');
+        // Use the shared function to populate data
+        if (typeof refreshPickupDetailModal === 'function') {
+            refreshPickupDetailModal(record);
+        }
 
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
