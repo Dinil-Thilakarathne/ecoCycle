@@ -47,6 +47,6 @@ return [
     |--------------------------------------------------------------------------
     */
     'template' => [
-        'path' => __DIR__ . '/../resources/emails',
+        'path' => base_path('resources/emails'),
     ],
 ];

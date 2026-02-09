@@ -200,6 +200,9 @@ class VehicleController extends BaseController
         if (!$existing) {
             return Response::errorJson('Vehicle not found', 404);
         }
+        if (($existing['status'] ?? 'available') === 'in-use') {
+            return Response::errorJson('Cannot delete a vehicle that is currently in use.', 409);
+        }
 
         try {
             // Unassign any collector

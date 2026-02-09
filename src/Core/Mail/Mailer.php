@@ -26,7 +26,12 @@ class Mailer
         $ext = $format === 'text' ? '.text.php' : '.html.php';
         $path = $this->templatesPath . '/' . $name . $ext;
 
+        if (file_exists($path)) {
+            $path = realpath($path);
+        }
+
         if (!is_readable($path)) {
+            error_log("Mailer: Template not found/readable at: " . $path . " (Original: " . $this->templatesPath . '/' . $name . $ext . ")");
             return '';
         }
 

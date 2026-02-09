@@ -81,7 +81,6 @@
   color: #7f8c8d;
 }
 
-
 /*ACTIVE BIDS*/
 
 /* place bid form*/
@@ -494,7 +493,7 @@ span.unverified {
   border-radius: 20px;
   width: 600px;
   position: relative;
-  margin-top:0;
+  margin-top: 0;
 }
 
 .form-group {
@@ -547,29 +546,6 @@ textarea {
   border-radius: 6px;
 }
 
-/* Toast (styled inside a bottom-right container) */
-.toast {
-  /* positioning handled by #toast-container in public/js/toast.js */
-  background: var(--primary-500);
-  color: var(--neutral-0);
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-weight: bold;
-  animation: fadeout 4s forwards;
-}
-@keyframes fadeout {
-  0% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    display: none;
-  }
-}
-
 /* NOTIFICATION*/
 
 .c-nf-filters {
@@ -595,7 +571,6 @@ textarea {
 .data-table tr.unread {
   background: #e9f8f0;
 }
-
 
 /* Modal */
 .n-modal-overlay {
