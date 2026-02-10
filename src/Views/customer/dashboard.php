@@ -39,6 +39,8 @@ $recentPickupsWidget = array_slice(
     5
 );
 
+consoleLog($userProfile);
+
 if (!function_exists('customer_pickup_status_class')) {
     function customer_pickup_status_class(string $status): string
     {
@@ -88,18 +90,19 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 $profileData = $userProfile ?? [];
                 $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
                 $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
-                $imagePath = $profileData['profileImage'] ?? null;
+                $imagePath = $userProfile['profileImage'] ?? null;
                 $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
                 ?>
                 <div style="display: flex; align-items: center; gap: 1.25rem;">
-                    <img src="<?= e($profilePic) ?>" alt="" class="customer-dashboard-avatar">
+                    <!-- <img src="<?= e($profilePic) ?>" alt="" class="customer-dashboard-avatar"> -->
+                    <img src="<?= '/' . ltrim($imagePath, '/') ?>" alt="Profile picture" class="customer-dashboard-avatar">
                     <div>
                         <h1 class="page-header__title" style="margin: 0;">Welcome, <?= e($firstName) ?>!</h1>
                         <p class="page-header__description" style="margin: 0.25rem 0 0 0;">Your waste collection dashboard</p>
                     </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Stats Feature Cards (Using old style) -->
         <div class="stats-grid" style="margin-bottom: 2.5rem;">
