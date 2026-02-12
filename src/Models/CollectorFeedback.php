@@ -7,7 +7,7 @@ use Core\Database;
 class CollectorFeedback
 {
     private Database $db;
-    private string $table = 'customer_ratings';
+    private string $table = 'collector_ratings';
 
     public function __construct()
     {

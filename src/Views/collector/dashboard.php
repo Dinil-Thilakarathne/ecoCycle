@@ -60,7 +60,7 @@
       <div class="feature-card__title">Rating</div>
       <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
     </div>
-    <div class="feature-card__body">4.8</div>
+    <div class="feature-card__body"><span id="stat-rating">-</span></div>
     <div class="feature-card__footer">
       <span class="desc">customer rating</span>
     </div>
@@ -287,6 +287,35 @@
     // Initial fetch and interval
     fetchMaterialPrices();
     setInterval(fetchMaterialPrices, 10000);
+  })();
+
+  // Real-time rating update
+  (function() {
+    const collectorId = <?= (int)($user['id'] ?? 0) ?>;
+    
+    async function updateRating() {
+      if (!collectorId) return;
+      
+      try {
+        const res = await fetch(`/api/collector/metrics?collector_id=${collectorId}`, { 
+          credentials: 'include' 
+        });
+        
+        if (!res.ok) return;
+        const json = await res.json();
+        
+        if (json.success && json.data?.feedbackMetrics) {
+          const avgRating = json.data.feedbackMetrics.averageRating || 0;
+          document.getElementById('stat-rating').textContent = avgRating.toFixed(1);
+        }
+      } catch (e) {
+        console.error('Failed to fetch rating:', e);
+      }
+    }
+    
+    // Initial fetch and update every 30 seconds
+    updateRating();
+    setInterval(updateRating, 30000);
   })();
 
   lucide.createIcons();

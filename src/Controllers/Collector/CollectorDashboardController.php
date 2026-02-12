@@ -3,6 +3,7 @@
 namespace Controllers\Collector;
 
 use Controllers\DashboardController;
+use Core\Http\Request;
 use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
 use Models\User;
@@ -667,7 +668,7 @@ public function getMetrics(Request $request)
     }
 }
 
-    public function getFeedback(\Core\Http\Request $request)
+    public function getFeedback(Request $request)
 {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -730,7 +731,7 @@ public function getMetrics(Request $request)
 }
 
 
-public function getWasteCollection(\Core\Http\Request $request)
+public function getWasteCollection(Request $request)
 {
     header('Content-Type: application/json; charset=utf-8');
 
