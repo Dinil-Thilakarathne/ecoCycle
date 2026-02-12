@@ -4,17 +4,17 @@ $recentActivity = $recentActivity ?? [];
 ?>
 
 <div>
-    <div class="page-header__content" style="margin-bottom: 2rem;">
-        <div style="display: flex; align-items: center; gap: 1.25rem;">
+    <div class="page-header">
+        <div class="page-header__content" style="display: flex; align-items: center; gap: 1.25rem;">
             <img src="<?= !empty($user['profile_image_path']) ? htmlspecialchars($user['profile_image_path']) : 'https://ui-avatars.com/api/?name=' . urlencode($user['name'] ?? 'Admin') . '&background=random' ?>"
                 alt="Profile" class="customer-dashboard-avatar"
                 style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-500);">
             <div>
-                <h1 class="page-header__title" style="margin: 0; font-size: 1.5rem; color: var(--neutral-900);">
+                <h1 class="page-header__title">
                     Welcome,
                     <?= htmlspecialchars(explode(' ', $user['name'] ?? 'Admin')[0]) ?>!
                 </h1>
-                <p class="page-header__description" style="margin: 0.25rem 0 0 0; color: var(--neutral-500);">
+                <p class="page-header__description">
                     Your system administration dashboard
                 </p>
             </div>
