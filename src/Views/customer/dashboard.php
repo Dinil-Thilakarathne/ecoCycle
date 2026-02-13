@@ -246,9 +246,40 @@ function updateChart(stats) {
             type: 'doughnut',
             data: {
                 labels: ['Pending', 'Scheduled', 'Completed'],
-                datasets: [{ data: [pending, scheduled, completed], backgroundColor: ['#f59e0b', '#06b6d4', '#10b981'], borderWidth: 0 }]
+                datasets: [{
+                    data: [pending, scheduled, completed],
+                    backgroundColor: ['#f59e0b', '#06b6d4', '#10b981'],
+
+                    // ✅ THIS adds space between slices
+                    spacing: 1,
+
+                    // ✅ Rounded edges (modern look)
+                    borderRadius: 3,
+
+                    // ✅ Clean white separator
+                    borderWidth: 1,
+                    borderColor: '#ffffff',
+
+                    // prevents hover shifting layout
+                    hoverOffset: 1
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                // controls donut thickness (visual only)
+                cutout: '55%',
+
+                plugins: {
+                    legend: { display: false }
+                },
+
+                animation: {
+                    animateRotate: true,
+                    duration: 800
+                }
+            }
         });
     } else {
         chartInstance.data.datasets[0].data = [pending, scheduled, completed];
@@ -256,11 +287,16 @@ function updateChart(stats) {
     }
 
     // update custom legend counts
-    const setLegend = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const setLegend = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v;
+    };
+
     setLegend('legend-pending', pending);
     setLegend('legend-scheduled', scheduled);
     setLegend('legend-completed', completed);
 }
+
 
 document.addEventListener('DOMContentLoaded', loadDashboardData);
 </script>

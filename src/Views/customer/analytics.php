@@ -268,10 +268,29 @@ $wasteTypeData = [
                 responsive: true,
                 plugins: { legend: { display: false, labels: { font: { size: 14 } } } },
                 scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Weight (kg)', font: { size: 14 } }, ticks: { color: '#64748b', font: { size: 13 } } },
-                    x: { ticks: { color: '#1e293b', font: { size: 13 } } }
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Weight (kg)', font: { size: 14 } },
+                        ticks: { color: '#64748b', font: { size: 13 } },
+
+                        // ❌ REMOVE GRID LINES
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: { color: '#1e293b', font: { size: 13 } },
+
+                        // ❌ REMOVE GRID LINES
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        }
+                    }
                 }
             }
+
         });
 
         function renderForMonth(yearMonth) {
@@ -344,8 +363,10 @@ $wasteTypeData = [
             if (!incomeYearSelect) return;
             incomeYearSelect.innerHTML = '';
 
-            // Show a compact recent range: last 5 years or from minIncomeYear if older
-            const startYear = Math.min(maxIncomeYear, Math.max(minIncomeYear, maxIncomeYear - 4));
+            // ✅ Show LAST 10 YEARS including current year
+            const numberOfYears = 10;
+            const startYear = maxIncomeYear - (numberOfYears - 1);
+
             for (let y = maxIncomeYear; y >= startYear; y--){
                 const opt = document.createElement('option');
                 opt.value = String(y);
@@ -353,9 +374,15 @@ $wasteTypeData = [
                 incomeYearSelect.appendChild(opt);
             }
 
+            // Select initial year
             incomeYearSelect.value = String(initYear || thisYear);
-            incomeYearSelect.addEventListener('change', () => { renderIncomeYear(Number(incomeYearSelect.value)); });
+
+            // When user changes year → reload chart
+            incomeYearSelect.addEventListener('change', () => {
+                renderIncomeYear(Number(incomeYearSelect.value));
+            });
         }
+
 
         function computeIncomeForYear(year){
             const labels = [];
@@ -434,10 +461,29 @@ $wasteTypeData = [
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
-                        scales: {
-                            x: { grid: { display: false }, ticks: { color: '#64748b' } },
-                            y: { beginAtZero: true, ticks: { color: '#64748b', callback: v => 'Rs ' + v.toLocaleString() }, title: { display: true, text: 'Income (Rs)' } }
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b' },
+
+                            // ❌ remove vertical grid
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#64748b', callback: v => 'Rs ' + v.toLocaleString() },
+                            title: { display: true, text: 'Income (Rs)' },
+
+                            // ❌ remove horizontal grid
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            }
                         }
+                    }
+
                     }
                 });
             }
