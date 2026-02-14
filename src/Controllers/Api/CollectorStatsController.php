@@ -82,6 +82,77 @@ class CollectorStatsController extends BaseController
     }
 
     /**
+     * GET /api/collector/material-collection
+     * Returns today's material collection summary grouped by waste category
+     */
+    public function materialCollection(Request $request): Response
+    {
+        try {
+            $collectorId = session()->get('user_id');
+            if (!$collectorId) {
+                return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
+            }
+
+            $today = date('Y-m-d');
+            $todayStart = $today . ' 00:00:00';
+            $todayEnd = $today . ' 23:59:59';
+
+            $sql = "
+                SELECT 
+                    wc.id,
+                    wc.name,
+                    wc.price_per_unit,
+                    wc.color,
+                    COALESCE(SUM(prw.quantity), 0) AS total_weight,
+                    COALESCE(SUM(prw.quantity * wc.price_per_unit), 0) AS total_price
+                FROM waste_categories wc
+                LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
+                LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
+                WHERE pr.collector_id = ?
+                    AND pr.created_at >= ? AND pr.created_at <= ?
+                    AND pr.status = 'completed'
+                GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
+                HAVING total_weight > 0
+                ORDER BY total_weight DESC
+            ";
+
+            $materials = $this->db->fetchAll($sql, [$collectorId, $todayStart, $todayEnd]);
+
+            $formattedMaterials = array_map(function($m) {
+                return [
+                    'id' => (int) $m['id'],
+                    'name' => $m['name'],
+                    'weight' => (float) $m['total_weight'],
+                    'price' => (float) $m['total_price'],
+                    'price_per_unit' => (float) ($m['price_per_unit'] ?? 0),
+                    'color' => $m['color'] ?? $this->getColorForMaterial($m['name'])
+                ];
+            }, $materials ?: []);
+
+            return $this->json([
+                'status' => 'success',
+                'data' => $formattedMaterials,
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
+        } catch (\Throwable $e) {
+            return $this->json(['status' => 'error', 'message' => 'Failed to fetch material collection', 'details' => $e->getMessage()], 500);
+        }
+    }
+
+    private function getColorForMaterial(string $name): string
+    {
+        $colors = [
+            'plastic' => '#fbbf24',
+            'glass' => '#60a5fa',
+            'metal' => '#a78bfa',
+            'paper' => '#34d399',
+            'cardboard' => '#fb923c',
+            'organic' => '#f97316',
+        ];
+        return $colors[strtolower($name)] ?? '#6b7280';
+    }
+
+    /**
      * GET /api/collector/notifications
      * Returns real-time notifications for the logged-in collector
      */

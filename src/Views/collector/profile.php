@@ -131,8 +131,14 @@ $csrfToken = csrf_token();
   <div class="p-info-card">
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Collector Information</h3>
-      <div class="profile-picture">
-        <img src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" width="100">
+      <div class="profile-picture" style="text-align: center; margin: 20px 0;">
+        <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" 
+             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
+        <div style="margin-top: 15px;">
+          <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">
+            📷 Change Photo
+          </a>
+        </div>
       </div>
       <div class="form-group"><label>Full Name</label>
         <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
@@ -228,6 +234,45 @@ $csrfToken = csrf_token();
   </div>
 </main>
 
+<!-- Photo Upload Modal -->
+<div id="photoUploadModal" class="form-modal">
+  <div class="form-modal-content" style="max-width: 500px;">
+    <a href="#" class="close">&times;</a>
+    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">📷 Change Profile Photo</h2>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img id="photoPreview" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Preview" 
+           style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" action="/collector/profile" id="photoUploadForm">
+      <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
+      
+      <div class="form-group">
+        <label class="form-lable">Select New Photo</label>
+        <input type="file" name="photo" id="photoInput" accept="image/jpeg,image/png,image/jpg,image/gif" 
+               required style="padding: 10px;">
+        <small style="color: #6b7280; display: block; margin-top: 5px;">
+          Accepted formats: JPG, PNG, GIF (Max 5MB)
+        </small>
+      </div>
+
+      <div class="form-actions" style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="submit" name="uploadPhoto" class="btn btn-primary" style="flex: 1;">
+          ✓ Upload Photo
+        </button>
+        <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
+          <button type="submit" name="removePhoto" class="btn btn-outline" 
+                  style="flex: 1; background: #fee2e2; color: #dc2626;"
+                  onclick="return confirm('Are you sure you want to remove your profile photo?');">
+            🗑️ Remove Photo
+          </button>
+        <?php endif; ?>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Edit Modal -->
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
@@ -242,19 +287,8 @@ $csrfToken = csrf_token();
         </ul>
       </div>
     <?php endif; ?>
-    <form method="POST" enctype="multipart/form-data" action="/api/profile/update">
+    <form method="POST" action="/collector/profile">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
-      <div class="form-group"><label>Profile Picture</label>
-        <input type="file" name="profile_picture" accept="image/*">
-      </div>
-      <div class="form-actions">
-        <button type="submit" name="uploadPhoto" class="btn btn-outline" style="width:100%; margin-bottom:8px;">Upload
-          Photo</button>
-        <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
-          <button type="submit" name="removePhoto" class="btn btn-outline p-btn-delete" style="width:100%">Remove
-            Photo</button>
-        <?php endif; ?>
-      </div>
 
       <div class="form-group"><label class="form-lable">Name</label>
         <input type="text" name="name" value="<?= htmlspecialchars($editName) ?>" required>
@@ -291,6 +325,45 @@ $csrfToken = csrf_token();
     </form>
   </div>
 </div>
+
+<!-- Upload Photo Script -->
+<script>
+  // Preview selected image before upload
+  document.getElementById('photoInput')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        e.target.value = '';
+        return;
+      }
+
+      // Validate file type
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/gif'].includes(file.type)) {
+        alert('Please select a valid image file (JPG, PNG, or GIF)');
+        e.target.value = '';
+        return;
+      }
+
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        document.getElementById('photoPreview').src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Handle form submission with loading state
+  document.getElementById('photoUploadForm')?.addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[name="uploadPhoto"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Uploading...';
+    }
+  });
+</script>
 
 <!-- Bank Details Modal -->
 <div id="bankdetail" class="form-modal">

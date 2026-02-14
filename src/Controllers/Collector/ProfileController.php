@@ -17,6 +17,53 @@ class ProfileController extends BaseController
         $this->imageManager = new ProfileImageManager();
     }
 
+    public function show(Request $request): Response
+    {
+        $authUser = auth();
+        if (!$authUser) {
+            return Response::redirect('/login');
+        }
+
+        $userId = (int) ($authUser['id'] ?? 0);
+        if ($userId <= 0) {
+            return Response::redirect('/login');
+        }
+
+        $userModel = new User();
+
+        try {
+            $collectorProfile = $userModel->findById($userId);
+            
+            // Get vehicle info if assigned
+            $vehicleInfo = null;
+            if (!empty($collectorProfile['vehicle_id'])) {
+                $db = new \Core\Database();
+                $vehicleInfo = $db->fetch(
+                    "SELECT * FROM vehicles WHERE id = ?",
+                    [$collectorProfile['vehicle_id']]
+                );
+            }
+
+            return $this->view('collector/profile', [
+                'collectorProfile' => $collectorProfile,
+                'vehicleInfo' => $vehicleInfo,
+                'user' => $authUser,
+                'validationErrors' => session()->get('errors') ?? [],
+                'statusMessage' => session()->get('status') ?? '',
+                'oldInput' => session()->get('old') ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return $this->view('collector/profile', [
+                'collectorProfile' => [],
+                'vehicleInfo' => null,
+                'user' => $authUser,
+                'validationErrors' => ['Unable to load profile: ' . $e->getMessage()],
+                'statusMessage' => '',
+                'oldInput' => [],
+            ]);
+        }
+    }
+
     public function update(Request $request): Response
     {
         $authUser = auth();
