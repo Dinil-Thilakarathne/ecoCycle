@@ -181,7 +181,7 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
         const el = document.getElementById('materialCollectionChart');
         if (el) {
           const parent = el.parentElement;
-          parent.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No materials collected today</p>';
+          parent.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No materials collected this week</p>';
         }
         return;
       }
@@ -202,7 +202,7 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 
       const ctx = el.getContext('2d');
       materialCollectionChart = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'pie',
         data: {
           labels: materialLabels,
           datasets: [{

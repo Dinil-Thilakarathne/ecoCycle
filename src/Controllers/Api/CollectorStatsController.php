@@ -83,7 +83,7 @@ class CollectorStatsController extends BaseController
 
     /**
      * GET /api/collector/material-collection
-     * Returns today's material collection summary grouped by waste category
+     * Returns this week's material collection summary grouped by waste category
      */
     public function materialCollection(Request $request): Response
     {
@@ -93,9 +93,9 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            $today = date('Y-m-d');
-            $todayStart = $today . ' 00:00:00';
-            $todayEnd = $today . ' 23:59:59';
+            // Get the start of the week (7 days ago) and end of today
+            $weekStart = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
+            $weekEnd = date('Y-m-d') . ' 23:59:59';
 
             $sql = "
                 SELECT 
@@ -116,7 +116,7 @@ class CollectorStatsController extends BaseController
                 ORDER BY total_weight DESC
             ";
 
-            $materials = $this->db->fetchAll($sql, [$collectorId, $todayStart, $todayEnd]);
+            $materials = $this->db->fetchAll($sql, [$collectorId, $weekStart, $weekEnd]);
 
             $formattedMaterials = array_map(function($m) {
                 return [
