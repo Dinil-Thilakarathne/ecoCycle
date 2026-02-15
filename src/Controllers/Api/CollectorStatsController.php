@@ -142,12 +142,12 @@ class CollectorStatsController extends BaseController
     private function getColorForMaterial(string $name): string
     {
         $colors = [
-            'plastic' => '#fbbf24',
-            'glass' => '#60a5fa',
-            'metal' => '#a78bfa',
-            'paper' => '#34d399',
+            'plastic' => '#0000ff',
+            'glass' => '#ff0000',
+            'metal' => '#ffa500',
+            'paper' => '#008000',
             'cardboard' => '#fb923c',
-            'organic' => '#f97316',
+            'organic' => '#8b5a2b',
         ];
         return $colors[strtolower($name)] ?? '#6b7280';
     }
