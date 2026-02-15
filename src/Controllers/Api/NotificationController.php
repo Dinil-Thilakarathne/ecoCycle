@@ -122,7 +122,7 @@ class NotificationController extends BaseController
         if ($id <= 0) {
             return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
         }
-
+        $this->model->markAsRead($id, $user['id']);
         return $this->json(['message' => 'Notification marked as read']);
     }
 
