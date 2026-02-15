@@ -38,14 +38,14 @@ class BidController extends BaseController
             return Response::errorJson('Invalid bid id.', 422);
         }
 
-        $bidPerUnit = $this->extractNumeric($request, 'bidPerUnit');
+        $totalBidAmount = $this->extractNumeric($request, 'totalBidAmount');
         $wasteAmount = $this->extractNumeric($request, 'wasteAmount');
 
-        if ($bidPerUnit === null || $wasteAmount === null) {
+        if ($totalBidAmount === null || $wasteAmount === null) {
             return Response::errorJson('Invalid payload.', 422);
         }
 
-        $newTotal = round($bidPerUnit * $wasteAmount, 2);
+        $newTotal = round($totalBidAmount, 2);
 
         // Fetch existing bid and round details for notifications
         $existingBid = $this->bids->findForCompanyById($bidId, $companyId);
@@ -202,25 +202,31 @@ class BidController extends BaseController
             $normalizedWasteType = $roundCategory;
         }
 
-        $bidPerUnit = $this->extractNumeric($request, 'bidPerUnit');
+        $totalBidAmount = $this->extractNumeric($request, 'totalBidAmount');
         $wasteAmount = $this->extractNumeric($request, 'wasteAmount');
 
         $errors = [];
-        if ($bidPerUnit === null || $bidPerUnit <= 0) {
-            $errors['bidPerUnit'] = 'Enter a valid bid amount per unit.';
+        if ($totalBidAmount === null || $totalBidAmount <= 0) {
+            $errors['totalBidAmount'] = 'Enter a valid total bid amount.';
         }
 
         if ($wasteAmount === null || $wasteAmount <= 0) {
             $errors['wasteAmount'] = 'Enter a valid waste amount.';
         }
 
-        if ($bidPerUnit !== null) {
-            $lookup = $normalizedWasteType;
-            if ($lookup !== '' && isset($this->minimumBids[$lookup])) {
-                $minRequired = (float) $this->minimumBids[$lookup];
-                if ($bidPerUnit < $minRequired) {
-                    $errors['bidPerUnit'] = 'Bid must be at least Rs ' . number_format($minRequired, 2) . ' for ' . ucfirst($lookup) . '.';
-                }
+        // Validate total bid against starting bid (reserve price or startingBid from round)
+        if ($totalBidAmount !== null && $totalBidAmount > 0) {
+            $startingBid = 0;
+
+            // Get the minimum bid for this round
+            if (isset($round['reservePrice']) && $round['reservePrice'] > 0) {
+                $startingBid = (float) $round['reservePrice'];
+            } elseif (isset($round['startingBid']) && $round['startingBid'] > 0) {
+                $startingBid = (float) $round['startingBid'];
+            }
+
+            if ($startingBid > 0 && $totalBidAmount < $startingBid) {
+                $errors['totalBidAmount'] = 'Total bid must be at least Rs ' . number_format($startingBid, 2) . ' (starting bid for this lot).';
             }
         }
 
@@ -228,7 +234,7 @@ class BidController extends BaseController
             return Response::errorJson('Validation failed.', 422, $errors);
         }
 
-        $totalAmount = round($bidPerUnit * $wasteAmount, 2);
+        $totalAmount = round($totalBidAmount, 2);
 
         // Ensure requested waste amount does not exceed the lot's available quantity
         $roundQty = isset($round['quantity']) ? (float) $round['quantity'] : 0.0;
@@ -243,7 +249,7 @@ class BidController extends BaseController
             $currentAmount = isset($existingBid['amount']) ? (float) $existingBid['amount'] : 0.0;
             if ($totalAmount <= $currentAmount) {
                 return Response::errorJson('You already have a higher or equal bid on this lot. You can only update to a higher amount.', 422, [
-                    'bidPerUnit' => 'Total bid amount must be higher than your current bid of Rs ' . number_format($currentAmount, 2)
+                    'totalBidAmount' => 'Total bid amount must be higher than your current bid of Rs ' . number_format($currentAmount, 2)
                 ]);
             }
         }
@@ -311,7 +317,7 @@ class BidController extends BaseController
             return null;
         }
 
-        return [
+        return ([
             'id' => $round['id'] ?? null,
             'lotId' => $round['lotId'] ?? null,
             'category' => $round['wasteCategory'] ?? '',
@@ -321,7 +327,8 @@ class BidController extends BaseController
             'status' => $round['status'] ?? 'active',
             'endTime' => $round['endTime'] ?? null,
             'reservePrice' => $round['reservePrice'] ?? null,
-        ];
+            'startingBid' => $round['startingBid'] ?? null,
+        ]);
     }
 
     private function mergeJsonBody(Request $request): void
