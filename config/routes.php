@@ -348,6 +348,13 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
     'Middleware\Roles\CollectorOnly'
 ]);
 
+
+$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);

@@ -91,10 +91,25 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
             $safeBid = htmlspecialchars($data['bid'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
             $safeAmount = htmlspecialchars($data['amount'] ?? '0 kg', ENT_QUOTES, 'UTF-8');
             $safeStatus = htmlspecialchars($data['status'] ?? 'Active', ENT_QUOTES, 'UTF-8');
+            // map common waste type text to CSS custom property names defined in theme.css
+            $typeKey = strtolower($safeType);
+            $typeVarMap = [
+              'plastic' => '--plastic',
+              'paper'   => '--paper',
+              'metal'   => '--metal',
+              'glass'   => '--glass',
+              'organic' => '--organic'
+            ];
+            $cssVar = $typeVarMap[$typeKey] ?? null;
+            // fallback neutral color when no theme variable available
+            $dotStyle = $cssVar ? "background: var({$cssVar});" : "background: #9CA3AF;";
             ?>
             <div class="bid-item">
               <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.05rem;">
-                <div class="waste-type" style="font-weight:bold;"><?= $safeType ?></div>
+                <div class="waste-type" style="font-weight:bold;"><span class="waste-dot" aria-hidden="true"
+                        style="width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:10px;<?php echo $dotStyle ?>box-shadow:0 0 0 2px rgba(0,0,0,0.03);"></span>
+                  <span><?= $safeType ?></span>
+                </div>
                 <div><span
                     class="<?= strtolower($safeStatus) === 'active' ? 'verified' : 'unverified' ?>"><?= $safeStatus ?></span>
                 </div>

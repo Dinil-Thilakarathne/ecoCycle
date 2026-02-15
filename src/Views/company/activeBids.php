@@ -71,7 +71,7 @@ $formSuccess = $formSuccess ?? null;
                         data-category="<?= htmlspecialchars(strtolower((string) ($lot['category'] ?? ''))) ?>"
                         data-quantity="<?= htmlspecialchars((string) ($lot['quantity'] ?? 0)) ?>"
                         data-unit="<?= htmlspecialchars(($lot['unit'] ?? 'kg')) ?>">
-                        <?= htmlspecialchars((($lot['lotId'] ?? '') !== '' ? $lot['lotId'] : ($lot['id'] ?? 'Lot')) . ' • ' . ($lot['category'] ?? 'Unknown')) ?>
+                        <?= htmlspecialchars((($lot['lotId'] ?? '') !== '' ? $lot['lotId'] : ($lot['id'] ?? 'Lot'))) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
