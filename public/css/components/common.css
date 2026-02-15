@@ -302,6 +302,7 @@
   &.btn-primary {
     background-color: var(--success-light);
     color: #047857;
+    border: 1px solid var(--success);
 
     &.outline {
       border: 1px solid var(--success);

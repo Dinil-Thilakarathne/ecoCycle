@@ -131,24 +131,25 @@ $csrfToken = csrf_token();
   <div class="p-info-card">
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Collector Information</h3>
-      <div class="profile-picture" style="text-align: center; margin: 20px 0;">
+      <div class="profile-picture" style="display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0;">
         <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" 
              style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
-        <div style="margin-top: 15px;">
-          <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">
-            📷 Change Photo
-          </a>
-        </div>
+        <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">
+          📷 Change Photo
+        </a>
       </div>
-      <div class="form-group"><label>Full Name</label>
+      <div class="form-group"><label>First Name</label>
+        <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
+      </div>
+      <div class="form-group"><label>Second Name</label>
         <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
       </div>
       <div class="form-group"><label>License Number</label>
         <input type="text" value="<?= htmlspecialchars($licenseNumber) ?>" disabled>
       </div>
-      <div class="form-group"><label>Service Areas</label>
+      <!-- <div class="form-group"><label>Service Areas</label>
         <input type="text" value="<?= htmlspecialchars(implode(', ', $serviceAreas)) ?>" disabled>
-      </div>
+      </div> -->
     </div>
 
     <div class="pc-card">
@@ -163,9 +164,6 @@ $csrfToken = csrf_token();
       </div>
       <div class="form-group"><label>Address</label>
         <textarea disabled><?= htmlspecialchars($displayAddress) ?></textarea>
-      </div>
-      <div class="form-group"><label>Postal Code</label>
-        <input type="text" value="<?= htmlspecialchars($displayPostal) ?>" disabled>
       </div>
     </div>
   </div>
@@ -227,9 +225,7 @@ $csrfToken = csrf_token();
 
   <div class="pc-card">
     <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-    <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
-    <p><button type="button" class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button>
-    </p>
+      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 10px; border: 1px solid var(--success);">Change Password</a></p>
     <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
   </div>
 </main>
@@ -290,8 +286,11 @@ $csrfToken = csrf_token();
     <form method="POST" action="/collector/profile">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
-      <div class="form-group"><label class="form-lable">Name</label>
+      <div class="form-group"><label class="form-lable">First Name</label>
         <input type="text" name="name" value="<?= htmlspecialchars($editName) ?>" required>
+      </div>
+      <div class="form-group"><label class="form-lable">Second Name</label>
+        <input type="text" name="secondName" value="<?= htmlspecialchars($editName) ?>" required>
       </div>
       <div class="form-group"><label class="form-lable">Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($editEmail) ?>" required>
@@ -303,19 +302,12 @@ $csrfToken = csrf_token();
       <div class="form-group"><label class="form-lable">Address</label>
         <textarea name="address" required><?= htmlspecialchars($editAddress) ?></textarea>
       </div>
-      <div class="form-group"><label class="form-lable">Postal Code</label>
-        <input type="text" name="postalCode" value="<?= htmlspecialchars($editPostalCode) ?>" pattern="[0-9]{1,5}"
-          required>
-      </div>
       <div class="form-group"><label class="form-lable">About You</label>
         <textarea name="description" rows="3"><?= htmlspecialchars($editDescription) ?></textarea>
       </div>
 
       <div class="form-group"><label class="form-lable">Vehicle Preference</label>
         <input type="text" name="vehiclePreference" value="<?= htmlspecialchars($editVehiclePreference) ?>">
-      </div>
-      <div class="form-group"><label class="form-lable">Service Areas</label>
-        <input type="text" name="serviceArea" value="<?= htmlspecialchars($editServiceAreas) ?>" placeholder="Area1, Area2">
       </div>
       <div class="form-group"><label class="form-lable">License Number</label>
         <input type="text" name="licenseNumber" value="<?= htmlspecialchars($editLicenseNumber) ?>">
