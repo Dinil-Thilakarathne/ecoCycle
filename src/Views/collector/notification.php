@@ -189,7 +189,7 @@ let activeFilter = 'all';
                 <td>${timeAgo(notif.timestamp)}</td>
                 <td class="actions-cell">
                     <div style="display:flex; gap:12px; justify-content: center;">
-                        ${isUnread ? `<button class="icon-button" onclick="markAsReadDirect('${notif.id}')" title="Mark Read"><i class="fa-solid fa-circle-check"></i></button>` : ''}
+                        // ${isUnread ? `<button class="icon-button" onclick="markAsReadDirect('${notif.id}')" title="Mark Read"><i class="fa-solid fa-circle-check"></i></button>` : ''}
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
                     </div>
                 </td>
