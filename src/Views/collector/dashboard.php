@@ -153,18 +153,12 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
     <?php endif; ?>
   </activity-card>
 
-  <activity-card title="Material Collection Summary" description="Breakdown of today's collected materials">
+  <activity-card title="Material Collection Summary" description="Breakdown of This Week's Collected Materials">
     <!-- Material Chart -->
     <div class="" style="padding: 0;">
       <canvas id="materialCollectionChart" style="width: 100%; max-height: 360px;"></canvas>
     </div>
   </activity-card>
-
-  <!-- Amount per unit Section
-  <activity-card title="Amount Per Weight Unit " description="Current amount for each material for 1 kg">
-    <div id="material-prices-container"></div>
-  </activity-card>
-</div> -->
 
 
 <!-- Scripts -->
