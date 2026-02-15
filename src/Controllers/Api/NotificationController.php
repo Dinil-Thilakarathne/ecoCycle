@@ -99,31 +99,65 @@ class NotificationController extends BaseController
     /**
      * Mark a notification as read
      */
-    /**
-     * Mark a notification as read
-     */
     public function markAsRead(Request $request): Response
     {
         $user = auth();
         if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
+            return $this->json(['success' => false, 'error' => 'Unauthorized'], 401);
         }
 
-        // Method 3: From request input
+        // Get notification ID from route parameter (keep as string)
         $id = $request->route('id');
-        if ($id === null) {
+        if ($id === null || $id === '') {
             $id = $request->input('id');
         }
 
-        $id = (int) $id;
+        error_log("NotificationController::markAsRead - User ID: {$user['id']}, Notification ID: {$id}");
 
-        error_log("Received ID: " . $id . " from URI: " . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
-
-        if ($id <= 0) {
+        if (empty($id)) {
+            error_log("NotificationController::markAsRead - Invalid/Empty ID");
             return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
         }
 
-        return $this->json(['message' => 'Notification marked as read']);
+        try {
+            // Check if notification exists
+            $notification = $this->model->findById($id);
+            if (!$notification) {
+                error_log("NotificationController::markAsRead - Notification not found: {$id}");
+                return $this->json([
+                    'success' => false, 
+                    'message' => 'Notification not found'
+                ], 404);
+            }
+
+            error_log("NotificationController::markAsRead - Found notification: " . json_encode($notification));
+
+            // Mark the notification as read in the database
+            $result = $this->model->markAsRead($id, $user['id']);
+            
+            error_log("NotificationController::markAsRead - Update result: " . ($result ? 'true' : 'false'));
+            
+            if ($result) {
+                return $this->json([
+                    'success' => true, 
+                    'message' => 'Notification marked as read',
+                    'data' => ['id' => $id, 'status' => 'read']
+                ]);
+            } else {
+                error_log("NotificationController::markAsRead - Database update failed");
+                return $this->json([
+                    'success' => false, 
+                    'message' => 'Failed to update notification status'
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            error_log("NotificationController::markAsRead exception: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            return $this->json([
+                'success' => false, 
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 

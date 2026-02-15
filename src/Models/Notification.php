@@ -143,12 +143,25 @@ class Notification extends BaseModel
         return $this->formatRows($rows);
     }
 
-    public function markAsRead(int $id, int $userId): bool
+    public function markAsRead($id, int $userId): bool
     {
-        return $this->db->query(
-            "UPDATE {$this->table} SET status = 'read' WHERE id = ?",
-            [$id]
-        );
+        error_log("Notification::markAsRead - Updating notification ID: {$id} for user: {$userId}");
+        
+        $sql = "UPDATE {$this->table} SET status = 'read' WHERE id = ?";
+        $params = [$id];
+        
+        error_log("Notification::markAsRead - SQL: {$sql}");
+        error_log("Notification::markAsRead - Params: " . json_encode($params));
+        
+        $result = $this->db->query($sql, $params);
+        
+        error_log("Notification::markAsRead - Result: " . ($result ? 'true' : 'false'));
+        
+        // Verify the update by fetching the notification
+        $updated = $this->db->fetch("SELECT id, status FROM {$this->table} WHERE id = ?", [$id]);
+        error_log("Notification::markAsRead - After update: " . json_encode($updated));
+        
+        return $result;
     }
 
     public function markAllAsRead(int $userId): bool
@@ -176,19 +189,19 @@ class Notification extends BaseModel
         }
     }
 
-    public function findById(int $id): ?array
-{
-    $row = $this->db->fetch(
-        "SELECT * FROM {$this->table} WHERE id = ?",
-        [$id]
-    );
+    public function findById($id): ?array
+    {
+        $row = $this->db->fetch(
+            "SELECT * FROM {$this->table} WHERE id = ?",
+            [$id]
+        );
 
-    if (!$row) {
-        return null;
+        if (!$row) {
+            return null;
+        }
+
+        return $this->formatRows([$row])[0];
     }
-
-    return $this->formatRows([$row])[0];
-}
 
 
     public function getUnreadCount(int $userId, string $role = ''): int

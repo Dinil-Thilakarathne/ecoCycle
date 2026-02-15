@@ -209,7 +209,7 @@ async function markAsRead(id) {
     console.error('Failed to mark as read:', error);
     showAlert('Network error: ' + error.message, 'error');
   }
-}
+} 
 
 async function markAllAsRead() {
   try {

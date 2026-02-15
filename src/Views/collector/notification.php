@@ -156,10 +156,17 @@ let activeFilter = 'all';
             return true;
         });
 
+        // Calculate counts
+        const totalCount = data.length;
+        const unreadCount = data.filter(n => n.status === 'unread').length;
+        const readCount = data.filter(n => n.status === 'read').length;
+        
+        console.log('Rendering notifications - Total:', totalCount, 'Unread:', unreadCount, 'Read:', readCount, 'Active filter:', activeFilter);
+
         // Update Pill Counts
-        document.getElementById('count-all').textContent = data.length;
-        document.getElementById('count-unread').textContent = data.filter(n => n.status === 'unread').length;
-        document.getElementById('count-read').textContent = data.filter(n => n.status === 'read').length;
+        document.getElementById('count-all').textContent = totalCount;
+        document.getElementById('count-unread').textContent = unreadCount;
+        document.getElementById('count-read').textContent = readCount;
 
         if (filtered.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem;">No ${activeFilter} notifications found.</td></tr>`;
@@ -222,28 +229,62 @@ let activeFilter = 'all';
 
     window.markNotificationAsRead = async function() {
         const id = document.getElementById('notification-detail-modal').getAttribute('data-current-id');
-        await processMarkRead(id);
-        closeNotificationModal();
+        if (id) {
+            await processMarkRead(id);
+            closeNotificationModal();
+        }
     };
 
     window.markAsReadDirect = async (id) => await processMarkRead(id);
 
     async function processMarkRead(id) {
+        console.log('Marking notification as read, ID:', id);
         try {
             const res = await fetch(`/api/notifications/${id}/read`, { 
                 method: 'PUT', 
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
             });
-            if ((await res.json()).success) fetchNotifications();
-        } catch (e) { console.error("Update failed", e); }
+            
+            console.log('Response status:', res.status);
+            const result = await res.json();
+            console.log('Response data:', result);
+            
+            if (result.success) {
+                console.log('Successfully marked as read, updating UI...');
+                // Optimistic update: immediately update local state
+                const notif = notificationsState.find(n => String(n.id) === String(id));
+                console.log('Found notification:', notif);
+                if (notif) {
+                    notif.status = 'read';
+                    renderNotifications(notificationsState);
+                }
+                // Wait a moment before fetching to ensure DB is updated
+                setTimeout(() => fetchNotifications(), 300);
+            } else {
+                console.error("Failed to mark as read:", result.message);
+                alert('Failed to mark notification as read: ' + (result.message || 'Unknown error'));
+            }
+        } catch (e) { 
+            console.error("Update failed", e); 
+            alert('Error marking notification as read. Please try again.');
+        }
     }
 
     async function fetchNotifications() {
         try {
             const res = await fetch(endpoint);
             const json = await res.json();
-            if (json.status === 'success') renderNotifications(json.data);
-        } catch (e) {}
+            console.log('Fetched notifications:', json);
+            if (json.status === 'success' && Array.isArray(json.data)) {
+                console.log('Rendering', json.data.length, 'notifications');
+                renderNotifications(json.data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch notifications:", e);
+        }
     }
 
     fetchNotifications();
