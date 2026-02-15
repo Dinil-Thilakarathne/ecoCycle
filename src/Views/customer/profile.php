@@ -78,9 +78,12 @@ $csrfToken = csrf_token();
     </div>
 
     <div class="pc-card">
-      <a href="#editModal" class="btn btn-outline"
-        style="position: absolute; right: 6%; top: 0%; background:var(--info-light);">✏️ Edit Profile</a>
-
+      <button type="button" class="btn btn-outline"
+          style="position: absolute; right: 6%; top: 0%; background:var(--info-light);"
+          onclick="openModal('editModal')">
+          ✏️ Edit Profile
+      </button>
+  
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($displayEmail) ?>" disabled>
@@ -117,15 +120,23 @@ $csrfToken = csrf_token();
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">Edit
-            Bank Details</a></p>
+        <button type="button" class="btn btn-outline"
+            style="margin-bottom: 5px; background:var(--info-light);"
+            onclick="openModal('bankdetail')">
+            Edit Bank Details
+        </button>
       </div>
     </div>
   </div>
 
   <div class="pc-card">
     <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-    <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
+  
+      <button type="button" class="btn btn-primary"
+       style="margin-bottom: 5px"
+       onclick="openModal('passwordModal')">
+       Change Password
+      </button>
     <form method="POST" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <button type="submit" name="deleteAccount" class="btn p-btn-delete">Delete Account</button>
@@ -136,7 +147,7 @@ $csrfToken = csrf_token();
 <!-- Edit Modal -->
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+  <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
     <?php if (!empty($errors) && ($activeModal ?? '') === '#editModal'): ?>
       <div class="error-box">
@@ -187,7 +198,7 @@ $csrfToken = csrf_token();
 <!-- Bank Details Modal -->
 <div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
     <?php if (!empty($errors) && ($activeModal ?? '') === '#bankdetail'): ?>
       <div class="error-box">
@@ -220,7 +231,7 @@ $csrfToken = csrf_token();
 <!-- Change Password Modal -->
 <div id="passwordModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Change Password</h2>
     <?php if (!empty($errors) && ($activeModal ?? '') === '#passwordModal'): ?>
       <div class="error-box">
@@ -269,7 +280,33 @@ $csrfToken = csrf_token();
     })();
   </script>
 <?php endif; ?>
+<script>
+function openModal(id) {
+  console.log("Opening modal:", id); // DEBUG
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.style.display = "block";
+  } else {
+    console.error("Modal not found:", id);
+  }
+}
+
+function closeModal(element) {
+  const modal = element.closest('.form-modal');
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+window.onclick = function(event) {
+  document.querySelectorAll('.form-modal').forEach(modal => {
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+};
+</script>
+
 
 <?php if (!empty($errors) && !empty($activeModal)): ?>
-  <script>window.location.hash = <?= json_encode($activeModal) ?>;</script>
 <?php endif; ?>
