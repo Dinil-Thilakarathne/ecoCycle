@@ -326,11 +326,6 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     <i class="fa-solid fa-user-times"></i>
                                                 </button>
 
-                                                <button class="icon-button"
-                                                    onclick="assignVehicle('<?= $collector['id'] ?>')"
-                                                    title="Assign Vehicle">
-                                                    <i class="fa-solid fa-truck-moving"></i>
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -784,81 +779,6 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                             console.error('Error:', error);
                             if (window.toast) toast('An error occurred while creating the collector', 'error');
                             else alert('An error occurred while creating the collector');
-                        } finally {
-                            setLoading(false);
-                        }
-                    }
-                }
-            ]
-        });
-    }
-
-    function assignVehicle(userId) {
-        // Find user
-        let user = null;
-        if (window.__USER_DATA && window.__USER_DATA.collectors) {
-            user = window.__USER_DATA.collectors.find(u => u.id == userId);
-        }
-
-        const currentVehicleId = user ? (user.vehicleId || null) : null;
-        const vehicles = window.__USER_DATA.vehicles || [];
-
-        // Filter available vehicles + current vehicle
-        const options = vehicles.filter(v => v.status === 'available' || v.id == currentVehicleId);
-
-        // Build select options
-        let optionsHtml = '<option value="">-- No Vehicle (Unassign) --</option>';
-        options.forEach(v => {
-            const selected = v.id == currentVehicleId ? 'selected' : '';
-            optionsHtml += `<option value="${v.id}" ${selected}>${v.plate_number || v.plateNumber} (${v.type})</option>`;
-        });
-
-        const container = document.createElement('div');
-        container.innerHTML = `
-            <div style="margin-bottom: 1rem;">
-                <p style="margin-bottom: 0.5rem;">Select a vehicle to assign to this collector:</p>
-                <select class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-                    ${optionsHtml}
-                </select>
-            </div>
-        `;
-
-        Modal.open({
-            title: 'Assign Vehicle',
-            content: container,
-            actions: [
-                { label: 'Cancel', variant: 'outline', dismiss: true },
-                {
-                    label: 'Save Assignment',
-                    variant: 'primary',
-                    dismiss: false,
-                    loadingLabel: 'Saving...',
-                    onClick: async ({ body, close, setLoading }) => {
-                        const select = body.querySelector('select');
-                        const vehicleId = select.value;
-
-                        setLoading(true);
-
-                        try {
-                            const response = await fetch('/api/users/assign-vehicle', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ userId: userId, vehicleId: vehicleId })
-                            });
-
-                            const data = await response.json();
-
-                            if (data.success || response.ok) {
-                                if (window.toast) toast('Vehicle assignment updated.', 'success');
-                                else alert('Vehicle assignment updated.');
-                                close();
-                                location.reload();
-                            } else {
-                                alert(data.error || 'Failed to assign vehicle');
-                            }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            alert('An error occurred.');
                         } finally {
                             setLoading(false);
                         }

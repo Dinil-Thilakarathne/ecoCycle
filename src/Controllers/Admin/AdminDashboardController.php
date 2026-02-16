@@ -86,11 +86,13 @@ class AdminDashboardController extends DashboardController
         ];
 
         $recentActivity = $this->buildRecentActivity($pickupModel, $paymentModel, $biddingModel);
+        $wasteCategories = (new \Models\WasteCategory())->listAll();
 
         $data = [
             'pageTitle' => 'Admin Dashboard',
             'stats' => $stats,
             'recentActivity' => $recentActivity,
+            'wasteCategories' => $wasteCategories,
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -381,13 +383,44 @@ class AdminDashboardController extends DashboardController
      */
     public function notifications(): Response
     {
+        $request = app('request');
+        $page = (int) $request->query('page', 1);
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        $filters = [
+            'type' => $request->query('type'),
+            'status' => $request->query('status'),
+            'date_from' => $request->query('date_from'),
+            'date_to' => $request->query('date_to'),
+            'search' => $request->query('q')
+        ];
+
+        // Remove empty filters
+        $filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '';
+        });
+
         $notificationModel = new Notification();
-        $recent = $notificationModel->recent();
+
+        // Get paginated results with filters
+        $result = $notificationModel->search($filters, $limit, $offset);
+
+        // Also get recent notifications for the top card (unfiltered, small limit)
+        $recent = $notificationModel->recent(5);
         $alerts = $notificationModel->systemAlerts();
 
         $data = [
             'pageTitle' => 'Notifications',
             'recentNotifications' => $recent,
+            'allNotifications' => $result['notifications'],
+            'pagination' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'per_page' => $result['per_page'],
+                'last_page' => $result['last_page']
+            ],
+            'filters' => $filters,
             'systemAlerts' => $alerts,
         ];
 

@@ -1,12 +1,5 @@
-{
-    email {env.EMAIL}
-    # Optional: global ACME CA override for staging
-    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
-}
-
-{env.DOMAIN} {
+:80 {
     encode gzip zstd
-    header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
     header X-Frame-Options "DENY"
     header X-Content-Type-Options "nosniff"
     header Referrer-Policy "strict-origin-when-cross-origin"

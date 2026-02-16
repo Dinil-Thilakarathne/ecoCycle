@@ -66,6 +66,26 @@ class AuthController extends BaseController
                 // Verify password (hashed or plain) for DB user
                 if (!$userModel->verifyPassword($user, $password)) {
                     $user = null;
+                } else {
+                    // Password is correct, now check if email is verified
+                    if (isset($user['email_verified']) && !$user['email_verified']) {
+                        error_log("[Login] Email not verified for: " . $user['email']);
+
+                        session()->flash('error', 'Please verify your email address before logging in.');
+                        session()->flash('old', ['login' => $login]);
+                        session()->flash('unverified_email', $user['email']); // For resend functionality
+
+                        if ($request->expectsJson() || $request->isAjax()) {
+                            return \Core\Http\Response::json([
+                                'success' => false,
+                                'error' => 'email_not_verified',
+                                'message' => 'Please verify your email address before logging in.',
+                                'email' => $user['email']
+                            ], 403);
+                        }
+
+                        return redirect('/login');
+                    }
                 }
             }
 
@@ -411,6 +431,52 @@ class AuthController extends BaseController
                         // ignore — role assignment is best-effort
                     }
                 }
+
+                // Send welcome email with verification link
+                error_log("[Registration] Starting email send process for: {$email}");
+                try {
+                    error_log("[Registration] Generating verification token...");
+                    $verificationToken = generateVerificationToken();
+                    error_log("[Registration] Token generated: " . substr($verificationToken, 0, 10) . "...");
+
+                    // Update user with verification token
+                    error_log("[Registration] Updating user with verification token...");
+                    $userModel->updateUser((int) $newId, [
+                        'email_verification_token' => $verificationToken,
+                        'email_verification_sent_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    error_log("[Registration] User updated successfully");
+
+                    error_log("[Registration] Calling sendMail function...");
+                    $emailResult = sendMail(
+                        $email,
+                        'welcome',
+                        [
+                            'username' => $name,
+                            'email' => $email,
+                            'role' => $role,
+                            'login_url' => url('/login'),
+                            'dashboard_url' => url('/dashboard'),
+                            'verification_url' => url("/verify-email?token={$verificationToken}"),
+                        ],
+                        'Welcome to ecoCycle!'
+                    );
+
+                    error_log("[Registration] sendMail returned: " . var_export($emailResult, true));
+
+                    if ($emailResult) {
+                        error_log("[Registration] ✅ Welcome email sent successfully to: {$email}");
+                    } else {
+                        error_log("[Registration] ⚠️  sendMail returned false for: {$email}");
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail registration
+                    error_log("[Registration] ❌ Failed to send welcome email to {$email}: " . $e->getMessage());
+                    error_log("[Registration] Email error trace: " . $e->getTraceAsString());
+                } catch (\Throwable $e) {
+                    error_log("[Registration] ❌ Throwable error sending email to {$email}: " . $e->getMessage());
+                    error_log("[Registration] Error trace: " . $e->getTraceAsString());
+                }
             } catch (\Throwable $e) {
                 if ($profileImagePath !== null) {
                     $imageManager->delete($profileImagePath);
@@ -418,15 +484,16 @@ class AuthController extends BaseController
                 return $this->registrationErrorRedirect($oldInput, 'Failed to create account: ' . $e->getMessage(), $wantsJson);
             }
 
-            session()->flash('success', 'Account created. Please sign in.');
+
+            session()->flash('success', 'Account created successfully! Please check your email to verify your account.');
             if ($wantsJson) {
                 return \Core\Http\Response::json([
                     'success' => true,
-                    'message' => 'Account created. Please sign in.',
-                    'redirect' => '/login',
+                    'message' => 'Account created successfully! Please check your email to verify your account.',
+                    'redirect' => '/login?email=' . urlencode($email),
                 ]);
             }
-            return redirect('/login');
+            return redirect('/login?email=' . urlencode($email));
         } catch (\Throwable $e) {
             // Log and provide a friendly error to the user
             error_log('[Register] Unhandled exception: ' . $e->getMessage() . " in " . $e->getFile() . ':' . $e->getLine());
@@ -714,9 +781,296 @@ class AuthController extends BaseController
             return \Core\Http\Response::errorJson($message, 422);
         }
 
+
         session()->flash('old', $oldInput);
         session()->flash('error', $message);
 
         return redirect('/register');
+    }
+
+    /**
+     * Verify user's email address
+     */
+    public function verifyEmail(Request $request)
+    {
+        $token = $request->get('token');
+
+        if (!$token) {
+            session()->flash('error', 'Invalid verification link.');
+            return redirect('/login');
+        }
+
+        $userModel = new User();
+        $user = $userModel->findByVerificationToken($token);
+
+        if (!$user) {
+            session()->flash('error', 'Invalid or expired verification link.');
+            return redirect('/login');
+        }
+
+        // Mark email as verified
+        $userModel->markEmailAsVerified($user['id']);
+
+        session()->flash('success', 'Email verified successfully! You can now log in.');
+        // Redirect to login with email pre-filled
+        return redirect('/login?email=' . urlencode($user['email']));
+    }
+
+    /**
+     * Resend verification email
+     */
+    public function resendVerification(Request $request)
+    {
+        $email = $request->input('email');
+
+        if (!$email) {
+            return Response::errorJson('Email is required.', 422);
+        }
+
+        $userModel = new User();
+        $user = $userModel->findByEmail($email);
+
+        if (!$user) {
+            // Don't reveal if email exists
+            return Response::json(['success' => true, 'message' => 'If the email exists, a verification link has been sent.']);
+        }
+
+        if ($user['email_verified']) {
+            return Response::errorJson('Email is already verified.', 422);
+        }
+
+        // Generate new token
+        $verificationToken = generateVerificationToken();
+        $userModel->updateUser($user['id'], [
+            'email_verification_token' => $verificationToken,
+            'email_verification_sent_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Send verification email
+        sendMail(
+            $email,
+            'verify-email',
+            [
+                'username' => $user['name'] ?? 'User',
+                'verification_url' => url("/verify-email?token={$verificationToken}"),
+            ],
+            'Verify Your Email Address'
+        );
+
+        return Response::json(['success' => true, 'message' => 'Verification email sent.']);
+    }
+
+    /**
+     * Send password reset link
+     */
+    public function sendPasswordResetLink(Request $request)
+    {
+        $email = $request->input('email');
+
+        if (!$email) {
+            return Response::errorJson('Email is required.', 422);
+        }
+
+        $userModel = new User();
+        $user = $userModel->findByEmail($email);
+
+        if (!$user) {
+            // Don't reveal if email exists (security best practice)
+            return Response::json(['success' => true, 'message' => 'If the email exists, a password reset link has been sent.']);
+        }
+
+        // Create password reset token
+        $token = generatePasswordResetToken();
+        $created = createPasswordResetToken($email, $token);
+
+        if (!$created) {
+            return Response::errorJson('Failed to create password reset token. Please try again.', 500);
+        }
+
+        // Send password reset email
+        sendMail(
+            $email,
+            'password-reset',
+            [
+                'username' => $user['name'] ?? 'User',
+                'reset_url' => url("/reset-password?token={$token}"),
+            ],
+            'Reset Your Password'
+        );
+
+        return Response::json(['success' => true, 'message' => 'Password reset link sent to your email.']);
+    }
+
+    /**
+     * Show password reset form
+     */
+    public function showResetPassword(Request $request)
+    {
+        $token = $request->get('token');
+
+        if (!$token) {
+            session()->flash('error', 'Invalid password reset link.');
+            return redirect('/login');
+        }
+
+        // Validate token
+        $tokenData = validatePasswordResetToken($token);
+
+        if (!$tokenData) {
+            session()->flash('error', 'Invalid or expired password reset link.');
+            return redirect('/login');
+        }
+
+        return view('auth/reset-password', ['token' => $token]);
+    }
+
+    /**
+     * Reset password
+     */
+    public function resetPassword(Request $request)
+    {
+        $token = $request->input('token');
+        $password = $request->input('password');
+        $passwordConfirmation = $request->input('password_confirmation');
+
+        if (!$token || !$password || !$passwordConfirmation) {
+            return Response::errorJson('All fields are required.', 422);
+        }
+
+        if ($password !== $passwordConfirmation) {
+            return Response::errorJson('Passwords do not match.', 422);
+        }
+
+        if (strlen($password) < 8) {
+            return Response::errorJson('Password must be at least 8 characters.', 422);
+        }
+
+        // Validate token
+        $tokenData = validatePasswordResetToken($token);
+
+        if (!$tokenData) {
+            return Response::errorJson('Invalid or expired password reset link.', 422);
+        }
+
+        // Find user by email
+        $userModel = new User();
+        $user = $userModel->findByEmail($tokenData['email']);
+
+        if (!$user) {
+            return Response::errorJson('User not found.', 404);
+        }
+
+        // Update password
+        $userModel->updatePassword($user['id'], $password);
+
+        // Mark token as used
+        markPasswordResetTokenAsUsed($token);
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Password reset successfully. You can now log in.',
+            'email' => $user['email'], // Include email for redirect
+            'redirect' => '/login?email=' . urlencode($user['email'])
+        ]);
+    }
+
+    /**
+     * Resend email verification link
+     */
+    public function resendVerificationEmail(Request $request): Response
+    {
+        try {
+            $email = trim((string) $request->input('email'));
+
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($request->expectsJson() || $request->isAjax()) {
+                    return Response::errorJson('Please provide a valid email address.', 422);
+                }
+                session()->flash('error', 'Please provide a valid email address.');
+                return redirect('/login');
+            }
+
+            $userModel = new User();
+            $user = $userModel->findByEmail($email);
+
+            if (!$user) {
+                // Don't reveal if email exists or not for security
+                if ($request->expectsJson() || $request->isAjax()) {
+                    return Response::json([
+                        'success' => true,
+                        'message' => 'If an account exists with this email, a verification link has been sent.'
+                    ]);
+                }
+                session()->flash('success', 'If an account exists with this email, a verification link has been sent.');
+                return redirect('/login');
+            }
+
+            // Check if already verified
+            if ($user['email_verified']) {
+                if ($request->expectsJson() || $request->isAjax()) {
+                    return Response::json([
+                        'success' => true,
+                        'message' => 'Your email is already verified. You can log in now.'
+                    ]);
+                }
+                session()->flash('success', 'Your email is already verified. You can log in now.');
+                return redirect('/login');
+            }
+
+            // Generate new verification token
+            $verificationToken = generateVerificationToken();
+
+            // Update user with new verification token
+            $userModel->updateUser((int) $user['id'], [
+                'email_verification_token' => $verificationToken,
+                'email_verification_sent_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            // Send verification email
+            try {
+                sendMail(
+                    $email,
+                    'welcome',
+                    [
+                        'username' => $user['name'],
+                        'email' => $email,
+                        'role' => $user['role_name'] ?? 'user',
+                        'login_url' => url('/login'),
+                        'dashboard_url' => url('/dashboard'),
+                        'verification_url' => url("/verify-email?token={$verificationToken}"),
+                    ],
+                    'Verify Your Email - ecoCycle'
+                );
+
+                error_log("[Resend Verification] Email sent successfully to: {$email}");
+            } catch (\Exception $e) {
+                error_log("[Resend Verification] Failed to send email to {$email}: " . $e->getMessage());
+
+                if ($request->expectsJson() || $request->isAjax()) {
+                    return Response::errorJson('Failed to send verification email. Please try again later.', 500);
+                }
+                session()->flash('error', 'Failed to send verification email. Please try again later.');
+                return redirect('/login');
+            }
+
+            if ($request->expectsJson() || $request->isAjax()) {
+                return Response::json([
+                    'success' => true,
+                    'message' => 'Verification email sent! Please check your inbox.'
+                ]);
+            }
+
+            session()->flash('success', 'Verification email sent! Please check your inbox.');
+            return redirect('/login');
+
+        } catch (\Throwable $e) {
+            error_log("[Resend Verification] Error: " . $e->getMessage());
+
+            if ($request->expectsJson() || $request->isAjax()) {
+                return Response::errorJson('An error occurred. Please try again.', 500);
+            }
+            session()->flash('error', 'An error occurred. Please try again.');
+            return redirect('/login');
+        }
     }
 }

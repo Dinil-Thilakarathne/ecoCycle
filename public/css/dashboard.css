@@ -68,5 +68,5 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: var(--space-4);
-  padding: var(--space-4);
+  padding: var(--space-4) 0;
 }

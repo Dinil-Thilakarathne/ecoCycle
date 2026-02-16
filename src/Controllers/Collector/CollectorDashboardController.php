@@ -665,7 +665,7 @@ class CollectorDashboardController extends DashboardController
 
     public function updateStatus(\Core\Http\Request $request)
     {
-        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Type: application/json; charset=utf-8');
 
         try {
             $pickupId = $request->route('id');
@@ -677,27 +677,94 @@ class CollectorDashboardController extends DashboardController
             $status = trim($data['status'] ?? '');
             if (empty($pickupId) || $status === '') {
                 http_response_code(400);
-                echo "<div class='alert error'>Invalid pickup ID or status</div>";
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Invalid pickup ID or status'
+                ]);
+                exit;
+            }
+
+            // Get collector ID from session
+            $collectorId = (int) ($this->user['id'] ?? 0);
+            if ($collectorId <= 0) {
+                http_response_code(401);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Unauthorized: Collector not found'
+                ]);
                 exit;
             }
 
             $pickupRequest = new PickupRequest();
-            $pickupRequest->updateStatus((string) $pickupId, $status);
 
-            $safeStatus = htmlspecialchars($status, ENT_QUOTES, 'UTF-8');
-            $class = strtolower(str_replace(' ', '', $safeStatus));
+            // Extract weights array if status is completed
+            $weights = isset($data['weights']) && is_array($data['weights']) ? $data['weights'] : null;
 
-            // ✅ HTML RESPONSE
-            echo "
-            <span class='status-tag {$class}'>
-                " . ucfirst($safeStatus) . "
-            </span>
-        ";
+            // Log the request for debugging
+            error_log("Updating pickup {$pickupId} for collector {$collectorId} to status {$status}");
+            if ($weights) {
+                error_log("Weights data: " . json_encode($weights));
+            }
+
+            // Use updateStatusForCollector to handle weights and price calculation
+            try {
+                $result = $pickupRequest->updateStatusForCollector(
+                    (string) $pickupId,
+                    $collectorId,
+                    $status,
+                    $weights
+                );
+
+                if (!$result) {
+                    error_log("updateStatusForCollector returned false for pickup {$pickupId}");
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Failed to update pickup status. Please check if the pickup is assigned to you and try again.'
+                    ]);
+                    exit;
+                }
+            } catch (\Throwable $updateError) {
+                error_log("Error in updateStatusForCollector: " . $updateError->getMessage());
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Database error: ' . $updateError->getMessage()
+                ]);
+                exit;
+            }
+
+            // Fetch updated pickup data to return to frontend
+            $updatedPickup = $pickupRequest->find((string) $pickupId);
+
+            if (!$updatedPickup) {
+                // Status was updated but we couldn't fetch the record
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Status updated successfully',
+                    'data' => [
+                        'id' => $pickupId,
+                        'status' => $status,
+                        'statusRaw' => $status
+                    ]
+                ]);
+                exit;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Status updated successfully',
+                'data' => $updatedPickup
+            ]);
             exit;
 
         } catch (\Throwable $e) {
             http_response_code(500);
-            echo "<div class='alert error'>Failed to update status</div>";
+            error_log('Update status error: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to update status: ' . $e->getMessage()
+            ]);
             exit;
         }
     }
