@@ -28,16 +28,6 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 }
 ?>
 
-<!-- <img
-      src="<?= htmlspecialchars($profileImageSrc) ?>"
-      alt="Profile Picture"
-      class="header-user__avatar" width="100"
-    >
-<h2 class="page-header__title">Welcome back, <?= $collectorName ?>!</h2>
-<p class="page-header__description">Here is your latest update on your Dashboard</p>
-  </div>
-</div> -->
-
 <table>
       <tr>
         <td>

@@ -1,3 +1,29 @@
+/* Collector Dashboard Page Header Styles */
+.page-header {
+  margin-bottom: var(--space-4, 1rem) !important;
+}
+
+.page-header table {
+  border: none;
+  border-spacing: 0;
+}
+
+.page-header table td {
+  border: none;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.page-header table td:first-child {
+  padding-right: 1rem;
+}
+
+.page-header img {
+  display: block;
+  border: none;
+  text-decoration: none;
+}
+
 .profile-page {
   position: relative;
 }
