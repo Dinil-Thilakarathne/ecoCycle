@@ -432,9 +432,7 @@ class BiddingRound extends BaseModel
                 $currentHighestBid = 0.0;
             }
 
-            $reservePrice = ($startingBid > 0 && $quantity > 0)
-                ? round($startingBid * $quantity, 2)
-                : null;
+            $reservePrice = ($startingBid > 0 ? $startingBid: null);
 
             return [
                 'id' => $row['id'],
@@ -487,9 +485,7 @@ class BiddingRound extends BaseModel
             $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
 
 
-            $reservePrice = ($startingBid > 0 && $quantity > 0)
-                ? round($startingBid * $quantity, 2)
-                : null;
+            $reservePrice = ($startingBid > 0 ? $startingBid: null);
 
             return [
                 'id' => $row['id'],
@@ -658,10 +654,7 @@ class BiddingRound extends BaseModel
             $currentHighestBid = 0.0;
         }
 
-        $reservePrice = null;
-        if ($startingBid !== null && $quantity > 0) {
-            $reservePrice = round($startingBid * $quantity, 2);
-        }
+        $reservePrice = ($startingBid > 0 ? $startingBid : null);
 
         return [
             'id' => $row['id'],

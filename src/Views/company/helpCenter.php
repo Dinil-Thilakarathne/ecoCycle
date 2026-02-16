@@ -1,9 +1,14 @@
 <?php
 // Simulated FAQ data
 $faq = [
-    ["topic" => "Manage Profile", "question" => "How do I update my company profile?", "answer" => "Go to Manage Profile in your settings to update details."],
-    ["topic" => "Submit Bids", "question" => "How do I place a bid on a waste lot?", "answer" => "Go to Active Bids, select a lot, enter your bid amount, and click submit."],
-    ["topic" => "Submit Bids", "question" => "What happens after I win a bid?", "answer" => "You will get confirmation and payment instructions in your dashboard."],
+    ["topic" => "Manage Profile", "question" => "How do I update my company profile?", "answer" => "Go to edit Profile in your profile to update details and save changes."],
+    ["topic" => "Manage Profile", "question" => "How do I update my bank details?", "answer" => "Go to edit Profile in your profile to update bank details and save changes."],
+    ["topic" => "Manage Profile", "question" => "How do I update my company logo?", "answer" => "Go to edit Profile in your profile to update your company logo and save changes."],
+    ["topic" => "Manage Profile", "question" => "How do I change my password?", "answer" => "Go to edit Profile in your profile to update your password, give new password and confirm it and save changes."],
+    ["topic" => "Submit Bids", "question" => "How do I place a bid on a waste lot?", "answer" => "Go to Active Bids, select a lot, enter your bid amount, and click submit. You can't place a bid on a lot that is not active or has already ended. 
+                                                                                                Also if you have already placed a bid on a lot, you can update your bid amount until the bidding period ends but it should be higher than your previous bid."],
+    ["topic" => "Submit Bids", "question" => "What happens when I submit a bid?", "answer" => "Your can review bid status in bidding history and you will receive notifications about its status."],
+    ["topic" => "Submit Bids", "question" => "What happens after I win a bid?", "answer" => "You will get confirmation and payment instructions in purchases."],
     ["topic" => "Payment", "question" => "How can I track my payment status?", "answer" => "Track your payment under Purchases → Purchase Summary."],
     ["topic" => "Notifications & Alerts", "question" => "How do I manage notifications?", "answer" => "Go to Notification Settings to adjust your preferences."]
 ];
@@ -24,10 +29,10 @@ if ($selectedTopic) {
 
 // Help categories
 $helpCategories = [
-    ["icon" => "fa-solid fa-user", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 1],
-    ["icon" => "fa-solid fa-clipboard-list", "title" => "Submit Bids", "desc" => "Learn how to place and manage bids", "articles" => 2],
+    ["icon" => "fa-solid fa-user", "title" => "Manage Profile", "desc" => "Update your company information and settings", "articles" => 4],
+    ["icon" => "fa-solid fa-clipboard-list", "title" => "Submit Bids", "desc" => "Learn how to place and manage bids", "articles" => 3],
     ["icon" => "fa-solid fa-credit-card", "title" => "Payment", "desc" => "Payment methods and billing information", "articles" => 1],
-    ["icon" => "fa-solid fa-bell", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 3],
+    ["icon" => "fa-solid fa-bell", "title" => "Notifications & Alerts", "desc" => "Manage your notification preferences", "articles" => 1],
 ];
 ?>
 
