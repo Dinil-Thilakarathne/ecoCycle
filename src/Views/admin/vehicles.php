@@ -1,5 +1,6 @@
 <?php
 $vehicles = $vehicles ?? [];
+$availabilityMap = $availabilityMap ?? [];
 consoleLog('Vehicles:', $vehicles);
 $vehicles = is_array($vehicles) ? $vehicles : [];
 
@@ -59,7 +60,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
 <script>
     window.__VEHICLES = <?php echo json_encode($vehicles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-    window.__COLLECTORS = <?php echo json_encode($collectors ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <div>
@@ -67,7 +67,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
     <div class="page-header">
         <div class="page-header__content">
             <h2 class="page-header__title">Vehicle Management</h2>
-            <p class="page-header__description">Manage fleet vehicles and maintenance schedules</p>
+            <p class="page-header__description">Manage fleet vehicles and collector assignments</p>
         </div>
         <button class="btn btn-primary" onclick="addVehicle()">
             <i class="fa-solid fa-plus"></i>
@@ -95,16 +95,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             'value' => $inUseVehicles,
             'icon' => 'fa-solid fa-truck-moving',
             'period' => 'Currently deployed',
-        ],
-        [
-            'title' => 'In Maintenance',
-            'value' => $inMaintenanceVehicles,
-            'icon' => 'fa-solid fa-wrench',
-            'period' => 'Under service',
-        ],
+        ]
     ];
     ?>
-    <div class="dashboard-grid feature-cards">
+    <div class="stats-grid">
         <?php foreach ($vehicleStats as $card): ?>
             <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
                 value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
@@ -120,7 +114,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <i class="fa-solid fa-truck"></i>
                     Vehicle Fleet
                 </h3>
-                <p class="activity-card__description">Manage vehicle availability and maintenance schedules</p>
+                <p class="activity-card__description">Manage vehicle availability and collector assignments</p>
             </div>
         </div>
         <div class="activity-card__content">
@@ -128,71 +122,31 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Vehicle ID</th>
                             <th>Plate Number</th>
                             <th>Type</th>
                             <th>Capacity (kg)</th>
-                            <th>Assigned Collector</th>
                             <th>Status</th>
-                            <th>Last Maintenance</th>
-                            <th>Next Maintenance</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($vehicles as $vehicle): ?>
                             <tr data-id="<?= htmlspecialchars($vehicle['id'] ?? '') ?>">
-                                <td class="font-medium" data-field="id"><?= htmlspecialchars($vehicle['id'] ?? '') ?></td>
                                 <td data-field="plateNumber"><?= htmlspecialchars($vehicle['plateNumber'] ?? '') ?></td>
                                 <td data-field="type"><?= htmlspecialchars($vehicle['type'] ?? '') ?></td>
                                 <td data-field="capacity"><?= number_format((int) ($vehicle['capacity'] ?? 0)) ?></td>
-                                <td data-field="assignedCollector">
-                                    <?php
-                                    $assignedCollector = '-';
-                                    if (!empty($collectors)) {
-                                        foreach ($collectors as $c) {
-                                            if (($c['vehicleId'] ?? null) == $vehicle['id']) {
-                                                $assignedCollector = htmlspecialchars($c['name']);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    echo $assignedCollector;
-                                    ?>
-                                </td>
                                 <td data-field="status"><?= getStatusBadge($vehicle['status'] ?? 'available') ?></td>
                                 <td>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <i class="fa-solid fa-calendar-days"
-                                            style="color: var(--text-muted); font-size: 14px;"></i>
-                                        <span
-                                            data-field="lastMaintenance"><?= htmlspecialchars($vehicle['lastMaintenance'] ?? '-') ?></span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <i class="fa-solid fa-calendar-days"
-                                            style="color: var(--text-muted); font-size: 14px;"></i>
-                                        <span
-                                            data-field="nextMaintenance"><?= htmlspecialchars($vehicle['nextMaintenance'] ?? '-') ?></span>
-                                    </div>
-                                </td>
-                                <td>
                                     <div class="action-buttons">
-                                        <button class="icon-button" onclick="scheduleMaintenance('<?= $vehicle['id'] ?>')"
-                                            title="Schedule Maintenance">
-                                            <i class="fa-solid fa-wrench"></i>
-                                        </button>
                                         <button class="icon-button" onclick="viewVehicleDetails('<?= $vehicle['id'] ?>')"
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
-                                        <button class="icon-button" onclick="editVehicle('<?= $vehicle['id'] ?>')"
-                                            title="Edit Vehicle">
-                                            <i class="fa-solid fa-edit"></i>
-                                        </button>
+
+                                        <?php $isInUse = ($vehicle['status'] ?? '') === 'in-use'; ?>
                                         <button class="icon-button danger" onclick="removeVehicle('<?= $vehicle['id'] ?>')"
-                                            title="Remove Vehicle">
+                                            title="<?= $isInUse ? 'Cannot delete (In Use)' : 'Remove Vehicle' ?>"
+                                            <?= $isInUse ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : '' ?>>
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </div>
@@ -384,14 +338,11 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             type: '',
             capacity: '',
             status: 'available',
-            lastMaintenance: '',
-            nextMaintenance: '',
         };
 
         const values = Object.assign({}, defaults, initialValues);
         const selectedType = isValidVehicleType(values.type) ? values.type : '';
         const unsupportedType = Boolean(values.type) && !selectedType;
-        const today = getTodayDateString();
         const typeOptions = ['<option value="">Select Type</option>']
             .concat(VEHICLE_TYPE_OPTIONS.map((type) => {
                 const selected = type === selectedType ? 'selected' : '';
@@ -403,6 +354,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             : '';
         const capacityValue = selectedType ? VEHICLE_TYPE_CAPACITY[selectedType] : '';
         const isCreate = modeIsCreate(values);
+
         const statusField = isCreate
             ? `
                 <div>
@@ -427,11 +379,17 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             <div style="display:grid;gap:1rem;">
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Plate Number</label>
-                    <input type="text" name="plateNumber" maxlength="8" required placeholder="ABC-1234"
-                        value="${escapeHtml(values.plateNumber || '')}"
-                        style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;font-family:monospace;"
-                    />
-                    <small style="color:#6b7280;display:block;margin-top:0.25rem;">Format: 3 capital letters followed by 4 numbers</small>
+                <input type="text" name="plateNumber" 
+                       value="${escapeHtml(values.plateNumber)}"
+                       required 
+                       pattern="[A-Z]{3}-[0-9]{4}" 
+                       placeholder="ABC-1234"
+                       oninput="this.value = this.value.toUpperCase(); formatPlateNumberInput(this);"
+                       style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;"
+                       ${isCreate ? '' : 'readonly style="width:100%;padding:0.5rem;border:2px solid #e5e7eb;border-radius:6px;background-color:#f3f4f6;cursor:not-allowed;"'}
+                >
+                <small style="color:#6b7280;display:block;margin-top:0.25rem;">Format: ABC-1234</small>
+            </div>
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Vehicle Type</label>
@@ -448,20 +406,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                     <small style="color:#6b7280;display:block;margin-top:0.25rem;">Capacity auto-fills per vehicle type.</small>
                 </div>
                 ${statusField}
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Last Maintenance</label>
-                        <input type="date" name="lastMaintenance" max="${today}"
-                            value="${escapeHtml(values.lastMaintenance || '')}"
-                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Next Maintenance</label>
-                        <input type="date" name="nextMaintenance" min="${today}"
-                            value="${escapeHtml(values.nextMaintenance || '')}"
-                            style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
-                    </div>
-                </div>
             </div>
         `;
 
@@ -473,8 +417,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const typeSelect = form.querySelector('select[name="type"]');
         const capacityInput = form.querySelector('input[name="capacity"]');
         const statusInput = form.querySelector('input[name="status"]');
-        const lastMaintenanceInput = form.querySelector('input[name="lastMaintenance"]');
-        const nextMaintenanceInput = form.querySelector('input[name="nextMaintenance"]');
 
         applyCapacityForType(typeSelect, capacityInput);
         typeSelect.addEventListener('change', function () {
@@ -493,27 +435,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
             }
         }
 
-        if (nextMaintenanceInput) {
-            const today = getTodayDateString();
-            const updateNextMaintenanceMin = () => {
-                const lastValue = lastMaintenanceInput ? lastMaintenanceInput.value : '';
-                let minDate = today;
-                if (lastValue && lastValue > minDate) {
-                    minDate = lastValue;
-                }
-                nextMaintenanceInput.min = minDate;
-                if (nextMaintenanceInput.value && nextMaintenanceInput.value < minDate) {
-                    nextMaintenanceInput.value = minDate;
-                }
-            };
-
-            updateNextMaintenanceMin();
-
-            if (lastMaintenanceInput) {
-                lastMaintenanceInput.addEventListener('change', updateNextMaintenanceMin);
-            }
-        }
-
         form.addEventListener('submit', function (event) {
             event.preventDefault();
         });
@@ -529,16 +450,11 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const capacity = capacityRaw === null || capacityRaw === '' ? null : Number(capacityRaw);
         const statusRaw = formData.get('status');
         const status = statusRaw === null ? null : statusRaw.toString().toLowerCase();
-        const lastMaintenanceRaw = formData.get('lastMaintenance');
-        const nextMaintenanceRaw = formData.get('nextMaintenance');
-
         return {
             plateNumber,
             type,
             capacity,
-            status: status || 'available',
-            lastMaintenance: lastMaintenanceRaw ? lastMaintenanceRaw.toString() : null,
-            nextMaintenance: nextMaintenanceRaw ? nextMaintenanceRaw.toString() : null,
+            status: status || 'available'
         };
     }
 
@@ -634,44 +550,23 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const idString = String(idValue);
         const idLiteral = JSON.stringify(idValue);
 
-        let assignedCollectorName = '-';
-        if (window.__COLLECTORS) {
-            const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-            if (found) assignedCollectorName = found.name;
-        }
-
         tr.setAttribute('data-id', idString);
         tr.innerHTML = `
             <td class="font-medium" data-field="id">${escapeHtml(idString)}</td>
             <td data-field="plateNumber">${escapeHtml(vehicle.plateNumber || '')}</td>
             <td data-field="type">${escapeHtml(vehicle.type || '')}</td>
             <td data-field="capacity">${formatCapacity(vehicle.capacity)}</td>
-            <td data-field="assignedCollector">${escapeHtml(assignedCollectorName)}</td>
             <td data-field="status">${renderStatusBadge(vehicle.status)}</td>
-            <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <i class="fa-solid fa-calendar-days" style="color:var(--text-muted);font-size:14px;"></i>
-                    <span data-field="lastMaintenance">${escapeHtml(formatDateForDisplay(vehicle.lastMaintenance))}</span>
-                </div>
-            </td>
-            <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <i class="fa-solid fa-calendar-days" style="color:var(--text-muted);font-size:14px;"></i>
-                    <span data-field="nextMaintenance">${escapeHtml(formatDateForDisplay(vehicle.nextMaintenance))}</span>
-                </div>
-            </td>
+
             <td>
                 <div class="action-buttons">
-                    <button class="icon-button" onclick="scheduleMaintenance(${idLiteral})" title="Schedule Maintenance">
-                        <i class="fa-solid fa-wrench"></i>
-                    </button>
                     <button class="icon-button" onclick="viewVehicleDetails(${idLiteral})" title="View Details">
                         <i class="fa-solid fa-eye"></i>
                     </button>
-                    <button class="icon-button" onclick="editVehicle(${idLiteral})" title="Edit Vehicle">
-                        <i class="fa-solid fa-edit"></i>
-                    </button>
-                    <button class="icon-button danger" onclick="removeVehicle(${idLiteral})" title="Remove Vehicle">
+
+                    <button class="icon-button danger" onclick="removeVehicle(${idLiteral})" 
+                            title="${(vehicle.status || '').toLowerCase() === 'in-use' ? 'Cannot delete (In Use)' : 'Remove Vehicle'}"
+                            ${(vehicle.status || '').toLowerCase() === 'in-use' ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -715,24 +610,10 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         const capacityCell = row.querySelector('[data-field="capacity"]');
         if (capacityCell) capacityCell.textContent = formatCapacity(vehicle.capacity);
 
-        const collectorCell = row.querySelector('[data-field="assignedCollector"]');
-        if (collectorCell) {
-            let assignedCollectorName = '-';
-            if (window.__COLLECTORS) {
-                const found = window.__COLLECTORS.find(c => c.vehicleId == vehicle.id);
-                if (found) assignedCollectorName = found.name;
-            }
-            collectorCell.textContent = assignedCollectorName;
-        }
-
         const statusCell = row.querySelector('[data-field="status"]');
         if (statusCell) statusCell.innerHTML = renderStatusBadge(vehicle.status);
 
-        const lastMaintenance = row.querySelector('[data-field="lastMaintenance"]');
-        if (lastMaintenance) lastMaintenance.textContent = formatDateForDisplay(vehicle.lastMaintenance);
 
-        const nextMaintenance = row.querySelector('[data-field="nextMaintenance"]');
-        if (nextMaintenance) nextMaintenance.textContent = formatDateForDisplay(vehicle.nextMaintenance);
     }
 
     async function handleVehicleSave({ mode, vehicleId, form, close }) {
@@ -756,21 +637,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
 
             if (!Number.isFinite(payload.capacity) || payload.capacity <= 0) {
                 showToast('Capacity must be a positive number.', 'error');
-                return;
-            }
-
-            if (payload.lastMaintenance && payload.lastMaintenance > today) {
-                showToast('Last maintenance date cannot be in the future.', 'error');
-                return;
-            }
-
-            if (payload.nextMaintenance && payload.nextMaintenance < today) {
-                showToast('Next maintenance date cannot be in the past.', 'error');
-                return;
-            }
-
-            if (payload.lastMaintenance && payload.nextMaintenance && payload.nextMaintenance < payload.lastMaintenance) {
-                showToast('Next maintenance date must be on or after the last maintenance date.', 'error');
                 return;
             }
 
@@ -858,16 +724,6 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                             <span>${renderStatusBadge(vehicle.status)}</span>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Last Maintenance</span>
-                            <strong>${escapeHtml(formatDateForDisplay(vehicle.lastMaintenance))}</strong>
-                        </div>
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;">Next Maintenance</span>
-                            <strong>${escapeHtml(formatDateForDisplay(vehicle.nextMaintenance))}</strong>
-                        </div>
-                    </div>
                 </div>
             `;
 
@@ -884,31 +740,7 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
     }
 
-    async function editVehicle(vehicleId) {
-        try {
-            const vehicle = await fetchVehicle(vehicleId);
-            if (!vehicle) {
-                showToast('Vehicle not found.', 'error');
-                return;
-            }
 
-            const form = buildVehicleForm(vehicle);
-            createModal({
-                title: `Edit Vehicle ${escapeHtml(vehicle.plateNumber || vehicle.id)}`,
-                content: form,
-                buttons: [
-                    { label: 'Cancel', variant: 'secondary', onClick: (close) => close() },
-                    {
-                        label: 'Save Changes',
-                        variant: 'primary',
-                        onClick: (close) => handleVehicleSave({ mode: 'update', vehicleId: vehicle.id, form, close })
-                    }
-                ]
-            });
-        } catch (error) {
-            showToast(error.message, 'error');
-        }
-    }
 
     async function removeVehicle(vehicleId) {
         try {
@@ -923,15 +755,18 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
                 return;
             }
 
+            if ((vehicle.status || '').toLowerCase() === 'in-use') {
+                showToast('Cannot delete vehicle because it is currently in use.', 'error');
+                return;
+            }
+
             const label = escapeHtml(vehicle.plateNumber || `Vehicle #${vehicle.id}`);
             const container = document.createElement('div');
             container.innerHTML = `
                 <p style="margin:0 0 0.75rem 0;line-height:1.5;color:#374151;">
                     This action will mark <strong>${label}</strong> as <strong>Removed</strong>. The vehicle will remain in the list for record keeping, but will no longer be considered active.
                 </p>
-                <p style="margin:0;color:#6b7280;font-size:0.9rem;">
-                    You can restore the vehicle later by editing it and updating the status.
-                </p>
+
             `;
 
             createModal({
@@ -983,7 +818,4 @@ $inUseVehicles = count(array_filter($vehicles, function ($v) {
         }
     }
 
-    function scheduleMaintenance(vehicleId) {
-        showToast(`Maintenance scheduling for vehicle ${vehicleId} is coming soon.`, 'info');
-    }
 </script>

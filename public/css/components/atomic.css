@@ -55,3 +55,11 @@
 .rounded {
   border-radius: var(--rounded-full);
 }
+
+.hidden {
+  display: none;
+}
+
+.not-allowed {
+  cursor: not-allowed;
+}

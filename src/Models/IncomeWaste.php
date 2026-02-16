@@ -13,6 +13,7 @@ class IncomeWaste
         $this->db = new Database();
     }
 
+   
 public function saveWeightAndCalculateSingle(string $pickupId, float $weight): float
 {
     // 1️⃣ Get ONE predefined price_per_unit

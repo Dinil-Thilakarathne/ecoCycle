@@ -171,7 +171,7 @@ function syncBiddingCache(round) {
   }
   const id = String(round.id);
   const index = window.__BIDDING_DATA.findIndex(
-    (item) => String(item.id) === id
+    (item) => String(item.id) === id,
   );
   if (index >= 0) {
     window.__BIDDING_DATA[index] = round;
@@ -218,7 +218,7 @@ function renderBiddingRow(round) {
 
   let actionsHtml = '<div class="action-buttons">';
   actionsHtml += `<button class="icon-button" onclick="viewBiddingDetails(this,'${escapeHtml(
-    round.id
+    round.id,
   )}')" title="View Details"><i class="fa-solid fa-eye"></i></button>`;
 
   if ((round.status || "").toLowerCase() !== "completed") {
@@ -228,10 +228,10 @@ function renderBiddingRow(round) {
       (round.status || "").toLowerCase() === "active"
     ) {
       actionsHtml += `<button class="icon-button" onclick="editBiddingRound('${escapeHtml(
-        round.id
+        round.id,
       )}')" title="Edit Bid Round"><i class="fa-solid fa-edit"></i></button>`;
       actionsHtml += `<button class="icon-button danger" onclick="cancelBiddingRound('${escapeHtml(
-        round.id
+        round.id,
       )}')" title="Cancel Bid Round"><i class="fa-solid fa-trash"></i></button>`;
     }
   }
@@ -260,12 +260,12 @@ function updateBiddingRow(round) {
     cells[2].textContent = `${round.quantity || ""} ${round.unit || ""}`;
   if (cells[3])
     cells[3].innerHTML = `<div class="cell-with-icon">${formatCurrency(
-      getDisplayBidValue(round)
+      getDisplayBidValue(round),
     )}</div>`;
   if (cells[4]) cells[4].textContent = round.biddingCompany || "—";
   if (cells[5])
     cells[5].innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${formatTimeRemainingText(
-      round.endTime
+      round.endTime,
     )}</div>`;
   if (cells[6]) cells[6].innerHTML = renderStatusBadge(round.status);
 }
@@ -313,9 +313,15 @@ window.createNewLot = function () {
                           .join("")}
                     </select>
                 </div>
+                 <div>
+                    <label style="display:block;font-weight:600;margin-bottom:6px;">Available Quantity</label>
+                    <input type="text" id="availableQtyDisplay" readonly value="-" 
+                        style="width:100%;padding:8px;border:1px solid #e5e7eb;background-color:#f9fafb;border-radius:4px;color:#6b7280;" />
+                </div>
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:6px;">Quantity</label>
-                    <input type="number" name="quantity" min="100" step="100" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
+                    <input type="number" name="quantity" min="100" step="1" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;" />
+                     <small id="qtyHint" style="color:#6b7280;font-size:0.8em;"></small>
                 </div>
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:6px;">Unit</label>
@@ -343,16 +349,76 @@ window.createNewLot = function () {
     dateInput.min = new Date().toISOString().slice(0, 16);
   }
 
-  // Wiring defaults
+  // Wiring defaults & Availability Check
   const categorySelect = form.querySelector('select[name="wasteCategory"]');
   const startingBidInput = form.querySelector('input[name="startingBid"]');
-  if (categorySelect && startingBidInput) {
-    categorySelect.addEventListener("change", function () {
+  const quantityInput = form.querySelector('input[name="quantity"]');
+  const availableDisplay = container.querySelector("#availableQtyDisplay");
+  const qtyHint = container.querySelector("#qtyHint");
+  const unitSelect = form.querySelector('select[name="unit"]');
+
+  if (categorySelect) {
+    categorySelect.addEventListener("change", async function () {
       const cat = (this.value || "").toString().trim();
+
+      // Reset dependent fields
+      quantityInput.value = "";
+      quantityInput.removeAttribute("max");
+      qtyHint.textContent = "";
+      availableDisplay.value = "Checking...";
+
       if (!cat) {
         startingBidInput.removeAttribute("min");
+        availableDisplay.value = "-";
         return;
       }
+
+      // Check Availability API
+      try {
+        const res = await apiRequest(
+          `/api/bidding/availability?categoryName=${encodeURIComponent(cat)}`,
+        );
+        if (res.success) {
+          const avail = parseFloat(res.available);
+          const unit = res.unit || "kg";
+
+          if (avail > 0) {
+            availableDisplay.value = `${avail.toLocaleString()} ${unit}`;
+          } else {
+            availableDisplay.value = "No waste available";
+          }
+
+          if (avail > 0) {
+            quantityInput.disabled = false;
+            quantityInput.setAttribute("max", avail);
+
+            qtyHint.style.color = "#6b7280";
+            qtyHint.textContent = `Max: ${avail}`;
+
+            // Enable
+            if (unitSelect) unitSelect.disabled = false;
+            startingBidInput.disabled = false;
+          } else {
+            quantityInput.value = "";
+            quantityInput.setAttribute("max", 0);
+            quantityInput.disabled = true;
+            quantityInput.classList.add("not-allowed");
+
+            // Disable
+            if (unitSelect) unitSelect.disabled = true;
+            startingBidInput.disabled = true;
+          }
+
+          // Ensure unit matches if possible or warn?
+          // unique select usually defaults to kg, backend handles conversion if needed but here we assume strict unit match for simplicity or just display
+          if (unitSelect) unitSelect.value = unit;
+        }
+      } catch (e) {
+        console.error("Availability check failed", e);
+        availableDisplay.value = "Error";
+      }
+
+      // Min Bid Logic
       const minMap = window.__MINIMUM_BIDS || {};
       const minValRaw = minMap[cat.toLowerCase()];
       const minVal =
@@ -387,8 +453,25 @@ window.createNewLot = function () {
           // Validation
           const errors = [];
           if (!wasteCategory) errors.push("Waste category is required");
-          if (!(quantity > 0))
-            errors.push("Quantity must be greater than zero");
+
+          if (quantityInput.disabled) {
+            errors.push(
+              "Cannot create lot: No waste available for this category.",
+            );
+            // Throw immediately to stop
+          } else {
+            if (!(quantity > 0))
+              errors.push("Quantity must be greater than zero");
+
+            // Max check
+            const maxQty = parseFloat(quantityInput.getAttribute("max"));
+            if (quantityInput.hasAttribute("max") && quantity > maxQty) {
+              errors.push(
+                `Quantity cannot exceed available amount (${maxQty})`,
+              );
+            }
+          }
+
           if (!unit) errors.push("Unit is required");
           if (!(startingBid >= 0))
             errors.push("Starting bid must be zero or more");
@@ -409,7 +492,7 @@ window.createNewLot = function () {
             const minVal = parseFloat(minMap[wasteCategory.toLowerCase()]);
             if (!isNaN(minVal) && startingBid < minVal) {
               errors.push(
-                `Starting bid must be at least Rs ${Number(minVal).toFixed(2)}`
+                `Starting bid must be at least Rs ${Number(minVal).toFixed(2)}`,
               );
             }
           }
@@ -480,10 +563,10 @@ window.editBiddingRound = async function (roundId) {
     container.innerHTML = `
             <form>
                  <input type="hidden" name="lotId" value="${escapeHtml(
-                   round.lotId ?? ""
+                   round.lotId ?? "",
                  )}" />
                  <input type="hidden" name="wasteCategory" value="${escapeHtml(
-                   round.wasteCategory ?? ""
+                   round.wasteCategory ?? "",
                  )}" />
                 <div style="display:grid;gap:1rem;">
                     <div>
@@ -496,7 +579,9 @@ window.editBiddingRound = async function (roundId) {
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Starting Bid (Rs)</label>
                         <input type="number" name="startingBid" min="0" step="0.01" required
                             value="${escapeHtml(
-                              round.startingBid ?? round.currentHighestBid ?? ""
+                              round.startingBid ??
+                                round.currentHighestBid ??
+                                "",
                             )}"
                             style="width:100%;padding:0.5rem;border:2px solid #d1d5db;border-radius:6px;" />
                     </div>
@@ -552,7 +637,7 @@ window.editBiddingRound = async function (roundId) {
                 {
                   method: "PUT",
                   body: payload,
-                }
+                },
               );
 
               const updated = response.round;
@@ -584,7 +669,7 @@ window.cancelBiddingRound = async function (roundId) {
     container.innerHTML = `
             <p style="margin:0 0 0.75rem 0;line-height:1.5;color:#374151;">
                 Are you sure you want to cancel bidding round <strong>${escapeHtml(
-                  round.lotId || round.id
+                  round.lotId || round.id,
                 )}</strong>?
             </p>
             <p style="margin:0 0 0.75rem 0;color:#6b7280;font-size:0.9rem;">
@@ -627,59 +712,244 @@ window.cancelBiddingRound = async function (roundId) {
   }
 };
 
-window.viewBiddingDetails = function (el, biddingId) {
+window.viewBiddingDetails = async function (el, biddingId) {
   // Handle overload: viewBiddingDetails(id) or viewBiddingDetails(el, id)
   if (arguments.length === 1) {
     biddingId = el;
     el = null;
   }
 
-  // Find data
-  let record = null;
-  if (window.__BIDDING_DATA) {
-    record = window.__BIDDING_DATA.find(
-      (r) => String(r.id) === String(biddingId)
-    );
-  }
-
-  if (!record && el) {
-    // scraping fallback logic omitted for brevity as __BIDDING_DATA should be reliable
-    // but if needed we can parse the TR row again
-  }
-
-  if (!record) {
-    showToast("Details not found in cache", "error");
-    return;
-  }
-
-  const container = document.createElement("div");
-  container.className = "user-modal__grid"; // reusing existing grid class if available, or style inline
-  container.style.display = "grid";
-  container.style.gridTemplateColumns = "1fr 1fr";
-  container.style.gap = "8px 16px";
-
-  const fields = [
-    ["Lot ID", record.lotId],
-    ["Waste Category", record.wasteCategory],
-    ["Quantity", `${record.quantity} ${record.unit}`],
-    ["Current Highest Bid", formatCurrency(getDisplayBidValue(record))],
-    ["Leading Company", record.biddingCompany || "—"],
-    ["Time Remaining", formatTimeRemainingText(record.endTime)],
-    ["Status", record.status],
-  ];
-
-  container.innerHTML = fields
-    .map(
-      ([label, val]) => `
-        <div style="font-weight:600;color:#374151;">${label}</div>
-        <div style="color:#111827;">${escapeHtml(val)}</div>
-    `
-    )
-    .join("");
-
-  Modal.open({
+  // Initial Modal with Loading State
+  const modalContext = Modal.open({
     title: "Bidding Round Details",
-    content: container,
+    content:
+      '<div style="padding:20px;text-align:center;">Loading details...</div>',
     actions: [{ label: "Close", variant: "secondary", dismiss: true }],
   });
+
+  try {
+    // Fetch fresh data including bids
+    const data = await apiRequest(`/api/bidding/rounds/${biddingId}`);
+    if (!data || !data.round) {
+      throw new Error("Details could not be loaded.");
+    }
+
+    const record = data.round;
+    const bids = data.bids || [];
+
+    // Build Details Grid
+    const gridContainer = document.createElement("div");
+    gridContainer.className = "user-modal__grid";
+    gridContainer.style.display = "grid";
+    gridContainer.style.gridTemplateColumns = "1fr 1fr";
+    gridContainer.style.gap = "8px 16px";
+    gridContainer.style.marginBottom = "24px";
+
+    const fields = [
+      ["Lot ID", record.lotId],
+      ["Waste Category", record.wasteCategory],
+      ["Quantity", `${record.quantity} ${record.unit}`],
+      ["Current Highest Bid", formatCurrency(getDisplayBidValue(record))],
+      ["Leading Company", record.biddingCompany || "—"],
+      ["Time Remaining", formatTimeRemainingText(record.endTime)],
+      ["Status", renderStatusBadge(record.status)],
+    ];
+
+    gridContainer.innerHTML = fields
+      .map(
+        ([label, val]) => `
+            <div style="font-weight:600;color:#374151;">${label}</div>
+            <div style="color:#111827;">${String(val).includes("<div") ? val : escapeHtml(val)}</div>
+        `,
+      )
+      .join("");
+
+    // Build Bids Table
+    const bidsSection = document.createElement("div");
+    bidsSection.innerHTML = `
+        <h4 style="margin:0 0 12px 0;font-size:1.1rem;color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:8px;">Recent Bids</h4>
+      `;
+
+    if (bids.length === 0) {
+      bidsSection.innerHTML += `<div style="color:#6b7280;font-style:italic;">No bids placed yet.</div>`;
+    } else {
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      table.style.fontSize = "0.9rem";
+
+      let rowsHtml = `
+            <thead>
+                <tr style="border-bottom:2px solid #e5e7eb;text-align:left;">
+                    <th style="padding:8px;font-weight:600;color:#374151;">Company</th>
+                    <th style="padding:8px;font-weight:600;color:#374151;">Bid Amount</th>
+                    <th style="padding:8px;font-weight:600;color:#374151;">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+          `;
+
+      bids.forEach((bid) => {
+        const isWinner = bid.isWinner
+          ? '<span style="color:#fff;background:#10b981;font-size:0.7em;padding:2px 6px;border-radius:99px;margin-left:6px;">WINNER</span>'
+          : "";
+        const dateStr = new Date(bid.createdAt).toLocaleString();
+        rowsHtml += `
+                <tr style="border-bottom:1px solid #f3f4f6;">
+                    <td style="padding:8px;">${escapeHtml(bid.companyName)} ${isWinner}</td>
+                    <td style="padding:8px;font-family:monospace;font-weight:600;">${formatCurrency(bid.amount)}</td>
+                    <td style="padding:8px;color:#6b7280;">${escapeHtml(dateStr)}</td>
+                </tr>
+              `;
+      });
+
+      rowsHtml += `</tbody>`;
+      table.innerHTML = rowsHtml;
+      bidsSection.appendChild(table);
+    }
+
+    // Combine Content
+    const contentWrapper = document.createElement("div");
+    contentWrapper.appendChild(gridContainer);
+    contentWrapper.appendChild(bidsSection);
+
+    // Update Modal
+    // Note: ModalManager doesn't expose a direct update method properly in this version,
+    // but if we are using the simple one we might need to close and reopen or replace content if accessable.
+    // Since we have a reference, let's try to update if possible or close/reopen.
+    // Re-opening with same context is safest visual update.
+
+    modalContext.close(); // Close loading modal
+
+    Modal.open({
+      title: "Bidding Round Details",
+      content: contentWrapper,
+      size: "md", // wider for table
+      actions: [{ label: "Close", variant: "secondary", dismiss: true }],
+    });
+  } catch (err) {
+    modalContext.close();
+    showToast(err.message, "error");
+  }
 };
+
+// --- Bid History Log Functions ---
+
+/**
+ * Load and display bid history
+ * @param {string|null} roundId - Optional round ID to filter by
+ */
+window.loadBidHistory = async function (roundId = null) {
+  const container = document.getElementById("bidLogContainer");
+  const filterSelect = document.getElementById("roundFilter");
+
+  if (!container) return;
+
+  try {
+    // Show loading state
+    container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                <p style="margin-top: 1rem;">Loading bid history...</p>
+            </div>
+        `;
+
+    // Build API URL
+    const url = roundId
+      ? `/api/bidding/bid-history?roundId=${encodeURIComponent(roundId)}`
+      : "/api/bidding/bid-history";
+
+    const response = await apiRequest(url);
+
+    if (!response.success) {
+      throw new Error(response.message || "Failed to load bid history");
+    }
+
+    const bids = response.bids || [];
+    const rounds = response.rounds || [];
+
+    // Populate filter dropdown (only on initial load)
+    if (!roundId && filterSelect && rounds.length > 0) {
+      filterSelect.innerHTML = `
+                <option value="">All Rounds</option>
+                ${rounds
+                  .map(
+                    (r) =>
+                      `<option value="${escapeHtml(r.id)}">${escapeHtml(r.lotId)} - ${escapeHtml(r.name)}</option>`,
+                  )
+                  .join("")}
+            `;
+
+      // Add change listener
+      filterSelect.onchange = function () {
+        window.loadBidHistory(this.value || null);
+      };
+    }
+
+    // Render bid log
+    if (bids.length === 0) {
+      container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                    <i class="fa-solid fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p style="margin-top: 1rem; font-size: 1.1rem;">No bids found</p>
+                    <p style="font-size: 0.9rem; color: #9ca3af;">Try selecting a different round or wait for companies to place bids.</p>
+                </div>
+            `;
+      return;
+    }
+
+    // Render timeline
+    container.innerHTML = `
+            <div class="bid-timeline">
+                ${bids.map((bid) => renderBidLogEntry(bid)).join("")}
+            </div>
+        `;
+  } catch (error) {
+    console.error("Failed to load bid history:", error);
+    container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                <i class="fa-solid fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p style="margin-top: 1rem;">Failed to load bid history</p>
+                <p style="font-size: 0.9rem; color: #6b7280;">${escapeHtml(error.message)}</p>
+            </div>
+        `;
+  }
+};
+
+/**
+ * Render a single bid log entry
+ * @param {Object} bid - Bid object
+ * @returns {string} HTML string
+ */
+function renderBidLogEntry(bid) {
+  const date = new Date(bid.createdAt);
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  const winnerBadge = bid.isWinner
+    ? '<span class="winner-badge">WINNER</span>'
+    : "";
+
+  return `
+        <div class="bid-log-entry">
+            <div class="bid-timestamp">
+                <div class="time">${escapeHtml(timeStr)}</div>
+                <div class="date">${escapeHtml(dateStr)}</div>
+            </div>
+            <div class="bid-content">
+                <div class="bid-company">${escapeHtml(bid.companyName)}</div>
+                <div class="bid-details">
+                    bid <strong>${formatCurrency(bid.amount)}</strong> on 
+                    <em>${escapeHtml(bid.lotId)}: ${escapeHtml(bid.roundName)}</em>
+                    ${winnerBadge}
+                </div>
+            </div>
+        </div>
+    `;
+}

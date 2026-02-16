@@ -266,8 +266,13 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         <div class="tabs-content" id="collectors-content">
             <div class="activity-card">
                 <div class="activity-card__header">
-                    <h3 class="activity-card__title">Collector Management</h3>
-                    <p class="activity-card__description">Manage collector accounts and assignments</p>
+                    <div>
+                        <h3 class="activity-card__title">Collector Management</h3>
+                        <p class="activity-card__description">Manage collector accounts and assignments</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddUserModal()" style="margin-left: auto;">
+                        <i class="fa-solid fa-user-plus"></i> Add User
+                    </button>
                 </div>
                 <div class="activity-card__content">
                     <div style="overflow-x: auto;">
@@ -302,7 +307,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                             }
                                             echo $assignedVehicle;
                                             ?>
-                       </td>
+                                        </td>
                                         <td>
                                             <?= htmlspecialchars($collector['todayPickups']) ?>
                                         </td>
@@ -316,18 +321,11 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
 
-                                                                <button class="icon-button suspend"
-                                                onclick="suspendUser('
-                                            <?= $collector['id'] ?>', 'collector')"
-                                                title="Suspend Collector">
-                                                <i class="fa-solid fa-user-times"></i>
+                                                <button class="icon-button suspend" onclick="suspendUser('
+                                            <?= $collector['id'] ?>', 'collector')" title="Suspend Collector">
+                                                    <i class="fa-solid fa-user-times"></i>
                                                 </button>
 
-                                                <button class="icon-button"
-                                                    onclick="assignVehicle('<?= $collector['id'] ?>')"
-                                                    title="Assign Vehicle">
-                                                    <i class="fa-solid fa-truck-moving"></i>
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -605,72 +603,182 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
         });
     }
 
-    function assignVehicle(userId) {
-        // Find user
-        let user = null;
-        if (window.__USER_DATA && window.__USER_DATA.collectors) {
-            user = window.__USER_DATA.collectors.find(u => u.id == userId);
-        }
-
-        const currentVehicleId = user ? (user.vehicleId || null) : null;
-        const vehicles = window.__USER_DATA.vehicles || [];
-
-        // Filter available vehicles + current vehicle
-        const options = vehicles.filter(v => v.status === 'available' || v.id == currentVehicleId);
-
-        // Build select options
-        let optionsHtml = '<option value="">-- No Vehicle (Unassign) --</option>';
-        options.forEach(v => {
-            const selected = v.id == currentVehicleId ? 'selected' : '';
-            optionsHtml += `<option value="${v.id}" ${selected}>${v.plate_number || v.plateNumber} (${v.type})</option>`;
-        });
-
+    function showAddUserModal() {
         const container = document.createElement('div');
         container.innerHTML = `
-            <div style="margin-bottom: 1rem;">
-                <p style="margin-bottom: 0.5rem;">Select a vehicle to assign to this collector:</p>
-                <select class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
-                    ${optionsHtml}
-                </select>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Name *</label>
+                    <input type="text" id="newUserName" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Full name" />
+                    <div class="error-msg" id="nameError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Email *</label>
+                    <input type="email" id="newUserEmail" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="email@example.com" />
+                    <div class="error-msg" id="emailError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Phone *</label>
+                    <input type="tel" id="newUserPhone" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="0771234567" />
+                    <div class="error-msg" id="phoneError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Password *</label>
+                    <input type="password" id="newUserPassword" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Minimum 6 characters" />
+                    <div class="error-msg" id="passwordError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Confirm Password *</label>
+                    <input type="password" id="newUserPasswordConfirm" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Re-enter password" />
+                    <div class="error-msg" id="passwordConfirmError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">License Number *</label>
+                    <input type="text" id="newUserLicense" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Driver's license number" />
+                    <div class="error-msg" id="licenseError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">NIC *</label>
+                    <input type="text" id="newUserNIC" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="National Identity Card number" />
+                    <div class="error-msg" id="nicError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Address *</label>
+                    <textarea id="newUserAddress" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; min-height: 80px;" placeholder="Full address"></textarea>
+                    <div class="error-msg" id="addressError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+                </div>
             </div>
         `;
 
         Modal.open({
-            title: 'Assign Vehicle',
+            title: 'Add New Collector',
             content: container,
             actions: [
                 { label: 'Cancel', variant: 'outline', dismiss: true },
                 {
-                    label: 'Save Assignment',
+                    label: 'Create User',
                     variant: 'primary',
                     dismiss: false,
-                    loadingLabel: 'Saving...',
+                    loadingLabel: 'Creating...',
                     onClick: async ({ body, close, setLoading }) => {
-                        const select = body.querySelector('select');
-                        const vehicleId = select.value;
+                        // Clear previous errors
+                        body.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+
+                        // Get form values
+                        const name = body.querySelector('#newUserName').value.trim();
+                        const email = body.querySelector('#newUserEmail').value.trim();
+                        const phone = body.querySelector('#newUserPhone').value.trim();
+                        const password = body.querySelector('#newUserPassword').value;
+                        const passwordConfirm = body.querySelector('#newUserPasswordConfirm').value;
+                        const license = body.querySelector('#newUserLicense').value.trim();
+                        const nic = body.querySelector('#newUserNIC').value.trim();
+                        const address = body.querySelector('#newUserAddress').value.trim();
+
+                        // Validation
+                        let hasError = false;
+
+                        if (!name) {
+                            body.querySelector('#nameError').textContent = 'Name is required';
+                            body.querySelector('#nameError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!email) {
+                            body.querySelector('#emailError').textContent = 'Email is required';
+                            body.querySelector('#emailError').style.display = 'block';
+                            hasError = true;
+                        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                            body.querySelector('#emailError').textContent = 'Please provide a valid email address';
+                            body.querySelector('#emailError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!phone) {
+                            body.querySelector('#phoneError').textContent = 'Phone number is required';
+                            body.querySelector('#phoneError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!password) {
+                            body.querySelector('#passwordError').textContent = 'Password is required';
+                            body.querySelector('#passwordError').style.display = 'block';
+                            hasError = true;
+                        } else if (password.length < 6) {
+                            body.querySelector('#passwordError').textContent = 'Password must be at least 6 characters';
+                            body.querySelector('#passwordError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (password !== passwordConfirm) {
+                            body.querySelector('#passwordConfirmError').textContent = 'Passwords do not match';
+                            body.querySelector('#passwordConfirmError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!license) {
+                            body.querySelector('#licenseError').textContent = 'License number is required';
+                            body.querySelector('#licenseError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!nic) {
+                            body.querySelector('#nicError').textContent = 'NIC is required';
+                            body.querySelector('#nicError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (!address) {
+                            body.querySelector('#addressError').textContent = 'Address is required';
+                            body.querySelector('#addressError').style.display = 'block';
+                            hasError = true;
+                        }
+
+                        if (hasError) {
+                            return;
+                        }
 
                         setLoading(true);
 
                         try {
-                            const response = await fetch('/api/users/assign-vehicle', {
+                            const response = await fetch('/api/users', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ userId: userId, vehicleId: vehicleId })
+                                body: JSON.stringify({
+                                    name: name,
+                                    email: email,
+                                    phone: phone,
+                                    password: password,
+                                    type: 'collector',
+                                    licenseNumber: license,
+                                    nic: nic,
+                                    address: address
+                                })
                             });
 
                             const data = await response.json();
 
-                            if (data.success || response.ok) {
-                                if (window.toast) toast('Vehicle assignment updated.', 'success');
-                                else alert('Vehicle assignment updated.');
+                            if (response.ok && data.success) {
+                                if (window.toast) toast('Collector created successfully', 'success');
+                                else alert('Collector created successfully');
                                 close();
+                                // Reload page to show new collector
                                 location.reload();
                             } else {
-                                alert(data.error || 'Failed to assign vehicle');
+                                const errorMsg = data.error || data.message || 'Failed to create collector';
+                                if (window.toast) toast(errorMsg, 'error');
+                                else alert(errorMsg);
                             }
                         } catch (error) {
                             console.error('Error:', error);
-                            alert('An error occurred.');
+                            if (window.toast) toast('An error occurred while creating the collector', 'error');
+                            else alert('An error occurred while creating the collector');
                         } finally {
                             setLoading(false);
                         }

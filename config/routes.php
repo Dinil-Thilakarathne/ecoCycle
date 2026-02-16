@@ -225,6 +225,12 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\Roles\CustomerOnly',
 ]);
 
+// Customer dashboard API
+$router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\DashboardController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Customer collector ratings
 $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
     'Middleware\AuthMiddleware',
@@ -248,6 +254,17 @@ $router->get('/api/pickup-requests/server-time', 'Controllers\Api\PickupRequestU
 
 // Customer income report (completed pickups)
 $router->get('/api/reports/customer-income', 'Controllers\Api\ReportUpdatesController@customerIncome', [
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+// $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+//     'Middleware\AuthMiddleware',
+//     'Middleware\CsrfMiddleware',
+//     'Middleware\Roles\CollectorOnly',
+// ]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
@@ -308,6 +325,16 @@ $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/forget-password', 'AuthController@showForgetPassword');
+
+// Email verification routes
+$router->get('/verify-email', 'AuthController@verifyEmail');
+$router->post('/resend-verification-email', 'AuthController@resendVerificationEmail');
+$router->post('/api/auth/resend-verification', 'AuthController@resendVerification');
+
+// Password reset routes
+$router->post('/api/auth/send-password-reset-link', 'AuthController@sendPasswordResetLink');
+$router->get('/reset-password', 'AuthController@showResetPassword');
+$router->post('/api/auth/reset-password', 'AuthController@resetPassword');
 
 // API Authentication routes (Returns JSON only)
 $router->post('/api/auth/login', 'Controllers\Api\AuthController@login');
@@ -372,6 +399,13 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
     'Middleware\Roles\CollectorOnly'
 ]);
 
+
+$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
@@ -412,6 +446,9 @@ $router->get('/test', function () {
         ]
     ]);
 });
+
+// Toast Test Page
+$router->get('/test/toast', 'Controllers\TestController@index');
 
 // Debug route to list all registered routes
 $router->get('/api/debug/routes', function () use ($router) {
@@ -799,6 +836,10 @@ $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationCon
     'Middleware\AuthMiddleware',
 ]);
 
+$router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
+    'Middleware\AuthMiddleware',
+]);
+
 $router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
@@ -902,4 +943,70 @@ $router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@c
 $router->get('/api/bidding/bid-history', 'Controllers\\Api\\BiddingController@getBidHistory', [
     'Middleware\\AuthMiddleware',
     'Middleware\\Roles\\AdminOnly',
+]);
+
+// ---------------------------------------------
+// Collector Dashboard Routes
+// ---------------------------------------------
+
+// Collector main dashboard
+$router->get('/collector', 'Controllers\Collector\CollectorDashboardController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector tasks / pickup assignments page
+$router->get('/collector/tasks', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector analytics / reporting
+$router->get('/collector/analytics', 'Controllers\Collector\CollectorDashboardController@analytics', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector notifications page
+$router->get('/collector/notifications', 'Controllers\Collector\CollectorDashboardController@notification', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector settings page
+$router->get('/collector/setting', 'Controllers\Collector\CollectorDashboardController@setting', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector profile page
+$router->get('/collector/profile', 'Controllers\Collector\CollectorDashboardController@profile', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Save weight for a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/weight', 'Controllers\Collector\CollectorDashboardController@saveWeight', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Update status of a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Collector\CollectorDashboardController@updateStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get assigned pickups (tasks) for dashboard
+$router->get('/api/collector/pickup-requests', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get single pickup details
+$router->get('/api/collector/pickup-requests/{id}', 'Controllers\Collector\CollectorDashboardController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
 ]);

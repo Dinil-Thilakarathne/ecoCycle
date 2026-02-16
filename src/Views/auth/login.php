@@ -4,7 +4,9 @@
  * Recreated to use the requested layout and class names.
  */
 $error = $error ?? (session()->getFlash('error') ?? null);
-$oldLogin = old('login', '');
+// Check for email in URL parameter first, then fall back to old() value
+$emailParam = $_GET['email'] ?? '';
+$oldLogin = !empty($emailParam) ? $emailParam : old('login', '');
 $success = $success ?? (session()->getFlash('success') ?? null);
 
 $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
@@ -111,6 +113,78 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                                     return;
                                 }
 
+                                // Check if error is due to unverified email
+                                if (data && data.error === 'email_not_verified') {
+                                    var msg = data.message || 'Please verify your email address before logging in.';
+
+                                    // Show error message
+                                    if (loginError) {
+                                        loginError.innerHTML = msg + '<br><button type="button" id="resendVerificationBtn" style="margin-top:var(--space-2); cursor:pointer;">Resend Verification Email</button>';
+                                        loginError.style.display = 'block';
+                                    }
+
+                                    // Show toast
+                                    try {
+                                        if (typeof __createToast === 'function') {
+                                            __createToast(msg, 'warning', 3000);
+                                        }
+                                    } catch (e) { }
+
+                                    // Add click handler for resend button
+                                    setTimeout(function () {
+                                        var resendBtn = document.getElementById('resendVerificationBtn');
+                                        if (resendBtn && data.email) {
+                                            resendBtn.addEventListener('click', function () {
+                                                resendBtn.disabled = true;
+                                                resendBtn.textContent = 'Sending...';
+
+                                                fetch('/resend-verification-email', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'X-Requested-With': 'XMLHttpRequest'
+                                                    },
+                                                    body: JSON.stringify({
+                                                        email: data.email,
+                                                        _token: document.querySelector('input[name="_token"]').value
+                                                    })
+                                                })
+                                                    .then(function (resp) { return resp.json(); })
+                                                    .then(function (result) {
+                                                        if (result.success) {
+                                                            try {
+                                                                if (typeof __createToast === 'function') {
+                                                                    __createToast(result.message || 'Verification email sent!', 'success', 3000);
+                                                                }
+                                                            } catch (e) { }
+                                                            loginError.style.display = 'none';
+                                                        } else {
+                                                            try {
+                                                                if (typeof __createToast === 'function') {
+                                                                    __createToast(result.message || 'Failed to send email', 'error', 3000);
+                                                                }
+                                                            } catch (e) { }
+                                                        }
+                                                    })
+                                                    .catch(function () {
+                                                        try {
+                                                            if (typeof __createToast === 'function') {
+                                                                __createToast('Network error. Please try again.', 'error', 3000);
+                                                            }
+                                                        } catch (e) { }
+                                                    })
+                                                    .finally(function () {
+                                                        resendBtn.disabled = false;
+                                                        resendBtn.textContent = 'Resend Verification Email';
+                                                    });
+                                            });
+                                        }
+                                    }, 100);
+
+                                    return;
+                                }
+
+                                // Regular error handling
                                 var msg = (data && data.message) ? data.message : 'Invalid email or password';
                                 if (loginError) {
                                     loginError.textContent = msg;
@@ -118,6 +192,13 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                                 } else {
                                     alert(msg);
                                 }
+
+                                // Show toast for regular errors
+                                try {
+                                    if (typeof __createToast === 'function') {
+                                        __createToast(msg, 'error', 3000);
+                                    }
+                                } catch (e) { }
                             }).catch(function (err) {
                                 if (loginError) {
                                     loginError.textContent = 'Network error. Please try again.';

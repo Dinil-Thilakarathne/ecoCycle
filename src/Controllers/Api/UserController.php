@@ -85,6 +85,161 @@ class UserController extends BaseController
 
         return Response::json($users);
     }
+    public function createUser(Request $request): Response
+    {
+        // Require JSON input
+        $input = $request->json();
+        if (!is_array($input)) {
+            return Response::errorJson('Invalid JSON payload', 400);
+        }
+
+        // Extract and validate required fields
+        $name = trim((string) ($input['name'] ?? ''));
+        $email = trim((string) ($input['email'] ?? ''));
+        $phone = trim((string) ($input['phone'] ?? ''));
+        $type = trim((string) ($input['type'] ?? 'collector'));
+        $password = (string) ($input['password'] ?? '');
+
+        // Collector-specific fields
+        $licenseNumber = trim((string) ($input['licenseNumber'] ?? ''));
+        $nic = trim((string) ($input['nic'] ?? ''));
+        $address = trim((string) ($input['address'] ?? ''));
+
+        // Validation
+        if (empty($name)) {
+            return Response::errorJson('Name is required', 400);
+        }
+
+        if (empty($email)) {
+            return Response::errorJson('Email is required', 400);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return Response::errorJson('Please provide a valid email address', 400);
+        }
+
+        if (empty($phone)) {
+            return Response::errorJson('Phone number is required', 400);
+        }
+
+        if (empty($password)) {
+            return Response::errorJson('Password is required', 400);
+        }
+
+        if (strlen($password) < 6) {
+            return Response::errorJson('Password must be at least 6 characters', 400);
+        }
+
+        // Validate type
+        $validTypes = ['customer', 'company', 'collector', 'admin'];
+        if (!in_array($type, $validTypes, true)) {
+            return Response::errorJson('Invalid user type', 400);
+        }
+
+        // Additional validation for collectors
+        if ($type === 'collector') {
+            if (empty($licenseNumber)) {
+                return Response::errorJson('License number is required for collectors', 400);
+            }
+            if (empty($nic)) {
+                return Response::errorJson('NIC is required for collectors', 400);
+            }
+            if (empty($address)) {
+                return Response::errorJson('Address is required for collectors', 400);
+            }
+        }
+
+        try {
+            // Check if email already exists
+            if ($this->userModel->emailExists($email)) {
+                return Response::errorJson('An account with that email already exists', 409);
+            }
+
+            // Get role_id for the user type
+            $roleId = null;
+            try {
+                $db = new \Core\Database();
+                $row = $db->fetch('SELECT id FROM roles WHERE name = ? LIMIT 1', [$type]);
+                if ($row && isset($row['id'])) {
+                    $roleId = (int) $row['id'];
+                }
+            } catch (\Throwable $e) {
+                // Role ID remains null if lookup fails
+            }
+
+            // Prepare user data
+            $userData = [
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'type' => $type,
+                'password' => $password, // Will be hashed by User model
+                'status' => 'active',
+            ];
+
+            // Add collector-specific fields to metadata
+            if ($type === 'collector') {
+                $userData['metadata'] = [
+                    'licenseNumber' => $licenseNumber,
+                    'nic' => $nic,
+                    'address' => $address,
+                ];
+            }
+
+            if ($roleId !== null) {
+                $userData['role_id'] = $roleId;
+            }
+
+            // Create user
+            $newUserId = $this->userModel->createUser($userData);
+
+            if ($newUserId === false) {
+                return Response::errorJson('Failed to create user account', 500);
+            }
+
+            // Fetch the created user to return complete data
+            $createdUser = $this->userModel->findById((int) $newUserId);
+
+
+            // Send welcome/credentials email
+            try {
+                // Generate verification token for the new user
+                $verificationToken = generateVerificationToken();
+                $this->userModel->updateUser((int) $newUserId, [
+                    'email_verification_token' => $verificationToken,
+                    'email_verification_sent_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                sendMail(
+                    $email,
+                    'account-created',
+                    [
+                        'username' => $name, // For templates expecting username
+                        'name' => $name,     // For templates expecting name
+                        'email' => $email,
+                        'password' => $password, // Sending plain password since we just created it and it's an admin action
+                        'role' => $type,
+                        'login_url' => url('/login'),
+                        'verification_url' => url("/verify-email?token={$verificationToken}")
+                    ],
+                    'Welcome to ecoCycle - Your Account Details'
+                );
+            } catch (\Exception $e) {
+                error_log("Failed to send account creation email: " . $e->getMessage());
+                // Continue execution, don't fail the request just because email failed
+            }
+
+            return Response::json([
+                'success' => true,
+                'message' => 'User created successfully',
+                'user' => $createdUser
+            ], 201);
+
+        } catch (\Exception $e) {
+            return Response::errorJson('An error occurred while creating user: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function assignVehicle(Request $request): Response
     {
         // Require JSON input

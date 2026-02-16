@@ -311,7 +311,7 @@ class CompanyDashboardController extends DashboardController
                 'amount' => number_format($row['quantity']) . ' ' . $row['unit'],
                 'price' => format_rs($row['currentHighestBid']),
                 'pickup_date' => $row['endTime'] ? date('Y-m-d', strtotime($row['endTime'])) : 'TBD',
-                
+
             ];
         }, $active);
     }
@@ -396,7 +396,8 @@ class CompanyDashboardController extends DashboardController
     private function getNotifications(): array
     {
         $notifications = new Notification();
-        return $notifications->forCompany($this->companyId, 25);
+        $createdAt = $this->user['created_at'] ?? '2000-01-01 00:00:00';
+        return $notifications->forCompany($this->companyId, $createdAt, 20);
     }
 
     private function formatMonthLabel(string $period): string

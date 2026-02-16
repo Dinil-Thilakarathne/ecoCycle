@@ -242,6 +242,12 @@ class User
         return $row ?: null;
     }
 
+    public function findByVehicleId(int $vehicleId): array|null
+    {
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.vehicle_id = ? LIMIT 1", [$vehicleId]);
+        return $row ?: null;
+    }
+
     public function verifyPassword(array $user, string $password): bool
     {
         // Assuming password_hash stored in password_hash column
@@ -396,5 +402,54 @@ class User
     public function findAll(): array
     {
         return $this->db->fetchAll('SELECT * FROM users');
+    }
+
+    /**
+     * Find user by email verification token
+     *
+     * @param string $token Verification token
+     * @return array|null User data if found
+     */
+    public function findByVerificationToken(string $token): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE email_verification_token = ? LIMIT 1";
+        $user = $this->db->fetch($sql, [$token]);
+
+        return $user ?: null;
+    }
+
+    /**
+     * Mark user's email as verified
+     *
+     * @param int $userId User ID
+     * @return bool Success status
+     */
+    public function markEmailAsVerified(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET email_verified = TRUE, 
+                    email_verification_token = NULL,
+                    email_verification_sent_at = NULL
+                WHERE id = ?";
+
+        $this->db->query($sql, [$userId]);
+        return true;
+    }
+
+    /**
+     * Update user's password
+     *
+     * @param int $userId User ID
+     * @param string $newPassword New password (will be hashed)
+     * @return bool Success status
+     */
+    public function updatePassword(int $userId, string $newPassword): bool
+    {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+        $sql = "UPDATE {$this->table} SET password_hash = ? WHERE id = ?";
+        $this->db->query($sql, [$hashedPassword, $userId]);
+
+        return true;
     }
 }
