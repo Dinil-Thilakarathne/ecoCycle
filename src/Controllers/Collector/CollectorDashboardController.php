@@ -3,11 +3,16 @@
 namespace Controllers\Collector;
 
 use Controllers\DashboardController;
+use Core\Http\Request;
 use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
+use Models\CollectorFeedback;
+use Models\CollectorRating;
+
+use Models\Notification;
 
 /**
  * Collector Dashboard Controller
@@ -67,18 +72,14 @@ class CollectorDashboardController extends DashboardController
     /**
      * Earnings and payments
      */
-    /* public function earnings(): Response
-     {
-         $data = [
-             'pageTitle' => 'Earnings & Payments',
-             'dailyEarnings' => $this->getDailyEarnings(),
-             'monthlyEarnings' => $this->getMonthlyEarnings(),
-             'paymentHistory' => $this->getPaymentHistory(),
-             'pendingPayments' => $this->getPendingPayments()
-         ];
+    public function earnings(): \Core\Http\Response
+    {
+        $data = [
+            'pageTitle' => 'My Earnings',
+        ];
 
-         return $this->renderDashboard('earnings', $data);
-     }*/
+        return $this->renderDashboard('earnings', $data);
+    }
 
     /**
      * Collection reporting
@@ -162,7 +163,7 @@ class CollectorDashboardController extends DashboardController
             $today = date('Y-m-d');
             $count = 0;
             foreach ($allPickups as $pickup) {
-                $createdDate = isset($pickup['created_at']) ? substr($pickup['created_at'], 0, 10) : '';
+                $createdDate = isset($pickup['rating_date']) ? substr($pickup['rating_date'], 0, 10) : '';
                 $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
 
                 if (
@@ -545,78 +546,6 @@ class CollectorDashboardController extends DashboardController
         return [$first, $last];
     }
 
-    /**
-     * Save measured weight and calculate amount
-     */
-    /* public function saveWeight($pickupId)
-     {
-         header('Content-Type: application/json; charset=utf-8');
-
-         try {
-             $data = json_decode(file_get_contents('php://input'), true);
-             if (!is_array($data)) throw new \Exception('Invalid JSON input');
-
-             $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
-             if (empty($pickupId) || $weight <= 0) {
-                 http_response_code(400);
-                 echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or weight']);
-                 exit;
-             }
-
-             // Save weight & calculate amount
-             $incomeWaste = new IncomeWaste();
-             $amount = $incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
-
-             // Optional: update pickup status to 'in progress'
-             $pickupRequest = new PickupRequest();
-             $pickupRequest->updateStatus((int)$pickupId, 'in progress');
-
-             echo json_encode([
-                 'success' => true,
-                 'data' => [
-                     'weight' => $weight,
-                     'amount' => $amount
-                 ]
-             ]);
-             exit;
-
-         } catch (\Throwable $e) {
-             http_response_code(500);
-             echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to save weight']);
-             exit;
-         }
-     }*/
-
-    /**
-     * Update status for a pickup
-     */
-    /*public function updateStatus($pickupId)
-        {
-            header('Content-Type: application/json; charset=utf-8');
-
-            try {
-                $data = json_decode(file_get_contents('php://input'), true);
-                if (!is_array($data)) throw new \Exception('Invalid JSON input');
-
-                $status = trim($data['status'] ?? '');
-                if (empty($pickupId) || $status === '') {
-                    http_response_code(400);
-                    echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or status']);
-                    exit;
-                }
-
-                $pickupRequest = new PickupRequest();
-                $pickupRequest->updateStatus((int)$pickupId, $status);
-
-                echo json_encode(['success' => true, 'data' => ['status' => $status]]);
-                exit;
-
-            } catch (\Throwable $e) {
-                http_response_code(500);
-                echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to update status']);
-                exit;
-            }
-        }*/
 
     public function saveWeight(\Core\Http\Request $request)
     {
@@ -734,6 +663,51 @@ class CollectorDashboardController extends DashboardController
                 exit;
             }
 
+            // 📝 Create payment records if status is completed
+            if ($status === 'completed' && $weights) {
+                // Fetch the updated pickup to get total price
+                $completedPickup = $pickupRequest->find((string) $pickupId);
+                $totalPayoutAmount = (float) ($completedPickup['price'] ?? 0);
+                $customerId = (int) ($completedPickup['customerId'] ?? 0);
+
+                if ($totalPayoutAmount > 0 && $customerId > 0) {
+                    try {
+                        $paymentService = new \Services\Payment\PaymentService();
+
+                        // 1. Create Customer Payout Payment
+                        $paymentService->createManualPayment([
+                            'type' => 'payout',
+                            'recipientId' => $customerId,
+                            'amount' => $totalPayoutAmount,
+                            'status' => 'pending',
+                            'notes' => "Payout for Pickup #{$pickupId}",
+                            'txnId' => "PO-{$pickupId}-" . time()
+                        ]);
+
+                        // 2. Create Collector Commission Payment
+                        // Commission: Rs. 100 base + 10% of customer payout
+                        $baseCommission = 100.00;
+                        $percentageCommission = $totalPayoutAmount * 0.10; // 10%
+                        $totalCommission = round($baseCommission + $percentageCommission, 2);
+
+                        $paymentService->createManualPayment([
+                            'type' => 'payout',
+                            'recipientId' => $collectorId,
+                            'amount' => $totalCommission,
+                            'status' => 'pending',
+                            'notes' => "Commission for Pickup #{$pickupId} (Base: Rs.{$baseCommission} + 10% of Rs.{$totalPayoutAmount})",
+                            'txnId' => "COM-{$pickupId}-" . time()
+                        ]);
+
+                        error_log("✅ Payments created: Customer Rs.{$totalPayoutAmount}, Collector Rs.{$totalCommission}");
+                    } catch (\Throwable $paymentError) {
+                        error_log("❌ Failed to create payment records: " . $paymentError->getMessage());
+                        // Don't fail the entire request if payment creation fails
+                        // Let the status update succeed, but log the error
+                    }
+                }
+            }
+
             // Fetch updated pickup data to return to frontend
             $updatedPickup = $pickupRequest->find((string) $pickupId);
 
@@ -769,6 +743,185 @@ class CollectorDashboardController extends DashboardController
         }
     }
 
+    public function getMetrics(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            // Fix: Use a more reliable way to detect the collector ID
+            $collectorId = (int) $request->query('collector_id');
 
+            // Fallback to logged in user if query param is missing
+            if ($collectorId <= 0 && isset($this->user['id'])) {
+                $collectorId = (int) $this->user['id'];
+            }
+
+            if ($collectorId <= 0) {
+                throw new \Exception('Collector ID is required');
+            }
+
+            $model = new CollectorFeedback();
+
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'feedbackMetrics' => [
+                        'averageRating' => $model->getAverageRating($collectorId),
+                        'totalFeedback' => $model->getCollectorFeedbackCount($collectorId),
+                        'pendingReview' => 0,
+                        'lowRatings' => count($model->getLowRatings($collectorId, 2))
+                    ]
+                ]
+            ]);
+            exit;
+        } catch (\Throwable $e) {
+            http_response_code(400); // 400 is better for 'Invalid Input' than 500
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+    public function getFeedback(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
+            $limit = (int) $request->query('limit', 50);
+
+            if ($collectorId <= 0) {
+                throw new \Exception('Invalid collector ID');
+            }
+
+            $model = new CollectorFeedback();
+            $feedback = $model->getCollectorFeedback($collectorId, $limit);
+
+            echo json_encode([
+                'success' => true,
+                'data' => $feedback
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+    public function addFeedback(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $data = $request->json();
+
+            $collectorId = (int) ($data['collector_id'] ?? 0);
+            $customerId = (int) ($data['customer_id'] ?? 0);
+            $rating = (int) ($data['rating'] ?? 0);
+            $description = trim($data['description'] ?? '');
+
+            if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
+                throw new \Exception('Invalid input');
+            }
+
+            $model = new CollectorFeedback();
+            $model->create([
+                'collector_id' => $collectorId,
+                'customer_id' => $customerId ?: null,
+                'rating' => $rating,
+                'description' => $description
+            ]);
+
+            echo json_encode(['success' => true]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+
+    public function getWasteCollection(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            // 1. Check Query String first (matches your JS ?collector_id=1)
+            // 2. Fallback to Session user id
+            $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
+
+            if ($collectorId <= 0) {
+                throw new \Exception('Invalid collector ID - Please log in or provide an ID');
+            }
+
+            $incomeWaste = new \Models\IncomeWaste();
+            // $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
+            $limit = (int) ($request->query('limit') ?? 50);
+            $records = $incomeWaste->getWasteCollectionForCollector($collectorId, $limit);
+
+
+            // Clean the data to ensure JS can parse numbers correctly
+            $formattedRecords = array_map(function ($r) {
+                return [
+                    'customer_id' => $r['customer_id'] ?? 'N/A',
+                    'customer_name' => $r['customer_name'] ?? 'Unknown',
+                    'category' => $r['category'] ?? 'General',
+                    'weight' => (float) ($r['weight'] ?? 0),
+                    'amount' => (float) ($r['amount'] ?? 0),
+                    'pickup_id' => $r['pickup_id']
+                ];
+            }, $records);
+
+            echo json_encode([
+                'success' => true,
+                'data' => $formattedRecords
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+    public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
+    {
+        $sql = "
+        SELECT COUNT(*) AS count
+        FROM {$this->table}
+        WHERE collector_id = ? AND rating <= ?
+    ";
+
+        $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
+        return (int) ($row['count'] ?? 0);
+    }
+
+
+
+    public function notifications(): \Core\Http\Response
+    {
+        $userId = (int) ($this->user['id'] ?? 0);
+        $role = $this->user['role'] ?? 'collector'; // adjust if needed
+
+        $notificationModel = new Notification();
+
+        // Fetch latest 100 notifications for this user
+        $notifications = $notificationModel->forUser(
+            $userId,
+            $role,
+            date('Y-m-d 00:00:00'),
+            100
+        );
+
+        $data = [
+            'pageTitle' => 'Notifications',
+            'notifications' => $notifications, // Pass to the view
+            'authUser' => $this->user
+        ];
+
+        return $this->renderDashboard('notification', $data);
+    }
 }
-

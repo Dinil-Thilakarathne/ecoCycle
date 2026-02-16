@@ -106,10 +106,23 @@ class Database
         return $this->stmt->fetch();
     }
 
+    public function fetchOne(string $sql, array $params = []): array|false
+    {
+        return $this->fetch($sql, $params);
+    }
+
     public function fetchColumn(string $sql, array $params = [], int $column = 0)
     {
         $this->query($sql, $params);
         return $this->stmt->fetchColumn($column);
+    }
+
+    public function insert(string $table, array $data): bool
+    {
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        $sql = "INSERT INTO {$table} ({$columns}) VALUES ({$placeholders})";
+        return $this->query($sql, array_values($data));
     }
 
     public function lastInsertId(): string|false

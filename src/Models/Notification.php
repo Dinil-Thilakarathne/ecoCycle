@@ -108,9 +108,15 @@ class Notification extends BaseModel
         }
 
         $limit = max(1, (int) $limit);
-
+        
+        // Normalize role to lowercase to match predefined recipient groups (which are lowercase)
+        $originalRole = $role;
+        $role = strtolower($role);
         // Map singular role to plural group name if needed, or check both
         $roleGroup = $role . 's'; // e.g. customer -> customers
+        
+        // DEBUG LOGGING
+        file_put_contents(__DIR__ . '/../../storage/logs/notification_debug.log', date('Y-m-d H:i:s') . " - forUser: userId=$userId originalRole=$originalRole normalizedRole=$role roleGroup=$roleGroup\n", FILE_APPEND);
 
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(
@@ -143,38 +149,77 @@ class Notification extends BaseModel
         return $this->formatRows($rows);
     }
 
-    public function markAsRead(int $id, int $userId): bool
+    public function markAsRead($id, int $userId): bool
     {
-        return $this->db->query(
-            "UPDATE {$this->table} SET status = 'read' WHERE id = ?",
-            [$id]
-        );
+        error_log("Notification::markAsRead - Updating notification ID: {$id} for user: {$userId}");
+        
+        $sql = "UPDATE {$this->table} SET status = 'read' WHERE id = ?";
+        $params = [$id];
+        
+        error_log("Notification::markAsRead - SQL: {$sql}");
+        error_log("Notification::markAsRead - Params: " . json_encode($params));
+        
+        $result = $this->db->query($sql, $params);
+        
+        error_log("Notification::markAsRead - Result: " . ($result ? 'true' : 'false'));
+        
+        // Verify the update by fetching the notification
+        $updated = $this->db->fetch("SELECT id, status FROM {$this->table} WHERE id = ?", [$id]);
+        error_log("Notification::markAsRead - After update: " . json_encode($updated));
+        
+        return $result;
     }
 
-    public function markAllAsRead(int $userId): bool
+    public function markAllAsRead(int $userId, string $role = ''): bool
     {
-        if ($this->db->isPgsql()) {
-            return $this->db->query(
+        $roleGroup = $role ? $role . 's' : '';
+        // Same logic as forUser/getStats to target correct notifications
+        
+         if ($this->db->isPgsql()) {
+             // PGSQL update with complex where
+             return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ?
-                    )",
-                ['user:' . $userId]
-            );
-        } else {
-            return $this->db->query(
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            WHERE value = ?
+                        )
+                   )",
+                [$role, $roleGroup, 'user:' . $userId]
+             );
+         } else {
+             // MySQL update
+             return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))",
-                [$userId]
-            );
-        }
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                   )",
+                [$role, $roleGroup, $userId]
+             );
+         }
     }
+
+    public function findById($id): ?array
+    {
+        $row = $this->db->fetch(
+            "SELECT * FROM {$this->table} WHERE id = ?",
+            [$id]
+        );
+
+        if (!$row) {
+            return null;
+        }
+
+        return $this->formatRows([$row])[0];
+    }
+
 
     public function getUnreadCount(int $userId, string $role = ''): int
     {
@@ -207,8 +252,61 @@ class Notification extends BaseModel
                 [$role, $roleGroup, $userId]
             );
         }
-
+        
+        
         return (int) ($result['count'] ?? 0);
+    }
+
+    public function getStats(int $userId, string $role = ''): array
+    {
+        $roleGroup = $role ? $role . 's' : '';
+        
+        // Base where clause for user targeting
+        $userWhere = "
+            (
+                recipient_group IN ('all', 'users', ?, ?)
+                OR 
+        ";
+
+        // DB specific JSON check
+        if ($this->db->isPgsql()) {
+            $userWhere .= "
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                    WHERE value = ?
+                )
+            )";
+            $params = [$role, $roleGroup, 'user:' . $userId];
+        } else {
+            $userWhere .= "
+                JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+            )";
+            $params = [$role, $roleGroup, $userId];
+        }
+
+        // Queries
+        // Total
+        $totalSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE {$userWhere}";
+        $total = $this->db->fetch($totalSql, $params)['count'] ?? 0;
+
+        // Unread
+        $unreadSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE status != 'read' AND {$userWhere}";
+        $unread = $this->db->fetch($unreadSql, $params)['count'] ?? 0;
+
+        // Today
+        if ($this->db->isPgsql()) {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE created_at::date = CURRENT_DATE AND {$userWhere}";
+        } else {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE DATE(created_at) = CURDATE() AND {$userWhere}";
+        }
+        $today = $this->db->fetch($todaySql, $params)['count'] ?? 0;
+
+        return [
+            'total' => (int)$total,
+            'unread' => (int)$unread,
+            'today' => (int)$today
+        ];
     }
 
     public function getAll(int $limit = 100): array

@@ -225,9 +225,35 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\Roles\CustomerOnly',
 ]);
 
+// Customer dashboard API
+$router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\DashboardController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Customer collector ratings
 $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
     'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+// $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+//     'Middleware\AuthMiddleware',
+//     'Middleware\CsrfMiddleware',
+//     'Middleware\Roles\CollectorOnly',
+// ]);
+
+// Real-time pickup request event polling
+$router->get('/api/pickup-requests/updates', 'Controllers\Api\PickupRequestUpdatesController@getUpdates', [
+    'Middleware\AuthMiddleware',
+]);
+$router->get('/api/pickup-requests/server-time', 'Controllers\Api\PickupRequestUpdatesController@getServerTime', [
+    'Middleware\AuthMiddleware',
+]);
+
+// Customer income report (completed pickups)
+$router->get('/api/reports/customer-income', 'Controllers\Api\ReportUpdatesController@customerIncome', [
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CustomerOnly',
 ]);
@@ -243,13 +269,23 @@ $router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
+$router->get('/api/reports/customer-income/export', 'Controllers\Api\ReportUpdatesController@exportCustomerIncome', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
+// Collector-scoped Customer Income report (for collectors to view their own completed pickups)
+$router->get('/api/collector/reports/customer-income', 'Controllers\Api\ReportUpdatesController@collectorCustomerIncome', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
     'Middleware\AuthMiddleware',
     // 'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
@@ -274,6 +310,11 @@ $router->get('/api/customer/payments', 'Controllers\Api\PaymentController@custom
 $router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CompanyOnly',
+]);
+
+$router->get('/api/collector/payments', 'Controllers\Api\PaymentController@collectorPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
 ]);
 
 // Root redirect to navigation page for development
@@ -352,10 +393,22 @@ $router->post('/customer/profile', 'Controllers\Customer\ProfileController@updat
 ]);
 
 // Collector profile management
+$router->get('/collector/profile', 'Controllers\\Collector\\ProfileController@show', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\CollectorOnly'
+]);
+
 $router->post('/collector/profile', 'Controllers\Collector\ProfileController@update', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CollectorOnly'
+]);
+
+
+$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
 ]);
 
 // Error handling routes
@@ -778,13 +831,17 @@ $router->get('/api/collector/material-prices', 'Controllers\Api\CollectorStatsCo
     'Middleware\Roles\CollectorOnly',
 ]);
 
-// Collector notifications (used by collector notifications UI)
-$router->get('/api/collector/notifications', 'Controllers\Api\CollectorStatsController@notifications', [
+// Collector material collection (used by collector dashboard UI)
+$router->get('/api/collector/material-collection', 'Controllers\Api\CollectorStatsController@materialCollection', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);
 
 $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
     'Middleware\AuthMiddleware',
 ]);
 
@@ -815,8 +872,74 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
     'Middleware\Roles\AdminOnly',
 ]);
 
+// Collector feedback routes
+$router->get(
+    '/api/collector/feedback',
+    'Controllers\Collector\CollectorDashboardController@getFeedback',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
 
+$router->post(
+    '/api/collector/feedback',
+    'Controllers\Collector\CollectorDashboardController@addFeedback',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
 
+// Collector waste collection
+$router->get(
+    '/api/collector/waste-collection',
+    'Controllers\Collector\CollectorDashboardController@getWasteCollection',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Collector metrics
+$router->get(
+    '/api/collector/metrics',
+    'Controllers\Collector\CollectorDashboardController@getMetrics',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Collector notifications routes
+$router->get(
+    '/api/collector/notifications',
+    'Controllers\Collector\CollectorDashboardController@notifications',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+$router->put(
+    '/api/collector/notifications/{id}/read',
+    'Controllers\Collector\CollectorDashboardController@markNotificationRead',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+$router->put(
+    '/api/collector/notifications/read-all',
+    'Controllers\Collector\CollectorDashboardController@markAllNotificationsRead',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Bidding availability and history
 $router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@checkAvailability', [
     'Middleware\\AuthMiddleware',
     'Middleware\\Roles\\AdminOnly',
@@ -825,4 +948,76 @@ $router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@c
 $router->get('/api/bidding/bid-history', 'Controllers\\Api\\BiddingController@getBidHistory', [
     'Middleware\\AuthMiddleware',
     'Middleware\\Roles\\AdminOnly',
+]);
+
+// ---------------------------------------------
+// Collector Dashboard Routes
+// ---------------------------------------------
+
+// Collector main dashboard
+$router->get('/collector', 'Controllers\Collector\CollectorDashboardController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector tasks / pickup assignments page
+$router->get('/collector/tasks', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector analytics / reporting
+$router->get('/collector/analytics', 'Controllers\Collector\CollectorDashboardController@analytics', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector notifications page
+$router->get('/collector/notifications', 'Controllers\Collector\CollectorDashboardController@notification', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector settings page
+$router->get('/collector/setting', 'Controllers\Collector\CollectorDashboardController@setting', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector profile page
+$router->get('/collector/profile', 'Controllers\Collector\CollectorDashboardController@profile', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector earnings page
+$router->get('/collector/earnings', 'Controllers\Collector\CollectorDashboardController@earnings', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Save weight for a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/weight', 'Controllers\Collector\CollectorDashboardController@saveWeight', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Update status of a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Collector\CollectorDashboardController@updateStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get assigned pickups (tasks) for dashboard
+$router->get('/api/collector/pickup-requests', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get single pickup details
+$router->get('/api/collector/pickup-requests/{id}', 'Controllers\Collector\CollectorDashboardController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
 ]);

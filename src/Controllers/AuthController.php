@@ -90,6 +90,53 @@ class AuthController extends BaseController
             }
 
             if ($user) {
+                // Validate selected role matches user's actual role
+                $selectedRole = trim((string) $request->input('selected_role'));
+                $userRole = $user['role_name'] ?? ($user['role'] ?? null);
+
+                // Role validation: ensure selected role matches user's actual role
+                if ($selectedRole !== '' && $userRole !== null) {
+                    // Normalize both roles for comparison (handle case sensitivity)
+                    $normalizedSelectedRole = strtolower($selectedRole);
+                    $normalizedUserRole = strtolower($userRole);
+
+                    if ($normalizedSelectedRole !== $normalizedUserRole) {
+                        // Role mismatch - user selected wrong portal
+                        $roleLabels = [
+                            'customer' => 'Customer',
+                            'collector' => 'Collector',
+                            'company' => 'Company',
+                            'admin' => 'Admin'
+                        ];
+
+                        $selectedLabel = $roleLabels[$normalizedSelectedRole] ?? ucfirst($selectedRole);
+                        $actualLabel = $roleLabels[$normalizedUserRole] ?? ucfirst($userRole);
+
+                        $errorMessage = "You selected {$selectedLabel} portal, but this account is registered as a {$actualLabel}. Please select the correct portal type.";
+
+                        session()->flash('old', ['login' => $login]);
+                        session()->flash('error', $errorMessage);
+
+                        if ($request->expectsJson() || $request->isAjax()) {
+                            return \Core\Http\Response::errorJson($errorMessage, 422);
+                        }
+
+                        return redirect('/login');
+                    }
+                } elseif ($selectedRole === '') {
+                    // No role selected - require role selection
+                    $errorMessage = "Please select your account type from the dropdown before logging in.";
+
+                    session()->flash('old', ['login' => $login]);
+                    session()->flash('error', $errorMessage);
+
+                    if ($request->expectsJson() || $request->isAjax()) {
+                        return \Core\Http\Response::errorJson($errorMessage, 422);
+                    }
+
+                    return redirect('/login');
+                }
+
                 $userData = [
                     'id' => (int) $user['id'],
                     // Prefer full name if present, then username, then fall back to email

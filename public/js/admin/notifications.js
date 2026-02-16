@@ -177,7 +177,7 @@ function setupNotificationForm() {
         );
       }
     } catch (error) {
-      console.error("Error sending notification:", error);
+      // console.error("Error sending notification:", error);
       showToast(error.message, "error");
     } finally {
       isSubmitting = false;

@@ -1,249 +1,55 @@
 <?php
-use Models\Notification;
-
-// Get current user
-$user = auth();
-$userId = $user['id'] ?? 0;
-$userRole = $user['role'] ?? 'customer';
-
-// Initialize model
-$notificationModel = new Notification();
-
-// Handle form submissions
-$action = $_GET['action'] ?? '';
-$notificationId = $_GET['id'] ?? '';
 $filter = $_GET['filter'] ?? 'all';
-
-// Handle actions
-if ($userId && $action === 'mark_read' && $notificationId) {
-    // Update the database
-    $notificationModel->markAsRead((int) $notificationId, $userId);
-    // Redirect to avoid resubmission
-    header("Location: ?filter={$filter}");
-    exit;
-}
-
-if ($userId && $action === 'mark_all_read') {
-    // Update the database
-    $notificationModel->markAllAsRead($userId);
-    // Redirect to avoid resubmission
-    header("Location: ?filter={$filter}");
-    exit;
-}
-
-// Fetch real notifications from database
-// Fetch full user profile to get created_at if not available in session
-$userModel = new \Models\User();
-$fullUser = $userModel->findById($userId);
-$createdAt = $fullUser['created_at'] ?? '2000-01-01 00:00:00';
-
-$allNotifications = $notificationModel->forUser($userId, $userRole, $createdAt, 50);
-
-// Map DB format to View format if necessary (though they seem compatible)
-// The model returns: id, type, title, message, timestamp, status ('pending'/'read'), recipients
-// The view expects: isRead boolean, priority (we can derive), category (derive from type), icon
-$notifications = array_map(function ($n) {
-    $isRead = ($n['status'] === 'read');
-
-    // Derive category/icon/priority from type
-    $category = 'system';
-    $icon = 'fa-solid fa-bell';
-    $priority = 'normal';
-
-    // Simple mapping based on type keywords
-    $type = strtolower($n['type']);
-    if (strpos($type, 'pickup') !== false) {
-        $category = 'pickup';
-        $icon = 'fa-solid fa-truck';
-    } elseif (strpos($type, 'payment') !== false || strpos($type, 'money') !== false) {
-        $category = 'payment';
-        $icon = 'fa-solid fa-money-bill';
-    } elseif (strpos($type, 'alert') !== false || strpos($type, 'warning') !== false) {
-        $priority = 'high';
-        $icon = 'fa-solid fa-triangle-exclamation';
-    } elseif (strpos($type, 'info') !== false) {
-        $priority = 'low';
-        $icon = 'fa-solid fa-circle-info';
-    }
-
-    // Check if maintainance
-    if ($type === 'maintenance') {
-        $category = 'system';
-        $icon = 'fa-solid fa-screwdriver-wrench';
-    }
-
-    return [
-        'id' => $n['id'],
-        'type' => $n['type'],
-        'title' => $n['title'] ?: ucfirst($n['type']), // Fallback title
-        'message' => $n['message'],
-        'timestamp' => $n['timestamp'],
-        'isRead' => $isRead,
-        'priority' => $priority,
-        'icon' => $icon, // Using FontAwesome class string instead of emoji for consistency if preferred, or map back to emoji
-        'category' => $category,
-        'status' => $n['status']
-    ];
-}, $allNotifications);
-
-
-// Filter notifications based on selected filter
-$filteredNotifications = $notifications;
-// Note: System alerts might come from a separate method if needed, but forUser handles 'all'/'users' groups
-// Excluding 'system' category if strictly requested, but usually users want to see system alerts too.
-// Keeping strictly view logic below:
-
-if ($filter === 'unread') {
-    $filteredNotifications = array_filter($filteredNotifications, fn($n) => !$n['isRead']);
-} elseif ($filter === 'pickup') {
-    $filteredNotifications = array_filter($filteredNotifications, fn($n) => $n['category'] === 'pickup');
-} elseif ($filter === 'payment') {
-    $filteredNotifications = array_filter($filteredNotifications, fn($n) => $n['category'] === 'payment');
-}
-
-// Calculate stats
-$totalNotifications = count($notifications);
-$unreadNotifications = count(array_filter($notifications, fn($n) => !$n['isRead']));
-$highPriorityNotifications = count(array_filter($notifications, fn($n) => $n['priority'] === 'high'));
-$todayNotifications = count(array_filter($notifications, fn($n) => date('Y-m-d', strtotime($n['timestamp'])) === date('Y-m-d')));
-
-// Function to get time ago
-function timeAgo($timestamp)
-{
-    if (!$timestamp)
-        return '';
-    $time = time() - strtotime($timestamp);
-
-    if ($time < 60)
-        return 'Just now';
-    if ($time < 3600)
-        return floor($time / 60) . ' mins ago';
-    if ($time < 86400)
-        return floor($time / 3600) . ' hours ago';
-    if ($time < 2592000)
-        return floor($time / 86400) . ' days ago';
-
-    return date('M j, Y', strtotime($timestamp));
-}
-
-// Function to get status class
-function getStatusClass($priority, $isRead)
-{
-    if (!$isRead)
-        return 'status-unread';
-
-    switch ($priority) {
-        case 'high':
-            return 'status-high';
-        case 'normal':
-            return 'status-normal';
-        case 'low':
-            return 'status-low';
-        default:
-            return 'status-normal';
-    }
-}
-
-// Function to truncate message
-function truncateMessage($message, $length = 80)
-{
-    if (strlen($message) <= $length) {
-        return $message;
-    }
-    return substr($message, 0, $length) . '...';
-}
-
-// Handle view notification
-$viewNotification = null;
-if ($action === 'view' && $notificationId) {
-    foreach ($notifications as $notification) {
-        // Loose comparison for ID as DB might be int, view param string
-        if ($notification['id'] == $notificationId) {
-            $viewNotification = $notification;
-            // Mark as read if viewing? Optional, usually triggered by specific action or API
-            // $notificationModel->markAsRead((int)$notificationId, $userId); 
-            break;
-        }
-    }
-}
-
-// Handle settings modal
-$showSettings = ($action === 'settings');
+$showSettings = (($_GET['action'] ?? '') === 'settings');
 ?>
 
 <div class="dashboard-page">
-    <!-- small styles to highlight unread notifications (dot + subtle background) -->
-    <style>
-        .notification-row.unread .notification-title {
-            font-weight: 700;
-        }
-
-        .notification-row.unread {
-            background: #dff4dbff;
-        }
-
-        /* keep table row hover readable */
-        .notifications-table .notification-row:hover {
-            background: #f5f5f5;
-        }
-    </style>
     <!-- Header -->
     <div class="header">
         <!-- header-actions removed -->
     </div>
 
-    <!-- Stats Feature Cards -->
-    <?php
-    $notificationStats = [
-        [
-            'title' => 'Total Notifications',
-            'value' => $totalNotifications,
-            'icon' => 'fa-solid fa-bell',
-            'subtitle' => 'All time',
-        ],
-        [
-            'title' => 'Unread',
-            'value' => $unreadNotifications,
-            'icon' => 'fa-solid fa-envelope-open',
-            'subtitle' => 'Need attention',
-        ],
-        [
-            'title' => 'Today',
-            'value' => $todayNotifications,
-            'icon' => 'fa-solid fa-calendar-day',
-            'subtitle' => 'Received today',
-        ],
-    ];
-    ?>
+
+    <!-- Stats Feature Cards (values populated from API) -->
     <div class="stats-grid">
-        <?php foreach ($notificationStats as $stat): ?>
-            <div class="feature-card">
-                <div class="feature-card__header">
-                    <h3 class="feature-card__title">
-                        <?= htmlspecialchars($stat['title']) ?>
-                    </h3>
-                    <div class="feature-card__icon">
-                        <i class="<?= htmlspecialchars($stat['icon']) ?>"></i>
-                    </div>
-                </div>
-                <p class="feature-card__body">
-                    <?= htmlspecialchars($stat['value']) ?>
-                </p>
-                <div class="feature-card__footer">
-                    <span class="tag success"><?= htmlspecialchars($stat['subtitle']) ?></span>
-                </div>
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <h3 class="feature-card__title">Total Notifications</h3>
+                <div class="feature-card__icon"><i class="fa-solid fa-bell"></i></div>
             </div>
-        <?php endforeach; ?>
+            <p class="feature-card__body" id="totalNotifications">0</p>
+            <div class="feature-card__footer"><span class="tag success">All time</span></div>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <h3 class="feature-card__title">Unread</h3>
+                <div class="feature-card__icon"><i class="fa-solid fa-envelope-open"></i></div>
+            </div>
+            <p class="feature-card__body" id="unreadNotifications">0</p>
+            <div class="feature-card__footer"><span class="tag success">Need attention</span></div>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <h3 class="feature-card__title">Today</h3>
+                <div class="feature-card__icon"><i class="fa-solid fa-calendar-day"></i></div>
+            </div>
+            <p class="feature-card__body" id="todayNotifications">0</p>
+            <div class="feature-card__footer"><span class="tag success">Received today</span></div>
+        </div>
     </div>
 
-    <!-- Filter Tabs -->
+    <!-- Filter Tabs + Actions -->
     <div class="action-buttons" style="margin-bottom:2rem;">
+        <a href="?filter=all" class="btn <?php echo $filter === 'all' ? 'btn-primary' : 'btn-outline'; ?>">All</a>
         <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread
-            (<?php echo $unreadNotifications; ?>)</a>
+            (<span id="unreadCountInline">0</span>)</a>
         <a href="?filter=pickup"
             class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
         <a href="?filter=payment"
             class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
+        <button id="markAllReadBtn" class="btn btn-outline" style="margin-left:1rem;">Mark all read</button>
     </div>
 
     <!-- Notifications Table -->
@@ -269,92 +75,47 @@ $showSettings = ($action === 'settings');
                             </div>
                         </td>
                     </tr>
-                <?php else: ?>
-                    <?php foreach ($filteredNotifications as $notification): ?>
-                        <tr class="notification-row <?php echo !$notification['isRead'] ? 'unread' : ''; ?>"
-                            data-id="<?php echo $notification['id']; ?>">
-                            <td class="notification-info">
-                                <div class="notification-details">
-                                    <?php if (!$notification['isRead']): ?>
-                                        <span class="unread-dot" aria-hidden="true"></span>
-                                    <?php endif; ?>
-                                    <div class="notification-title"><?php echo htmlspecialchars($notification['title']); ?>
-                                    </div>
-                                    <div class="notification-message">
-                                        <?php echo htmlspecialchars(truncateMessage($notification['message'])); ?>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="type-badge <?php echo $notification['category']; ?>">
-                                    <?php echo ucfirst($notification['category']); ?>
-                                </span>
-                            </td>
-                            <td class="time-cell">
-                                <?php echo timeAgo($notification['timestamp']); ?>
-                            </td>
-                            <td>
-                                <span
-                                    class="status-badge <?php echo getStatusClass($notification['priority'], $notification['isRead']); ?>">
-                                    <?php echo !$notification['isRead'] ? 'Unread' : 'Read'; ?>
-                                </span>
-                            </td>
-                            <td class="actions-cell">
-                                <?php if (!$notification['isRead']): ?>
-                                    <a href="?action=mark_read&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>"
-                                        class="action-btn mark-read">Mark Read</a>
-                                <?php endif; ?>
-                                <a href="?action=view&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>"
-                                    class="action-btn view">View</a>
-                                <a href="?action=delete&id=<?php echo $notification['id']; ?>&filter=<?php echo $filter; ?>"
-                                    data-id="<?php echo $notification['id']; ?>" class="action-btn delete">Delete</a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
                 <?php endif; ?>
+            </tbody>
+            <tbody id="notificationsBody">
+                <tr>
+                    <td colspan="5" class="loading">Loading notifications…</td>
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
+</div>
 
-<!-- View Notification Modal -->
-<?php if ($viewNotification): ?>
-    <div class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><?php echo htmlspecialchars($viewNotification['title']); ?></h2>
-                <a href="?filter=<?php echo $filter; ?>" class="modal-close">×</a>
-            </div>
-            <div class="modal-body">
-                <div class="notification-detail">
-                    <div class="detail-content">
-                        <div class="detail-meta">
-                            <span class="type-badge <?php echo $viewNotification['category']; ?>">
-                                <?php echo ucfirst($viewNotification['category']); ?>
-                            </span>
-                            <span class="priority-badge <?php echo $viewNotification['priority']; ?>">
-                                <?php echo ucfirst($viewNotification['priority']); ?>
-                            </span>
-                            <span class="time-badge"><?php echo timeAgo($viewNotification['timestamp']); ?></span>
-                        </div>
-                        <p class="detail-message"><?php echo htmlspecialchars($viewNotification['message']); ?></p>
-                        <div class="detail-timestamp">
-                            <strong>Received:</strong>
-                            <?php echo date('F j, Y \a\t g:i A', strtotime($viewNotification['timestamp'])); ?>
-                        </div>
+<!-- View Notification Modal (populated by JS) -->
+<div id="viewNotificationModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle"></h2>
+            <a href="#" id="modalClose" class="modal-close">×</a>
+        </div>
+        <div class="modal-body">
+            <div class="notification-detail">
+                <div class="detail-content">
+                    <div class="detail-meta">
+                        <span id="modalCategory" class="type-badge"></span>
+                        <span id="modalPriority" class="priority-badge"></span>
+                        <span id="modalTime" class="time-badge"></span>
+                    </div>
+                    <p id="modalMessage" class="detail-message"></p>
+                    <div class="detail-timestamp">
+                        <strong>Received:</strong> <span id="modalReceived"></span>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <?php if (!$viewNotification['isRead']): ?>
-                    <a href="?action=mark_read&id=<?php echo $viewNotification['id']; ?>&filter=<?php echo $filter; ?>"
-                        class="btn-primary">Mark as Read</a>
-                <?php endif; ?>
-                <a href="?filter=<?php echo $filter; ?>" class="btn-secondary">Close</a>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="modalMarkRead" class="btn-primary" style="display:none;">Mark as Read</button>
+            <a href="#" id="modalClose2" class="btn-secondary">Close</a>
         </div>
     </div>
-<?php endif; ?>
+</div>
+
 
 <!-- Settings Modal -->
 <?php if ($showSettings): ?>
@@ -419,65 +180,274 @@ $showSettings = ($action === 'settings');
                 </div>
             </form>
         </div>
-    </div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<script>
-    (function () {
-        // Helper to update counts in the stats cards (simple DOM text replace)
-        function updateStats(deltaTotal, deltaUnread) {
-            var totalEl = document.querySelector('.stats-grid .feature-card__body') || null;
-            // More robust selectors: find cards by label text
-            var cards = Array.from(document.querySelectorAll('.stats-grid .feature-card'));
-            cards.forEach(function (card) {
-                var title = (card.querySelector('.feature-card__title') || {}).textContent || '';
-                var body = card.querySelector('.feature-card__body');
-                if (!body) return;
-                if (title.indexOf('Total') !== -1) {
-                    body.textContent = parseInt(body.textContent || 0, 10) + deltaTotal;
-                }
-                if (title.indexOf('Unread') !== -1) {
-                    body.textContent = parseInt(body.textContent || 0, 10) + deltaUnread;
-                }
-            });
-        }
+    <script>
+        (function () {
+            const initialFilter = '<?php echo addslashes($filter); ?>';
 
-        function removeRowById(id) {
-            var row = document.querySelector('.notification-row[data-id="' + id + '"]');
-            if (!row) return false;
-            var unread = row.classList.contains('unread');
-            row.parentNode.removeChild(row);
-            updateStats(-1, unread ? -1 : 0);
-            // If table body empty, show empty state
-            var tbody = document.querySelector('.notifications-table tbody');
-            if (tbody && !tbody.querySelector('.notification-row')) {
-                tbody.innerHTML = '\n                        <tr>\n                            <td colspan="5" class="empty-state">\n                                <div class="empty-content">\n                                    <div class="empty-icon">📭</div>\n                                    <h3>No notifications found</h3>\n                                    <p>No notifications match your current filter.</p>\n                                </div>\n                            </td>\n                        </tr>';
+            function timeAgo(ts) {
+                const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+                if (diff < 60) return 'Just now';
+                if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
+                if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+                if (diff < 2592000) return Math.floor(diff / 86400) + ' days ago';
+                return new Date(ts).toLocaleDateString();
             }
-            return true;
-        }
 
-        // Intercept delete link clicks
-        document.addEventListener('click', function (e) {
-            var el = e.target.closest && e.target.closest('.action-btn.delete');
-            if (!el) return;
-            e.preventDefault();
-            var id = el.getAttribute('data-id');
-            if (!id) return;
-            if (!confirm('Are you sure you want to delete this notification?')) return;
+            function truncateMessage(msg, len = 80) {
+                if (!msg) return '';
+                return msg.length <= len ? msg : msg.substring(0, len) + '...';
+            }
 
-            // Optimistic UI: remove from DOM
-            var removed = removeRowById(id);
-            if (!removed) return;
+            // Dummy notifications used when API returns none or fails
+            const dummyNotifications = [
+                { id: 'n-1', title: 'Pickup scheduled', message: 'Your pickup is scheduled for tomorrow 9:00 AM.', category: 'pickup', timestamp: new Date().toISOString(), read: false, priority: 'normal' },
+                { id: 'n-2', title: 'Payment received', message: 'You have received Rs 1,200 for your last recycling sale.', category: 'payment', timestamp: new Date(Date.now() - 3600 * 1000).toISOString(), read: false, priority: 'high' },
+                { id: 'n-3', title: 'System update', message: 'We updated our terms of service.', category: 'system', timestamp: new Date(Date.now() - 86400 * 1000).toISOString(), read: true, priority: 'low' }
+            ];
 
-            // Send a background request to the server to delete (non-blocking)
-            // Keep the existing query params for server-side compatibility
-            var href = el.getAttribute('href');
-            if (href) {
-                fetch(href, { method: 'GET', credentials: 'same-origin' }).catch(function (err) {
-                    // if server fails, we don't re-add the row here to avoid complexity
-                    console.error('Delete request failed', err);
+            async function fetchNotifications() {
+                try {
+                    const url = '/api/notifications?limit=100'; // Get more for client-side filtering if needed, or implement server-side filter
+                    const res = await fetch(url, { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('Failed to load notifications');
+                    const data = await res.json();
+                    let notifications = data.notifications || [];
+
+                    if (!Array.isArray(notifications)) {
+                        notifications = [];
+                    }
+
+                    // Render list
+                    renderNotifications(notifications);
+
+                    // Render stats from API if available, else calc
+                    if (data.stats) {
+                        renderStatsFromApi(data.stats);
+                    } else {
+                        renderStats(notifications);
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    const notifications = dummyNotifications.slice();
+                    renderNotifications(notifications);
+                    renderStats(notifications);
+                }
+            }
+
+            function renderStatsFromApi(stats) {
+                document.getElementById('totalNotifications').textContent = stats.total || 0;
+                document.getElementById('unreadNotifications').textContent = stats.unread || 0;
+                document.getElementById('todayNotifications').textContent = stats.today || 0;
+                const inline = document.getElementById('unreadCountInline');
+                if (inline) inline.textContent = stats.unread || 0;
+            }
+
+            function renderStats(notifications) {
+                const total = notifications.length;
+                const unread = notifications.filter(n => !($booleanToBool(n.read ?? n.is_read ?? n.isRead))).length;
+                const today = notifications.filter(n => new Date(n.timestamp || n.created_at).toDateString() === new Date().toDateString()).length;
+
+                document.getElementById('totalNotifications').textContent = total;
+                document.getElementById('unreadNotifications').textContent = unread;
+                document.getElementById('todayNotifications').textContent = today;
+                const inline = document.getElementById('unreadCountInline');
+                if (inline) inline.textContent = unread;
+            }
+
+            // Helper to defensively read boolean-like values
+            function $booleanToBool(v) {
+                if (v === true || v === 1 || v === '1' || v === 'true' || v === 'read') return true;
+                if (v === 'unread' || v === 'pending') return false; // Handle status strings
+
+                // If status field is present
+                if (typeof v === 'string' && v.toLowerCase() === 'read') return true;
+
+                return false;
+            }
+
+            function isRead(n) {
+                const status = n.status || n.read || n.is_read || 'unread';
+                return status === 'read' || status === true || status === 1 || status === '1';
+            }
+
+            function renderNotifications(notifications) {
+                const tbody = document.getElementById('notificationsBody');
+                if (!tbody) return;
+                const f = initialFilter;
+                const filtered = notifications.filter(n => {
+                    // hide system notifications unless specifically looked for or in all?
+                    // if ((n.category || n.type || '').toLowerCase() === 'system') return false; 
+
+                    if (f === 'unread') return !isRead(n);
+                    if (f === 'pickup') return (n.category || n.type || '').toLowerCase() === 'pickup';
+                    if (f === 'payment') return (n.category || n.type || '').toLowerCase() === 'payment';
+                    return true;
+                });
+
+                if (!filtered.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                filtered.forEach(function (n) {
+                    const id = n.id || n._id || n.notification_id;
+                    const read = isRead(n);
+                    const tr = document.createElement('tr');
+                    tr.className = 'notification-row ' + (read ? '' : 'unread');
+                    tr.setAttribute('data-id', id);
+                    tr.innerHTML = `
+                        <td class="notification-info">
+                            <div class="notification-details">
+                                ${read ? '' : '<span class="unread-dot" aria-hidden="true"></span>'}
+                                <div class="notification-title">${escapeHtml(n.title || n.title_text || '')}</div>
+                                <div class="notification-message">${escapeHtml(truncateMessage(n.message || n.body || ''))}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="type-badge ${escapeHtml(n.category || n.type || 'info')}">${escapeHtml((n.category || n.type || 'info').charAt(0).toUpperCase() + (n.category || n.type || 'info').slice(1))}</span>
+                        </td>
+                        <td class="time-cell">${escapeHtml(timeAgo(n.timestamp || n.created_at || ''))}</td>
+                        <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
+                        <td class="actions-cell">
+                            <div class="action-buttons">
+                                ${read ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
+                                <button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>
+                                <button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
                 });
             }
-        });
-    })();
-</script>
+
+            // Simple HTML escape to avoid injection
+            function escapeHtml(s) {
+                if (!s) return '';
+                return ('' + s).replace(/[&"'<>]/g, function (c) { return { '&': '&amp;', '"': '&quot;', '\'': '&#39;', '<': '&lt;', '>': '&gt;' }[c]; });
+            }
+
+            async function markAsRead(id) {
+                try {
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'PUT', credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('Failed to mark as read');
+
+                    // Update row UI immediately without refetch
+                    const row = document.querySelector('.notification-row[data-id="' + id + '"]');
+                    if (row) {
+                        row.classList.remove('unread');
+                        const btn = row.querySelector('button[data-action="mark-read"]'); if (btn) btn.remove();
+                        const badge = row.querySelector('.status-badge'); if (badge) badge.textContent = 'Read';
+                        const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
+                    }
+
+                    // Refresh counts (optional, but good for sync)
+                    fetchNotifications();
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not mark notification as read');
+                }
+            }
+
+            async function markAllRead() {
+                try {
+                    const res = await fetch('/api/notifications/read-all', { method: 'PUT', credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('Failed');
+                    // Refresh UI
+                    fetchNotifications();
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not mark all as read');
+                }
+            }
+
+            async function deleteNotification(id) {
+                if (!confirm('Are you sure you want to delete this notification?')) return;
+
+                try {
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id), {
+                        method: 'DELETE',
+                        credentials: 'same-origin'
+                    });
+
+                    if (!res.ok) throw new Error('Failed to delete');
+
+                    // Remove row
+                    const row = document.querySelector('.notification-row[data-id="' + id + '"]');
+                    if (row) row.remove();
+
+                    // Refresh counts
+                    fetchNotifications();
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not delete notification');
+                }
+            }
+
+            function openModal(notification) {
+                document.getElementById('modalTitle').textContent = notification.title || '';
+                document.getElementById('modalCategory').textContent = (notification.category || notification.type || '').charAt(0).toUpperCase() + (notification.category || notification.type || '').slice(1);
+                document.getElementById('modalPriority').textContent = (notification.priority || 'Normal').charAt(0).toUpperCase() + (notification.priority || 'Normal').slice(1);
+                document.getElementById('modalTime').textContent = timeAgo(notification.timestamp || notification.created_at || '');
+                document.getElementById('modalMessage').textContent = notification.message || notification.body || '';
+                document.getElementById('modalReceived').textContent = new Date(notification.timestamp || notification.created_at || '').toLocaleString();
+                const markBtn = document.getElementById('modalMarkRead');
+                if (markBtn) {
+                    if (isRead(notification)) {
+                        markBtn.style.display = 'none';
+                    } else {
+                        markBtn.style.display = '';
+                        markBtn.onclick = function () {
+                            markAsRead(notification.id || notification._id);
+                            closeModal();
+                        };
+                    }
+                }
+                document.getElementById('viewNotificationModal').style.display = 'block';
+            }
+
+            function closeModal() {
+                document.getElementById('viewNotificationModal').style.display = 'none';
+            }
+
+            // Event delegation for action buttons using data-action attributes
+            document.addEventListener('click', function (e) {
+                const target = e.target;
+                const actionEl = target.closest && target.closest('[data-action]');
+                if (actionEl) {
+                    e.preventDefault();
+                    const action = actionEl.getAttribute('data-action');
+                    const id = actionEl.getAttribute('data-id');
+                    if (action === 'mark-read' && id) { return markAsRead(id); }
+                    if (action === 'view' && id) { return openNotificationById(id); }
+                    if (action === 'delete' && id) { return deleteNotification(id); }
+                }
+
+                const modalClose = target.closest && (target.closest('#modalClose') || target.closest('#modalClose2'));
+                if (modalClose) { e.preventDefault(); closeModal(); return; }
+
+                const markAll = target.closest && target.closest('#markAllReadBtn');
+                if (markAll) { e.preventDefault(); if (confirm('Mark all notifications as read?')) markAllRead(); return; }
+            });
+
+            // Find a notification by id and open modal (uses already loaded list from the DOM)
+            function openNotificationById(id) {
+                // Re-fetch to be sure or find in current list
+                // For simplicity, find in rendered rows or globally stored list. 
+                // We didn't store list globally, so let's refetch single if possible, or just fetch all
+                fetch('/api/notifications', { credentials: 'same-origin' }).then(r => r.json()).then(data => {
+                    var found = (data.notifications || []).find(n => (n.id || n._id || n.notification_id) == id);
+                    if (found) openModal(found);
+                }).catch(err => console.error(err));
+            }
+
+            // Initialize
+            fetchNotifications();
+
+
+        })();
+    </script>

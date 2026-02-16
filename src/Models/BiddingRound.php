@@ -245,12 +245,12 @@ class BiddingRound extends BaseModel
 
             if ($selectedCompanyId !== null) {
                 $this->db->query(
-                    "UPDATE bids SET is_winner = CASE WHEN company_id = ? THEN 1 ELSE 0 END WHERE bidding_round_id = ?",
+                    "UPDATE bids SET is_winner = CASE WHEN company_id = ? THEN true ELSE false END WHERE bidding_round_id = ?",
                     [$selectedCompanyId, $id]
                 );
             } else {
                 $this->db->query(
-                    "UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?",
+                    "UPDATE bids SET is_winner = false WHERE bidding_round_id = ?",
                     [$id]
                 );
             }
@@ -277,7 +277,8 @@ class BiddingRound extends BaseModel
         }
 
         $this->updateAttributes($id, $updates);
-        $this->db->query("UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?", [$id]);
+        $this->updateAttributes($id, $updates);
+        $this->db->query("UPDATE bids SET is_winner = false WHERE bidding_round_id = ?", [$id]);
 
         return $this->findById($id);
     }
@@ -298,7 +299,8 @@ class BiddingRound extends BaseModel
         }
 
         $this->updateAttributes($id, $updates);
-        $this->db->query("UPDATE bids SET is_winner = 0 WHERE bidding_round_id = ?", [$id]);
+        $this->updateAttributes($id, $updates);
+        $this->db->query("UPDATE bids SET is_winner = false WHERE bidding_round_id = ?", [$id]);
 
         return $this->findById($id);
     }
@@ -432,9 +434,7 @@ class BiddingRound extends BaseModel
                 $currentHighestBid = 0.0;
             }
 
-            $reservePrice = ($startingBid > 0 && $quantity > 0)
-                ? round($startingBid * $quantity, 2)
-                : null;
+            $reservePrice = ($startingBid > 0 ? $startingBid: null);
 
             return [
                 'id' => $row['id'],
@@ -487,9 +487,7 @@ class BiddingRound extends BaseModel
             $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
 
 
-            $reservePrice = ($startingBid > 0 && $quantity > 0)
-                ? round($startingBid * $quantity, 2)
-                : null;
+            $reservePrice = ($startingBid > 0 ? $startingBid: null);
 
             return [
                 'id' => $row['id'],
@@ -658,10 +656,7 @@ class BiddingRound extends BaseModel
             $currentHighestBid = 0.0;
         }
 
-        $reservePrice = null;
-        if ($startingBid !== null && $quantity > 0) {
-            $reservePrice = round($startingBid * $quantity, 2);
-        }
+        $reservePrice = ($startingBid > 0 ? $startingBid : null);
 
         return [
             'id' => $row['id'],
