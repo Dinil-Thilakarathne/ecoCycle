@@ -202,6 +202,34 @@ class AuthController extends BaseController
                 return Response::errorJson('Failed to create account. Please try again.', 500);
             }
 
+            // Send welcome email with verification link
+            try {
+                $verificationToken = generateVerificationToken();
+
+                // Update user with verification token
+                $userModel->updateUser($newId, [
+                    'email_verification_token' => $verificationToken,
+                    'email_verification_sent_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                sendMail(
+                    $email,
+                    'welcome',
+                    [
+                        'username' => $name,
+                        'email' => $email,
+                        'role' => $role,
+                        'login_url' => url('/login'),
+                        'dashboard_url' => url('/dashboard'),
+                        'verification_url' => url("/verify-email?token={$verificationToken}"),
+                    ],
+                    'Welcome to ecoCycle!'
+                );
+            } catch (\Exception $e) {
+                // Log but don't fail registration
+                error_log("Failed to send welcome email: " . $e->getMessage());
+            }
+
             return Response::json([
                 'success' => true,
                 'message' => 'Registration successful',

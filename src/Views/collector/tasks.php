@@ -112,14 +112,23 @@ function getStatusBadge($status)
             <div class="pd-status"></div>
         </div>
 
+
         <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
             <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
             <div>
-                <input id="weightInput" type="number" step="0.01" min="0" placeholder="e.g. 12.50"
-                    style="padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;width:100%;box-sizing:border-box;">
-                <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
-                    enter a valid weight greater than 0.</div>
+                <!-- Weight inputs will be injected here -->
             </div>
+            <div id="price-display-row"
+                style="margin-top:1rem; padding: 10px; background-color: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color: #475569;">Total Price:</strong>
+                    <span id="calculatedPriceDisplay" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">Rs.
+                        0.00</span>
+                </div>
+            </div>
+
+            <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+                enter a valid weight greater than 0.</div>
 
             <!-- <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div> -->
         </div>
@@ -145,6 +154,20 @@ function getStatusBadge($status)
         modal.setAttribute('aria-hidden', 'true');
     }
 
+    function calculateTotal() {
+        const inputs = document.querySelectorAll('.weight-input');
+        let total = 0;
+        inputs.forEach(input => {
+            const weight = parseFloat(input.value) || 0;
+            const price = parseFloat(input.getAttribute('data-price')) || 0;
+            total += weight * price;
+        });
+        const display = document.getElementById('calculatedPriceDisplay');
+        if (display) {
+            display.textContent = 'Rs. ' + total.toFixed(2);
+        }
+    }
+
     function viewDetails(el, pickupId) {
         const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
         const modal = document.getElementById('pickup-detail-modal');
@@ -161,10 +184,18 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
+        btn.textContent = 'Start Task'; // Default
 
         const weightRow = document.getElementById('weight-entry-row');
         weightRow.style.display = 'none';
-        weightRow.innerHTML = ''; // Clear previous inputs
+
+        // Find container for inputs - it's the second div inside weight-entry-row
+        // We'll give it a clean class or ID to make selecting easier, 
+        // but since I can't edit HTML structure easily without replacing huge block, 
+        // I will select it by structure or just clear innerHTML of the container div used previously.
+        // Actually, let's create a specific container in the replacement above, but for now I'll use the div following the label
+        const inputContainer = weightRow.querySelector('div:nth-child(2)');
+        inputContainer.innerHTML = '';
 
         if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
@@ -173,7 +204,10 @@ function getStatusBadge($status)
 
             // Show weight input for each category
             weightRow.style.display = 'block';
-            weightRow.innerHTML = '<div style="margin-bottom:0.5rem;font-weight:600;">Enter Measured Weights:</div>';
+
+            // Re-initialize total price
+            const display = document.getElementById('calculatedPriceDisplay');
+            if (display) display.textContent = 'Rs. 0.00';
 
             if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
                 record.wasteCategoryDetails.forEach(cat => {
@@ -181,7 +215,9 @@ function getStatusBadge($status)
                     div.style.marginBottom = '0.75rem';
 
                     const label = document.createElement('label');
-                    label.textContent = `${cat.name} (kg)`;
+                    // Show price hint in label
+                    const priceHint = cat.price_per_unit ? ` (Rs. ${parseFloat(cat.price_per_unit).toFixed(2)}/kg)` : '';
+                    label.textContent = `${cat.name}${priceHint}`;
                     label.style.display = 'block';
                     label.style.fontSize = '0.9rem';
                     label.style.marginBottom = '0.25rem';
@@ -196,24 +232,23 @@ function getStatusBadge($status)
                     input.style.border = '1px solid #e5e7eb';
                     input.style.borderRadius = '4px';
                     input.setAttribute('data-cat-id', cat.id);
+                    // Store price in data attribute
+                    input.setAttribute('data-price', cat.price_per_unit || 0);
                     input.placeholder = '0.00';
+
+                    // Attach listener
+                    input.addEventListener('input', calculateTotal);
 
                     div.appendChild(label);
                     div.appendChild(input);
-                    weightRow.appendChild(div);
+                    inputContainer.appendChild(div);
                 });
             } else {
-                weightRow.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+                inputContainer.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
             }
 
-            const errorDiv = document.createElement('div');
-            errorDiv.id = 'weightError';
-            errorDiv.style.color = '#dc2626';
-            errorDiv.style.marginTop = '0.5rem';
-            errorDiv.style.display = 'none';
-            errorDiv.style.fontSize = '0.95rem';
-            errorDiv.textContent = 'Please enter valid weights for all categories.';
-            weightRow.appendChild(errorDiv);
+            const errorDiv = document.getElementById('weightError');
+            if (errorDiv) errorDiv.style.display = 'none';
 
         } else {
             btn.style.display = 'none';
@@ -232,14 +267,9 @@ function getStatusBadge($status)
 
         const current = normalizeStatusValue(window.__PICKUP_DATA[idx].status);
         let nextTarget = '';
-        if (current === 'assigned') nextTarget = 'in_progress'; // backend expects 'in_progress' usually
+        if (current === 'assigned') nextTarget = 'in_progress';
         else if (current === 'in progress') nextTarget = 'completed';
-        else if (current === 'in_progress') nextTarget = 'completed'; // handle both
-
-        // Correct nextTarget for backend if needed. 
-        // The PHP switch (line 13) uses 'assigned', 'in progress', 'completed'.
-        // The API likely expects snake_case or specific enum. 
-        // Existing code used "in_progress" (line 220).
+        else if (current === 'in_progress') nextTarget = 'completed';
 
         if (!nextTarget) return;
 
@@ -256,9 +286,15 @@ function getStatusBadge($status)
                 let allValid = true;
                 const weights = [];
 
+                if (inputs.length === 0) {
+                    // If no inputs (no categories), we might still want to complete? 
+                    // Usually requires at least one weight.
+                    // Let's assume validation is required if inputs exist.
+                }
+
                 inputs.forEach(input => {
                     const val = parseFloat(input.value);
-                    if (isNaN(val) || val < 0) {
+                    if (isNaN(val) || val <= 0) {
                         allValid = false;
                     }
                     weights.push({
@@ -267,9 +303,8 @@ function getStatusBadge($status)
                     });
                 });
 
-                if (!allValid || weights.length === 0) {
-                    const err = document.getElementById('weightError');
-                    if (err) err.style.display = 'block';
+                if (!allValid || (inputs.length > 0 && weights.length === 0)) {
+                    document.getElementById('weightError').style.display = 'block';
                     btn.textContent = originalText;
                     btn.disabled = false;
                     return;
@@ -294,7 +329,6 @@ function getStatusBadge($status)
             }
 
             const updated = payload.data || {};
-            // The normalized status for UI
             const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
 
             window.__PICKUP_DATA[idx] = {
@@ -311,7 +345,25 @@ function getStatusBadge($status)
 
             modal.querySelector('.pd-status').textContent = normalizedStatus;
 
-            // Refresh the view logic to update buttons/inputs
+            function showToast(message, type = 'info') {
+                if (typeof window.__createToast === 'function') {
+                    window.__createToast(message, type, 100000);
+                } else {
+                    const prefix = type === 'error' ? 'Error: ' : '';
+                    alert(prefix + message);
+                }
+            }
+
+            if (nextTarget === 'completed') {
+                const message = updated.price
+                    ? `Pickup completed! Total Amount: Rs. ${parseFloat(updated.price).toFixed(2)}`
+                    : `Pickup completed successfully!`;
+
+                showToast(message, 'success', 10000);
+            } else {
+                showToast('Status updated successfully', 'success', 10000);
+            }
+
             viewDetails(null, pickupId);
 
         } catch (error) {

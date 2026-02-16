@@ -119,8 +119,13 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($round['current_highest_bid']) ? (float) $round['current_highest_bid'] : 0.0;
-            if ($amount <= $currentHighest) {
-                throw new \DomainException('Bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($round['starting_bid']) ? (float) $round['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($amount <= $minimumRequired) {
+                throw new \DomainException('Bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
             if ($this->db->isPgsql()) {
@@ -192,8 +197,13 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
-            if ($newAmount <= $currentHighest) {
-                throw new \DomainException('Updated bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($newAmount <= $minimumRequired) {
+                throw new \DomainException('Updated bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
             $this->db->query("UPDATE {$this->table} SET amount = ? WHERE id = ? AND company_id = ?", [$newAmount, $bidId, $companyId]);

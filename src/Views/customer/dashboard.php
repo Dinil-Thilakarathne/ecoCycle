@@ -1,5 +1,4 @@
 <?php
-
 use function htmlspecialchars as e;
 
 $initialPickupRequests = $pickupRequests ?? $recentPickups ?? [];
@@ -9,23 +8,12 @@ $pickupRequests = array_values(array_filter($pickupRequests, static function ($r
     $status = strtolower((string) ($r['status'] ?? ''));
     return $status !== 'cancelled';
 }));
-$filter = $_GET['filter'] ?? 'all';
-$normalizedFilter = is_string($filter) ? strtolower($filter) : 'all';
-
-$filteredRequests = $pickupRequests;
-if ($normalizedFilter !== 'all') {
-    $filteredRequests = array_values(array_filter(
-        $pickupRequests,
-        static function ($request) use ($normalizedFilter) {
-            $status = strtolower((string) ($request['status'] ?? ''));
-            return $status === $normalizedFilter;
-        }
-    ));
-}
 
 $pendingCount = 0;
 $scheduledCount = 0;
 $completedCount = 0;
+$totalCount = 0;
+
 foreach ($pickupRequests as $request) {
     $status = strtolower((string) ($request['status'] ?? ''));
     if ($status === 'pending') {
@@ -37,8 +25,20 @@ foreach ($pickupRequests as $request) {
     if ($status === 'completed') {
         $completedCount++;
     }
+    $totalCount++;
 }
-$totalCount = count($pickupRequests);
+
+// Get only the top 5 most recent pickups for the dashboard widget
+$recentPickupsWidget = array_slice(
+    array_values(array_filter($pickupRequests, static function ($r) {
+        $status = strtolower((string) ($r['status'] ?? ''));
+        return $status !== 'cancelled';
+    })),
+    0,
+    5
+);
+
+consoleLog($userProfile);
 
 if (!function_exists('customer_pickup_status_class')) {
     function customer_pickup_status_class(string $status): string
@@ -76,299 +76,279 @@ if (!function_exists('customer_pickup_format_datetime')) {
     }
 }
 
-$customerStats = [
-    [
-        'title' => 'Total Requests',
-        'value' => $totalCount,
-        'icon' => 'fa-solid fa-truck',
-        'subtitle' => 'All time',
-    ],
-    [
-        'title' => 'Pending Request',
-        'value' => $pendingCount,
-        'icon' => 'fa-solid fa-hourglass-half',
-        'subtitle' => 'Awaiting confirmation',
-    ],
-    [
-        'title' => 'Scheduled Pickups',
-        'value' => $scheduledCount,
-        'icon' => 'fa-solid fa-calendar-check',
-        'subtitle' => 'Assigned / Confirmed',
-    ],
-    [
-        'title' => 'Total Income',
-        'value' => "Rs: 10,000.00",
-        'icon' => 'fa-solid fa-wallet',
-        'subtitle' => 'Total earnings (Rs)'
-    ],
-];
 ?>
 
 <!-- Main Content -->
 <div class="main-content">
     <div class="dashboard-page">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="header-content" style="display: flex; align-items: center; gap: 1.5rem;">
+        
+        <!-- Welcome + CTA -->
+        <div class="page-header" style="margin-bottom: 2rem;">
+            <div class="page-header__content">
                 <?php
                 $profileData = $userProfile ?? [];
                 $firstName = $profileData['firstName'] ?? ($user['name'] ?? 'Customer');
                 $firstName = $firstName !== '' ? $firstName : ($user['name'] ?? 'Customer');
-                $imagePath = $profileData['profileImage'] ?? null;
+                $imagePath = $userProfile['profileImage'] ?? null;
                 $profilePic = $imagePath ? asset($imagePath) : asset('assets/logo-icon.png');
                 ?>
-                <img src="<?= htmlspecialchars($profilePic) ?>" class="avatar"
-                    style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #e0f2fe;box-shadow:0 2px 8px rgba(34,197,94,0.08);">
-                <h1 style="margin:0;">Welcome back, <?= htmlspecialchars($firstName) ?>!</h1>
-            </div>
-        </div>
-
-        <!-- Stats Feature Cards -->
-        <div class="stats-grid">
-            <?php foreach ($customerStats as $stat): ?>
-                <div class="feature-card">
-                    <div class="feature-card__header">
-                        <h3 class="feature-card__title">
-                            <?= e($stat['title']) ?>
-                        </h3>
-                        <div class="feature-card__icon">
-                            <i class="<?= e($stat['icon']) ?>"></i>
-                        </div>
+                <div style="display: flex; align-items: center; gap: 1.25rem;">
+                    <!-- <img src="<?= e($profilePic) ?>" alt="" class="customer-dashboard-avatar"> -->
+                    <img src="<?= '/' . ltrim($imagePath, '/') ?>" alt="Profile picture" class="customer-dashboard-avatar">
+                    <div>
+                        <h1 class="page-header__title" style="margin: 0;">Welcome, <?= e($firstName) ?>!</h1>
+                        <p class="page-header__description" style="margin: 0.25rem 0 0 0;">Your waste collection dashboard</p>
                     </div>
-                    <p class="feature-card__body">
-                        <?= e((string) $stat['value']) ?>
-                    </p>
-                    <div class="feature-card__footer">
-                        <span class="tag success"><?= e($stat['subtitle']) ?></span>
                     </div>
                 </div>
-            <?php endforeach; ?>
+            </div>
+
+        <!-- Stats Feature Cards (Using old style) -->
+        <div class="stats-grid" style="margin-bottom: 2.5rem;">
+            <div class="feature-card" data-stat="pickups">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Pickups</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-truck"></i></div>
+                </div>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0</p>
+                <div class="feature-card__footer"><span class="tag success">All time</span></div>
+            </div>
+            <div class="feature-card" data-stat="income">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Income</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-wallet"></i></div>
+                </div>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs 0.00</p>
+                <div class="feature-card__footer"><span class="tag success">Earnings</span></div>
+            </div>
+            <div class="feature-card" data-stat="weight">
+                <div class="feature-card__header">
+                    <h3 class="feature-card__title">Total Weight</h3>
+                    <div class="feature-card__icon"><i class="fa-solid fa-weight"></i></div>
+                </div>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0 kg</p>
+                <div class="feature-card__footer"><span class="tag success">Waste collected</span></div>
+            </div>
         </div>
 
-        <!-- Recent Pickups Table -->
-        <div class="table-section">
-            <div class="section-header">
-                <h2 class="section-title">Recent Pickups</h2>
-                <p class="section-subtitle">Your latest waste collection activities</p>
+        <!-- Main Content Grid: Chart + Price per unit -->
+        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 2rem;">
+            
+            <!-- Left: Request Status Chart -->
+            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+                <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
+                    <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">Request Status Overview</h2>
+                    <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
+                </div>
+                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 2rem; display:flex; align-items:center; gap:1.25rem;">
+                        <div style="flex:1; height:220px; position: relative;">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                        <div id="statusChartLegend" style="width:180px; display:flex; flex-direction:column; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#f59e0b; border-radius:3px;"></div>
+                                <div style="flex:1;">Pending</div>
+                                <div id="legend-pending"><?= (int) $pendingCount ?></div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#06b6d4; border-radius:3px;"></div>
+                                <div style="flex:1;">Scheduled</div>
+                                <div id="legend-scheduled"><?= (int) $scheduledCount ?></div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:14px; height:14px; background:#10b981; border-radius:3px;"></div>
+                                <div style="flex:1;">Completed</div>
+                                <div id="legend-completed"><?= (int) $completedCount ?></div>
+                            </div>
+                        </div>
+                </div>
             </div>
 
-            <div class="action-buttons" style="margin-bottom:1.5rem;">
-                <?php
-                $filters = [
-                    'all' => 'All Requests',
-                    'pending' => 'Pending',
-                    'assigned' => 'Assigned',
-                    'confirmed' => 'Confirmed',
-                    'completed' => 'Completed',
-                    // cancelled intentionally omitted from dashboard filters
-                ];
-                foreach ($filters as $key => $label):
-                    $isActive = $normalizedFilter === $key ? 'btn-primary' : 'btn-outline';
-                    ?>
-                    <button type="button" class="btn <?= $isActive ?>" data-filter="<?= e($key) ?>">
-                        <?= e($label) ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-
-            <div class="table-container"
-                style="overflow-x:auto;box-shadow:0 2px 12px rgba(34,197,94,0.08);border-radius:16px;">
-                <table class="data-table" style="min-width:900px;">
-                    <thead>
-                        <tr>
-                            <th style="width:60px;">PID</th>
-                            <th>Address</th>
-                            <th>Time Slot</th>
-                            <th>Waste Categories</th>
-                            <th>Created</th>
-                            <th>Scheduled</th>
-                            <th>Collector</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboard-pickup-body">
-                        <?php if (empty($filteredRequests)): ?>
-                            <tr>
-                                <td colspan="9" class="empty-state">
-                                    <div class="empty-content">
-                                        <div class="empty-icon">📦</div>
-                                        <h3>No pickup requests found</h3>
-                                        <p>No pickup requests match your current filter.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($filteredRequests as $request):
-                                $status = (string) ($request['status'] ?? 'pending');
-                                $collector = $request['collectorName'] ?? '';
-                                $categoryListRaw = $request['wasteCategories'] ?? [];
-                                $categoryList = is_array($categoryListRaw) ? $categoryListRaw : [];
-                                ?>
-                                <tr data-request-id="<?= e((string) $request['id']) ?>">
-                                    <td><?= e((string) $request['id']) ?></td>
-                                    <td><?= e((string) ($request['address'] ?? '')) ?></td>
-                                    <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
-                                    <td>
-                                        <?php
-                                        $categoryNames = array_values(array_filter(array_map('strval', is_array($categoryList) ? $categoryList : [])));
-                                        ?>
-                                        <?php if (!empty($categoryNames)): ?>
-                                            <div class="badge-group">
-                                                <?php foreach ($categoryNames as $categoryName): ?>
-                                                    <span class="tag"><?= e($categoryName) ?></span>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php else: ?>
-                                            <span>-</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= e(customer_pickup_format_datetime($request['createdAt'] ?? null)) ?></td>
-                                    <td><?= e(customer_pickup_format_datetime($request['scheduledAt'] ?? null)) ?></td>
-                                    <td><?= e($collector !== '' ? $collector : '-') ?></td>
-                                    <td>
-                                        <span class="tag <?= e(customer_pickup_status_class($status)) ?>">
-                                            <?= e(ucfirst($status)) ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+            <!-- Right: Price per unit -->
+            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+                <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
+                    <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">
+                        <i class="fa-solid fa-leaf" style="margin-right: 0.75rem; color: #1ce36a;"></i>
+                        Price Per Unit
+                    </h2>
+                    <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Current rates per kg — earn based on these</p>
+                </div>
+                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Dummy price data -->
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(245, 158, 11, 0.08); border-radius: 0.75rem; border-left: 4px solid #f59e0b;">
+                        <span style="color: #4b5563; font-weight: 600;">Plastic</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 15.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(16, 185, 129, 0.08); border-radius: 0.75rem; border-left: 4px solid #10b981;">
+                        <span style="color: #4b5563; font-weight: 600;">Paper</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 8.50 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(59, 130, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #3b82f6;">
+                        <span style="color: #4b5563; font-weight: 600;">Glass</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 12.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(139, 92, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #8b5cf6;">
+                        <span style="color: #4b5563; font-weight: 600;">Metal</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 25.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(249, 115, 22, 0.08); border-radius: 0.75rem; border-left: 4px solid #f97316;">
+                        <span style="color: #4b5563; font-weight: 600;">Organic</span>
+                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 5.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    (function () {
-        // Client-side renderer for the Recent Pickups table so filtering does not change the URL
-        const state = {
-            requests: <?= json_encode($pickupRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
-            filter: '<?= e($normalizedFilter) ?>'
-        };
+// --- Dashboard data & chart logic ---
+let chartInstance = null;
 
-        const tableBody = document.getElementById('dashboard-pickup-body');
-        const filterButtons = document.querySelectorAll('[data-filter]');
+function navigateTo(url) { window.location.href = url; }
 
-        function escapeHtml(value) {
-            return String(value ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function formatDate(value) {
-            if (!value) return '-';
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) {
-                const parsed = new Date(String(value).replace(' ', 'T'));
-                if (Number.isNaN(parsed.getTime())) return '-';
-                return parsed.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+function loadDashboardData() {
+    fetch('/api/customer/dashboard/stats', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(data => {
+            if (data && data.data) {
+                updateFeatureCards(data.data);
+                updateChart(data.data);
             }
-            return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
-        }
+        })
+        .catch(() => console.error('Error loading dashboard stats'));
+}
 
-        function statusClass(status) {
-            const map = {
-                pending: 'pending',
-                assigned: 'assigned',
-                confirmed: 'assigned',
-                completed: 'completed',
-                cancelled: 'warning'
-            };
-            return map[(status || '').toLowerCase()] || 'secondary';
-        }
+function updateFeatureCards(stats) {
+    const setText = (selector, text) => {
+        const el = document.querySelector(selector);
+        if (el) el.querySelector('.feature-card__body').textContent = text;
+    };
+    setText('[data-stat="pickups"]', stats.totalPickups || 0);
+    setText('[data-stat="income"]', 'Rs ' + ((stats.totalIncome || 0).toFixed(2)));
+    setText('[data-stat="weight"]', (stats.totalWeight || 0) + ' kg');
+}
 
-        function renderWasteCategories(rawList) {
-            const list = Array.isArray(rawList) ? rawList : [];
-            const normalized = list.map((item) => (typeof item === 'string' ? item.trim() : String(item).trim())).filter(Boolean);
-            if (!normalized.length) return '<span>-</span>';
-            return '<div class="badge-group">' + normalized.map(n => `<span class="tag">${escapeHtml(n)}</span>`).join('') + '</div>';
-        }
+function updateChart(stats) {
+    const canvas = document.getElementById('statusChart');
+    if (!canvas) return;
 
-        function capitalize(str) {
-            if (!str) return '';
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
+    const pending = stats.pendingCount || 0;
+    const scheduled = stats.scheduledCount || 0;
+    const completed = stats.completedCount || 0;
 
-        function renderTable() {
-            if (!tableBody) return;
+    if (!chartInstance) {
+        chartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'Scheduled', 'Completed'],
+                datasets: [{
+                    data: [pending, scheduled, completed],
+                    backgroundColor: ['#f59e0b', '#06b6d4', '#10b981'],
 
-            const filtered = state.filter === 'all' ? state.requests : state.requests.filter(r => ((r.status || '').toLowerCase()) === state.filter);
+                    // ✅ THIS adds space between slices
+                    spacing: 1,
 
-            if (!filtered.length) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <div class="empty-content">
-                                <div class="empty-icon">📦</div>
-                                <h3>No pickup requests found</h3>
-                                <p>No pickup requests match your current filter.</p>
-                            </div>
-                        </td>
-                    </tr>`;
-                return;
-            }
+                    // ✅ Rounded edges (modern look)
+                    borderRadius: 3,
 
-            const rows = filtered.map((request) => {
-                const status = (request.status || 'pending');
-                const normalizedStatus = status.toLowerCase();
-                const collector = request.collectorName ? request.collectorName : '-';
-                const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
-                const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
+                    // ✅ Clean white separator
+                    borderWidth: 1,
+                    borderColor: '#ffffff',
 
-                return `
-                    <tr data-request-id="${escapeHtml(String(request.id))}">
-                        <td>${escapeHtml(String(request.id))}</td>
-                        <td>${escapeHtml(request.address || '')}</td>
-                        <td>${escapeHtml(request.timeSlot || '')}</td>
-                        <td>${renderWasteCategories(request.wasteCategories)}</td>
-                        <td>${escapeHtml(formatDate(request.createdAt))}</td>
-                        <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
-                        <td>${escapeHtml(collector)}</td>
-                        <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
-                    </tr>`;
-            });
+                    // prevents hover shifting layout
+                    hoverOffset: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
 
-            tableBody.innerHTML = rows.join('');
-        }
+                // controls donut thickness (visual only)
+                cutout: '55%',
 
-        function attachFilterListeners() {
-            filterButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    state.filter = button.getAttribute('data-filter') || 'all';
-                    filterButtons.forEach((btn) => {
-                        btn.classList.remove('btn-primary');
-                        btn.classList.add('btn-outline');
-                    });
-                    button.classList.remove('btn-outline');
-                    button.classList.add('btn-primary');
-                    renderTable();
-                });
-            });
-        }
+                plugins: {
+                    legend: { display: false }
+                },
 
-        // Delegate edit/cancel buttons to existing page (they link to /customer/pickup currently)
-        document.addEventListener('click', function (e) {
-            const target = e.target;
-            if (!(target instanceof HTMLElement)) return;
-            const action = target.getAttribute('data-action');
-            const id = target.getAttribute('data-id');
-            if (!action || !id) return;
-
-            if (action === 'edit') {
-                // Navigate to the full pickup management page to edit
-                window.location.href = '/customer/pickup?edit=' + encodeURIComponent(id);
-            } else if (action === 'cancel') {
-                window.location.href = '/customer/pickup?cancel=' + encodeURIComponent(id);
+                animation: {
+                    animateRotate: true,
+                    duration: 800
+                }
             }
         });
+    } else {
+        chartInstance.data.datasets[0].data = [pending, scheduled, completed];
+        chartInstance.update();
+    }
 
-        // Initialize
-        attachFilterListeners();
-        renderTable();
-    })();
+    // update custom legend counts
+    const setLegend = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v;
+    };
+
+    setLegend('legend-pending', pending);
+    setLegend('legend-scheduled', scheduled);
+    setLegend('legend-completed', completed);
+}
+
+
+document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
+
+<script>
+// --- Price panel: fetch live material prices with fallback ---
+(function() {
+    const endpoint = '/api/collector/material-prices';
+    const container = document.getElementById('material-prices-container');
+    if (!container) return;
+
+    const fallback = [
+        { name: 'Plastic', price_per_unit: 15.00 },
+        { name: 'Paper', price_per_unit: 8.50 },
+        { name: 'Glass', price_per_unit: 12.00 },
+        { name: 'Metal', price_per_unit: 25.00 },
+        { name: 'Organic', price_per_unit: 5.00 }
+    ];
+
+    const formatPrice = v => (v === null || v === undefined) ? 'Rs 0.00' : ('Rs ' + (parseFloat(v) || 0).toFixed(2));
+    const getColor = name => ({ plastic: '#f59e0b', glass: '#3b82f6', metal: '#8b5cf6', paper: '#10b981', organic: '#f97316' }[(name||'').toLowerCase()] || '#64748b');
+    const escapeHtml = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+
+    function render(list) {
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div class="customer-price-unit__empty"><i class="fa-solid fa-info-circle"></i><p>No material prices available right now.</p></div>';
+            return;
+        }
+        container.innerHTML = list.map(m => {
+            const name = m.name || 'Material';
+            const price = (m.price_per_unit != null) ? m.price_per_unit : (m.price != null ? m.price : 0);
+            const color = getColor(name);
+            return `<div class="customer-price-unit__row" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">
+                <span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:${color}"></span>${escapeHtml(name)}</span>
+                <span style="font-weight:700;">${formatPrice(price)} <small style="font-weight:400; color:#6b7280;">/ kg</small></span>
+            </div>`;
+        }).join('');
+    }
+
+    function fetchPrices() {
+        fetch(endpoint, { credentials: 'include', headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : Promise.reject(r))
+            .then(json => {
+                if (json && (json.status === 'success' || json.success) && Array.isArray(json.data)) return render(json.data);
+                if (Array.isArray(json)) return render(json);
+                render(fallback);
+            })
+            .catch(() => render(fallback));
+    }
+
+    // render fallback immediately, then try live fetch
+    render(fallback);
+    fetchPrices();
+    setInterval(fetchPrices, 15000);
+})();
 </script>

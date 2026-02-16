@@ -200,6 +200,35 @@ class UserController extends BaseController
             // Fetch the created user to return complete data
             $createdUser = $this->userModel->findById((int) $newUserId);
 
+
+            // Send welcome/credentials email
+            try {
+                // Generate verification token for the new user
+                $verificationToken = generateVerificationToken();
+                $this->userModel->updateUser((int) $newUserId, [
+                    'email_verification_token' => $verificationToken,
+                    'email_verification_sent_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                sendMail(
+                    $email,
+                    'account-created',
+                    [
+                        'username' => $name, // For templates expecting username
+                        'name' => $name,     // For templates expecting name
+                        'email' => $email,
+                        'password' => $password, // Sending plain password since we just created it and it's an admin action
+                        'role' => $type,
+                        'login_url' => url('/login'),
+                        'verification_url' => url("/verify-email?token={$verificationToken}")
+                    ],
+                    'Welcome to ecoCycle - Your Account Details'
+                );
+            } catch (\Exception $e) {
+                error_log("Failed to send account creation email: " . $e->getMessage());
+                // Continue execution, don't fail the request just because email failed
+            }
+
             return Response::json([
                 'success' => true,
                 'message' => 'User created successfully',

@@ -225,8 +225,20 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
     'Middleware\Roles\CustomerOnly',
 ]);
 
+// Customer dashboard API
+$router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\DashboardController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Customer collector ratings
 $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CustomerOnly',
@@ -290,6 +302,16 @@ $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/forget-password', 'AuthController@showForgetPassword');
 
+// Email verification routes
+$router->get('/verify-email', 'AuthController@verifyEmail');
+$router->post('/resend-verification-email', 'AuthController@resendVerificationEmail');
+$router->post('/api/auth/resend-verification', 'AuthController@resendVerification');
+
+// Password reset routes
+$router->post('/api/auth/send-password-reset-link', 'AuthController@sendPasswordResetLink');
+$router->get('/reset-password', 'AuthController@showResetPassword');
+$router->post('/api/auth/reset-password', 'AuthController@resetPassword');
+
 // API Authentication routes (Returns JSON only)
 $router->post('/api/auth/login', 'Controllers\Api\AuthController@login');
 $router->post('/api/auth/logout', 'Controllers\Api\AuthController@logout', [
@@ -348,6 +370,13 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
     'Middleware\Roles\CollectorOnly'
 ]);
 
+
+$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
@@ -388,6 +417,9 @@ $router->get('/test', function () {
         ]
     ]);
 });
+
+// Toast Test Page
+$router->get('/test/toast', 'Controllers\TestController@index');
 
 // Debug route to list all registered routes
 $router->get('/api/debug/routes', function () use ($router) {
@@ -772,6 +804,10 @@ $router->get('/api/collector/notifications', 'Controllers\Api\CollectorStatsCont
 ]);
 
 $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
+    'Middleware\AuthMiddleware',
+]);
+
+$router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
     'Middleware\AuthMiddleware',
 ]);
 

@@ -403,4 +403,53 @@ class User
     {
         return $this->db->fetchAll('SELECT * FROM users');
     }
+
+    /**
+     * Find user by email verification token
+     *
+     * @param string $token Verification token
+     * @return array|null User data if found
+     */
+    public function findByVerificationToken(string $token): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE email_verification_token = ? LIMIT 1";
+        $user = $this->db->fetch($sql, [$token]);
+
+        return $user ?: null;
+    }
+
+    /**
+     * Mark user's email as verified
+     *
+     * @param int $userId User ID
+     * @return bool Success status
+     */
+    public function markEmailAsVerified(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET email_verified = TRUE, 
+                    email_verification_token = NULL,
+                    email_verification_sent_at = NULL
+                WHERE id = ?";
+
+        $this->db->query($sql, [$userId]);
+        return true;
+    }
+
+    /**
+     * Update user's password
+     *
+     * @param int $userId User ID
+     * @param string $newPassword New password (will be hashed)
+     * @return bool Success status
+     */
+    public function updatePassword(int $userId, string $newPassword): bool
+    {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+        $sql = "UPDATE {$this->table} SET password_hash = ? WHERE id = ?";
+        $this->db->query($sql, [$hashedPassword, $userId]);
+
+        return true;
+    }
 }

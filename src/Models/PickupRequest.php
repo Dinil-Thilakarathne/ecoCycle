@@ -72,10 +72,11 @@ class PickupRequest extends BaseModel
 
     public function listAll(?string $timeSlot = null): array
     {
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id";
+                LEFT JOIN users col ON col.id = pr.collector_id
+                LEFT JOIN vehicles v ON v.id = pr.vehicle_id";
         $params = [];
         if ($timeSlot !== null && $timeSlot !== '') {
             $sql .= " WHERE pr.time_slot = ?";
@@ -101,10 +102,11 @@ class PickupRequest extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
              FROM {$this->table} pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN users col ON col.id = pr.collector_id
+             LEFT JOIN vehicles v ON v.id = pr.vehicle_id
              WHERE pr.id = ?
              LIMIT 1",
             [$id]
@@ -175,7 +177,7 @@ class PickupRequest extends BaseModel
 
     public function update(string $id, array $data): bool
     {
-        $allowed = ['collector_id', 'collector_name', 'status', 'time_slot', 'scheduled_at', 'address'];
+        $allowed = ['collector_id', 'collector_name', 'vehicle_id', 'status', 'time_slot', 'scheduled_at', 'address'];
         $filtered = [];
         foreach ($data as $column => $value) {
             if (in_array($column, $allowed, true)) {
@@ -279,10 +281,20 @@ class PickupRequest extends BaseModel
         }
 
         if ($weights === null) {
-            return $this->db->query(
+            $updated = $this->db->query(
                 "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
                 [$status, $id, $collectorId]
             );
+
+            if ($updated && $status === 'completed') {
+                $this->db->query(
+                    "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                    [$id]
+                );
+            }
+
+            return $updated;
         }
 
         // Handle the new array format for weights
@@ -326,31 +338,55 @@ class PickupRequest extends BaseModel
                 }
 
                 // 2. Update the main request with totals and status
-                $this->db->query(
+                error_log("Updating pickup {$id}: status={$status}, weight={$totalWeight}, price={$totalPrice}, collector_id={$collectorId}");
+
+                $updateResult = $this->db->query(
                     "UPDATE {$this->table} 
                      SET status = ?, weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
                      WHERE id = ? AND collector_id = ?",
                     [$status, $totalWeight, $totalPrice, $id, $collectorId]
                 );
 
+                if (!$updateResult) {
+                    throw new \Exception("Failed to update pickup request. Pickup may not be assigned to collector {$collectorId}");
+                }
+
+                // 3. Release vehicle if completed
+                if ($status === 'completed') {
+                    $this->db->query(
+                        "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                         WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                        [$id]
+                    );
+                }
+
                 $pdo->commit();
                 return true;
 
             } catch (\Throwable $e) {
                 $pdo->rollBack();
-                // rethrow or log? For now, return false to indicate failure.
-                // ideally we should facilitate error bubbling, but matching interface return bool
+                // Re-throw the exception so the controller can handle it with proper error messages
                 error_log("Failed updating pickup weights: " . $e->getMessage());
-                return false;
+                throw $e;
             }
         }
 
         // Fallback for legacy calls (if any) passing single float
         // logic should ideally be deprecated or removed if we are sure no legacy calls remain
-        return $this->db->query(
+        $legacyResult = $this->db->query(
             "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
             [$status, (float) $weights, $id, $collectorId]
         );
+
+        if ($legacyResult && $status === 'completed') {
+            $this->db->query(
+                "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                 WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                [$id]
+            );
+        }
+
+        return $legacyResult;
     }
 
     public function cancelForCustomer(string $id, int $customerId): bool
@@ -426,7 +462,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.default_minimum_bid
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -457,6 +493,7 @@ class PickupRequest extends BaseModel
                     'name' => $name,
                     'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
                     'unit' => $row['unit'] ?? null,
+                    'price_per_unit' => isset($row['default_minimum_bid']) ? (float) $row['default_minimum_bid'] : 0.0,
                 ];
             }
         }
@@ -482,6 +519,9 @@ class PickupRequest extends BaseModel
             'statusRaw' => $row['status'] ?? 'pending',
             'collectorId' => $row['collector_id'],
             'collectorName' => $row['collector_name'] ?? '',
+            'vehicleId' => $row['vehicle_id'] ?? null,
+            'vehiclePlate' => $row['vehicle_plate'] ?? '',
+            'vehicleType' => $row['vehicle_type'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
             'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
