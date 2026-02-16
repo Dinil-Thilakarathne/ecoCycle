@@ -340,18 +340,38 @@ class PickupRequestController extends BaseController
             // 4. Update Status to Completed
             $this->pickupRequest->update($id, ['status' => 'completed']);
 
-            // 5. Generate Payout Payment
+            // 5. Generate Customer Payout Payment
             if ($totalPayoutAmount > 0) {
                 $paymentService = new \Services\Payment\PaymentService();
                 $paymentService->createManualPayment([
                     'type' => 'payout',
                     'recipientId' => (int) $pickup['customerId'],
                     'amount' => $totalPayoutAmount,
-                    'status' => 'pending', // Pending until wallet processes it or admin approves cash? Assuming wallet credit logic in Service handles it.
+                    'status' => 'pending',
                     'notes' => "Payout for Pickup #{$id}",
-                    'txnId' => "PO-{$id}-" . time() // Auto-generate specific ref
+                    'txnId' => "PO-{$id}-" . time()
                 ]);
             }
+
+            // 6. Generate Collector Commission Payment
+            $collectorId = (int) ($pickup['collectorId'] ?? 0);
+            if ($collectorId > 0 && $totalPayoutAmount > 0) {
+                // Commission: Rs. 100 base + 10% of customer payout
+                $baseCommission = 100.00;
+                $percentageCommission = $totalPayoutAmount * 0.10; // 10%
+                $totalCommission = round($baseCommission + $percentageCommission, 2);
+
+                $paymentService = new \Services\Payment\PaymentService();
+                $paymentService->createManualPayment([
+                    'type' => 'payout',
+                    'recipientId' => $collectorId,
+                    'amount' => $totalCommission,
+                    'status' => 'pending',
+                    'notes' => "Commission for Pickup #{$id} (Base: Rs.{$baseCommission} + {(10)}% of Rs.{$totalPayoutAmount})",
+                    'txnId' => "COM-{$id}-" . time()
+                ]);
+            }
+
 
             $pdo->commit();
         } catch (\Throwable $e) {

@@ -312,6 +312,11 @@ $router->get('/api/company/invoices', 'Controllers\Api\PaymentController@company
     'Middleware\Roles\CompanyOnly',
 ]);
 
+$router->get('/api/collector/payments', 'Controllers\Api\PaymentController@collectorPayments', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 
@@ -981,6 +986,12 @@ $router->get('/collector/setting', 'Controllers\Collector\CollectorDashboardCont
 
 // Collector profile page
 $router->get('/collector/profile', 'Controllers\Collector\CollectorDashboardController@profile', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector earnings page
+$router->get('/collector/earnings', 'Controllers\Collector\CollectorDashboardController@earnings', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);

@@ -72,18 +72,14 @@ class CollectorDashboardController extends DashboardController
     /**
      * Earnings and payments
      */
-    /* public function earnings(): Response
-     {
-         $data = [
-             'pageTitle' => 'Earnings & Payments',
-             'dailyEarnings' => $this->getDailyEarnings(),
-             'monthlyEarnings' => $this->getMonthlyEarnings(),
-             'paymentHistory' => $this->getPaymentHistory(),
-             'pendingPayments' => $this->getPendingPayments()
-         ];
+    public function earnings(): \Core\Http\Response
+    {
+        $data = [
+            'pageTitle' => 'My Earnings',
+        ];
 
-         return $this->renderDashboard('earnings', $data);
-     }*/
+        return $this->renderDashboard('earnings', $data);
+    }
 
     /**
      * Collection reporting
@@ -665,6 +661,51 @@ class CollectorDashboardController extends DashboardController
                     'message' => 'Database error: ' . $updateError->getMessage()
                 ]);
                 exit;
+            }
+
+            // 📝 Create payment records if status is completed
+            if ($status === 'completed' && $weights) {
+                // Fetch the updated pickup to get total price
+                $completedPickup = $pickupRequest->find((string) $pickupId);
+                $totalPayoutAmount = (float) ($completedPickup['price'] ?? 0);
+                $customerId = (int) ($completedPickup['customerId'] ?? 0);
+
+                if ($totalPayoutAmount > 0 && $customerId > 0) {
+                    try {
+                        $paymentService = new \Services\Payment\PaymentService();
+
+                        // 1. Create Customer Payout Payment
+                        $paymentService->createManualPayment([
+                            'type' => 'payout',
+                            'recipientId' => $customerId,
+                            'amount' => $totalPayoutAmount,
+                            'status' => 'pending',
+                            'notes' => "Payout for Pickup #{$pickupId}",
+                            'txnId' => "PO-{$pickupId}-" . time()
+                        ]);
+
+                        // 2. Create Collector Commission Payment
+                        // Commission: Rs. 100 base + 10% of customer payout
+                        $baseCommission = 100.00;
+                        $percentageCommission = $totalPayoutAmount * 0.10; // 10%
+                        $totalCommission = round($baseCommission + $percentageCommission, 2);
+
+                        $paymentService->createManualPayment([
+                            'type' => 'payout',
+                            'recipientId' => $collectorId,
+                            'amount' => $totalCommission,
+                            'status' => 'pending',
+                            'notes' => "Commission for Pickup #{$pickupId} (Base: Rs.{$baseCommission} + 10% of Rs.{$totalPayoutAmount})",
+                            'txnId' => "COM-{$pickupId}-" . time()
+                        ]);
+
+                        error_log("✅ Payments created: Customer Rs.{$totalPayoutAmount}, Collector Rs.{$totalCommission}");
+                    } catch (\Throwable $paymentError) {
+                        error_log("❌ Failed to create payment records: " . $paymentError->getMessage());
+                        // Don't fail the entire request if payment creation fails
+                        // Let the status update succeed, but log the error
+                    }
+                }
             }
 
             // Fetch updated pickup data to return to frontend
