@@ -20,6 +20,7 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
         </div>
         <form class="content-body" method="POST" action="/login">
             <input type="hidden" name="_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+            <input type="hidden" name="selected_role" id="selected-role-input" value="">
 
             <!-- server-side error will be shown inline under the submit button; no separate alert box -->
             <div class="form-select__wrapper">
@@ -214,14 +215,23 @@ $headContent = '<link rel="stylesheet" href="/css/page/login.css">';
                     });
                 }
 
-                // Role-select button wiring (optional) — guarded to avoid exceptions if the element doesn't exist
+                // Role-select button wiring — update hidden input when role is selected
                 var select = document.getElementById('role-select');
                 var roleBtn = document.getElementById('role-continue');
+                var selectedRoleInput = document.getElementById('selected-role-input');
 
                 if (select) {
                     function updateButton() {
-                        if (!roleBtn) return;
                         var val = select.value;
+
+                        // Update hidden input with the selected role (extract role name from path)
+                        if (selectedRoleInput && val) {
+                            // Extract role from path like '/customer' -> 'customer'
+                            var roleName = val.replace('/', '');
+                            selectedRoleInput.value = roleName;
+                        }
+
+                        if (!roleBtn) return;
                         if (val) {
                             roleBtn.removeAttribute('aria-disabled');
                             roleBtn.classList.remove('disabled');

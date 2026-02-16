@@ -702,189 +702,185 @@ class CollectorDashboardController extends DashboardController
         }
     }
 
-public function getMetrics(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
-    try {
-        // Fix: Use a more reliable way to detect the collector ID
-        $collectorId = (int) $request->query('collector_id');
-        
-        // Fallback to logged in user if query param is missing
-        if ($collectorId <= 0 && isset($this->user['id'])) {
-            $collectorId = (int) $this->user['id'];
-        }
+    public function getMetrics(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            // Fix: Use a more reliable way to detect the collector ID
+            $collectorId = (int) $request->query('collector_id');
 
-        if ($collectorId <= 0) {
-            throw new \Exception('Collector ID is required');
-        }
+            // Fallback to logged in user if query param is missing
+            if ($collectorId <= 0 && isset($this->user['id'])) {
+                $collectorId = (int) $this->user['id'];
+            }
 
-        $model = new CollectorFeedback();
+            if ($collectorId <= 0) {
+                throw new \Exception('Collector ID is required');
+            }
 
-        echo json_encode([
-            'success' => true,
-            'data' => [
-                'feedbackMetrics' => [
-                    'averageRating' => $model->getAverageRating($collectorId),
-                    'totalFeedback' => $model->getCollectorFeedbackCount($collectorId),
-                    'pendingReview' => 0, 
-                    'lowRatings'    => count($model->getLowRatings($collectorId, 2))
+            $model = new CollectorFeedback();
+
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'feedbackMetrics' => [
+                        'averageRating' => $model->getAverageRating($collectorId),
+                        'totalFeedback' => $model->getCollectorFeedbackCount($collectorId),
+                        'pendingReview' => 0,
+                        'lowRatings' => count($model->getLowRatings($collectorId, 2))
+                    ]
                 ]
-            ]
-        ]);
-        exit;
-    } catch (\Throwable $e) {
-        http_response_code(400); // 400 is better for 'Invalid Input' than 500
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        exit;
+            ]);
+            exit;
+        } catch (\Throwable $e) {
+            http_response_code(400); // 400 is better for 'Invalid Input' than 500
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
     }
-}
 
     public function getFeedback(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
+    {
+        header('Content-Type: application/json; charset=utf-8');
 
-    try {
-        $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
-        $limit = (int) $request->query('limit', 50);
+        try {
+            $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
+            $limit = (int) $request->query('limit', 50);
 
-        if ($collectorId <= 0) {
-            throw new \Exception('Invalid collector ID');
+            if ($collectorId <= 0) {
+                throw new \Exception('Invalid collector ID');
+            }
+
+            $model = new CollectorFeedback();
+            $feedback = $model->getCollectorFeedback($collectorId, $limit);
+
+            echo json_encode([
+                'success' => true,
+                'data' => $feedback
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
         }
-
-        $model = new CollectorFeedback();
-        $feedback = $model->getCollectorFeedback($collectorId, $limit);
-
-        echo json_encode([
-            'success' => true,
-            'data' => $feedback
-        ]);
-        exit;
-
-    } catch (\Throwable $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        exit;
     }
-}
 
     public function addFeedback(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
+    {
+        header('Content-Type: application/json; charset=utf-8');
 
-    try {
-        $data = $request->json();
+        try {
+            $data = $request->json();
 
-        $collectorId = (int) ($data['collector_id'] ?? 0);
-        $customerId  = (int) ($data['customer_id'] ?? 0);
-        $rating      = (int) ($data['rating'] ?? 0);
-        $description = trim($data['description'] ?? '');
+            $collectorId = (int) ($data['collector_id'] ?? 0);
+            $customerId = (int) ($data['customer_id'] ?? 0);
+            $rating = (int) ($data['rating'] ?? 0);
+            $description = trim($data['description'] ?? '');
 
-        if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
-            throw new \Exception('Invalid input');
+            if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
+                throw new \Exception('Invalid input');
+            }
+
+            $model = new CollectorFeedback();
+            $model->create([
+                'collector_id' => $collectorId,
+                'customer_id' => $customerId ?: null,
+                'rating' => $rating,
+                'description' => $description
+            ]);
+
+            echo json_encode(['success' => true]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
         }
-
-        $model = new CollectorFeedback();
-        $model->create([
-            'collector_id' => $collectorId,
-            'customer_id'  => $customerId ?: null,
-            'rating'       => $rating,
-            'description'  => $description
-        ]);
-
-        echo json_encode(['success' => true]);
-        exit;
-
-    } catch (\Throwable $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        exit;
     }
-}
 
 
-public function getWasteCollection(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
+    public function getWasteCollection(Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
 
-    try {
-        // 1. Check Query String first (matches your JS ?collector_id=1)
-        // 2. Fallback to Session user id
-        $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
+        try {
+            // 1. Check Query String first (matches your JS ?collector_id=1)
+            // 2. Fallback to Session user id
+            $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
 
-        if ($collectorId <= 0) {
-            throw new \Exception('Invalid collector ID - Please log in or provide an ID');
+            if ($collectorId <= 0) {
+                throw new \Exception('Invalid collector ID - Please log in or provide an ID');
+            }
+
+            $incomeWaste = new \Models\IncomeWaste();
+            // $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
+            $limit = (int) ($request->query('limit') ?? 50);
+            $records = $incomeWaste->getWasteCollectionForCollector($collectorId, $limit);
+
+
+            // Clean the data to ensure JS can parse numbers correctly
+            $formattedRecords = array_map(function ($r) {
+                return [
+                    'customer_id' => $r['customer_id'] ?? 'N/A',
+                    'customer_name' => $r['customer_name'] ?? 'Unknown',
+                    'category' => $r['category'] ?? 'General',
+                    'weight' => (float) ($r['weight'] ?? 0),
+                    'amount' => (float) ($r['amount'] ?? 0),
+                    'pickup_id' => $r['pickup_id']
+                ];
+            }, $records);
+
+            echo json_encode([
+                'success' => true,
+                'data' => $formattedRecords
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
         }
-
-        $incomeWaste = new \Models\IncomeWaste();
-        // $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
-        $limit = (int) ($request->query('limit') ?? 50);
-$records = $incomeWaste->getWasteCollectionForCollector($collectorId, $limit);
-
-
-        // Clean the data to ensure JS can parse numbers correctly
-        $formattedRecords = array_map(function($r) {
-            return [
-                'customer_id'   => $r['customer_id'] ?? 'N/A',
-                'customer_name' => $r['customer_name'] ?? 'Unknown',
-                'category'      => $r['category'] ?? 'General',
-                'weight'        => (float)($r['weight'] ?? 0),
-                'amount'        => (float)($r['amount'] ?? 0),
-                'pickup_id'     => $r['pickup_id']
-            ];
-        }, $records);
-
-        echo json_encode([
-            'success' => true,
-            'data' => $formattedRecords
-        ]);
-        exit;
-
-    } catch (\Throwable $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        exit;
     }
-}
 
-public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
-{
-    $sql = "
+    public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
+    {
+        $sql = "
         SELECT COUNT(*) AS count
         FROM {$this->table}
         WHERE collector_id = ? AND rating <= ?
     ";
 
-    $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
-    return (int) ($row['count'] ?? 0);
-}
-
-}
+        $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
+        return (int) ($row['count'] ?? 0);
+    }
 
 
 
-    
-public function notifications(): \Core\Http\Response
-{
-    $userId = (int) ($this->user['id'] ?? 0);
-    $role = $this->user['role'] ?? 'collector'; // adjust if needed
+    public function notifications(): \Core\Http\Response
+    {
+        $userId = (int) ($this->user['id'] ?? 0);
+        $role = $this->user['role'] ?? 'collector'; // adjust if needed
 
-    $notificationModel = new Notification();
+        $notificationModel = new Notification();
 
-    // Fetch latest 100 notifications for this user
-    $notifications = $notificationModel->forUser(
-        $userId,
-        $role,
-        date('Y-m-d 00:00:00'),
-        100
-    );
+        // Fetch latest 100 notifications for this user
+        $notifications = $notificationModel->forUser(
+            $userId,
+            $role,
+            date('Y-m-d 00:00:00'),
+            100
+        );
 
-    $data = [
-        'pageTitle' => 'Notifications',
-        'notifications' => $notifications, // Pass to the view
-        'authUser' => $this->user
-    ];
+        $data = [
+            'pageTitle' => 'Notifications',
+            'notifications' => $notifications, // Pass to the view
+            'authUser' => $this->user
+        ];
 
-    return $this->renderDashboard('notification', $data);
-}
-
+        return $this->renderDashboard('notification', $data);
+    }
 }
