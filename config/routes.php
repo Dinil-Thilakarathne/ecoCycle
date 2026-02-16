@@ -839,7 +839,6 @@ $router->get('/api/users', 'Controllers\Api\UserController@findAll', [
 ]);
 
 
-
 $router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@checkAvailability', [
     'Middleware\\AuthMiddleware',
     'Middleware\\Roles\\AdminOnly',
@@ -848,4 +847,70 @@ $router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@c
 $router->get('/api/bidding/bid-history', 'Controllers\\Api\\BiddingController@getBidHistory', [
     'Middleware\\AuthMiddleware',
     'Middleware\\Roles\\AdminOnly',
+]);
+
+// ---------------------------------------------
+// Collector Dashboard Routes
+// ---------------------------------------------
+
+// Collector main dashboard
+$router->get('/collector', 'Controllers\Collector\CollectorDashboardController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector tasks / pickup assignments page
+$router->get('/collector/tasks', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector analytics / reporting
+$router->get('/collector/analytics', 'Controllers\Collector\CollectorDashboardController@analytics', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector notifications page
+$router->get('/collector/notifications', 'Controllers\Collector\CollectorDashboardController@notification', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector settings page
+$router->get('/collector/setting', 'Controllers\Collector\CollectorDashboardController@setting', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector profile page
+$router->get('/collector/profile', 'Controllers\Collector\CollectorDashboardController@profile', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Save weight for a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/weight', 'Controllers\Collector\CollectorDashboardController@saveWeight', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Update status of a pickup (PUT)
+$router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Collector\CollectorDashboardController@updateStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get assigned pickups (tasks) for dashboard
+$router->get('/api/collector/pickup-requests', 'Controllers\Collector\CollectorDashboardController@tasks', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// API: Get single pickup details
+$router->get('/api/collector/pickup-requests/{id}', 'Controllers\Collector\CollectorDashboardController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
 ]);
