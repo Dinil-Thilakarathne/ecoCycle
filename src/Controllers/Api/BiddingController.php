@@ -7,17 +7,20 @@ use Core\Http\Request;
 use Core\Http\Response;
 use Models\BiddingRound;
 use Models\WasteCategory;
+use Models\WasteInventory;
 
 class BiddingController extends BaseController
 {
     private BiddingRound $rounds;
     private WasteCategory $categories;
+    private WasteInventory $inventory;
     private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->rounds = new BiddingRound();
         $this->categories = new WasteCategory();
+        $this->inventory = new WasteInventory();
         $this->notification = new \Models\Notification();
     }
 
@@ -432,12 +435,12 @@ class BiddingController extends BaseController
         }
 
         if ($categoryId && $quantity > 0) {
-            $available = $this->rounds->getEffectiveAvailableWaste((int) $categoryId);
-            // Allow a small epsilon for float comparison if needed, or strict.
-            // Using strict check to ensure we don't oversell.
-            if ($quantity > $available) {
-                // Check if unit is different, though we assume base unit matches for now.
-                $errors['quantity'] = 'Quantity exceeds available collected waste (Available: ' . number_format($available, 2) . ').';
+            // Check availability using WasteInventory model (consistent with Admin Dashboard)
+            if (!$this->inventory->canAllocate((int) $categoryId, $quantity)) {
+                $avail = $this->inventory->getAvailableByCategory((int) $categoryId);
+                $availableQty = $avail ? $avail['availableQuantity'] : 0;
+
+                $errors['quantity'] = 'Quantity exceeds available collected waste (Available: ' . number_format($availableQty, 2) . ').';
             }
         }
 
@@ -657,49 +660,75 @@ class BiddingController extends BaseController
     public function checkAvailability(Request $request): Response
     {
         $categoryId = $request->query('id');
-        $categoryName = $request->query('name');
-
-        if (!$categoryId && !$categoryName) {
-            // if category are not provied show all the data for every catergory
-            $categories = $this->categories->listAll();
-            $data = [];
-            foreach ($categories as $category) {
-                $data[] = [
-                    'id' => $category['id'],
-                    'name' => $category['name'],
-                    'available' => $this->rounds->getEffectiveAvailableWaste((int) $category['id']),
-                    'unit' => $category['unit']
-                ];
-            }
-            return Response::json([
-                'success' => true,
-                'data' => $data
-            ]);
-        }
-
-        if (!$categoryId && $categoryName) {
-            $cat = $this->categories->findByName($categoryName);
-            $categoryId = $cat['id'] ?? null;
-        }
-
-        if (!$categoryId) {
-            return Response::json([
-                'success' => true,
-                'available' => 0.0,
-                'unit' => 'kg' // Default
-            ]);
-        }
+        $categoryName = $request->query('categoryName') ?? $request->query('name');
 
         try {
-            $available = $this->rounds->getEffectiveAvailableWaste((int) $categoryId);
-            $cat = $this->categories->findById((int) $categoryId);
-            $unit = $cat['unit'] ?? 'kg';
+            // Case 1: No category specified - return all availabilities
+            if (!$categoryId && !$categoryName) {
+                // Get full inventory status from the view
+                $inventory = $this->inventory->getInventoryStatus();
+
+                $data = array_map(function ($item) {
+                    return [
+                        'id' => $item['categoryId'],
+                        'name' => $item['categoryName'],
+                        'available' => (float) $item['availableQuantity'],
+                        'unit' => $item['unit']
+                    ];
+                }, $inventory);
+
+                return Response::json([
+                    'success' => true,
+                    'data' => $data
+                ]);
+            }
+
+            // Case 2: Specific category requested
+            $targetId = null;
+
+            if ($categoryId) {
+                $targetId = (int) $categoryId;
+            } elseif ($categoryName) {
+                $cat = $this->categories->findByName($categoryName);
+                if ($cat) {
+                    $targetId = (int) $cat['id'];
+                }
+            }
+
+            if (!$targetId) {
+                return Response::json([
+                    'success' => true,
+                    'available' => 0.0,
+                    'unit' => 'kg' // Default
+                ]);
+            }
+
+            // Get availability from WasteInventory model
+            $item = $this->inventory->getAvailableByCategory($targetId);
+
+            // Get category details for pricing
+            $cat = $this->categories->findById($targetId);
+            $pricePerUnit = $cat['pricePerUnit'] ?? 0.0;
+            $markupPercentage = $cat['markupPercentage'] ?? 0.0;
+
+            if (!$item) {
+                return Response::json([
+                    'success' => true,
+                    'available' => 0.0,
+                    'unit' => $cat['unit'] ?? 'kg',
+                    'pricePerUnit' => $pricePerUnit,
+                    'markupPercentage' => $markupPercentage
+                ]);
+            }
 
             return Response::json([
                 'success' => true,
-                'available' => $available,
-                'unit' => $unit
+                'available' => (float) $item['availableQuantity'],
+                'unit' => $item['unit'],
+                'pricePerUnit' => $pricePerUnit,
+                'markupPercentage' => $markupPercentage
             ]);
+
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to check availability', 500, ['detail' => $e->getMessage()]);
         }
