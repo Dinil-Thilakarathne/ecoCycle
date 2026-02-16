@@ -69,9 +69,6 @@ $csrfToken = csrf_token();
       <div class="profile-picture">
         <img src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" width="100">
       </div>
-      <div class="form-group"><label>Full Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
-      </div>
       <div class="form-group"><label>First Name</label>
         <input type="text" value="<?= htmlspecialchars($displayFirstName) ?>" disabled>
       </div>
@@ -81,9 +78,12 @@ $csrfToken = csrf_token();
     </div>
 
     <div class="pc-card">
-      <a href="#editModal" class="btn btn-outline"
-        style="position: absolute; right: 6%; top: 0%; background:var(--info-light);">✏️ Edit Profile</a>
-
+      <button type="button" class="btn btn-outline"
+          style="position: absolute; right: 6%; top: 0%; background:var(--info-light);"
+          onclick="openModal('editModal')">
+          ✏️ Edit Profile
+      </button>
+  
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($displayEmail) ?>" disabled>
@@ -93,9 +93,6 @@ $csrfToken = csrf_token();
       </div>
       <div class="form-group"><label>Address</label>
         <textarea disabled><?= htmlspecialchars($displayAddress) ?></textarea>
-      </div>
-      <div class="form-group"><label>Postal Code</label>
-        <input type="text" value="<?= htmlspecialchars($displayPostal) ?>" disabled>
       </div>
     </div>
   </div>
@@ -123,27 +120,36 @@ $csrfToken = csrf_token();
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light);">Edit
-            Bank Details</a></p>
+        <button type="button" class="btn btn-outline"
+            style="margin-bottom: 5px; background:var(--info-light);"
+            onclick="openModal('bankdetail')">
+            Edit Bank Details
+        </button>
       </div>
     </div>
   </div>
 
   <div class="pc-card">
     <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-    <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
-    <p><button type="button" class="btn btn-primary" style="margin-bottom: 5px">Two-Factor Authentication</button>
-    </p>
-    <p><button type="button" class="p-btn-delete">Delete Account</button></p>
+  
+      <button type="button" class="btn btn-primary"
+       style="margin-bottom: 5px"
+       onclick="openModal('passwordModal')">
+       Change Password
+      </button>
+    <form method="POST" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
+        <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
+        <button type="submit" name="deleteAccount" class="btn p-btn-delete">Delete Account</button>
+    </form>
   </div>
 </main>
 
 <!-- Edit Modal -->
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+  <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
-    <?php if (!empty($errors)): ?>
+    <?php if (!empty($errors) && ($activeModal ?? '') === '#editModal'): ?>
       <div class="error-box">
         <ul>
           <?php foreach ($errors as $error): ?>
@@ -181,13 +187,8 @@ $csrfToken = csrf_token();
       <div class="form-group"><label class="form-lable">Address</label>
         <textarea name="address" required><?= htmlspecialchars($editAddress) ?></textarea>
       </div>
-      <div class="form-group"><label class="form-lable">Postal Code</label>
-        <input type="text" name="postalCode" value="<?= htmlspecialchars($editPostalCode) ?>" pattern="[0-9]{1,5}"
-          required>
-      </div>
-      <div class="form-group"><label class="form-lable">Bank Account Number</label>
-        <input type="text" name="bankAccount" value="<?= htmlspecialchars($editBankAccount) ?>" pattern="[0-9]{1,20}"
-          required>
+      <div class="form-group"><label class="form-lable">About You</label>
+        <textarea name="description"><?= htmlspecialchars($displayDescription) ?></textarea>
       </div>
       <button type="submit" class="btn btn-primary outline" name="saveProfile" style="width:100%;">Save Changes</button>
     </form>
@@ -197,23 +198,32 @@ $csrfToken = csrf_token();
 <!-- Bank Details Modal -->
 <div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
+    <?php if (!empty($errors) && ($activeModal ?? '') === '#bankdetail'): ?>
+      <div class="error-box">
+        <ul>
+          <?php foreach ($errors as $error): ?>
+            <li><?= htmlspecialchars($error) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
     <form method="POST">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankName) ?>" >
+        <input type="text" name="bankName" value="<?= htmlspecialchars($displayBankName) ?>">
       </div>
       <div class="form-group"><label class="form-lable">Branch</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankBranch) ?>" >
+        <input type="text" name="branch" value="<?= htmlspecialchars($displayBankBranch) ?>">
       </div>
       <div class="form-group"><label class="form-lable">Account Holder's Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankHolder) ?>" >
+        <input type="text" name="holderName" value="<?= htmlspecialchars($displayBankHolder) ?>">
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
-        <input type="text" value="<?= htmlspecialchars($displayBankAccount) ?>" >
+        <input type="text" name="bankAccount" value="<?= htmlspecialchars($displayBankAccount) ?>">
       </div>
-      <button type="button" class="btn btn-primary outline" style="width: 100%" >Save Details</button>
+      <button type="submit" name="saveBankDetails" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>
   </div>
 </div>
@@ -221,8 +231,17 @@ $csrfToken = csrf_token();
 <!-- Change Password Modal -->
 <div id="passwordModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" onclick="closeModal(this)">&times;</button>
     <h2 style="font-size: 20px; font-weight: bold;">Change Password</h2>
+    <?php if (!empty($errors) && ($activeModal ?? '') === '#passwordModal'): ?>
+      <div class="error-box">
+        <ul>
+          <?php foreach ($errors as $error): ?>
+            <li><?= htmlspecialchars($error) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
     <form method="POST">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label>Current Password</label>
@@ -261,7 +280,33 @@ $csrfToken = csrf_token();
     })();
   </script>
 <?php endif; ?>
+<script>
+function openModal(id) {
+  console.log("Opening modal:", id); // DEBUG
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.style.display = "block";
+  } else {
+    console.error("Modal not found:", id);
+  }
+}
 
-<?php if (!empty($errors)): ?>
-  <script>window.location.hash = '#editModal';</script>
+function closeModal(element) {
+  const modal = element.closest('.form-modal');
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+window.onclick = function(event) {
+  document.querySelectorAll('.form-modal').forEach(modal => {
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+};
+</script>
+
+
+<?php if (!empty($errors) && !empty($activeModal)): ?>
 <?php endif; ?>

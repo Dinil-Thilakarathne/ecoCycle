@@ -4,7 +4,6 @@ use function htmlspecialchars as e;
 
 $csrfToken = csrf_token();
 $timeSlots = $timeSlots ?? [];
-consoleLog($timeSlots);
 $wasteCategories = $wasteCategories ?? [];
 $pickupRequests = array_values($pickupRequests ?? []);
 // Remove any cancelled requests from the initial server-side list so they don't show anywhere
@@ -81,20 +80,30 @@ if (!function_exists('customer_pickup_format_datetime')) {
 ?>
 
 <style>
-    .checkbox-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
+/* Star Rating Styles */
+.star-rating {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 1.75rem;
+    color: #cbd5e1; /* Default slate color */
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
 
-    .checkbox-grid label {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-    }
+.star-rating .star {
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.star-rating .star.active,
+.star-rating .star.hover {
+    color: #f59e0b; /* Amber/Gold */
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5)); /* Glow effect */
+}
+
+/* "Lightning" pop effect on hover */
+.star-rating .star:hover {
+    transform: scale(1.2);
+}
 </style>
 
 <div class="dashboard-page">
@@ -177,8 +186,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         <table class="data-table" style="min-width:900px;">
             <thead>
                 <tr>
-                    <th style="width:60px;">PID</th>
-                    <th>Address</th>
+                    <th style="width:50px;">#</th>
                     <th>Time Slot</th>
                     <th>Waste Categories</th>
                     <th>Created</th>
@@ -200,17 +208,17 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         </td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($filteredRequests as $request):
+                    <?php foreach ($filteredRequests as $idx => $request):
                         $status = (string) ($request['status'] ?? 'pending');
                         $collector = $request['collectorName'] ?? '';
                         $categoryList = $request['wasteCategories'] ?? [];
                         $normalizedStatus = strtolower($status);
-                        $canEdit = in_array($normalizedStatus, ['pending', 'assigned'], true);
-                        $canCancel = in_array($normalizedStatus, ['pending', 'assigned', 'confirmed'], true);
+                        $isPending = $normalizedStatus === 'pending';
+                        $isAssigned = in_array($normalizedStatus, ['assigned', 'confirmed'], true);
+                        $isCompleted = $normalizedStatus === 'completed';
                         ?>
                         <tr data-request-id="<?= e((string) $request['id']) ?>">
-                            <td>#<?= e((string) $request['id']) ?></td>
-                            <td><?= e((string) ($request['address'] ?? '')) ?></td>
+                            <td><?= ($idx + 1) ?></td>
                             <td><?= e((string) ($request['timeSlot'] ?? '')) ?></td>
                             <td>
                                 <?php
@@ -235,18 +243,33 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                 </span>
                             </td>
                             <td>
-                                <?php if ($canEdit || $canCancel): ?>
-                                    <?php if ($canEdit): ?>
-                                        <button class="action-btn view" data-action="edit"
-                                            data-id="<?= e((string) $request['id']) ?>">Edit</button>
+                                <div class="action-buttons">
+                                    <?php if ($isPending): ?>
+                                        <button class="icon-button" data-action="edit" data-id="<?= e((string) $request['id']) ?>" title="Edit Request">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </button>
+                                    <?php elseif ($isAssigned): ?>
+                                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Edit (Assigned)">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </button>
                                     <?php endif; ?>
-                                    <?php if ($canCancel): ?>
-                                        <button class="action-btn delete" data-action="cancel"
-                                            data-id="<?= e((string) $request['id']) ?>">Cancel</button>
+
+                                    <?php if ($isCompleted): ?>
+                                        <button class="icon-button" data-action="rate" data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>" title="Rate Collector">
+                                            <i class="fa-solid fa-star"></i>
+                                        </button>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    <span style="color:#64748b;">-</span>
-                                <?php endif; ?>
+
+                                    <?php if ($isPending): ?>
+                                        <button class="icon-button danger" data-action="cancel" data-id="<?= e((string) $request['id']) ?>" title="Cancel Request">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    <?php elseif ($isAssigned || $isCompleted): ?>
+                                        <button class="icon-button danger" disabled style="opacity:0.5;cursor:not-allowed;" title="Delete (Disabled)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -299,7 +322,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+            <div class="form-actions">
                 <button type="button" onclick="hideNewRequestForm()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-primary">Submit Request</button>
             </div>
@@ -336,17 +359,24 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="rate_score">Rating (1-5)</label>
-                    <input type="number" id="rate_score" name="rating" min="1" max="5" step="1" required>
+                    <label>Rating</label>
+                    <div class="star-rating" id="star_rating_container">
+                        <i class="fa-solid fa-star star" data-value="1"></i>
+                        <i class="fa-solid fa-star star" data-value="2"></i>
+                        <i class="fa-solid fa-star star" data-value="3"></i>
+                        <i class="fa-solid fa-star star" data-value="4"></i>
+                        <i class="fa-solid fa-star star" data-value="5"></i>
+                    </div>
+                    <input type="hidden" id="rate_score" name="rating" required>
                 </div>
                 <div class="form-group">
                     <label for="rate_description">Description</label>
-                    <input type="text" id="rate_description" name="description" placeholder="Short note (optional)">
+                    <textarea id="rate_description" name="description" rows="2" placeholder="Short note (optional)"></textarea>
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
-                <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline">Cancel</button>
-                <button type="submit" class="btn btn-primary">Submit Rating</button>
+            <div class="form-actions">
+                <button type="button" onclick="hideRateCollectorForm()" class="btn btn-outline btn-sm">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Submit Rating</button>
             </div>
         </form>
     </div>
@@ -392,7 +422,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:1rem;">
+            <div class="form-actions">
                 <button type="button" onclick="hideEditRequestForm()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-primary">Update Request</button>
             </div>
@@ -429,6 +459,28 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 console.log(message);
             }
         }
+
+        // Helper to update checkbox visual state
+        function updateCheckboxState(checkbox) {
+            const label = checkbox.closest('label');
+            if (label) {
+                if (checkbox.checked) {
+                    label.classList.add('checked');
+                } else {
+                    label.classList.remove('checked');
+                }
+            }
+        }
+
+        // Delegate change event for checkboxes in grids
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('.checkbox-grid input[type="checkbox"]')) {
+                updateCheckboxState(e.target);
+            }
+        });
+
+        // Initialize checkbox states on load
+        document.querySelectorAll('.checkbox-grid input[type="checkbox"]').forEach(updateCheckboxState);
 
         // Simple confirm modal that returns a Promise<boolean>
         function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
@@ -577,7 +629,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (!filtered.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="empty-state">
+                        <td colspan="8" class="empty-state">
                             <div class="empty-content">
                                 <div class="empty-icon">📦</div>
                                 <h3>No pickup requests found</h3>
@@ -589,29 +641,64 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 return;
             }
 
-            const rows = filtered.map((request) => {
+            const rows = filtered.map((request, idx) => {
                 const status = (request.status || 'pending');
                 const normalizedStatus = status.toLowerCase();
                 const collector = request.collectorName ? request.collectorName : '-';
-                const canEdit = ['pending', 'assigned'].includes(normalizedStatus);
-                const canCancel = ['pending', 'assigned', 'confirmed'].includes(normalizedStatus);
+                const isPending = normalizedStatus === 'pending';
+                const isAssigned = ['assigned', 'confirmed'].includes(normalizedStatus);
+                const isCompleted = normalizedStatus === 'completed';
+
+                let actionButtons = '<div class="action-buttons">';
+                
+                if (isPending) {
+                    actionButtons += `
+                        <button class="icon-button" data-action="edit" data-id="${request.id}" title="Edit Request">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                    `;
+                } else if (isAssigned) {
+                    actionButtons += `
+                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Edit (Assigned)">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                    `;
+                }
+
+                if (isCompleted) {
+                    actionButtons += `
+                        <button class="icon-button" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}" title="Rate Collector">
+                            <i class="fa-solid fa-star"></i>
+                        </button>
+                    `;
+                }
+
+                if (isPending) {
+                    actionButtons += `
+                        <button class="icon-button danger" data-action="cancel" data-id="${request.id}" title="Cancel Request">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                } else if (isAssigned || isCompleted) {
+                    actionButtons += `
+                        <button class="icon-button danger" disabled style="opacity:0.5;cursor:not-allowed;" title="Delete (Disabled)">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                actionButtons += '</div>';
 
                 return `
                     <tr data-request-id="${request.id}">
-                        <td>${request.id}</td>
-                        <td>${escapeHtml(request.address || '')}</td>
+                        <td>${idx + 1}</td>
                         <td>${escapeHtml(request.timeSlot || '')}</td>
                         <td>${renderWasteCategories(request.wasteCategories)}</td>
                         <td>${escapeHtml(formatDate(request.createdAt))}</td>
                         <td>${escapeHtml(formatDate(request.scheduledAt))}</td>
                         <td>${escapeHtml(collector)}</td>
                         <td><span class="tag ${statusClass(status)}">${escapeHtml(capitalize(status))}</span></td>
-                        <td>
-                            ${canEdit || canCancel
-                        ? `${canEdit ? `<button class="action-btn view" data-action="edit" data-id="${request.id}">Edit</button>` : ''}
-                                   ${canCancel ? `<button class="action-btn delete" data-action="cancel" data-id="${request.id}">Cancel</button>` : ''}`
-                        : '<span style="color:#64748b;">-</span>'}
-                        </td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
             });
@@ -660,16 +747,59 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const form = document.getElementById('newRequestForm');
             if (form) {
                 form.reset();
+                // Reset waste category visual states
+                const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    updateCheckboxState(cb);
+                });
             }
         }
 
-        function showRateCollectorForm() {
+        function showRateCollectorForm(requestId) {
             if (!rateModal) return;
-            // Pre-fill date with today
+            const collectorInput = document.getElementById('rate_collector');
+            const custNameInput = document.getElementById('rate_customer_name');
+            const addr = document.getElementById('rate_address');
             const dateInput = document.getElementById('rate_date');
+
+            if (typeof requestId === 'undefined' || requestId === null || requestId === '') {
+                // Global rate button - allow editing collector name
+                if (collectorInput) {
+                    collectorInput.value = '';
+                    collectorInput.readOnly = false;
+                }
+                if (addr) addr.value = defaultAddress || '';
+                if (dateInput) {
+                    const today = new Date();
+                    dateInput.value = today.toISOString().split('T')[0];
+                }
+                rateModal.classList.add('modal-open');
+                return;
+            }
+
+            // Rate for a specific request - prefill and lock collector name
+            const idStr = String(requestId ?? '');
+            const request = state.requests.find((r) => String(r.id) === idStr);
+            if (!request) {
+                // fallback to generic behavior
+                showRateCollectorForm();
+                return;
+            }
+
+            if (collectorInput) {
+                collectorInput.value = request.collectorName || '';
+                collectorInput.readOnly = !!(request.collectorName && String(request.collectorName).trim() !== '');
+            }
+            if (custNameInput) {
+                custNameInput.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
+            }
+            if (addr) {
+                addr.value = request.address || defaultAddress || '';
+            }
             if (dateInput) {
-                const today = new Date();
-                dateInput.value = today.toISOString().split('T')[0];
+                const d = request.scheduledAt ? new Date(String(request.scheduledAt).replace(' ', 'T')) : new Date();
+                dateInput.value = formatDateForInput(d);
             }
             rateModal.classList.add('modal-open');
         }
@@ -684,6 +814,17 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (custName) custName.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
             const addr = document.getElementById('rate_address');
             if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
+            const collectorInput = document.getElementById('rate_collector');
+            if (collectorInput) collectorInput.readOnly = false;
+            
+            // Reset stars
+            const stars = document.querySelectorAll('#star_rating_container .star');
+            stars.forEach(s => {
+                s.classList.remove('active');
+                s.classList.remove('hover');
+            });
+            const rateInput = document.getElementById('rate_score');
+            if (rateInput) rateInput.value = '';
         }
 
         function showEditRequestForm(requestId) {
@@ -974,6 +1115,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     showEditRequestForm(requestId);
                 } else if (action === 'cancel') {
                     cancelRequest(requestId);
+                } else if (action === 'rate') {
+                    showRateCollectorForm(requestId);
                 }
             });
 
@@ -999,7 +1142,50 @@ if (!function_exists('customer_pickup_format_datetime')) {
             window.hideRateCollectorForm = hideRateCollectorForm;
         }
 
+        function setupStarRating() {
+            const container = document.getElementById('star_rating_container');
+            const input = document.getElementById('rate_score');
+            if (!container || !input) return;
+
+            const stars = container.querySelectorAll('.star');
+
+            function updateStars(value, isHover = false) {
+                stars.forEach(star => {
+                    const starVal = parseInt(star.getAttribute('data-value'), 10);
+                    if (starVal <= value) {
+                        star.classList.add(isHover ? 'hover' : 'active');
+                    } else {
+                        star.classList.remove(isHover ? 'hover' : 'active');
+                    }
+                });
+            }
+
+            stars.forEach(star => {
+                star.addEventListener('mouseenter', () => {
+                    // Reset hover state first
+                    stars.forEach(s => s.classList.remove('hover'));
+                    const val = parseInt(star.getAttribute('data-value'), 10);
+                    updateStars(val, true);
+                });
+
+                star.addEventListener('click', () => {
+                    const val = parseInt(star.getAttribute('data-value'), 10);
+                    input.value = val;
+                    // Remove hover classes and set active classes
+                    stars.forEach(s => s.classList.remove('hover'));
+                    updateStars(val, false);
+                });
+            });
+
+            container.addEventListener('mouseleave', () => {
+                 stars.forEach(s => s.classList.remove('hover'));
+                 const currentVal = parseInt(input.value || '0', 10);
+                 updateStars(currentVal, false);
+            });
+        }
+
         function initialize() {
+            setupStarRating();
             attachEventListeners();
             renderStats();
             renderTable();
