@@ -1,8 +1,10 @@
 <?php
+// analytics.php
+
 // Feedback data will be fetched via JavaScript API call
-// This ensures real-time data from the database
 $collectorFeedback = []; // Will be populated by JavaScript
 ?>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div>
@@ -10,8 +12,7 @@ $collectorFeedback = []; // Will be populated by JavaScript
     <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
         <div data-header-action style="display: flex; gap: var(--space-2);">
             <button class="btn btn-primary" onclick="addFeedback()">
-                <i class="fa-solid fa-comment-dots" style="margin-right: 8px;"></i>
-                Add Feedback
+                <i class="fa-solid fa-comment-dots" style="margin-right: 8px;"></i> Add Feedback
             </button>
         </div>
     </page-header>
@@ -24,53 +25,35 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
             </div>
             <div class="feature-card__body" id="avgRatingValue">-</div>
-            <div class="feature-card__footer">
-                <span class="desc">Based on customer feedback</span>
-            </div>
         </div>
-
         <div class="feature-card">
             <div class="feature-card__header">
                 <div class="feature-card__title">Pending Reports</div>
                 <div class="feature-card__icon"><i class="fa-solid fa-flag"></i></div>
             </div>
             <div class="feature-card__body" id="pendingReportsValue">-</div>
-            <div class="feature-card__footer">
-                <span class="desc">Need Attention</span>
-            </div>
         </div>
-
         <div class="feature-card">
             <div class="feature-card__header">
                 <div class="feature-card__title">Total Feedbacks</div>
                 <div class="feature-card__icon"><i class="fa-solid fa-comment"></i></div>
             </div>
             <div class="feature-card__body" id="totalFeedbackValue">-</div>
-            <div class="feature-card__footer">
-                <span class="desc">Received from customers</span>
-            </div>
         </div>
-    </div>
-
-    <!-- Waste Collection Chart -->
-    <div class="pc-card">
-        <h3 style="font-size: 20px; font-weight: bold;">Monthly Waste Collection by Type (kg)</h3>
-        <canvas id="wasteChart" style="max-height: 380px;"></canvas>
     </div>
 
     <!-- Waste Collection Table -->
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-trash" style="margin-right: 8px;"></i>
-                Waste Collection Details
+                <i class="fa-solid fa-trash" style="margin-right: 8px;"></i> Waste Collection Details
             </h3>
             <p class="activity-card__description">Track waste pickups by customer and category</p>
         </div>
         <div class="activity-card__content">
-            <div style="overflow-x: auto;">
+            <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
                 <table class="data-table">
-                    <thead>
+                    <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <tr>
                             <th><i class="fa-solid fa-id-card"></i> Customer ID</th>
                             <th><i class="fa-solid fa-user"></i> Customer Name</th>
@@ -81,7 +64,7 @@ $collectorFeedback = []; // Will be populated by JavaScript
                     </thead>
                     <tbody id="wasteCollectionTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: var(--space-16);">
+                            <td colspan="5" style="text-align: center; padding: 16px;">
                                 <span class="loading">Loading waste collection data...</span>
                             </td>
                         </tr>
@@ -95,26 +78,25 @@ $collectorFeedback = []; // Will be populated by JavaScript
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-comments" style="margin-right: 8px;"></i>
-                Collector Feedback Report
+                <i class="fa-solid fa-comments" style="margin-right: 8px;"></i> Collector Feedback Report
             </h3>
             <p class="activity-card__description">Recent reports and feedbacks</p>
         </div>
         <div class="activity-card__content">
-            <div style="overflow-x: auto;">
+            <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
                 <table class="data-table">
-                    <thead>
+                    <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <tr>
-                            <th><i class="fa-solid fa-user"></i> Collector</th>
+                            <th><i class="fa-solid fa-id-card"></i> Customer ID</th>
+                            <th><i class="fa-solid fa-user"></i> Customer Name</th>
                             <th><i class="fa-solid fa-calendar-day"></i> Date</th>
                             <th><i class="fa-solid fa-message"></i> Feedback</th>
                             <th><i class="fa-solid fa-star"></i> Rating</th>
-                            <th><i class="fa-solid fa-list"></i> Status</th>
                         </tr>
                     </thead>
                     <tbody id="feedbackTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: var(--space-16);">
+                            <td colspan="5" style="text-align: center; padding: 16px;">
                                 <span class="loading">Loading feedback data...</span>
                             </td>
                         </tr>
@@ -126,221 +108,224 @@ $collectorFeedback = []; // Will be populated by JavaScript
 </div>
 
 <script>
-    // Helper function for rating stars
-    function renderStars(count) {
-        let stars = '';
-        for (let i = 0; i < count; i++) {
-            stars += '<i class="fa-solid fa-star filled"></i>';
-        }
-        for (let i = count; i < 5; i++) {
-            stars += '<i class="fa-regular fa-star"></i>';
-        }
-        return stars;
-    }
+const CURRENT_COLLECTOR_ID = <?= (int)($user['id'] ?? 0) ?>;
 
-    // Helper for status badge
-    function getFeedbackBadge(status) {
-        const badgeMap = {
-            'positive': '<span class="status success"><i class="fa-solid fa-circle-check"></i> Positive</span>',
-            'review': '<span class="status danger"><i class="fa-solid fa-circle-exclamation"></i> Needs Review</span>',
-            'active': '<span class="status info"><i class="fa-solid fa-circle-info"></i> Active</span>',
-            'flagged': '<span class="status warning"><i class="fa-solid fa-flag"></i> Flagged</span>',
-            'archived': '<span class="status secondary"><i class="fa-solid fa-archive"></i> Archived</span>'
+// Immediate validation on page load
+console.log('=== Collector Analytics Debug ===');
+console.log('Collector ID:', CURRENT_COLLECTOR_ID);
+console.log('User Data:', <?= json_encode($user ?? []) ?>);
+
+/**
+ * Main Orchestrator: Fetches all data for the page
+ */
+async function refreshDashboard() {
+    console.log('Refreshing dashboard data...');
+    console.log('Current Collector ID:', CURRENT_COLLECTOR_ID);
+    
+    // Validate collector ID before making any API calls
+    if (!CURRENT_COLLECTOR_ID || CURRENT_COLLECTOR_ID === 0) {
+        const errorMsg = 'Collector ID is missing or invalid. Please ensure you are logged in as a collector.';
+        console.error(errorMsg);
+        updateFeedbackTable([], errorMsg);
+        updateWasteTable([], errorMsg);
+        return;
+    }
+    
+    const params = `?collector_id=${CURRENT_COLLECTOR_ID}`;
+    
+    try {
+        // Add timeout to prevent hanging requests
+        const timeout = 10000; // 10 seconds
+        const fetchWithTimeout = (url) => {
+            return Promise.race([
+                fetch(url, { credentials: 'include' }),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Request timeout')), timeout)
+                )
+            ]);
         };
-        return badgeMap[status] || `<span class="status secondary">${status}</span>`;
-    }
+        
+        // Run fetches in parallel for better performance
+        const [metricsReq, feedbackReq, wasteReq] = await Promise.all([
+            fetchWithTimeout(`/api/collector/metrics${params}`),
+            fetchWithTimeout(`/api/collector/feedback${params}&limit=50`),
+            fetchWithTimeout(`/api/collector/waste-collection${params}`)
+        ]);
 
-    // Load analytics data from API
-    async function loadAnalyticsData() {
-        try {
-            // Load metrics
-            const metricsResponse = await fetch('/api/analytics/metrics', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (metricsResponse.ok) {
-                const metricsData = await metricsResponse.json();
-                const metrics = metricsData.data.feedback_metrics;
-
-                // Update metric cards
-                document.getElementById('avgRatingValue').textContent = metrics.average_rating.toFixed(1);
-                document.getElementById('pendingReportsValue').textContent = metrics.pending_review_count;
-                document.getElementById('totalFeedbackValue').textContent = metrics.total_feedback;
-
-                // Load waste stats for chart
-                loadWasteChart(metricsData.data.waste_collection);
+        // Handle metrics
+        if (metricsReq.ok) {
+            const mData = await metricsReq.json();
+            console.log('Metrics response:', mData);
+            if (mData.success && mData.data?.feedbackMetrics) {
+                updateMetricsCards(mData.data.feedbackMetrics);
+            } else {
+                console.error('Metrics data invalid:', mData);
+                const errMsg = mData.error || 'Invalid data';
+                document.getElementById('avgRatingValue').innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
+                document.getElementById('pendingReportsValue').innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
+                document.getElementById('totalFeedbackValue').innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
             }
-
-            // Load waste collection details
-            loadWasteCollectionTable();
-
-            // Load feedback
-            const feedbackResponse = await fetch('/api/analytics/collector-feedback?limit=50', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (feedbackResponse.ok) {
-                const feedbackData = await feedbackResponse.json();
-                const tableBody = document.getElementById('feedbackTableBody');
-
-                if (feedbackData.data && feedbackData.data.length > 0) {
-                    tableBody.innerHTML = feedbackData.data.map(fb => `
-                        <tr>
-                            <td>${escapeHtml(fb.collector_name || 'Unknown')}</td>
-                            <td>${new Date(fb.created_at).toLocaleDateString()}</td>
-                            <td>${escapeHtml(fb.feedback || '-')}</td>
-                            <td>${renderStars(fb.rating)}</td>
-                            <td>${getFeedbackBadge(fb.status)}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No feedback records found.</td></tr>';
-                }
+        } else {
+            const errorText = await metricsReq.text();
+            console.error('Metrics API failed:', metricsReq.status, errorText);
+            
+            // Try to parse error message
+            let errorMsg = `Error ${metricsReq.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMsg = errorJson.error || errorMsg;
+            } catch (e) {
+                errorMsg = errorText.substring(0, 50) || errorMsg;
             }
-        } catch (error) {
-            console.error('Error loading analytics data:', error);
-            document.getElementById('feedbackTableBody').innerHTML = `
-                <tr><td colspan="5" style="text-align: center; color: red;">Error loading feedback data</td></tr>
-            `;
-        }
-    }
-
-    // Load waste collection details
-    async function loadWasteCollectionTable() {
-        try {
-            const response = await fetch('/api/analytics/waste-stats?limit=50', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const tableBody = document.getElementById('wasteCollectionTableBody');
-
-                if (data.data && data.data.length > 0) {
-                    tableBody.innerHTML = data.data.map(item => `
-                        <tr>
-                            <td>${escapeHtml(item.customer_id || '-')}</td>
-                            <td>${escapeHtml(item.customer_name || 'Unknown')}</td>
-                            <td><span class="badge" style="background-color: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px;">${escapeHtml(item.waste_category || '-')}</span></td>
-                            <td>${parseFloat(item.weight || 0).toFixed(2)} kg</td>
-                            <td style="font-weight: 600;">Rs ${parseFloat(item.amount || 0).toFixed(2)}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">No waste collection records found.</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading waste collection data:', error);
-            document.getElementById('wasteCollectionTableBody').innerHTML = `
-                <tr><td colspan="5" style="text-align: center; color: red;">Error loading waste collection data</td></tr>
-            `;
-        }
-    }
-
-    // Load and render waste collection chart
-    function loadWasteChart(wasteData) {
-        // Organize waste data by month and type
-        const monthlyData = {};
-        const categories = new Set();
-
-        (wasteData || []).forEach(item => {
-            if (item.total_collected) {
-                const month = new Date(item.month).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-                if (!monthlyData[month]) monthlyData[month] = {};
-                monthlyData[month][item.name] = parseFloat(item.total_collected);
-                categories.add(item.name);
-            }
-        });
-
-        const months = Object.keys(monthlyData).slice(-6);
-        const colors = {
-            'Organic': '#8b5a2b',
-            'Glass': '#ff0000',
-            'Paper': '#008000',
-            'Metal': '#ffa500',
-            'Plastic': '#0000ff'
-        };
-
-        const datasets = Array.from(categories).map(category => ({
-            label: category,
-            data: months.map(month => monthlyData[month][category] || 0),
-            backgroundColor: colors[category] || '#cccccc'
-        }));
-
-        const ctx = document.getElementById('wasteChart').getContext('2d');
-        if (window.wasteChartInstance) window.wasteChartInstance.destroy();
-
-        window.wasteChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: months.length > 0 ? months : ['No Data'],
-                datasets: datasets.length > 0 ? datasets : [{
-                    label: 'No Data',
-                    data: [0],
-                    backgroundColor: '#cccccc'
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'top', labels: { font: { size: 13 } } },
-                    tooltip: { mode: 'index', intersect: false }
-                },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Kilograms (kg)', font: { size: 14 } } },
-                    x: { title: { display: true, text: 'Months', font: { size: 14 } } }
-                }
-            }
-        });
-    }
-
-    // Utility: escape HTML special characters
-    function escapeHtml(text) {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
-    // Add new feedback
-    function addFeedback() {
-        const collectorId = prompt('Enter collector ID:');
-        if (!collectorId) return;
-
-        const rating = prompt('Rating (1-5):');
-        if (!rating || rating < 1 || rating > 5) {
-            alert('Invalid rating');
-            return;
+            
+            document.getElementById('avgRatingValue').innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
+            document.getElementById('pendingReportsValue').innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
+            document.getElementById('totalFeedbackValue').innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
         }
 
-        const feedback = prompt('Feedback message:');
-        if (!feedback) return;
+        // Handle feedback
+        if (feedbackReq.ok) {
+            const fData = await feedbackReq.json();
+            console.log('Feedback response:', fData);
+            if (fData.success) {
+                updateFeedbackTable(fData.data);
+            } else {
+                console.error('Feedback API error:', fData.error);
+                updateFeedbackTable([], fData.error || 'Failed to load feedback');
+            }
+        } else {
+            const errorText = await feedbackReq.text();
+            console.error('Feedback API failed:', feedbackReq.status, errorText);
+            updateFeedbackTable([], `API Error ${feedbackReq.status}: ${errorText.substring(0, 100)}`);
+        }
 
-        fetch('/api/analytics/feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-            credentials: 'include',
-            body: JSON.stringify({ collector_id: collectorId, rating: rating, feedback: feedback })
-        })
-            .then(r => r.json())
-            .then(d => {
-                alert('Feedback added successfully');
-                loadAnalyticsData();
-            })
-            .catch(e => alert('Error: ' + e.message));
+        // Handle waste collection
+        if (wasteReq.ok) {
+            const wData = await wasteReq.json();
+            console.log('Waste collection response:', wData);
+            if (wData.success) {
+                updateWasteTable(wData.data);
+            } else {
+                console.error('Waste API error:', wData.error);
+                updateWasteTable([], wData.error || 'Failed to load waste data');
+            }
+        } else {
+            const errorText = await wasteReq.text();
+            console.error('Waste API failed:', wasteReq.status, errorText);
+            updateWasteTable([], `API Error ${wasteReq.status}: ${errorText.substring(0, 100)}`);
+        }
+    } catch (error) {
+        console.error('Polling Error:', error);
+        const errorMsg = `Network Error: ${error.message}`;
+        updateFeedbackTable([], errorMsg);
+        updateWasteTable([], errorMsg);
     }
+}
 
-    // Get CSRF token (placeholder - implement based on your framework)
-    function getCsrfToken() {
-        // Extract from meta tag or cookies
-        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+/**
+ * Updates UI Cards
+ */
+function updateMetricsCards(metrics) {
+    if (!metrics) return;
+    
+    const avgRating = metrics.averageRating || 0;
+    const pendingReports = metrics.lowRatings || 0;
+    const totalFeedback = metrics.totalFeedback || 0;
+    
+    document.getElementById('avgRatingValue').textContent = avgRating.toFixed(1);
+    document.getElementById('pendingReportsValue').textContent = pendingReports;
+    document.getElementById('totalFeedbackValue').textContent = totalFeedback;
+    
+    console.log('Metrics updated:', { avgRating, pendingReports, totalFeedback });
+}
+
+/**
+ * Updates Feedback Table
+ */
+function updateFeedbackTable(data, error = null) {
+    const tableBody = document.getElementById('feedbackTableBody');
+    if (error) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
+    } else if (data && data.length > 0) {
+        tableBody.innerHTML = data.map(fb => `
+            <tr>
+                <td>${escapeHtml(String(fb.customer_id))}</td>
+                <td>${escapeHtml(fb.customer_name)}</td>
+                <td>${new Date(fb.rating_date).toLocaleDateString()}</td>
+                <td>${escapeHtml(fb.description)}</td>
+                <td>${renderStars(fb.rating)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No feedback records found.</td></tr>';
     }
+}
 
-    // Load data on page load
-    document.addEventListener('DOMContentLoaded', loadAnalyticsData);
+/**
+ * Updates Waste Table
+ */
+function updateWasteTable(data, error = null) {
+    const tableBody = document.getElementById('wasteCollectionTableBody');
+    if (error) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
+    } else if (data && data.length > 0) {
+        tableBody.innerHTML = data.map(r => `
+            <tr>
+                <td>${escapeHtml(String(r.customer_id))}</td>
+                <td>${escapeHtml(r.customer_name)}</td>
+                <td>${escapeHtml(r.category)}</td>
+                <td>${r.weight} kg</td>
+                <td>Rs. ${parseFloat(r.amount).toFixed(2)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No waste records found.</td></tr>';
+    }
+}
+
+// Helper: Render Stars
+function renderStars(count) {
+    let stars = '';
+    for (let i = 0; i < 5; i++) {
+        stars += i < count ? '<i class="fa-solid fa-star" style="color: #000;"></i>' : '<i class="fa-regular fa-star" style="color: #ccc;"></i>';
+    }
+    return stars;
+}
+
+// Helper: Escape HTML
+function escapeHtml(text) {
+    if (!text) return '-';
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Initialize Polling
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded - Starting initialization');
+    console.log('Collector ID available:', CURRENT_COLLECTOR_ID);
+    
+    // Immediate visual feedback
+    document.getElementById('avgRatingValue').textContent = '...';
+    document.getElementById('pendingReportsValue').textContent = '...';
+    document.getElementById('totalFeedbackValue').textContent = '...';
+    
+    // Visual confirmation that JS is running
+    if (!CURRENT_COLLECTOR_ID) {
+        document.getElementById('avgRatingValue').textContent = '⚠️';
+        document.getElementById('pendingReportsValue').textContent = '⚠️';
+        document.getElementById('totalFeedbackValue').textContent = '⚠️';
+        updateFeedbackTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
+        updateWasteTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
+        return;
+    }
+    
+    refreshDashboard(); // Initial run
+    setInterval(refreshDashboard, 30000); // Poll every 30 seconds for smoother performance
+    console.log('Dashboard refresh scheduled every 30 seconds');
+});
+
+// Optional: Add Feedback handler
+function addFeedback() {
+    alert('Add feedback functionality coming soon!');
+}
 </script>

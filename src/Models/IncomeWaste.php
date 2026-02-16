@@ -54,5 +54,27 @@ public function saveWeightAndCalculateSingle(string $pickupId, float $weight): f
     return $amount;
 }
 
+public function getWasteCollectionForCollector(int $collectorId, int $limit = 50): array
+{
+    $limit = max(1, (int)$limit);
 
+    $sql = "
+        SELECT 
+            pr.id AS pickup_id,
+            pr.customer_id,
+            u.name AS customer_name,
+            wc.name AS category,
+            prw.weight,
+            prw.amount
+        FROM pickup_requests pr
+        LEFT JOIN users u ON u.id = pr.customer_id
+        LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+        LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
+        WHERE pr.collector_id = ?
+        ORDER BY pr.id DESC
+        LIMIT $limit
+    ";
+
+    return $this->db->fetchAll($sql, [$collectorId]);
+}
 }
