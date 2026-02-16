@@ -28,7 +28,6 @@ function getStatusBadge($status)
 }
 ?>
 
-<!-- JavaScript data for front-end -->
 <script>
     window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     window.__FILTERS = {
@@ -38,26 +37,18 @@ function getStatusBadge($status)
     const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Page Header -->
 <div class="page-header">
     <div class="page-header__content">
-        <h2 class="page-header__title">
-            My Assigned Pickups & Daily Tasks
-        </h2>
+        <h2 class="page-header__title">My Assigned Pickups & Daily Tasks</h2>
         <p class="page-header__description">Manage your assigned pickups and track progress in real time</p>
     </div>
 </div>
 
-<!-- Task Table -->
 <div class="activity-card">
     <div class="activity-card__header">
-        <h3 class="activity-card__title">
-            <i class="fa-solid fa-box" style="margin-right:8px;"></i>
-            My Tasks
-        </h3>
+        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
         <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
-
     <div class="activity-card__content">
         <div style="overflow-x:auto;">
             <table class="data-table">
@@ -101,7 +92,7 @@ function getStatusBadge($status)
     </div>
 </div>
 
-<!-- Modal for Task Details -->
+<!-- Pickup Details Modal -->
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
@@ -120,6 +111,28 @@ function getStatusBadge($status)
             <div><strong>Status</strong></div>
             <div class="pd-status"></div>
         </div>
+
+
+        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
+            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+            <div>
+                <!-- Weight inputs will be injected here -->
+            </div>
+            <div id="price-display-row"
+                style="margin-top:1rem; padding: 10px; background-color: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color: #475569;">Total Price:</strong>
+                    <span id="calculatedPriceDisplay" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">Rs.
+                        0.00</span>
+                </div>
+            </div>
+
+            <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+                enter a valid weight greater than 0.</div>
+
+            <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div>
+        </div>
+
         <div style="margin-top: var(--space-8); text-align: right;">
             <button class="btn" onclick="closeDetailModal()">Close</button>
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
@@ -128,10 +141,31 @@ function getStatusBadge($status)
 </div>
 
 <script>
+    // Grab modal elements
+    const weightInput = document.getElementById('weightInput');
+    const calculatedPriceEl = document.getElementById('calculatedPrice');
+    const weightError = document.getElementById('weightError');
+    const enterBtn = document.getElementById('enterWeightBtn');
+
+    // Close modal
     function closeDetailModal() {
         const modal = document.getElementById('pickup-detail-modal');
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function calculateTotal() {
+        const inputs = document.querySelectorAll('.weight-input');
+        let total = 0;
+        inputs.forEach(input => {
+            const weight = parseFloat(input.value) || 0;
+            const price = parseFloat(input.getAttribute('data-price')) || 0;
+            total += weight * price;
+        });
+        const display = document.getElementById('calculatedPriceDisplay');
+        if (display) {
+            display.textContent = 'Rs. ' + total.toFixed(2);
+        }
     }
 
     function viewDetails(el, pickupId) {
@@ -150,10 +184,72 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
+        btn.textContent = 'Start Task'; // Default
+
+        const weightRow = document.getElementById('weight-entry-row');
+        weightRow.style.display = 'none';
+
+        // Find container for inputs - it's the second div inside weight-entry-row
+        // We'll give it a clean class or ID to make selecting easier, 
+        // but since I can't edit HTML structure easily without replacing huge block, 
+        // I will select it by structure or just clear innerHTML of the container div used previously.
+        // Actually, let's create a specific container in the replacement above, but for now I'll use the div following the label
+        const inputContainer = weightRow.querySelector('div:nth-child(2)');
+        inputContainer.innerHTML = '';
+
         if (statusValue === 'assigned') {
             btn.textContent = 'Start Task';
         } else if (statusValue === 'in progress') {
             btn.textContent = 'Mark as Completed';
+
+            // Show weight input for each category
+            weightRow.style.display = 'block';
+
+            // Re-initialize total price
+            const display = document.getElementById('calculatedPriceDisplay');
+            if (display) display.textContent = 'Rs. 0.00';
+
+            if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
+                record.wasteCategoryDetails.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '0.75rem';
+
+                    const label = document.createElement('label');
+                    // Show price hint in label
+                    const priceHint = cat.price_per_unit ? ` (Rs. ${parseFloat(cat.price_per_unit).toFixed(2)}/kg)` : '';
+                    label.textContent = `${cat.name}${priceHint}`;
+                    label.style.display = 'block';
+                    label.style.fontSize = '0.9rem';
+                    label.style.marginBottom = '0.25rem';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = '0.01';
+                    input.min = '0';
+                    input.className = 'weight-input';
+                    input.style.width = '100%';
+                    input.style.padding = '0.5rem';
+                    input.style.border = '1px solid #e5e7eb';
+                    input.style.borderRadius = '4px';
+                    input.setAttribute('data-cat-id', cat.id);
+                    // Store price in data attribute
+                    input.setAttribute('data-price', cat.price_per_unit || 0);
+                    input.placeholder = '0.00';
+
+                    // Attach listener
+                    input.addEventListener('input', calculateTotal);
+
+                    div.appendChild(label);
+                    div.appendChild(input);
+                    inputContainer.appendChild(div);
+                });
+            } else {
+                inputContainer.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+            }
+
+            const errorDiv = document.getElementById('weightError');
+            if (errorDiv) errorDiv.style.display = 'none';
+
         } else {
             btn.style.display = 'none';
         }
@@ -173,6 +269,8 @@ function getStatusBadge($status)
         let nextTarget = '';
         if (current === 'assigned') nextTarget = 'in_progress';
         else if (current === 'in progress') nextTarget = 'completed';
+        else if (current === 'in_progress') nextTarget = 'completed';
+
         if (!nextTarget) return;
 
         const btn = document.getElementById('taskActionBtn');
@@ -181,14 +279,47 @@ function getStatusBadge($status)
         btn.textContent = 'Updating...';
 
         try {
-            const response = await fetch(`/api/collector/pickup-requests/${encodeURIComponent(pickupId)}/status`, {
+            const payloadBody = { status: nextTarget };
+
+            if (nextTarget === 'completed') {
+                const inputs = modal.querySelectorAll('.weight-input');
+                let allValid = true;
+                const weights = [];
+
+                if (inputs.length === 0) {
+                    // If no inputs (no categories), we might still want to complete? 
+                    // Usually requires at least one weight.
+                    // Let's assume validation is required if inputs exist.
+                }
+
+                inputs.forEach(input => {
+                    const val = parseFloat(input.value);
+                    if (isNaN(val) || val <= 0) {
+                        allValid = false;
+                    }
+                    weights.push({
+                        category_id: parseInt(input.getAttribute('data-cat-id')),
+                        weight: val
+                    });
+                });
+
+                if (!allValid || (inputs.length > 0 && weights.length === 0)) {
+                    document.getElementById('weightError').style.display = 'block';
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                payloadBody.weights = weights;
+            }
+
+            const response = await fetch(`/api/collector/pickup-requests/${pickupId}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ status: nextTarget })
+                body: JSON.stringify(payloadBody)
             });
 
             const payload = await response.json().catch(() => ({}));
@@ -199,6 +330,7 @@ function getStatusBadge($status)
 
             const updated = payload.data || {};
             const normalizedStatus = normalizeStatusValue(updated.status || updated.statusRaw || nextTarget);
+
             window.__PICKUP_DATA[idx] = {
                 ...window.__PICKUP_DATA[idx],
                 ...updated,
@@ -213,15 +345,27 @@ function getStatusBadge($status)
 
             modal.querySelector('.pd-status').textContent = normalizedStatus;
 
-            if (normalizedStatus === 'in progress') {
-                btn.textContent = 'Mark as Completed';
-                btn.disabled = false;
-            } else if (normalizedStatus === 'completed') {
-                btn.style.display = 'none';
-            } else {
-                btn.textContent = originalText;
-                btn.disabled = false;
+            function showToast(message, type = 'info') {
+                if (typeof window.__createToast === 'function') {
+                    window.__createToast(message, type, 100000);
+                } else {
+                    const prefix = type === 'error' ? 'Error: ' : '';
+                    alert(prefix + message);
+                }
             }
+
+            if (nextTarget === 'completed') {
+                const message = updated.price
+                    ? `Pickup completed! Total Amount: Rs. ${parseFloat(updated.price).toFixed(2)}`
+                    : `Pickup completed successfully!`;
+
+                showToast(message, 'success', 10000);
+            } else {
+                showToast('Status updated successfully', 'success', 10000);
+            }
+
+            viewDetails(null, pickupId);
+
         } catch (error) {
             btn.textContent = originalText;
             btn.disabled = false;
@@ -257,4 +401,6 @@ function getStatusBadge($status)
         }
         return value;
     }
+
+
 </script>

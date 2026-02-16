@@ -18,36 +18,36 @@ class User
     {
         if ($this->db->isPgsql()) {
             $tableSql = <<<'SQL'
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    type VARCHAR(32) NOT NULL DEFAULT 'customer',
-    name VARCHAR(255) DEFAULT NULL,
-    username VARCHAR(100) DEFAULT NULL,
-    nic VARCHAR(30) DEFAULT NULL,
-    email VARCHAR(150) DEFAULT NULL,
-    phone VARCHAR(50) DEFAULT NULL,
-    address TEXT DEFAULT NULL,
-    bank_account_name VARCHAR(255) DEFAULT NULL,
-    bank_account_number VARCHAR(100) DEFAULT NULL,
-    bank_name VARCHAR(150) DEFAULT NULL,
-    bank_branch VARCHAR(150) DEFAULT NULL,
-    profile_image_path VARCHAR(255) DEFAULT NULL,
-    password_hash VARCHAR(255) DEFAULT NULL,
-    role_id INTEGER DEFAULT NULL,
-    vehicle_id INTEGER DEFAULT NULL,
-    status VARCHAR(32) DEFAULT 'active',
-    total_pickups INTEGER DEFAULT 0,
-    total_earnings NUMERIC(12, 2) DEFAULT 0.00,
-    total_bids INTEGER DEFAULT 0,
-    total_purchases INTEGER DEFAULT 0,
-    metadata JSONB DEFAULT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT NULL,
-    CONSTRAINT users_email_unique UNIQUE (email),
-    CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT fk_users_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL ON UPDATE CASCADE
-);
-SQL;
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                type VARCHAR(32) NOT NULL DEFAULT 'customer',
+                name VARCHAR(255) DEFAULT NULL,
+                username VARCHAR(100) DEFAULT NULL,
+                nic VARCHAR(30) DEFAULT NULL,
+                email VARCHAR(150) DEFAULT NULL,
+                phone VARCHAR(50) DEFAULT NULL,
+                address TEXT DEFAULT NULL,
+                bank_account_name VARCHAR(255) DEFAULT NULL,
+                bank_account_number VARCHAR(100) DEFAULT NULL,
+                bank_name VARCHAR(150) DEFAULT NULL,
+                bank_branch VARCHAR(150) DEFAULT NULL,
+                profile_image_path VARCHAR(255) DEFAULT NULL,
+                password_hash VARCHAR(255) DEFAULT NULL,
+                role_id INTEGER DEFAULT NULL,
+                vehicle_id INTEGER DEFAULT NULL,
+                status VARCHAR(32) DEFAULT 'active',
+                total_pickups INTEGER DEFAULT 0,
+                total_earnings NUMERIC(12, 2) DEFAULT 0.00,
+                total_bids INTEGER DEFAULT 0,
+                total_purchases INTEGER DEFAULT 0,
+                metadata JSONB DEFAULT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT NULL,
+                CONSTRAINT users_email_unique UNIQUE (email),
+                CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+                CONSTRAINT fk_users_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL ON UPDATE CASCADE
+            );
+            SQL;
 
             $created = $this->db->query($tableSql);
             if (!$created) {
@@ -242,6 +242,12 @@ SQL;
         return $row ?: null;
     }
 
+    public function findByVehicleId(int $vehicleId): array|null
+    {
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.vehicle_id = ? LIMIT 1", [$vehicleId]);
+        return $row ?: null;
+    }
+
     public function verifyPassword(array $user, string $password): bool
     {
         // Assuming password_hash stored in password_hash column
@@ -388,5 +394,62 @@ SQL;
     public function setStatus(int $id, string $status): bool
     {
         return $this->updateUser($id, ['status' => $status]);
+    }
+
+    /**
+     * Find all users
+     */
+    public function findAll(): array
+    {
+        return $this->db->fetchAll('SELECT * FROM users');
+    }
+
+    /**
+     * Find user by email verification token
+     *
+     * @param string $token Verification token
+     * @return array|null User data if found
+     */
+    public function findByVerificationToken(string $token): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE email_verification_token = ? LIMIT 1";
+        $user = $this->db->fetch($sql, [$token]);
+
+        return $user ?: null;
+    }
+
+    /**
+     * Mark user's email as verified
+     *
+     * @param int $userId User ID
+     * @return bool Success status
+     */
+    public function markEmailAsVerified(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET email_verified = TRUE, 
+                    email_verification_token = NULL,
+                    email_verification_sent_at = NULL
+                WHERE id = ?";
+
+        $this->db->query($sql, [$userId]);
+        return true;
+    }
+
+    /**
+     * Update user's password
+     *
+     * @param int $userId User ID
+     * @param string $newPassword New password (will be hashed)
+     * @return bool Success status
+     */
+    public function updatePassword(int $userId, string $newPassword): bool
+    {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+        $sql = "UPDATE {$this->table} SET password_hash = ? WHERE id = ?";
+        $this->db->query($sql, [$hashedPassword, $userId]);
+
+        return true;
     }
 }

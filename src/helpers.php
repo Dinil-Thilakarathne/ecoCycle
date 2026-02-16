@@ -170,12 +170,13 @@ if (!function_exists('base_path')) {
     function base_path(string $path = ''): string
     {
         // In CLI scripts the Application singleton may not be initialized.
-        $app = Core\Application::getInstance();
+        $app = (class_exists('Core\Application')) ? Core\Application::getInstance() : null;
+
         if ($app) {
             $basePath = $app->basePath();
         } else {
-            // Fallback using file system heuristic: repo root is two levels above src/helpers.php
-            $basePath = dirname(__DIR__, 2);
+            // Fallback using file system heuristic: repo root is one level above src/helpers.php
+            $basePath = dirname(__DIR__);
         }
 
         return $path ? $basePath . '/' . ltrim($path, '/') : $basePath;
@@ -668,5 +669,233 @@ if (!function_exists('logout')) {
         $response->setHeader('Pragma', 'no-cache');
 
         return $response;
+    }
+}
+
+if (!function_exists('mailer')) {
+    /**
+     * Get the Mailer instance
+     * 
+     * @return Core\Mail\Mailer
+     */
+    function mailer(): Core\Mail\Mailer
+    {
+        static $mailer = null;
+
+        if ($mailer === null) {
+            $transport = new Core\Mail\SmtpMailer();
+            $mailer = new Core\Mail\Mailer($transport);
+        }
+
+        return $mailer;
+    }
+}
+
+if (!function_exists('sendMail')) {
+    /**
+     * Send an email using a template
+     * 
+     * @param string $to Recipient email address
+     * @param string $template Template name (without .html.php or .text.php extension)
+     * @param array $data Data to pass to the template
+     * @param string|null $subject Email subject (optional, can be in $data['subject'])
+     * @return bool True on success, false on failure
+     */
+    function sendMail(string $to, string $template, array $data = [], ?string $subject = null): bool
+    {
+        try {
+            return mailer()->sendTemplate($to, $template, $data, $subject);
+        } catch (\Exception $e) {
+            // Log the error
+            error_log("Mail sending failed: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+// ============================================================================
+// Email Verification & Password Reset Helper Functions
+// ============================================================================
+
+if (!function_exists('generateVerificationToken')) {
+    /**
+     * Generate a secure email verification token
+     * 
+     * @return string 64-character hex token
+     */
+    function generateVerificationToken(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+}
+
+if (!function_exists('generatePasswordResetToken')) {
+    /**
+     * Generate a secure password reset token
+     * 
+     * @return string 64-character hex token
+     */
+    function generatePasswordResetToken(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+}
+
+if (!function_exists('createPasswordResetToken')) {
+    /**
+     * Create a password reset token in the database
+     * 
+     * @param string $email User email
+     * @param string $token Reset token
+     * @param int $expiresInHours Token expiration time in hours (default: 1)
+     * @return bool True on success
+     */
+    function createPasswordResetToken(string $email, string $token, int $expiresInHours = 1): bool
+    {
+        try {
+            $db = new \Core\Database();
+
+            $expiresAt = date('Y-m-d H:i:s', time() + ($expiresInHours * 3600));
+
+            $db->query(
+                'INSERT INTO password_reset_tokens (email, token, created_at, expires_at, used) 
+                 VALUES (?, ?, NOW(), ?, FALSE)',
+                [$email, $token, $expiresAt]
+            );
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Failed to create password reset token: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('validatePasswordResetToken')) {
+    /**
+     * Validate a password reset token
+     * 
+     * @param string $token Reset token
+     * @return array|null Token data if valid, null otherwise
+     */
+    function validatePasswordResetToken(string $token): ?array
+    {
+        try {
+            $db = new \Core\Database();
+
+            $result = $db->fetch(
+                'SELECT * FROM password_reset_tokens 
+                 WHERE token = ? 
+                 AND used = FALSE 
+                 AND expires_at > NOW()
+                 LIMIT 1',
+                [$token]
+            );
+
+            return $result ?: null;
+        } catch (\Exception $e) {
+            error_log("Failed to validate password reset token: " . $e->getMessage());
+            return null;
+        }
+    }
+}
+
+if (!function_exists('markPasswordResetTokenAsUsed')) {
+    /**
+     * Mark a password reset token as used
+     * 
+     * @param string $token Reset token
+     * @return bool True on success
+     */
+    function markPasswordResetTokenAsUsed(string $token): bool
+    {
+        try {
+            $db = new \Core\Database();
+
+            $db->query(
+                'UPDATE password_reset_tokens 
+                 SET used = TRUE, used_at = NOW() 
+                 WHERE token = ?',
+                [$token]
+            );
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Failed to mark password reset token as used: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('sendNotificationEmail')) {
+    /**
+     * Send a notification email
+     *
+     * @param array $notificationData
+     * @return bool
+     */
+    function sendNotificationEmail(array $notificationData): bool
+    {
+        // Add safeguard to prevent recursion or errors if used where Model is not available
+        try {
+            $recipientGroup = $notificationData['recipient_group'] ?? null;
+            $recipients = [];
+
+            // If we're sending to admins, fetch all admin emails
+            if ($recipientGroup === 'admin') {
+                $userModel = new \Models\User();
+                $admins = $userModel->listByType('admin');
+                foreach ($admins as $admin) {
+                    if (!empty($admin['email'])) {
+                        $recipients[] = $admin['email'];
+                    }
+                }
+            }
+            // Handle specific recipient ID
+            // If the notification data has a specific user_id targeted (not standard but possible)
+            elseif (isset($notificationData['user_id'])) {
+                $userModel = new \Models\User();
+                $user = $userModel->findById((int) $notificationData['user_id']);
+                if ($user && !empty($user['email'])) {
+                    $recipients[] = $user['email'];
+                }
+            }
+
+            // Also check if strict 'recipients' array is provided in data (email string list)
+            if (isset($notificationData['recipients']) && is_array($notificationData['recipients'])) {
+                foreach ($notificationData['recipients'] as $r) {
+                    if (is_string($r) && filter_var($r, FILTER_VALIDATE_EMAIL)) {
+                        $recipients[] = $r;
+                    }
+                }
+            }
+
+            if (empty($recipients)) {
+                // If no recipients found (e.g. no admins), we just return true to not block execution
+                // logging might be good though
+                error_log("sendNotificationEmail: No recipients found for group {$recipientGroup}");
+                return true;
+            }
+
+            // Unique emails
+            $recipients = array_unique($recipients);
+
+            $subject = $notificationData['title'] ?? 'New Notification';
+            $template = 'notification'; // corresponds to resources/emails/notification.html.php
+
+            $success = true;
+            foreach ($recipients as $to) {
+                // Pass the whole notification data to the template
+                if (!sendMail($to, $template, $notificationData, $subject)) {
+                    $success = false;
+                }
+            }
+
+            return $success;
+        } catch (\Throwable $e) {
+            error_log("sendNotificationEmail Error: " . $e->getMessage());
+            // Return true to avoid breaking the main flow (e.g. pickup request creation)
+            return true;
+        }
     }
 }

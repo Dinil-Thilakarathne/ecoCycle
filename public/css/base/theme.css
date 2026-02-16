@@ -73,13 +73,13 @@
   --font-family-serif: "Merriweather", Georgia, serif;
   --font-family-poppins: "Poppins", sans-serif;
 
-  --text-xs: 0.75rem; /* 12px */
-  --text-sm: 0.875rem; /* 14px */
-  --text-base: 1rem; /* 16px */
-  --text-lg: 1.125rem; /* 18px */
-  --text-xl: 1.25rem; /* 20px */
-  --text-2xl: 1.5rem; /* 24px */
-  --text-3xl: 1.875rem; /* 30px */
+  --text-xs: 0.95rem; /* 14px */
+  --text-sm: 1rem; /* 16px */
+  --text-base: 1.1rem; /* 18px */
+  --text-lg: 1.2rem; /* 20px */
+  --text-xl: 1.5rem; /* 24px */
+  --text-2xl: 1.75rem; /* 28px */
+  --text-3xl: 2rem; /* 30px */
   --text-4xl: 2.25rem; /* 36px */
   --text-5xl: 3rem; /* 48px */
   --text-6xl: clamp(1rem, 0.25rem + 5.2vw, 3.75rem); /* 60px */

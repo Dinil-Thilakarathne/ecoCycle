@@ -45,6 +45,83 @@ $router->delete('/api/vehicles/{id}', 'Controllers\Api\VehicleController@destroy
     'Middleware\Roles\AdminOnly',
 ]);
 
+$router->get('/api/vehicles/available', 'Controllers\Api\VehicleController@listAvailable', [
+    'Middleware\AuthMiddleware',
+]);
+
+// ---------------------------------------------
+// Collector Availability Management (New)
+// ---------------------------------------------
+
+// Collector updates their own daily availability
+$router->post('/api/collector/availability', 'Controllers\Api\CollectorAvailabilityController@updateMyAvailability', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Get collector's own availability status
+$router->get('/api/collector/availability', 'Controllers\Api\CollectorAvailabilityController@getMyStatus', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Get collector's availability history
+$router->get('/api/collector/availability/history', 'Controllers\Api\CollectorAvailabilityController@getMyHistory', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Admin: Get all collectors' availability for today
+$router->get('/api/admin/collectors/availability', 'Controllers\Api\CollectorAvailabilityController@getTodayAvailability', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Admin: Check specific collector's availability
+$router->get('/api/admin/collectors/availability/{id}', 'Controllers\Api\CollectorAvailabilityController@checkCollectorAvailability', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Admin: Reset daily availability (can also be called by cron)
+$router->post('/api/admin/vehicles/daily-reset', 'Controllers\Api\CollectorAvailabilityController@resetDailyAvailability', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// ---------------------------------------------
+// DEPRECATED: Old vehicle assignment endpoints
+// These will be removed in a future version
+// Use collector availability endpoints instead
+// ---------------------------------------------
+
+$router->post('/api/vehicles/assign-self', 'Controllers\Api\VehicleController@assignSelf', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+$router->post('/api/vehicles/release-self', 'Controllers\Api\VehicleController@releaseSelf', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+$router->post('/api/users', 'Controllers\\Api\\UserController@createUser', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\AdminOnly',
+]);
+
+
+$router->post('/api/users/suspend', 'Controllers\Api\UserController@suspend', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->post('/api/users/assign-vehicle', 'Controllers\Api\UserController@assignVehicle', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
 $router->post('/api/bidding/rounds', 'Controllers\Api\BiddingController@store', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
@@ -79,6 +156,35 @@ $router->post('/api/bidding/reject', 'Controllers\Api\BiddingController@reject',
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+// ---------------------------------------------
+// Waste Inventory Management API Routes
+// ---------------------------------------------
+
+// Get waste inventory status
+$router->get('/api/admin/waste-inventory', 'Controllers\Api\Admin\WasteInventoryController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Get detailed inventory for a specific category
+$router->get('/api/admin/waste-inventory/{id}', 'Controllers\Api\Admin\WasteInventoryController@show', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Create bidding round from collected waste
+$router->post('/api/admin/waste-inventory/create-bidding-round', 'Controllers\Api\Admin\WasteInventoryController@createBiddingRound', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Get waste collection statistics
+$router->get('/api/admin/waste-inventory/stats', 'Controllers\Api\Admin\WasteInventoryController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 
 $router->post('/api/company/bids', 'Controllers\Api\Company\BidController@store', [
     'Middleware\AuthMiddleware',
@@ -135,7 +241,18 @@ $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\Co
 $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CollectorOnly',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+// $router->put('/api/collector/pickup-requests/{id}/status', 'Controllers\Api\Collector\PickupRequestController@updateStatus', [
+//     'Middleware\AuthMiddleware',
+//     'Middleware\CsrfMiddleware',
+//     'Middleware\Roles\CollectorOnly',
+// ]);
+
+$router->get('/api/payments', 'Controllers\Api\PaymentController@index', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
 ]);
 
 $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
@@ -147,6 +264,12 @@ $router->post('/api/payments', 'Controllers\Api\PaymentController@store', [
 $router->get('/api/payments', 'Controllers\Api\PaymentController@showAll', [
     'Middleware\AuthMiddleware',
     // 'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->put('/api/payments/{id}', 'Controllers\Api\PaymentController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
@@ -178,6 +301,16 @@ $router->post('/logout', 'AuthController@logout');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/forget-password', 'AuthController@showForgetPassword');
+
+// Email verification routes
+$router->get('/verify-email', 'AuthController@verifyEmail');
+$router->post('/resend-verification-email', 'AuthController@resendVerificationEmail');
+$router->post('/api/auth/resend-verification', 'AuthController@resendVerification');
+
+// Password reset routes
+$router->post('/api/auth/send-password-reset-link', 'AuthController@sendPasswordResetLink');
+$router->get('/reset-password', 'AuthController@showResetPassword');
+$router->post('/api/auth/reset-password', 'AuthController@resetPassword');
 
 // API Authentication routes (Returns JSON only)
 $router->post('/api/auth/login', 'Controllers\Api\AuthController@login');
@@ -237,6 +370,13 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
     'Middleware\Roles\CollectorOnly'
 ]);
 
+
+$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\CompanyOnly'
+]);
+
 // Error handling routes
 $router->get('/404', function () {
     return response('Page Not Found', 404);
@@ -278,14 +418,17 @@ $router->get('/test', function () {
     ]);
 });
 
+// Toast Test Page
+$router->get('/test/toast', 'Controllers\TestController@index');
+
 // Debug route to list all registered routes
 $router->get('/api/debug/routes', function () use ($router) {
     if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
-         $routes = $router->getRoutes();
+        $routes = $router->getRoutes();
     } else {
-         $routes = [];
+        $routes = [];
     }
-   
+
     return view('debug/routes', ['routes' => $routes]);
 });
 
@@ -354,6 +497,110 @@ $router->get('/debug/db/ping.json', function () {
     return response()->json($result + ['timestamp' => date('c')]);
 });
 
+// Debug route to test waste inventory system
+$router->get('/debug/waste-inventory', function () {
+    $db = new Database();
+    $results = [];
+
+    // Test 1: Check if bidding_round_sources table exists
+    try {
+        $tableCheck = $db->fetch(
+            "SELECT table_name FROM information_schema.tables 
+             WHERE table_schema = 'public' AND table_name = 'bidding_round_sources'"
+        );
+        $results['bidding_round_sources_table'] = [
+            'exists' => !empty($tableCheck),
+            'data' => $tableCheck
+        ];
+    } catch (\Throwable $e) {
+        $results['bidding_round_sources_table'] = ['error' => $e->getMessage()];
+    }
+
+    // Test 2: Check if waste_inventory view exists
+    try {
+        $viewCheck = $db->fetch(
+            "SELECT table_name FROM information_schema.views 
+             WHERE table_schema = 'public' AND table_name = 'waste_inventory'"
+        );
+        $results['waste_inventory_view'] = [
+            'exists' => !empty($viewCheck),
+            'data' => $viewCheck
+        ];
+    } catch (\Throwable $e) {
+        $results['waste_inventory_view'] = ['error' => $e->getMessage()];
+    }
+
+    // Test 3: Query waste_inventory view
+    try {
+        $inventory = $db->fetchAll('SELECT * FROM waste_inventory LIMIT 10');
+        $results['waste_inventory_data'] = [
+            'count' => count($inventory),
+            'data' => $inventory
+        ];
+    } catch (\Throwable $e) {
+        $results['waste_inventory_data'] = ['error' => $e->getMessage()];
+    }
+
+    // Test 4: Test WasteInventory model
+    try {
+        $wasteInventory = new \Models\WasteInventory();
+        $status = $wasteInventory->getInventoryStatus();
+        $results['waste_inventory_model'] = [
+            'loaded' => true,
+            'inventory_count' => count($status),
+            'sample' => array_slice($status, 0, 3)
+        ];
+    } catch (\Throwable $e) {
+        $results['waste_inventory_model'] = ['error' => $e->getMessage()];
+    }
+
+    // Test 5: Test PickupRequest unallocated waste
+    try {
+        $pickupRequest = new \Models\PickupRequest();
+        $unallocated = $pickupRequest->getUnallocatedWaste();
+        $results['unallocated_waste'] = [
+            'count' => count($unallocated),
+            'data' => $unallocated
+        ];
+    } catch (\Throwable $e) {
+        $results['unallocated_waste'] = ['error' => $e->getMessage()];
+    }
+
+    // Test 6: Check routes are registered
+    $results['routes_registered'] = [
+        'waste_inventory_index' => route_exists('/api/admin/waste-inventory'),
+        'waste_inventory_show' => route_exists('/api/admin/waste-inventory/{id}'),
+        'create_bidding_round' => route_exists('/api/admin/waste-inventory/create-bidding-round'),
+        'waste_inventory_stats' => route_exists('/api/admin/waste-inventory/stats'),
+    ];
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Waste Inventory System Test Results',
+        'timestamp' => date('c'),
+        'results' => $results
+    ]);
+});
+
+function route_exists($path)
+{
+    try {
+        $router = app('router');
+        if (method_exists($router, 'getRoutes')) {
+            $routes = $router->getRoutes();
+            foreach ($routes as $route) {
+                if (isset($route['path']) && $route['path'] === $path) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    } catch (\Throwable $e) {
+        return 'error: ' . $e->getMessage();
+    }
+}
+
+
 // ---------------------------------------------
 // Development bypass routes (local dev only)
 // ---------------------------------------------
@@ -384,28 +631,24 @@ $router->get('/dev/login/{role}', function (\Core\Http\Request $request) {
     return redirect("/{$role}");
 });
 
-$router->post('/api/company/profile/update', 'Controllers\Api\Company\CompanyProfileController@updateProfile', [
+$router->post('/api/profile/update', 'Controllers\Api\profileController@updateProfile', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
-$router->get('/api/company/profile/delete', 'Controllers\Api\Company\CompanyProfileController@deleteProfile', [
+$router->get('/api/profile/delete', 'Controllers\Api\profileController@deleteProfile', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
-$router->post('/api/company/profile/bankDetails', 'Controllers\Api\Company\CompanyProfileController@updateteBankDetails', [
+$router->post('/api/profile/bankDetails', 'Controllers\Api\profileController@updateBankDetails', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 
-$router->post('/api/company/profile/password', 'Controllers\Api\Company\CompanyProfileController@changePassword', [
+$router->post('/api/profile/password', 'Controllers\Api\profileController@changePassword', [
     'Middleware\AuthMiddleware',
-    // 'Middleware\CsrfMiddleware',
-    'Middleware\Roles\CompanyOnly'
+    // 'Middleware\CsrfMiddleware'
 ]);
 // ---------------------------------------------
 // Analytics & Reporting API Routes
@@ -417,27 +660,52 @@ $router->get('/api/analytics/dashboard', 'Controllers\Api\AnalyticsController@da
     'Middleware\Roles\AdminOnly',
 ]);
 
+// Collector feedback and ratings
+$router->get('/api/analytics/collector-feedback', 'Controllers\Api\AnalyticsController@getCollectorFeedback', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Waste collection statistics
+$router->get('/api/analytics/waste-stats', 'Controllers\Api\AnalyticsController@getWasteStats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Comprehensive analytics metrics
+$router->get('/api/analytics/metrics', 'Controllers\Api\AnalyticsController@getMetrics', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+// Add new feedback entry
+$router->post('/api/analytics/feedback', 'Controllers\Api\AnalyticsController@addFeedback', [
+    'Middleware\AuthMiddleware',
+    'Middleware\CsrfMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 // Waste collection report
-$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportingController@wasteCollection', [
+$router->get('/api/reports/waste-collection', 'Controllers\Api\ReportsController@wasteCollection', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 // Bidding analytics report
-$router->get('/api/reports/bidding', 'Controllers\Api\ReportingController@bidding', [
+$router->get('/api/reports/bidding', 'Controllers\Api\ReportsController@bidding', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 // Revenue reports
-$router->get('/api/reports/revenue', 'Controllers\Api\ReportingController@revenue', [
+$router->get('/api/reports/revenue', 'Controllers\Api\ReportsController@revenue', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
 
 
 // Export report (CSV / PDF)
-$router->post('/api/reports/export', 'Controllers\Api\ReportingController@export', [
+$router->post('/api/reports/export', 'Controllers\Api\ReportsController@export', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
@@ -476,6 +744,65 @@ $router->put('/api/notifications/read-all', 'Controllers\Api\NotificationControl
     'Middleware\AuthMiddleware',
 ]);
 
+// Collector Pickup Requests API
+$router->get(
+    '/api/collector/pickup-requests',
+    'Controllers\Collector\CollectorDashboardController@index',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+$router->get(
+    '/api/collector/pickup-requests/{id}',
+    'Controllers\Collector\CollectorDashboardController@show',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Save weight for a pickup
+$router->put(
+    '/api/collector/pickup-requests/{id}/weight',
+    'Controllers\Collector\CollectorDashboardController@saveWeight',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\CsrfMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Update status of a pickup
+$router->put(
+    '/api/collector/pickup-requests/{id}/status',
+    'Controllers\Collector\CollectorDashboardController@updateStatus',
+    [
+        'Middleware\AuthMiddleware',
+        'Middleware\CsrfMiddleware',
+        'Middleware\Roles\CollectorOnly',
+    ]
+);
+
+// Collector dashboard quick stats (used by collector dashboard UI)
+$router->get('/api/collector/stats', 'Controllers\Api\CollectorStatsController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector material prices (used by collector dashboard UI)
+$router->get('/api/collector/material-prices', 'Controllers\Api\CollectorStatsController@materialPrices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
+// Collector notifications (used by collector notifications UI)
+$router->get('/api/collector/notifications', 'Controllers\Api\CollectorStatsController@notifications', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CollectorOnly',
+]);
+
 $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationController@unreadCount', [
     'Middleware\AuthMiddleware',
 ]);
@@ -497,4 +824,28 @@ $router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementCo
 $router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
+]);
+
+
+// user managemnet api routes
+$router->get('/api/users/{id}', 'Controllers\Api\UserController@findById', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/users', 'Controllers\Api\UserController@findAll', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+
+
+$router->get('/api/bidding/availability', 'Controllers\\Api\\BiddingController@checkAvailability', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\AdminOnly',
+]);
+
+$router->get('/api/bidding/bid-history', 'Controllers\\Api\\BiddingController@getBidHistory', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\AdminOnly',
 ]);

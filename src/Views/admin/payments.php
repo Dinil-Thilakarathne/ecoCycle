@@ -46,6 +46,10 @@ function getStatusTag($status)
 <div>
     <!-- Page Header -->
     <page-header title="Payment Overview" description="Manage customer payouts and company payments">
+        <button class="btn btn-outline" onclick="refreshPayments()" style="margin-right: var(--space-2);">
+            <i class="fa-solid fa-rotate"></i>
+            Refresh
+        </button>
         <button class="btn btn-primary" onclick="openBatchPaymentModal()">
             <i class="fa-solid fa-credit-card"></i>
             Process Payments
@@ -230,7 +234,80 @@ function getStatusTag($status)
     }
 
     const recordPayment = (data) => paymentApi('/api/payments', { method: 'POST', body: data });
+    const updatePayment = (id, data) => paymentApi(`/api/payments/${encodeURIComponent(id)}`, { method: 'PUT', body: data });
     const fetchPaymentDetails = (id) => paymentApi(`/api/payments/${encodeURIComponent(id)}`);
+    const fetchPayments = () => paymentApi('/api/payments');
+
+    async function refreshPayments() {
+        const btn = document.querySelector('button[onclick="refreshPayments()"]');
+        const icon = btn ? btn.querySelector('i') : null;
+        
+        if (icon) icon.classList.add('fa-spin');
+        if (btn) btn.disabled = true;
+
+        try {
+            const { data } = await fetchPayments();
+            renderPaymentTable(data || []);
+            showToast('Payment list updated', 'success');
+        } catch (error) {
+            showToast('Failed to refresh payments', 'error');
+        } finally {
+            if (icon) icon.classList.remove('fa-spin');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function renderPaymentTable(payments) {
+        const tbody = document.querySelector('.data-table tbody');
+        if (!tbody) return;
+
+        if (!payments || payments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
+                        No payment records found.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = payments.map(payment => {
+            const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount || '0');
+            const status = payment.status || 'pending';
+            const type = payment.type || 'payment';
+            
+            // Escape attributes
+            const safeId = escapeHtml(payment.id || '');
+            const safeRecipientId = escapeHtml(payment.recipientId || payment.recipient_id || '');
+            const safeRecipientName = escapeHtml(payment.recipient || payment.recipientName || '');
+            const safeAmount = amount.toFixed(2);
+            const safeType = escapeHtml(type);
+            const safeStatus = escapeHtml(status);
+
+            return `
+                <tr class="payment-row"
+                    data-payment-id="${safeId}"
+                    data-recipient-id="${safeRecipientId}"
+                    data-recipient-name="${safeRecipientName}"
+                    data-amount="${safeAmount}"
+                    data-type="${safeType}"
+                    data-status="${safeStatus}">
+                    <td class="font-medium">${safeId}</td>
+                    <td>${renderTypeCell(type)}</td>
+                    <td>${formatCurrency(amount)}</td>
+                    <td>${safeRecipientName}</td>
+                    <td>${escapeHtml(payment.date || '')}</td>
+                    <td>${renderStatusBadge(status)}</td>
+                    <td>
+                        ${status === 'pending' 
+                            ? `<button class="btn btn-sm btn-primary" onclick="processPayment('${safeId}')">Process</button>`
+                            : `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${safeId}')">View Details</button>`
+                        }
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
 
     function findPaymentRow(paymentId) {
         if (!paymentId) {
@@ -430,9 +507,9 @@ function getStatusTag($status)
                                 }
                             };
 
-                            const { data } = await recordPayment(payload);
+                            const { data } = await updatePayment(paymentId, payload);
                             updatePaymentRow(row, data || {});
-                            showToast('Payment recorded successfully', 'success');
+                            showToast('Payment updated successfully', 'success');
                             close();
                         } catch (error) {
                             showToast(error.message || 'Payment processing failed', 'error');

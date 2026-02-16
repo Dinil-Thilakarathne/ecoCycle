@@ -49,16 +49,28 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
             <button id="markAllReadBtn" class="btn btn-outline" style="margin-left:1rem;">Mark all read</button>
         </div>
 
-        <!-- Notifications Table -->
-        <div class="table-container" style="overflow-x:auto;">
-            <table class="notifications-table data-table" style="min-width:800px;">
-                <thead>
+    <!-- Notifications Table -->
+    <div class="table-container" style="overflow-x:auto;">
+        <table class="notifications-table data-table" style="min-width:800px;">
+            <thead>
+                <tr>
+                    <th>Notification</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($filteredNotifications)): ?>
                     <tr>
-                        <th>Notification</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <td colspan="5" class="empty-state">
+                            <div class="empty-content">
+                                <div class="empty-icon">📭</div>
+                                <h3>No notifications found</h3>
+                                <p>No notifications match your current filter.</p>
+                            </div>
+                        </td>
                     </tr>
                 </thead>
                 <tbody id="notificationsBody">
@@ -67,6 +79,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
             </table>
         </div>
     </div>
+</div>
 
     <!-- View Notification Modal (populated by JS) -->
     <div id="viewNotificationModal" class="modal-overlay" style="display:none;">
@@ -128,38 +141,68 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                             </div>
                         </div>
 
-                        <div class="form-section">
-                            <h3>Push Notifications</h3>
-                            <div class="checkbox-group">
-                                <label class="checkbox-item">
-                                    <input type="checkbox" name="push_reminders" checked>
-                                    <span class="checkmark"></span>
-                                    Pickup reminders
-                                </label>
-                                <label class="checkbox-item">
-                                    <input type="checkbox" name="push_alerts" checked>
-                                    <span class="checkmark"></span>
-                                    High priority alerts
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="form-section">
-                            <label for="frequency" class="form-label">Email frequency</label>
-                            <select id="frequency" name="frequency" class="form-select">
-                                <option value="immediate">Immediate</option>
-                                <option value="daily" selected>Daily digest</option>
-                                <option value="weekly">Weekly digest</option>
-                                <option value="never">Never</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <a href="?filter=<?php echo $filter; ?>" class="btn-secondary">Cancel</a>
-                        <button type="submit" class="btn-primary">Save Settings</button>
-                    </div>
-                </form>
+<!-- Settings Modal -->
+<?php if ($showSettings): ?>
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Notification Settings</h2>
+                <a href="?filter=<?php echo $filter; ?>" class="modal-close">×</a>
             </div>
+            <form method="POST" action="?action=save_settings">
+                <div class="modal-body">
+                    <div class="form-section">
+                        <h3>Email Notifications</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="email_pickup" checked>
+                                <span class="checkmark"></span>
+                                Pickup confirmations
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="email_payment" checked>
+                                <span class="checkmark"></span>
+                                Payment notifications
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="email_system">
+                                <span class="checkmark"></span>
+                                System updates
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Push Notifications</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="push_reminders" checked>
+                                <span class="checkmark"></span>
+                                Pickup reminders
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="push_alerts" checked>
+                                <span class="checkmark"></span>
+                                High priority alerts
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <label for="frequency" class="form-label">Email frequency</label>
+                        <select id="frequency" name="frequency" class="form-select">
+                            <option value="immediate">Immediate</option>
+                            <option value="daily" selected>Daily digest</option>
+                            <option value="weekly">Weekly digest</option>
+                            <option value="never">Never</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="?filter=<?php echo $filter; ?>" class="btn-secondary">Cancel</a>
+                    <button type="submit" class="btn-primary">Save Settings</button>
+                </div>
+            </form>
         </div>
     <?php endif; ?>
 

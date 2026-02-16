@@ -12,11 +12,13 @@ class BiddingController extends BaseController
 {
     private BiddingRound $rounds;
     private WasteCategory $categories;
+    private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->rounds = new BiddingRound();
         $this->categories = new WasteCategory();
+        $this->notification = new \Models\Notification();
     }
 
     public function index(Request $request): Response
@@ -44,6 +46,17 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->createRound($validation['payload']);
+
+            // Trigger Notification to Companies
+            if ($round) {
+                $this->notification->create([
+                    'type' => 'bidding_round_opened',
+                    'title' => 'New Bidding Round',
+                    'message' => "New bidding round available: {$round['quantity']}{$round['unit']} of {$round['wasteCategory']}",
+                    'recipient_group' => 'company',
+                    'status' => 'pending'
+                ]);
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create bidding round', 500, ['detail' => $e->getMessage()]);
         }
@@ -72,9 +85,12 @@ class BiddingController extends BaseController
             return Response::errorJson('Bidding round not found', 404);
         }
 
+        $bids = $this->rounds->getBids($id);
+
         return Response::json([
             'success' => true,
             'round' => $round,
+            'bids' => $bids,
         ]);
     }
 
@@ -141,6 +157,27 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->updateRound($id, $payload);
+
+            // Notification: Bidding Round Updated
+            if ($round) {
+                // Get companies that have already bid
+                $participants = $this->rounds->getParticipatingCompanies($id);
+                if (!empty($participants)) {
+                    $categoryName = $round['wasteCategory'] ?? 'Unknown Category';
+                    $lotId = $round['lotId'] ?? $id;
+
+                    // Format recipients like 'company:123'
+                    $recipients = array_map(fn($cid) => "company:$cid", $participants);
+
+                    $this->notification->create([
+                        'type' => 'info',
+                        'title' => 'Bidding Round Updated',
+                        'message' => "The details for bidding round {$categoryName} ({$lotId}) have been updated. Please review the changes.",
+                        'recipients' => $recipients,
+                        'status' => 'pending'
+                    ]);
+                }
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update bidding round', 500, ['detail' => $e->getMessage()]);
         }
@@ -198,6 +235,19 @@ class BiddingController extends BaseController
             return Response::errorJson('Bidding round not found', 404);
         }
 
+
+
+        // Trigger Notification to Companies about Cancellation
+        if ($round) {
+            $this->notification->create([
+                'type' => 'bidding_round_cancelled',
+                'title' => 'Bidding Round Cancelled',
+                'message' => "Bidding round for Lot {$round['lot_id']} has been cancelled.",
+                'recipient_group' => 'company',
+                'status' => 'pending'
+            ]);
+        }
+
         return Response::json([
             'success' => true,
             'message' => 'Bidding round cancelled',
@@ -217,6 +267,44 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->approveRound($id, $companyId);
+
+            if ($round && !empty($round['leadingCompanyId']) && !empty($round['currentHighestBid'])) {
+                $amount = (float) $round['currentHighestBid'];
+                if ($amount > 0) {
+                    $paymentService = new \Services\Payment\PaymentService();
+                    $paymentService->createManualPayment([
+                        'type' => 'payment', // Incoming money from Company
+                        'recipientId' => (int) $round['leadingCompanyId'], // The Company is the "User" associated with this record
+                        'amount' => $amount,
+                        'status' => 'pending', // Pending invoice
+                        'notes' => "Invoice for Winning Bid on Lot {$round['lotId']}",
+                        'txnId' => "INV-{$round['lotId']}-" . time()
+                    ]);
+                }
+
+                // Notify Winning Company
+                $this->notification->create([
+                    'type' => 'bid_won',
+                    'title' => 'Bid Won!',
+                    'message' => "Congratulations! You have won the bid for {$round['wasteCategory']} (Lot {$round['lotId']}). Please check your invoices.",
+                    'recipients' => ['company:' . $companyId],
+                    'status' => 'pending'
+                ]);
+
+                // Notify Losing Bidders
+                $losingBidders = $this->rounds->getLosingBidders($id, $companyId);
+                if (!empty($losingBidders)) {
+                    $loserRecipients = array_map(fn($cid) => "company:$cid", $losingBidders);
+
+                    $this->notification->create([
+                        'type' => 'info',
+                        'title' => 'Bidding Round Ended',
+                        'message' => "The bidding round for {$round['wasteCategory']} (Lot {$round['lotId']}) has ended. Another bid was accepted.",
+                        'recipients' => $loserRecipients,
+                        'status' => 'pending'
+                    ]);
+                }
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to approve bidding round', 500, ['detail' => $e->getMessage()]);
         }
@@ -227,7 +315,7 @@ class BiddingController extends BaseController
 
         return Response::json([
             'success' => true,
-            'message' => 'Bidding round approved',
+            'message' => 'Bidding round approved and invoice generated',
             'round' => $round,
         ]);
     }
@@ -250,6 +338,19 @@ class BiddingController extends BaseController
 
         if (!$round) {
             return Response::errorJson('Bidding round not found', 404);
+        }
+
+
+
+        // Trigger Notification to Companies about Rejection (Cancellation)
+        if ($round) {
+            $this->notification->create([
+                'type' => 'bidding_round_cancelled',
+                'title' => 'Bidding Round Cancelled',
+                'message' => "Bidding round for Lot {$round['lotId']} has been cancelled.", // Use field names correctly based on model return
+                'recipient_group' => 'company',
+                'status' => 'pending'
+            ]);
         }
 
         return Response::json([
@@ -301,18 +402,22 @@ class BiddingController extends BaseController
         }
 
         $categoryId = null;
+        $categoryData = null; // Store full category data for pricing
+
         $categoryName = $this->extractString($request, 'wasteCategory');
         $categoryIdInput = $this->extractInt($request, 'wasteCategoryId');
+
         if ($categoryIdInput !== null) {
             $categoryId = $categoryIdInput;
+            $categoryData = $this->categories->findById($categoryId);
         } elseif ($categoryName !== null && $categoryName !== '') {
-            $category = $this->categories->findByName($categoryName);
-            if ($category) {
-                $categoryId = $category['id'];
+            $categoryData = $this->categories->findByName($categoryName);
+            if ($categoryData) {
+                $categoryId = $categoryData['id'];
             }
         }
 
-        if ($categoryId === null) {
+        if ($categoryId === null || !$categoryData) {
             $errors['wasteCategory'] = 'Valid waste category is required.';
         }
 
@@ -326,14 +431,35 @@ class BiddingController extends BaseController
             $unit = 'kg';
         }
 
+        if ($categoryId && $quantity > 0) {
+            $available = $this->rounds->getEffectiveAvailableWaste((int) $categoryId);
+            // Allow a small epsilon for float comparison if needed, or strict.
+            // Using strict check to ensure we don't oversell.
+            if ($quantity > $available) {
+                // Check if unit is different, though we assume base unit matches for now.
+                $errors['quantity'] = 'Quantity exceeds available collected waste (Available: ' . number_format($available, 2) . ').';
+            }
+        }
+
         $allowedUnits = ['kg', 'tons', 'tonnes', 'lb'];
         if (!in_array(strtolower($unit), $allowedUnits, true)) {
             $errors['unit'] = 'Invalid unit provided.';
         }
 
         $startingBid = $this->extractNumeric($request, 'startingBid');
+
+        // Smart Default for Starting Bid
+        if ($startingBid === null && $quantity > 0 && $categoryData) {
+            $pricePerUnit = (float) ($categoryData['pricePerUnit'] ?? 0);
+            $markup = (float) ($categoryData['markupPercentage'] ?? 0);
+
+            // Formula: BaseCost + Markup
+            $baseCost = $quantity * $pricePerUnit;
+            $startingBid = $baseCost * (1 + ($markup / 100));
+        }
+
         if ($startingBid === null || $startingBid < 0) {
-            $errors['startingBid'] = 'Starting bid must be zero or greater.';
+            $errors['startingBid'] = 'Starting bid must be zero or greater, or auto-calculable.';
         }
 
         $endTimeRaw = $this->extractString($request, 'endTime');
@@ -371,7 +497,7 @@ class BiddingController extends BaseController
                 'waste_category_id' => $categoryId,
                 'quantity' => round($quantity, 2),
                 'unit' => strtolower($unit) === 'tonnes' ? 'tons' : strtolower($unit),
-                'starting_bid' => round($startingBid, 2),
+                'starting_bid' => round((float) $startingBid, 2),
                 'current_highest_bid' => 0.0,
                 'status' => $status,
                 'end_time' => $endTime,
@@ -513,6 +639,7 @@ class BiddingController extends BaseController
         return $int > 0 ? $int : null;
     }
 
+
     private function extractNumeric(Request $request, string $key): ?float
     {
         $value = $request->get($key);
@@ -525,5 +652,87 @@ class BiddingController extends BaseController
         }
 
         return (float) $value;
+    }
+
+    public function checkAvailability(Request $request): Response
+    {
+        $categoryId = $request->query('id');
+        $categoryName = $request->query('name');
+
+        if (!$categoryId && !$categoryName) {
+            // if category are not provied show all the data for every catergory
+            $categories = $this->categories->listAll();
+            $data = [];
+            foreach ($categories as $category) {
+                $data[] = [
+                    'id' => $category['id'],
+                    'name' => $category['name'],
+                    'available' => $this->rounds->getEffectiveAvailableWaste((int) $category['id']),
+                    'unit' => $category['unit']
+                ];
+            }
+            return Response::json([
+                'success' => true,
+                'data' => $data
+            ]);
+        }
+
+        if (!$categoryId && $categoryName) {
+            $cat = $this->categories->findByName($categoryName);
+            $categoryId = $cat['id'] ?? null;
+        }
+
+        if (!$categoryId) {
+            return Response::json([
+                'success' => true,
+                'available' => 0.0,
+                'unit' => 'kg' // Default
+            ]);
+        }
+
+        try {
+            $available = $this->rounds->getEffectiveAvailableWaste((int) $categoryId);
+            $cat = $this->categories->findById((int) $categoryId);
+            $unit = $cat['unit'] ?? 'kg';
+
+            return Response::json([
+                'success' => true,
+                'available' => $available,
+                'unit' => $unit
+            ]);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to check availability', 500, ['detail' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Get bid history across all rounds or for a specific round
+     * 
+     * @param Request $request
+     * @return Response
+     */
+    public function getBidHistory(Request $request): Response
+    {
+        try {
+            $roundId = $request->query('roundId');
+            $limit = (int) ($request->query('limit') ?? 100);
+
+            // Fetch bids
+            $bids = $this->rounds->getAllBidsWithRoundInfo($roundId, $limit);
+
+            // Fetch rounds for dropdown (only if not filtering by specific round)
+            $rounds = [];
+            if (!$roundId) {
+                $rounds = $this->rounds->getRoundsWithBids();
+            }
+
+            return Response::json([
+                'success' => true,
+                'bids' => $bids,
+                'rounds' => $rounds,
+            ]);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to fetch bid history', 500, ['detail' => $e->getMessage()]);
+        }
     }
 }

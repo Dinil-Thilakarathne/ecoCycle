@@ -3,9 +3,10 @@
 namespace Controllers\Api;
 
 use Core\Http\Response;
+use Core\Http\Request;
 use Models\ReportsModel;
 
-class ReportsController
+class ReportingController
 {
     // GET /api/reports/waste-collection
     public function wasteCollection()
@@ -48,16 +49,17 @@ class ReportsController
     {
         $model = new ReportsModel();
 
-        // Parameters from POST
-        $type = $_POST['type'] ?? 'csv'; // 'csv' or 'pdf'
+        // In a real framework, use Request object. 
+        // Assuming standard $_POST or Request helper usage
+        $type = $_POST['type'] ?? 'csv';
         $report = $_POST['report'] ?? 'waste-collection';
 
-        $file = $model->exportReport($report, $type);
+        $fileUrl = $model->exportReport($report, $type);
 
         return Response::json([
             'status' => 'success',
             'message' => 'Report exported successfully',
-            'file' => $file
+            'file' => $fileUrl
         ]);
     }
 }

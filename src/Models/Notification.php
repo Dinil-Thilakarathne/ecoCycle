@@ -31,7 +31,7 @@ class Notification extends BaseModel
         }, $rows);
     }
 
-    public function forCompany(int $companyId, int $limit = 20): array
+    public function forCompany(int $companyId, string $createdAfter, int $limit = 20): array
     {
         if ($companyId <= 0) {
             return [];
@@ -43,42 +43,44 @@ class Notification extends BaseModel
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
+                 WHERE (recipient_group IN ('company','companies')
                     OR EXISTS (
                         SELECT 1
                         FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ? OR value = ?
-                    )
+                    ))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [(string) $companyId, 'company:' . $companyId]
+                [(string) $companyId, 'company:' . $companyId, $createdAfter, $createdAfter]
             );
         } else {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('company','companies')
+                 WHERE (recipient_group IN ('company','companies')
                     OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR)))))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$companyId, $companyId]
+                [$companyId, $companyId, $createdAfter, $createdAfter]
             );
         }
 
         return $this->formatRows($rows);
     }
 
-    public function create(array $data): int
+    public function create(array $data): string
     {
         $sql = "INSERT INTO {$this->table} (type, title, message, recipient_group, recipients, sent_at, created_at, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
+
         $recipients = isset($data['recipients']) ? json_encode($data['recipients']) : null;
         $sentAt = $data['sent_at'] ?? date('Y-m-d H:i:s');
         $createdAt = date('Y-m-d H:i:s');
-        
-        $this->db->query($sql, [
+
+        $params = [
             $data['type'] ?? 'info',
             $data['title'] ?? '',
             $data['message'] ?? '',
@@ -87,12 +89,19 @@ class Notification extends BaseModel
             $sentAt,
             $createdAt,
             $data['status'] ?? 'pending'
-        ]);
+        ];
 
-        return (int) $this->db->lastInsertId();
+        if ($this->db->isPgsql()) {
+            $sql .= " RETURNING id";
+            $row = $this->db->fetch($sql, $params);
+            return (string) ($row['id'] ?? '');
+        }
+
+        $this->db->query($sql, $params);
+        return (string) $this->db->lastInsertId();
     }
 
-    public function forUser(int $userId, string $role, int $limit = 20): array
+    public function forUser(int $userId, string $role, string $createdAfter, int $limit = 20): array
     {
         if ($userId <= 0) {
             return [];
@@ -113,25 +122,27 @@ class Notification extends BaseModel
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users', ?, ?)
+                 WHERE (recipient_group IN ('all', 'users', ?, ?)
                     OR EXISTS (
                         SELECT 1
                         FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
                         WHERE value = ?
-                    )
+                    ))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$role, $roleGroup, 'user:' . $userId]
+                [$role, $roleGroup, 'user:' . $userId, $createdAfter, $createdAfter]
             );
         } else {
             $rows = $this->db->fetchAll(
                 "SELECT *
                  FROM {$this->table}
-                 WHERE recipient_group IN ('all', 'users', ?, ?)
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                 WHERE (recipient_group IN ('all', 'users', ?, ?)
+                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR)))))
+                 AND (sent_at >= ? OR created_at >= ?)
                  ORDER BY COALESCE(sent_at, created_at) DESC
                  LIMIT {$limit}",
-                [$role, $roleGroup, $userId]
+                [$role, $roleGroup, $userId, $createdAfter, $createdAfter]
             );
         }
 
@@ -306,9 +317,70 @@ class Notification extends BaseModel
             ];
         }, $rows);
     }
-
-    public function delete(int $id): bool
+    public function search(array $filters = [], int $limit = 20, int $offset = 0): array
     {
-        return $this->db->query("DELETE FROM {$this->table} WHERE id = ?", [$id]);
+        $limit = max(1, (int) $limit);
+        $offset = max(0, (int) $offset);
+
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $searchTerm = '%' . $filters['search'] . '%';
+            if ($this->db->isPgsql()) {
+                $where[] = "(title ILIKE ? OR message ILIKE ?)";
+            } else {
+                $where[] = "(title LIKE ? OR message LIKE ?)";
+            }
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        if (!empty($filters['type'])) {
+            $where[] = "type = ?";
+            $params[] = $filters['type'];
+        }
+
+        if (!empty($filters['status'])) {
+            $where[] = "status = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['recipient_group'])) {
+            $where[] = "recipient_group = ?";
+            $params[] = $filters['recipient_group'];
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where[] = "created_at >= ?";
+            $params[] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where[] = "created_at <= ?";
+            $params[] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        // Get total count
+        $countSql = "SELECT COUNT(*) as count FROM {$this->table} {$whereClause}";
+        $countResult = $this->db->fetch($countSql, $params);
+        $total = (int) ($countResult['count'] ?? 0);
+
+        // Get records
+        $sql = "SELECT * FROM {$this->table} {$whereClause} 
+                ORDER BY created_at DESC 
+                LIMIT {$limit} OFFSET {$offset}";
+
+        $rows = $this->db->fetchAll($sql, $params);
+
+        return [
+            'notifications' => $this->formatRows($rows),
+            'total' => $total,
+            'page' => floor($offset / $limit) + 1,
+            'per_page' => $limit,
+            'last_page' => ceil($total / $limit)
+        ];
     }
 }

@@ -6,20 +6,23 @@ use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
 use Models\WasteCategory;
+use Services\WasteCategoryEventService;
 
 class WasteManagementController extends BaseController
 {
     private WasteCategory $categories;
+    private WasteCategoryEventService $eventService;
 
     public function __construct()
     {
         $this->categories = new WasteCategory();
+        $this->eventService = new WasteCategoryEventService();
     }
 
     // GET /api/waste-categories
     public function index(Request $request): Response
     {
-        $records = $this->categories->findAll();
+        $records = $this->categories->listAll();
 
         return Response::json([
             'data' => $records
@@ -37,7 +40,16 @@ class WasteManagementController extends BaseController
         }
 
         try {
+            // Prevent duplicate names
+            $existing = $this->categories->findByName($payload['data']['name'] ?? '');
+            if ($existing) {
+                return Response::errorJson('Category already exists', 409);
+            }
+
             $record = $this->categories->create($payload['data']);
+
+            // Broadcast creation event
+            $this->eventService->broadcastCreated($record);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to create category', 500, [
                 'detail' => $e->getMessage()
@@ -47,7 +59,7 @@ class WasteManagementController extends BaseController
         return Response::json([
             'message' => 'Category created',
             'data' => $record
-        ]);
+        ], 201);
     }
 
     // PUT /api/waste-categories/{id}
@@ -65,13 +77,19 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Validation failed', 422, $payload['errors']);
         }
 
-        $exists = $this->categories->findById((int)$id);
-        if (!$exists) {
+        $oldData = $this->categories->findById((int) $id);
+        if (!$oldData) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
-            $this->categories->update((int)$id, $payload['data']);
+            $this->categories->update((int) $id, $payload['data']);
+
+            // Get updated record
+            $updatedRecord = $this->categories->findById((int) $id);
+
+            // Broadcast update event
+            $this->eventService->broadcastUpdated($updatedRecord, $oldData);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update category', 500, [
                 'detail' => $e->getMessage()
@@ -91,13 +109,16 @@ class WasteManagementController extends BaseController
             return Response::errorJson('Category ID is required', 400);
         }
 
-        $exists = $this->categories->findById((int)$id);
+        $exists = $this->categories->findById((int) $id);
         if (!$exists) {
             return Response::errorJson('Category not found', 404);
         }
 
         try {
-            $this->categories->delete((int)$id);
+            $this->categories->delete((int) $id);
+
+            // Broadcast deletion event
+            $this->eventService->broadcastDeleted((int) $id);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to delete category', 500, [
                 'detail' => $e->getMessage()
@@ -130,15 +151,15 @@ class WasteManagementController extends BaseController
             }
         }
 
-        if (!$isUpdate || isset($data['description'])) {
-            if (empty($data['description'])) {
-                $errors['description'] = 'Description is required.';
+        // Price validation
+        if (isset($data['pricePerUnit'])) {
+            if (!is_numeric($data['pricePerUnit']) || (float) $data['pricePerUnit'] < 0) {
+                $errors['pricePerUnit'] = 'Price must be a positive number.';
             }
         }
-
-        if (!$isUpdate || isset($data['basePrice'])) {
-            if (!isset($data['basePrice']) || (float)$data['basePrice'] <= 0) {
-                $errors['basePrice'] = 'Base price must be greater than zero.';
+        if (isset($data['markupPercentage'])) {
+            if (!is_numeric($data['markupPercentage']) || (float) $data['markupPercentage'] < 0) {
+                $errors['markupPercentage'] = 'Markup percentage must be non-negative.';
             }
         }
 
@@ -146,13 +167,20 @@ class WasteManagementController extends BaseController
             return ['errors' => $errors];
         }
 
-        return [
-            'data' => [
-                'name' => $data['name'] ?? null,
-                'description' => $data['description'] ?? null,
-                'basePrice' => isset($data['basePrice']) ? (float)$data['basePrice'] : null,
-            ]
-        ];
+        // Map frontend camelCase to DB snake_case
+        $mapped = [];
+        if (isset($data['name']))
+            $mapped['name'] = $data['name'];
+        if (isset($data['unit']))
+            $mapped['unit'] = $data['unit'] ?: 'kg';
+        if (isset($data['color']))
+            $mapped['color'] = $data['color'];
+        if (isset($data['pricePerUnit']))
+            $mapped['price_per_unit'] = (float) $data['pricePerUnit'];
+        if (isset($data['markupPercentage']))
+            $mapped['markup_percentage'] = (float) $data['markupPercentage'];
+
+        return ['data' => $mapped];
     }
 
     private function mergeJsonBody(Request $request): void
@@ -166,7 +194,8 @@ class WasteManagementController extends BaseController
     private function resolveRouteId(Request $request): ?string
     {
         $id = $request->route('id');
-        if (!$id) $id = $request->get('id');
-        return $id ? (string)$id : null;
+        if (!$id)
+            $id = $request->get('id');
+        return $id ? (string) $id : null;
     }
 }

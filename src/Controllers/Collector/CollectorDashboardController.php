@@ -7,6 +7,7 @@ use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
+use Models\IncomeWaste;
 
 /**
  * Collector Dashboard Controller
@@ -146,17 +147,80 @@ class CollectorDashboardController extends DashboardController
     }
 
     // Placeholder methods for data retrieval
-    private function getTodayPickups(): array
+    private function getTodayPickups(): int
     {
-        return [];
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            $allPickups = $pickupRequest->listForCollector($collectorId);
+
+            // Count only today's pickups (assigned, in progress, or completed)
+            $today = date('Y-m-d');
+            $count = 0;
+            foreach ($allPickups as $pickup) {
+                $createdDate = isset($pickup['created_at']) ? substr($pickup['created_at'], 0, 10) : '';
+                $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
+
+                if (
+                    ($createdDate === $today || $scheduledDate === $today) &&
+                    in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'])
+                ) {
+                    $count++;
+                }
+            }
+            return $count;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
+
     private function getCompletedPickupsToday(): int
     {
-        return 5;
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            $completedPickups = $pickupRequest->listForCollector($collectorId, 'completed');
+
+            // Count only today's completed pickups
+            $today = date('Y-m-d');
+            $count = 0;
+            foreach ($completedPickups as $pickup) {
+                $updatedDate = isset($pickup['updated_at']) ? substr($pickup['updated_at'], 0, 10) : '';
+                if ($updatedDate === $today) {
+                    $count++;
+                }
+            }
+            return $count;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
+
     private function getPendingPickups(): array
     {
-        return [];
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return [];
+        }
+
+        try {
+            $pickupRequest = new PickupRequest();
+            // Get assigned and in-progress pickups (not completed)
+            $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
+            $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
+
+            return array_merge($assigned, $inProgress);
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
     private function getTodayEarnings(): float
     {
@@ -480,4 +544,231 @@ class CollectorDashboardController extends DashboardController
 
         return [$first, $last];
     }
+
+    /**
+     * Save measured weight and calculate amount
+     */
+    /* public function saveWeight($pickupId)
+     {
+         header('Content-Type: application/json; charset=utf-8');
+
+         try {
+             $data = json_decode(file_get_contents('php://input'), true);
+             if (!is_array($data)) throw new \Exception('Invalid JSON input');
+
+             $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
+             if (empty($pickupId) || $weight <= 0) {
+                 http_response_code(400);
+                 echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or weight']);
+                 exit;
+             }
+
+             // Save weight & calculate amount
+             $incomeWaste = new IncomeWaste();
+             $amount = $incomeWaste->saveWeightAndCalculateSingle((string)$pickupId, $weight);
+
+             // Optional: update pickup status to 'in progress'
+             $pickupRequest = new PickupRequest();
+             $pickupRequest->updateStatus((int)$pickupId, 'in progress');
+
+             echo json_encode([
+                 'success' => true,
+                 'data' => [
+                     'weight' => $weight,
+                     'amount' => $amount
+                 ]
+             ]);
+             exit;
+
+         } catch (\Throwable $e) {
+             http_response_code(500);
+             echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to save weight']);
+             exit;
+         }
+     }*/
+
+    /**
+     * Update status for a pickup
+     */
+    /*public function updateStatus($pickupId)
+        {
+            header('Content-Type: application/json; charset=utf-8');
+
+            try {
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!is_array($data)) throw new \Exception('Invalid JSON input');
+
+                $status = trim($data['status'] ?? '');
+                if (empty($pickupId) || $status === '') {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Invalid pickup ID or status']);
+                    exit;
+                }
+
+                $pickupRequest = new PickupRequest();
+                $pickupRequest->updateStatus((int)$pickupId, $status);
+
+                echo json_encode(['success' => true, 'data' => ['status' => $status]]);
+                exit;
+
+            } catch (\Throwable $e) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => $e->getMessage() ?: 'Failed to update status']);
+                exit;
+            }
+        }*/
+
+    public function saveWeight(\Core\Http\Request $request)
+    {
+        header('Content-Type: text/html; charset=utf-8');
+
+        try {
+            $pickupId = $request->route('id');
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($data)) {
+                throw new \Exception('Invalid input');
+            }
+
+            $weight = isset($data['weight']) ? floatval($data['weight']) : 0;
+            if (empty($pickupId) || $weight <= 0) {
+                http_response_code(400);
+                echo "<div class='alert error'>Invalid pickup ID or weight</div>";
+                exit;
+            }
+
+            // Save weight & calculate amount
+            $incomeWaste = new IncomeWaste();
+            $amount = $incomeWaste->saveWeightAndCalculateSingle((string) $pickupId, $weight);
+
+            // Update pickup status
+            $pickupRequest = new PickupRequest();
+            $pickupRequest->updateStatus((string) $pickupId, 'in progress');
+
+            // ✅ HTML RESPONSE with calculated amount
+            echo "
+            <div class='weight-result success'>
+                <p><strong>Measured Weight:</strong> {$weight} kg</p>
+                <p><strong>Total Amount:</strong> Rs. " . number_format($amount, 2) . "</p>
+                <span class='status-tag inprogress'>In Progress</span>
+            </div>
+        ";
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            $errorMsg = $e->getMessage() ?: 'Failed to save weight';
+            error_log('Weight save error: ' . $errorMsg);
+            echo "<div class='alert error'>{$errorMsg}</div>";
+            exit;
+        }
+    }
+
+    public function updateStatus(\Core\Http\Request $request)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $pickupId = $request->route('id');
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($data)) {
+                throw new \Exception('Invalid input');
+            }
+
+            $status = trim($data['status'] ?? '');
+            if (empty($pickupId) || $status === '') {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Invalid pickup ID or status'
+                ]);
+                exit;
+            }
+
+            // Get collector ID from session
+            $collectorId = (int) ($this->user['id'] ?? 0);
+            if ($collectorId <= 0) {
+                http_response_code(401);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Unauthorized: Collector not found'
+                ]);
+                exit;
+            }
+
+            $pickupRequest = new PickupRequest();
+
+            // Extract weights array if status is completed
+            $weights = isset($data['weights']) && is_array($data['weights']) ? $data['weights'] : null;
+
+            // Log the request for debugging
+            error_log("Updating pickup {$pickupId} for collector {$collectorId} to status {$status}");
+            if ($weights) {
+                error_log("Weights data: " . json_encode($weights));
+            }
+
+            // Use updateStatusForCollector to handle weights and price calculation
+            try {
+                $result = $pickupRequest->updateStatusForCollector(
+                    (string) $pickupId,
+                    $collectorId,
+                    $status,
+                    $weights
+                );
+
+                if (!$result) {
+                    error_log("updateStatusForCollector returned false for pickup {$pickupId}");
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Failed to update pickup status. Please check if the pickup is assigned to you and try again.'
+                    ]);
+                    exit;
+                }
+            } catch (\Throwable $updateError) {
+                error_log("Error in updateStatusForCollector: " . $updateError->getMessage());
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Database error: ' . $updateError->getMessage()
+                ]);
+                exit;
+            }
+
+            // Fetch updated pickup data to return to frontend
+            $updatedPickup = $pickupRequest->find((string) $pickupId);
+
+            if (!$updatedPickup) {
+                // Status was updated but we couldn't fetch the record
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Status updated successfully',
+                    'data' => [
+                        'id' => $pickupId,
+                        'status' => $status,
+                        'statusRaw' => $status
+                    ]
+                ]);
+                exit;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Status updated successfully',
+                'data' => $updatedPickup
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            error_log('Update status error: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to update status: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
+
 }
+

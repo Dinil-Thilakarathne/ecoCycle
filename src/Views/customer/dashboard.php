@@ -1,5 +1,4 @@
 <?php
-
 use function htmlspecialchars as e;
 
 $initialPickupRequests = $pickupRequests ?? $recentPickups ?? [];

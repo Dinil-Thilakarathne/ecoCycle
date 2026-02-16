@@ -277,6 +277,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </tbody>
         </table>
     </div>
+    <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary btn-rate" onclick="showRateCollectorForm()">Rate a collector</button>
+    </div>
 </div>
 
 <div id="newRequestModal" class="modal">

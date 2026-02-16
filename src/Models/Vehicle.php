@@ -60,25 +60,32 @@ class Vehicle extends BaseModel
 
     public function update(int $id, array $data): bool
     {
-        $sql = "UPDATE {$this->table}
-                SET plate_number = ?,
-                    type = ?,
-                    capacity = ?,
-                    status = ?,
-                    last_maintenance = ?,
-                    next_maintenance = ?,
-                    updated_at = NOW()
-                WHERE id = ?";
+        if (empty($data)) {
+            return true;
+        }
 
-        $params = [
-            $data['plate_number'] ?? null,
-            $data['type'] ?? null,
-            $data['capacity'] ?? null,
-            $data['status'] ?? null,
-            $data['last_maintenance'] ?? null,
-            $data['next_maintenance'] ?? null,
-            $id,
-        ];
+        $setParts = [];
+        $params = [];
+
+        // Map allowed fields to columns
+        // This prevents updating immutable fields like id or created_at if passed
+        $allowed = ['plate_number', 'type', 'capacity', 'status', 'last_maintenance', 'next_maintenance', 'notes'];
+
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $data)) {
+                $setParts[] = "{$field} = ?";
+                $params[] = $data[$field];
+            }
+        }
+
+        if (empty($setParts)) {
+            return true;
+        }
+
+        $setParts[] = "updated_at = NOW()";
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $setParts) . " WHERE id = ?";
+        $params[] = $id;
 
         return $this->db->query($sql, $params);
     }

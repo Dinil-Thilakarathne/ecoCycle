@@ -64,7 +64,7 @@ return [
     | will be used by the PHP date and date-time functions.
     |
     */
-    'timezone' => 'UTC',
+    'timezone' => 'Asia/Kolkata',
 
     /*
     |--------------------------------------------------------------------------
