@@ -306,36 +306,41 @@ class AdminDashboardController extends DashboardController
     public function analytics(): Response
     {
         $paymentModel = new Payment();
+        $pickupModel = new PickupRequest();
         $reportsModel = new \Models\ReportsModel();
 
-        // Financial Summary
+        // ── Financial Summary ───────────────────────────────────────────────
         $summary = $paymentModel->getSummary();
         $totalRevenue = $summary['total_payments'] ?? 0.0;
         $customerPayouts = $summary['total_payouts'] ?? 0.0;
         $netProfit = $totalRevenue - $customerPayouts;
 
-        // Waste Categories
+        // ── Waste Volume by Category ────────────────────────────────────────
         $wasteData = $reportsModel->getWasteVolumeByCategory();
-
         $totalWaste = array_sum(array_column($wasteData, 'volume'));
-        $wasteCategories = [];
 
+        $wasteCategories = [];
         foreach ($wasteData as $item) {
             $wasteCategories[] = [
                 'category' => $item['category'],
                 'volume' => $item['volume'],
-                'percentage' => $totalWaste > 0 ? round(($item['volume'] / $totalWaste) * 100, 1) : 0
+                'percentage' => $totalWaste > 0
+                    ? round(($item['volume'] / $totalWaste) * 100, 1)
+                    : 0,
             ];
         }
 
         $avgCollectionPerDay = $totalWaste > 0 ? (int) round($totalWaste / 30) : 0;
 
-        // Chart Data
+        // ── Pickup Counts ───────────────────────────────────────────────────
+        $totalPickups = $pickupModel->countByStatuses(['pending', 'assigned', 'confirmed', 'in_progress', 'completed', 'cancelled']);
+        $completedPickups = $pickupModel->countByStatuses(['completed']);
+
+        // ── Revenue & Payouts – 30-day chart ───────────────────────────────
         $chartDays = [];
         for ($i = 29; $i >= 0; $i--) {
             $chartDays[] = date('Y-m-d', strtotime("-{$i} days"));
         }
-
         $revenueMap = array_fill_keys($chartDays, 0.0);
         $payoutsMap = array_fill_keys($chartDays, 0.0);
 
@@ -357,6 +362,35 @@ class AdminDashboardController extends DashboardController
             // Charts will simply be empty on error
         }
 
+        // ── Pickup Trends – 30-day chart ────────────────────────────────────
+        $pickupTrendMap = array_fill_keys($chartDays, 0);
+        try {
+            foreach ($reportsModel->getPickupTrendsByDay(30) as $row) {
+                $d = $row['day'] ?? null;
+                if ($d && isset($pickupTrendMap[$d])) {
+                    $pickupTrendMap[$d] = $row['total'];
+                }
+            }
+        } catch (\Throwable $e) {
+            // leave as zeros
+        }
+
+        // ── Pickup Status Breakdown ─────────────────────────────────────────
+        $pickupStatusBreakdown = [];
+        try {
+            $pickupStatusBreakdown = $reportsModel->getPickupStatusBreakdown();
+        } catch (\Throwable $e) {
+            // leave empty
+        }
+
+        // ── Top Collectors ──────────────────────────────────────────────────
+        $topCollectors = [];
+        try {
+            $topCollectors = $reportsModel->getTopCollectors(5);
+        } catch (\Throwable $e) {
+            // leave empty
+        }
+
         $data = [
             'pageTitle' => 'Analytics',
             'analyticsSummary' => [
@@ -365,13 +399,18 @@ class AdminDashboardController extends DashboardController
                 'totalRevenue' => $totalRevenue,
                 'customerPayouts' => $customerPayouts,
                 'netProfit' => $netProfit,
+                'totalPickups' => $totalPickups,
+                'completedPickups' => $completedPickups,
             ],
             'wasteCategories' => $wasteCategories,
+            'pickupStatusBreakdown' => $pickupStatusBreakdown,
+            'topCollectors' => $topCollectors,
             'chartData' => [
                 'labels' => $chartDays,
                 'shortLabels' => array_map(static fn($d) => date('d', strtotime($d)), $chartDays),
                 'revenueSeries' => array_values($revenueMap),
                 'payoutSeries' => array_values($payoutsMap),
+                'pickupSeries' => array_values($pickupTrendMap),
             ],
         ];
 

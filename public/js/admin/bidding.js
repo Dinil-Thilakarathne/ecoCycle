@@ -76,6 +76,24 @@ function getDisplayBidValue(round) {
   return 0;
 }
 
+/**
+ * Returns the effective status of a round, correcting 'active' to 'completed'
+ * when the end time has already passed. This prevents stale status from being
+ * displayed on the client even before the page is refreshed.
+ */
+function getEffectiveStatus(round) {
+  if (!round) return "active";
+  const status = (round.status || "active").toLowerCase();
+  if (status !== "active") return status;
+
+  // If still 'active' in the record, check if end time has passed
+  const end = parseEndTime(round.endTime ?? round.end_time);
+  if (end && end.getTime() <= Date.now()) {
+    return "completed";
+  }
+  return status;
+}
+
 function parseEndTime(raw) {
   if (!raw) return null;
   const candidate =
@@ -84,7 +102,7 @@ function parseEndTime(raw) {
   return Number.isNaN(time) ? null : candidate;
 }
 
-function formatTimeRemainingText(endValue) {
+window.formatTimeRemainingText = function (endValue) {
   const end = parseEndTime(endValue);
   if (!end) return "N/A";
 
@@ -94,7 +112,8 @@ function formatTimeRemainingText(endValue) {
   const hours = Math.floor(diffSeconds / 3600);
   const minutes = Math.floor((diffSeconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
-}
+};
+var formatTimeRemainingText = window.formatTimeRemainingText;
 
 function formatDateTimeForInput(value) {
   const date = parseEndTime(value);
@@ -212,7 +231,8 @@ function renderBiddingRow(round) {
 
   const biddingCompany = escapeHtml(round.biddingCompany || "—");
   const timeRemaining = formatTimeRemainingText(round.endTime);
-  const status = renderStatusBadge(round.status || "pending");
+  const effectiveStatus = getEffectiveStatus(round);
+  const status = renderStatusBadge(effectiveStatus);
 
   const hasLeadingCompany = !!(
     round.leadingCompanyId ||
@@ -229,12 +249,8 @@ function renderBiddingRow(round) {
     round.id,
   )}')" title="View Details"><i class="fa-solid fa-eye"></i></button>`;
 
-  if ((round.status || "").toLowerCase() !== "completed") {
-    if (
-      !hasLeadingCompany &&
-      !hasBids &&
-      (round.status || "").toLowerCase() === "active"
-    ) {
+  if (effectiveStatus !== "completed") {
+    if (!hasLeadingCompany && !hasBids && effectiveStatus === "active") {
       actionsHtml += `<button class="icon-button" onclick="editBiddingRound('${escapeHtml(
         round.id,
       )}')" title="Edit Bid Round"><i class="fa-solid fa-edit"></i></button>`;
@@ -288,7 +304,8 @@ function updateBiddingRow(round) {
     )}</div>`;
 
   // Update status at index 7
-  if (cells[7]) cells[7].innerHTML = renderStatusBadge(round.status);
+  if (cells[7])
+    cells[7].innerHTML = renderStatusBadge(getEffectiveStatus(round));
 }
 
 function removeBiddingRow(roundId) {
@@ -851,16 +868,126 @@ window.viewBiddingDetails = async function (el, biddingId) {
       bidsSection.appendChild(table);
     }
 
+    // Invoice section (for awarded rounds)
+    const invoice = data.invoice || null;
+    let invoiceSection = null;
+    if (invoice) {
+      const statusLabel =
+        {
+          pending: "Awaiting Payment Reference",
+          processing: "Reference Submitted — Awaiting Confirmation",
+          completed: "Payment Confirmed ✅",
+          failed: "Payment Failed",
+        }[invoice.status] || invoice.status;
+
+      const color =
+        invoice.status === "completed"
+          ? "#10b981"
+          : invoice.status === "processing"
+            ? "#f59e0b"
+            : "#6b7280";
+
+      invoiceSection = document.createElement("div");
+      invoiceSection.style.cssText =
+        "margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;";
+      invoiceSection.innerHTML = `
+        <h4 style="margin:0 0 8px 0;font-size:1rem;color:#111827;">Invoice Status</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:0.9rem;">
+          <span style="color:#6b7280;">Invoice ID:</span><span>${escapeHtml(String(invoice.id))}</span>
+          <span style="color:#6b7280;">Amount:</span><span style="font-weight:600;">${formatCurrency(invoice.amount)}</span>
+          <span style="color:#6b7280;">Status:</span><span style="font-weight:600;color:${color};">${escapeHtml(statusLabel)}</span>
+          ${invoice.txnId ? `<span style="color:#6b7280;">Reference:</span><span style="font-family:monospace;">${escapeHtml(invoice.txnId)}</span>` : ""}
+        </div>
+      `;
+    }
+
     // Combine Content
     const contentWrapper = document.createElement("div");
     contentWrapper.appendChild(gridContainer);
     contentWrapper.appendChild(bidsSection);
+    if (invoiceSection) contentWrapper.appendChild(invoiceSection);
 
-    // Update Modal
-    // Note: ModalManager doesn't expose a direct update method properly in this version,
-    // but if we are using the simple one we might need to close and reopen or replace content if accessable.
-    // Since we have a reference, let's try to update if possible or close/reopen.
-    // Re-opening with same context is safest visual update.
+    // --- Build action buttons ---
+    const modalActions = [
+      { label: "Close", variant: "secondary", dismiss: true },
+    ];
+
+    const roundStatus = (record.status || "").toLowerCase();
+    const hasLeadingCompany = !!(
+      record.leadingCompanyId || record.biddingCompany
+    );
+
+    // Award Winner button — active round with a leading company
+    if (roundStatus === "active" && hasLeadingCompany) {
+      modalActions.unshift({
+        label: "🏆 Award Winner",
+        variant: "primary",
+        onClick: async (ctx) => {
+          const companyId =
+            record.leadingCompanyId ||
+            (bids.find((b) => b.isWinner || b.isLeading) || {}).companyId ||
+            null;
+
+          if (!companyId) {
+            showToast("Could not determine the leading company ID.", "error");
+            throw new Error("Missing companyId");
+          }
+
+          try {
+            await apiRequest("/api/bidding/approve", {
+              method: "POST",
+              body: { biddingId: record.id, companyId: Number(companyId) },
+            });
+
+            // Move row from active to history section visually
+            const activeRow = document.querySelector(
+              `tr[data-id="${escapeHtml(String(record.id))}"]`,
+            );
+            if (activeRow) activeRow.remove();
+
+            showToast(
+              `Winner awarded! Invoice created for ${record.biddingCompany || "leading company"}.`,
+              "success",
+            );
+            ctx.close();
+          } catch (err) {
+            showToast(err.message || "Failed to award winner.", "error");
+            throw err;
+          }
+        },
+      });
+    }
+
+    // Confirm Payment button — awarded round with pending/processing invoice
+    if (
+      (roundStatus === "awarded" || roundStatus === "completed") &&
+      invoice &&
+      (invoice.status === "processing" || invoice.status === "pending")
+    ) {
+      modalActions.unshift({
+        label: "✅ Confirm Payment Received",
+        variant: "primary",
+        onClick: async (ctx) => {
+          try {
+            await apiRequest(
+              `/api/payments/${encodeURIComponent(String(invoice.id))}`,
+              {
+                method: "PUT",
+                body: { status: "completed" },
+              },
+            );
+            showToast(
+              "Payment confirmed! Invoice marked as completed.",
+              "success",
+            );
+            ctx.close();
+          } catch (err) {
+            showToast(err.message || "Failed to confirm payment.", "error");
+            throw err;
+          }
+        },
+      });
+    }
 
     modalContext.close(); // Close loading modal
 
@@ -868,7 +995,7 @@ window.viewBiddingDetails = async function (el, biddingId) {
       title: "Bidding Round Details",
       content: contentWrapper,
       size: "md", // wider for table
-      actions: [{ label: "Close", variant: "secondary", dismiss: true }],
+      actions: modalActions,
     });
   } catch (err) {
     modalContext.close();

@@ -167,4 +167,74 @@ class ReportsModel extends BaseModel
 
         return $rows ?: [];
     }
+
+    /**
+     * Get daily pickup counts for the last N days
+     */
+    public function getPickupTrendsByDay(int $days = 30): array
+    {
+        $days = max(1, $days);
+        $rows = $this->db->fetchAll(
+            "SELECT DATE(created_at) AS day, COUNT(*) AS total
+             FROM pickup_requests
+             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL {$days} DAY)
+             GROUP BY day
+             ORDER BY day ASC"
+        );
+
+        return array_map(function ($row) {
+            return [
+                'day' => $row['day'] ?? '',
+                'total' => isset($row['total']) ? (int) $row['total'] : 0,
+            ];
+        }, $rows ?: []);
+    }
+
+    /**
+     * Get top collectors ranked by completed pickup count
+     */
+    public function getTopCollectors(int $limit = 5): array
+    {
+        $limit = max(1, $limit);
+        $rows = $this->db->fetchAll(
+            "SELECT col.id, col.name,
+                    COUNT(pr.id)        AS total_pickups,
+                    SUM(pr.weight)      AS total_weight
+             FROM pickup_requests pr
+             JOIN users col ON col.id = pr.collector_id
+             WHERE pr.status = 'completed'
+             GROUP BY col.id, col.name
+             ORDER BY total_pickups DESC
+             LIMIT {$limit}"
+        );
+
+        return array_map(function ($row) {
+            return [
+                'id' => $row['id'] ?? null,
+                'name' => $row['name'] ?? 'Unknown',
+                'totalPickups' => isset($row['total_pickups']) ? (int) $row['total_pickups'] : 0,
+                'totalWeight' => isset($row['total_weight']) ? (float) $row['total_weight'] : 0.0,
+            ];
+        }, $rows ?: []);
+    }
+
+    /**
+     * Get pickup counts grouped by status
+     */
+    public function getPickupStatusBreakdown(): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT status, COUNT(*) AS count
+             FROM pickup_requests
+             GROUP BY status
+             ORDER BY count DESC"
+        );
+
+        return array_map(function ($row) {
+            return [
+                'status' => $row['status'] ?? 'unknown',
+                'count' => isset($row['count']) ? (int) $row['count'] : 0,
+            ];
+        }, $rows ?: []);
+    }
 }

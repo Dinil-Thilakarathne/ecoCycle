@@ -55,6 +55,8 @@ class PaymentService
             'status' => $status,
             'date' => $data['date'] ?? date('Y-m-d H:i:s'),
             'gateway_response' => $data['gatewayResponse'] ?? $data['gateway_response'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'bidding_round_id' => $data['biddingRoundId'] ?? $data['bidding_round_id'] ?? null,
         ];
 
         $record = $this->payments->record($payload);
@@ -128,6 +130,29 @@ class PaymentService
                 throw new \InvalidArgumentException('Amount must be greater than zero.');
             }
             $data['amount'] = round($amount, 2);
+        }
+
+        if (array_key_exists('notes', $data)) {
+            // will be passed along safely
+        }
+
+        if (array_key_exists('biddingRoundId', $data) || array_key_exists('bidding_round_id', $data)) {
+            // will be passed along safely
+        }
+
+        // If status is being updated to completed, and it's a payment with a bidding round
+        // We trigger the lot release
+        if (isset($data['status']) && $data['status'] === 'completed' && ($existing['type'] ?? '') === 'payment') {
+            $biddingRoundId = $existing['biddingRoundId'] ?? null;
+            if ($biddingRoundId) {
+                try {
+                    $biddingRound = new \Models\BiddingRound();
+                    $biddingRound->markAsPaid($biddingRoundId);
+                } catch (\Throwable $e) {
+                    error_log("Failed to mark bidding round $biddingRoundId as paid: " . $e->getMessage());
+                    // Still continue with payment update
+                }
+            }
         }
 
         $success = $this->payments->update($id, $data);

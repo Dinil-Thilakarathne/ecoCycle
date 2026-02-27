@@ -152,10 +152,18 @@ $router->post('/api/bidding/approve', 'Controllers\Api\BiddingController@approve
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->post('/api/bidding/reject', 'Controllers\Api\BiddingController@reject', [
+$router->post('/api/bidding/reject', 'Controllers\\Api\\BiddingController@reject', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\AdminOnly',
+]);
+
+// Explicit ID-based expiry — stops relying on DB NOW() comparison
+$router->post('/api/bidding/{id}/expire', 'Controllers\Api\BiddingController@expire', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+
 
 // ---------------------------------------------
 // Waste Inventory Management API Routes
@@ -307,9 +315,14 @@ $router->get('/api/customer/payments', 'Controllers\Api\PaymentController@custom
     'Middleware\Roles\CustomerOnly',
 ]);
 
-$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\CompanyOnly',
+$router->get('/api/company/invoices', 'Controllers\\Api\\PaymentController@companyInvoices', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\CompanyOnly',
+]);
+
+$router->post('/api/company/invoices/{id}/pay', 'Controllers\\Api\\PaymentController@submitPayment', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\CompanyOnly',
 ]);
 
 $router->get('/api/collector/payments', 'Controllers\Api\PaymentController@collectorPayments', [

@@ -39,14 +39,16 @@ class Payment extends BaseModel
             'status' => $data['status'] ?? 'completed',
             'date' => $data['date'] ?? date('Y-m-d H:i:s'),
             'gateway_response' => $data['gateway_response'] ?? $data['gatewayResponse'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'bidding_round_id' => $data['bidding_round_id'] ?? $data['biddingRoundId'] ?? null,
         ];
 
         if (is_array($payload['gateway_response'])) {
             $payload['gateway_response'] = json_encode($payload['gateway_response'], JSON_UNESCAPED_UNICODE);
         }
 
-        $sql = "INSERT INTO {$this->table} (id, txn_id, type, amount, recipient_id, recipient_name, date, status, gateway_response, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+        $sql = "INSERT INTO {$this->table} (id, txn_id, type, amount, recipient_id, recipient_name, date, status, gateway_response, notes, bidding_round_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $params = [
             $payload['id'],
@@ -58,6 +60,8 @@ class Payment extends BaseModel
             $payload['date'],
             $payload['status'],
             $payload['gateway_response'],
+            $payload['notes'],
+            $payload['bidding_round_id'],
         ];
 
         $this->db->query($sql, $params);
@@ -111,13 +115,21 @@ class Payment extends BaseModel
             }
             $params[] = $val;
         }
+        if (array_key_exists('notes', $data)) {
+            $fields[] = 'notes = ?';
+            $params[] = $data['notes'];
+        }
+        if (array_key_exists('biddingRoundId', $data) || array_key_exists('bidding_round_id', $data)) {
+            $fields[] = 'bidding_round_id = ?';
+            $params[] = $data['biddingRoundId'] ?? $data['bidding_round_id'];
+        }
 
         if (empty($fields)) {
             return true; // Nothing to update
         }
 
         $fields[] = 'updated_at = NOW()';
-        
+
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
         $params[] = $id;
 
@@ -262,6 +274,8 @@ class Payment extends BaseModel
             'recipientId' => $row['recipient_id'] ?? null,
             'status' => $row['status'] ?? 'pending',
             'date' => $row['date'] ?? $row['created_at'] ?? null,
+            'notes' => $row['notes'] ?? null,
+            'biddingRoundId' => $row['bidding_round_id'] ?? null,
             'gatewayResponse' => $this->decodeJsonField($row['gateway_response'] ?? null),
         ];
     }
