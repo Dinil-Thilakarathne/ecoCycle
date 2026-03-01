@@ -89,10 +89,10 @@ $readCount = $totalCount - $unreadCount;
             <table class="notifications-table data-table" style="width:100%;">
                 <thead>
                     <tr>
-                        <th style="width:45%;">Notification</th>
-                        <th style="width:15%;">Type</th>
-                        <th style="width:20%;">Date</th>
-                        <th style="width:20%; text-align: center;">Actions</th>
+                        <th style="width:25%;">Notification</th>
+                        <th style="width:25%;">Type</th>
+                        <th style="width:25%;">Date</th>
+                        <th style="width:25%; text-align: center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="notifications-tbody">
@@ -189,7 +189,6 @@ let activeFilter = 'all';
                 <td>${timeAgo(notif.timestamp)}</td>
                 <td class="actions-cell">
                     <div style="display:flex; gap:12px; justify-content: center;">
-                        // ${isUnread ? `<button class="icon-button" onclick="markAsReadDirect('${notif.id}')" title="Mark Read"><i class="fa-solid fa-circle-check"></i></button>` : ''}
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
                     </div>
                 </td>
@@ -200,7 +199,7 @@ let activeFilter = 'all';
 
     window.markAllAsRead = async function() {
         try {
-            const res = await fetch('/api/notifications/read-all', { 
+            const res = await fetch('/api/collector/notifications/read-all', { 
                 method: 'PUT',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -240,7 +239,7 @@ let activeFilter = 'all';
     async function processMarkRead(id) {
         console.log('Marking notification as read, ID:', id);
         try {
-            const res = await fetch(`/api/notifications/${id}/read`, { 
+            const res = await fetch(`/api/collector/notifications/${id}/read`, { 
                 method: 'PUT', 
                 headers: { 
                     'X-Requested-With': 'XMLHttpRequest',

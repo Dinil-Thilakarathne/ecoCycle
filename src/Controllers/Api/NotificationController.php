@@ -100,20 +100,27 @@ class NotificationController extends BaseController
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
+        $id = $request->route('id');
+
         // Method 3: From request input
         if ($id === null) {
             $id = $request->input('id');
         }
 
-        $id = (int) $id;
+        $id = is_string($id) ? trim($id) : (string) $id;
 
         error_log("Received ID: " . $id . " from URI: " . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
 
-        if ($id <= 0) {
+        if ($id === '') {
             return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
         }
 
-        return $this->json(['message' => 'Notification marked as read']);
+        $updated = $this->model->markAsRead($id, (int) $user['id']);
+        if (!$updated) {
+            return $this->json(['success' => false, 'message' => 'Failed to mark notification as read'], 500);
+        }
+
+        return $this->json(['success' => true, 'message' => 'Notification marked as read']);
     }
     
 
