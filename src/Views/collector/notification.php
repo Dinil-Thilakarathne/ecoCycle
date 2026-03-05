@@ -215,6 +215,7 @@ let activeFilter = 'all';
                 <td class="actions-cell">
                     <div style="display:flex; gap:12px; justify-content: center;">
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
+                        <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification" style="color:#000;"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -260,6 +261,38 @@ let activeFilter = 'all';
     };
 
     window.markAsReadDirect = async (id) => await processMarkRead(id);
+
+    window.deleteNotification = async function(id) {
+        if (!id) return;
+        if (!confirm('Are you sure you want to delete this notification?')) return;
+
+        try {
+            const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload?.message || 'Failed to delete notification');
+            }
+
+            // Optimistically update list, then sync with backend.
+            notificationsState = notificationsState.filter(n => String(n.id) !== String(id));
+            renderNotifications(notificationsState);
+
+            const modal = document.getElementById('notification-detail-modal');
+            if (modal && modal.getAttribute('data-current-id') === String(id)) {
+                closeNotificationModal();
+            }
+
+            setTimeout(() => fetchNotifications(), 250);
+        } catch (e) {
+            console.error('Delete failed', e);
+            alert('Failed to delete notification. Please try again.');
+        }
+    };
 
     async function processMarkRead(id) {
         console.log('Marking notification as read, ID:', id);

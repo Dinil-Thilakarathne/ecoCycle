@@ -220,6 +220,18 @@ class Notification extends BaseModel
         return $this->formatRows([$row])[0];
     }
 
+    public function delete($id): bool
+    {
+        if ($id === null || $id === '') {
+            return false;
+        }
+
+        return $this->db->query(
+            "DELETE FROM {$this->table} WHERE id = ?",
+            [$id]
+        );
+    }
+
 
     public function getUnreadCount(int $userId, string $role = ''): int
     {

@@ -212,15 +212,32 @@ class NotificationController extends BaseController
     /**
      * Delete a notification
      */
-    public function destroy(int $id): Response
+    public function destroy(Request $request): Response
     {
         $user = auth();
         if (!$user) {
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-        $this->model->delete($id);
+        $id = $request->route('id');
+        if ($id === null || $id === '') {
+            $id = $request->input('id');
+        }
 
-        return $this->json(['message' => 'Notification deleted']);
+        if ($id === null || $id === '') {
+            return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
+        }
+
+        $notification = $this->model->findById($id);
+        if (!$notification) {
+            return $this->json(['success' => false, 'message' => 'Notification not found'], 404);
+        }
+
+        $deleted = $this->model->delete($id);
+        if (!$deleted) {
+            return $this->json(['success' => false, 'message' => 'Failed to delete notification'], 500);
+        }
+
+        return $this->json(['success' => true, 'message' => 'Notification deleted']);
     }
 }
