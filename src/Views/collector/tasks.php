@@ -134,7 +134,7 @@ function getStatusBadge($status)
         </div>
 
         <div style="margin-top: var(--space-8); text-align: right;">
-            <button class="btn" onclick="closeDetailModal()">Close</button>
+            <!-- <button class="btn" onclick="closeDetailModal()">Close</button> -->
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
     </div>
