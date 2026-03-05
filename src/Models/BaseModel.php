@@ -41,7 +41,11 @@ class BaseModel
                     [$schema, $name]
                 );
 
-                return $row ? (bool) ($row['exists_flag'] ?? false) : false;
+                if (!$row) {
+                    return false;
+                }
+
+                return $this->toBoolean($row['exists_flag'] ?? false);
             } catch (\Throwable $e) {
                 return false;
             }
@@ -55,6 +59,24 @@ class BaseModel
             return false;
         }
     }
+
+    protected function toBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower($value), ['1', 'true', 't', 'yes', 'y'], true);
+        }
+
+        return false;
+    }
+
     public function getDb(): \Core\Database
     {
         return $this->db;

@@ -75,9 +75,8 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 </div>
 
 <!-- Availability Widget -->
-<!-- <div style="margin-bottom: 2rem;">
-  <?php include __DIR__ . '/availability-widget.php'; ?>
-</div> -->
+
+  <!-- <?php include __DIR__ . '/availability-widget.php'; ?> -->
 
 <div class="feature-cards">
   <div class="feature-card">

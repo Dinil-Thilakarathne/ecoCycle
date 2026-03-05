@@ -127,6 +127,31 @@ let activeFilter = 'all';
     const endpoint = '/api/collector/notifications';
     const tbody = document.getElementById('notifications-tbody');
 
+    function normalizeNotification(raw) {
+        const timestamp = raw?.timestamp ?? raw?.sent_at ?? raw?.created_at ?? null;
+        const explicitReadFlag = raw?.is_read ?? raw?.isRead;
+        const statusRaw = String(raw?.status ?? '').toLowerCase();
+        const isRead = explicitReadFlag === true || explicitReadFlag === 1 || explicitReadFlag === '1' || explicitReadFlag === 'true' || statusRaw === 'read';
+
+        return {
+            id: String(raw?.id ?? ''),
+            title: String(raw?.title ?? ''),
+            message: String(raw?.message ?? ''),
+            timestamp,
+            status: isRead ? 'read' : 'unread',
+            type: String(raw?.type ?? 'general')
+        };
+    }
+
+    function normalizeNotifications(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(normalizeNotification);
+    }
+
+    function isUnreadNotification(notification) {
+        return String(notification?.status || '').toLowerCase() !== 'read';
+    }
+
     function timeAgo(timestamp) {
         if (!timestamp) return '';
         const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
@@ -146,20 +171,20 @@ let activeFilter = 'all';
 
     function renderNotifications(data) {
         if (!tbody) return;
-        notificationsState = data;
+        notificationsState = normalizeNotifications(data);
         tbody.innerHTML = '';
 
         // Filter based on active pill
-        const filtered = data.filter(n => {
-            if (activeFilter === 'unread') return n.status === 'unread';
-            if (activeFilter === 'read') return n.status === 'read';
+        const filtered = notificationsState.filter(n => {
+            if (activeFilter === 'unread') return isUnreadNotification(n);
+            if (activeFilter === 'read') return !isUnreadNotification(n);
             return true;
         });
 
         // Calculate counts
-        const totalCount = data.length;
-        const unreadCount = data.filter(n => n.status === 'unread').length;
-        const readCount = data.filter(n => n.status === 'read').length;
+        const totalCount = notificationsState.length;
+        const unreadCount = notificationsState.filter(isUnreadNotification).length;
+        const readCount = totalCount - unreadCount;
         
         console.log('Rendering notifications - Total:', totalCount, 'Unread:', unreadCount, 'Read:', readCount, 'Active filter:', activeFilter);
 
@@ -174,7 +199,7 @@ let activeFilter = 'all';
         }
 
         filtered.forEach(notif => {
-            const isUnread = notif.status !== 'read';
+            const isUnread = isUnreadNotification(notif);
             const tr = document.createElement('tr');
             tr.className = 'notification-row' + (isUnread ? ' unread' : '');
             tr.innerHTML = `
@@ -279,7 +304,7 @@ let activeFilter = 'all';
             console.log('Fetched notifications:', json);
             if (json.status === 'success' && Array.isArray(json.data)) {
                 console.log('Rendering', json.data.length, 'notifications');
-                renderNotifications(json.data);
+                renderNotifications(normalizeNotifications(json.data));
             }
         } catch (e) {
             console.error("Failed to fetch notifications:", e);

@@ -5,12 +5,83 @@ namespace Models;
 class CollectorDailyStatus extends BaseModel
 {
     protected string $table = 'collector_daily_status';
+    private ?bool $tableReady = null;
+
+    private function ensureTableReady(): bool
+    {
+        if ($this->tableReady !== null) {
+            return $this->tableReady;
+        }
+
+        if ($this->tableExists($this->table)) {
+            $this->tableReady = true;
+            return true;
+        }
+
+        $created = $this->createTableIfMissing();
+        $this->tableReady = $created && $this->tableExists($this->table);
+
+        return $this->tableReady;
+    }
+
+    private function createTableIfMissing(): bool
+    {
+        try {
+            if ($this->db->isPgsql()) {
+                return $this->db->query(
+                    'CREATE TABLE IF NOT EXISTS collector_daily_status (
+                        id SERIAL PRIMARY KEY,
+                        collector_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+                        vehicle_id INT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+                        date DATE NOT NULL,
+                        is_available BOOLEAN DEFAULT true,
+                        status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        notes TEXT DEFAULT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT NULL,
+                        CONSTRAINT unique_collector_date UNIQUE(collector_id, date)
+                    )'
+                )
+                && $this->db->query('CREATE INDEX IF NOT EXISTS idx_cds_collector ON collector_daily_status(collector_id)')
+                && $this->db->query('CREATE INDEX IF NOT EXISTS idx_cds_date ON collector_daily_status(date)')
+                && $this->db->query('CREATE INDEX IF NOT EXISTS idx_cds_vehicle ON collector_daily_status(vehicle_id)')
+                && $this->db->query('CREATE INDEX IF NOT EXISTS idx_cds_availability ON collector_daily_status(is_available)');
+            }
+
+            return $this->db->query(
+                'CREATE TABLE IF NOT EXISTS `collector_daily_status` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `collector_id` INT NOT NULL,
+                    `vehicle_id` INT NOT NULL,
+                    `date` DATE NOT NULL,
+                    `is_available` TINYINT(1) DEFAULT 1,
+                    `status_updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `notes` TEXT DEFAULT NULL,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY `unique_collector_date` (`collector_id`, `date`),
+                    KEY `idx_cds_collector` (`collector_id`),
+                    KEY `idx_cds_date` (`date`),
+                    KEY `idx_cds_vehicle` (`vehicle_id`),
+                    KEY `idx_cds_availability` (`is_available`),
+                    CONSTRAINT `fk_cds_collector` FOREIGN KEY (`collector_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+                    CONSTRAINT `fk_cds_vehicle` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+            );
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
     /**
      * Get today's status for a specific collector
      */
     public function getTodayStatus(int $collectorId): ?array
     {
+        if (!$this->ensureTableReady()) {
+            return null;
+        }
+
         $today = date('Y-m-d');
         $sql = "SELECT * FROM {$this->table} WHERE collector_id = ? AND date = ?";
         $row = $this->db->fetch($sql, [$collectorId, $today]);
@@ -27,6 +98,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function getAllTodayStatuses(): array
     {
+        if (!$this->ensureTableReady()) {
+            return [];
+        }
+
         $today = date('Y-m-d');
         $sql = "SELECT cds.*, u.name as collector_name, v.plate_number 
                 FROM {$this->table} cds
@@ -49,6 +124,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function updateStatus(int $collectorId, int $vehicleId, bool $isAvailable, ?string $notes = null): array
     {
+        if (!$this->ensureTableReady()) {
+            throw new \RuntimeException('collector_daily_status table is not available.');
+        }
+
         $today = date('Y-m-d');
 
         // Check if record exists for today
@@ -92,6 +171,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function resetDailyStatuses(): bool
     {
+        if (!$this->ensureTableReady()) {
+            return false;
+        }
+
         $today = date('Y-m-d');
 
         // Get all collectors with assigned vehicles
@@ -133,6 +216,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function getStatusByDate(int $collectorId, string $date): ?array
     {
+        if (!$this->ensureTableReady()) {
+            return null;
+        }
+
         $sql = "SELECT * FROM {$this->table} WHERE collector_id = ? AND date = ?";
         $row = $this->db->fetch($sql, [$collectorId, $date]);
 
@@ -148,6 +235,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function getCollectorHistory(int $collectorId, int $limit = 30): array
     {
+        if (!$this->ensureTableReady()) {
+            return [];
+        }
+
         $sql = "SELECT * FROM {$this->table} 
                 WHERE collector_id = ? 
                 ORDER BY date DESC 
@@ -167,6 +258,10 @@ class CollectorDailyStatus extends BaseModel
      */
     public function find(int $id): ?array
     {
+        if (!$this->ensureTableReady()) {
+            return null;
+        }
+
         $sql = "SELECT * FROM {$this->table} WHERE id = ?";
         $row = $this->db->fetch($sql, [$id]);
 
