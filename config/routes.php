@@ -239,6 +239,11 @@ $router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\Dashboar
     'Middleware\Roles\CustomerOnly',
 ]);
 
+$router->get('/api/customer/dashboard/material-prices', 'Controllers\Api\Customer\DashboardController@materialPrices', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
 // Customer collector ratings
 $router->post('/api/customer/collector-ratings', 'Controllers\\Api\\Customer\\CollectorRatingController@store', [
     'Middleware\AuthMiddleware',

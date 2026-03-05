@@ -215,6 +215,7 @@ class CustomerDashboardController extends DashboardController
                 ['id' => 1, 'name' => 'Plastic'],
                 ['id' => 2, 'name' => 'Glass'],
                 ['id' => 3, 'name' => 'Paper'],
+                ['id' => 4, 'name' => 'Metal'],
                 ['id' => 6, 'name' => 'Organic']
             ];
         }
