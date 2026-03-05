@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS collector_feedback (
     id SERIAL PRIMARY KEY,
     collector_id INT NOT NULL,
     customer_id INT,
-    pickup_request_id INT,
+    pickup_request_id VARCHAR(255),
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     feedback TEXT,
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'flagged')),

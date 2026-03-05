@@ -15,23 +15,6 @@ $selectedNotificationId = $_GET['id'] ?? null;
 
   <div id="alert-container"></div>
 
-  <div id="notification-detail" style="display: none; margin-bottom: 1rem;">
-    <div class="activity-card">
-      <div class="activity-card__header">
-        <h3 class="activity-card__title">
-          <i class="fa-solid fa-envelope-open-text"></i>
-          <span id="detail-title"></span>
-        </h3>
-        <button onclick="closeDetail()" style="background: none; border: none; cursor: pointer; font-size: 1.2rem;">&times;</button>
-      </div>
-      <div class="activity-card__content">
-        <p style="margin-bottom: 0.5rem;">Type: <strong id="detail-type"></strong></p>
-        <p style="margin-bottom: 0.5rem;">Date: <strong id="detail-date"></strong></p>
-        <p style="margin: 0; line-height: 1.6;" id="detail-message"></p>
-      </div>
-    </div>
-  </div>
-
   <div class="tabs">
     <div class="tabs-list">
       <button class="tabs-trigger<?= $currentTab === 'total' ? ' active' : '' ?>" onclick="showTab('total')" id="total-tab">
@@ -43,6 +26,23 @@ $selectedNotificationId = $_GET['id'] ?? null;
       <button class="tabs-trigger<?= $currentTab === 'read' ? ' active' : '' ?>" onclick="showTab('read')" id="read-tab">
         Read (<span id="read-count">0</span>)
       </button>
+    </div>
+
+    <div id="notification-detail" style="display: none; margin-bottom: 1rem;">
+      <div class="activity-card">
+        <div class="activity-card__header">
+          <h3 class="activity-card__title">
+            <i class="fa-solid fa-envelope-open-text"></i>
+            <span id="detail-title"></span>
+          </h3>
+          <button onclick="closeDetail()" style="background: none; border: none; cursor: pointer; font-size: 1.2rem;">&times;</button>
+        </div>
+        <div class="activity-card__content">
+          <p style="margin-bottom: 0.5rem;">Type: <strong id="detail-type"></strong></p>
+          <p style="margin-bottom: 0.5rem;">Date: <strong id="detail-date"></strong></p>
+          <p style="margin: 0; line-height: 1.6;" id="detail-message"></p>
+        </div>
+      </div>
     </div>
 
     <div style="margin: 12px 0;">
@@ -103,7 +103,7 @@ let notificationsState = <?= json_encode($notifications) ?>.map(n => ({
 }));
 
 let currentTab = '<?= $currentTab ?>';
-const selectedNotificationId = '<?= $selectedNotificationId ?>';
+let selectedNotificationId = '<?= $selectedNotificationId ?>';
 
 // Load archived state from localStorage
 function loadArchivedState() {
@@ -135,7 +135,7 @@ function getFilteredNotifications(filter) {
 }
 
 function renderNotifications() {
-  const filters = ['total', 'unread', 'read', 'archived'];
+  const filters = ['total', 'unread', 'read'];
   
   filters.forEach(filter => {
     const notifications = getFilteredNotifications(filter);
@@ -155,27 +155,49 @@ function renderNotifications() {
       const message = escapeHtml(n.message || '');
       const type = escapeHtml(ucfirst(n.type || 'info'));
       const formatted = n.timestamp ? formatDate(n.timestamp) : 'N/A';
+      const isExpanded = n.id == selectedNotificationId;
       
-      return `
+      let html = `
         <tr class="${rowClass}" data-id="${n.id}">
           <td><strong>${title}</strong><br><small>${message}</small></td>
           <td>${type}</td>
           <td>${formatted}</td>
-          <td>
-            ${!n.isRead ? `<a href="#" onclick="markAsRead(${n.id}); return false;" class="action-btn">Mark Read</a> ` : ''}
-            <a href="#" onclick="viewNotification(${n.id}); return false;" class="action-btn">View</a> 
+          <td class="action-buttons">
+            ${!n.isRead ? `<a href="#" onclick="markAsRead(${n.id}); return false;" class="icon-button" title="Mark as read"><i class="fas fa-check-circle" aria-hidden="true"></i></a> ` : ''}
+            <a href="#" onclick="viewNotification(${n.id}); return false;" class="icon-button" title="View notification"><i class="fas fa-eye" aria-hidden="true"></i></a> 
           </td>
         </tr>
       `;
+      
+      // Add expanded detail row if this notification is selected
+      if (isExpanded) {
+        html += `
+          <tr class="notification-detail-row" data-id="${n.id}">
+            <td colspan="4" style="background: #f8f9fa; padding: 20px; border-left: 4px solid #007bff;">
+              <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                  <h4 style="margin: 0 0 15px 0; color: #333;">
+                    <i class="fa-solid fa-envelope-open-text"></i> ${title}
+                  </h4>
+                  <p style="margin-bottom: 10px;"><strong>Type:</strong> ${type}</p>
+                  <p style="margin-bottom: 10px;"><strong>Date:</strong> ${formatted}</p>
+                  <p style="margin: 0; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(n.message || '')}</p>
+                </div>
+                <button onclick="closeDetail()" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: #666; margin-left: 15px;">&times;</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+      
+      return html;
     }).join('');
   });
 }
 
 async function markAsRead(id) {
   try {
-    console.log('Marking notification as read:', id);
     const url = `/api/notifications/${id}/read`;
-    console.log('Request URL:', url);
     
     const response = await fetch(url, {
       method: 'PUT',
@@ -185,12 +207,9 @@ async function markAsRead(id) {
       }
     });
     
-    console.log('Response status:', response.status);
-    
     const data = await response.json();
-    console.log('Response data:', data);
     
-    if (response.ok && data.success) {
+    if (response.ok && data.message) {
       // Update local state
       const notification = notificationsState.find(n => n.id == id);
       if (notification) {
@@ -201,54 +220,68 @@ async function markAsRead(id) {
       renderNotifications();
       showAlert(data.message || 'Notification marked as read', 'success');
     } else {
-      const errorMsg = data.message || data.error || 'Failed to mark notification as read';
-      console.error('Error response:', errorMsg);
+      const errorMsg = data.error || data.message || 'Failed to mark notification as read';
       showAlert(errorMsg, 'error');
     }
   } catch (error) {
     console.error('Failed to mark as read:', error);
     showAlert('Network error: ' + error.message, 'error');
   }
-}
+} 
 
 async function markAllAsRead() {
   try {
-    console.log('Marking all notifications as read');
-    const url = '/api/notifications/read-all';
-    console.log('Request URL:', url);
+    // Get all unread, non-archived notifications
+    const unreadNotifications = notificationsState.filter(n => !n.isRead && !n.isArchived);
     
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    });
-    
-    console.log('Response status:', response.status);
-    
-    const data = await response.json();
-    console.log('Response data:', data);
-    
-    if (response.ok && data.success) {
-      // Update local state
-      notificationsState.forEach(n => {
-        if (!n.isArchived) {
-          n.isRead = true;
-          n.status = 'read';
-        }
-      });
-      
-      renderNotifications();
-      showAlert(data.message || 'All notifications marked as read', 'success');
-    } else {
-      const errorMsg = data.message || data.error || 'Failed to mark all notifications as read';
-      console.error('Error response:', errorMsg);
-      showAlert(errorMsg, 'error');
+    if (unreadNotifications.length === 0) {
+      showAlert('No unread notifications to mark', 'info');
+      return;
     }
+    
+    // Mark each notification individually
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const notification of unreadNotifications) {
+      try {
+        const url = `/api/notifications/${notification.id}/read`;
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.message) {
+          // Update local state
+          notification.isRead = true;
+          notification.status = 'read';
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to mark notification ${notification.id} as read:`, error);
+        errorCount++;
+      }
+    }
+    
+    // Re-render to show updated state
+    renderNotifications();
+    
+    if (errorCount === 0) {
+      showAlert(`All ${successCount} notifications marked as read`, 'success');
+    } else {
+      showAlert(`Marked ${successCount} as read, ${errorCount} failed`, 'error');
+    }
+    
   } catch (error) {
     console.error('Failed to mark all as read:', error);
-    showAlert('Network error: ' + error.message, 'error');
+    showAlert('Failed to mark all notifications as read', 'error');
   }
 }
 
@@ -261,11 +294,15 @@ function viewNotification(id) {
     markAsRead(id);
   }
   
-  document.getElementById('detail-title').textContent = notification.title || 'Notification Details';
-  document.getElementById('detail-type').textContent = ucfirst(notification.type || 'info');
-  document.getElementById('detail-date').textContent = notification.timestamp ? formatDate(notification.timestamp) : 'N/A';
-  document.getElementById('detail-message').innerHTML = escapeHtml(notification.message || '').replace(/\n/g, '<br>');
-  document.getElementById('notification-detail').style.display = 'block';
+  // Toggle: if already viewing this notification, close it
+  if (selectedNotificationId == id) {
+    closeDetail();
+    return;
+  }
+  
+  // Set the selected notification and re-render
+  selectedNotificationId = id;
+  renderNotifications();
   
   // Update URL
   const params = new URLSearchParams(window.location.search);
@@ -274,7 +311,8 @@ function viewNotification(id) {
 }
 
 function closeDetail() {
-  document.getElementById('notification-detail').style.display = 'none';
+  selectedNotificationId = null;
+  renderNotifications();
   
   // Remove ID from URL
   const params = new URLSearchParams(window.location.search);

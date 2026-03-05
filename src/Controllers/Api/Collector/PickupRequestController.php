@@ -116,14 +116,31 @@ class PickupRequestController extends BaseController
         // Trigger Notification to Customer
         if ($success && !empty($record['customerId'])) {
             $statusMsg = ucfirst($normalizedStatus);
-            $this->notification->create([
+            $notificationData = [
                 'type' => 'pickup_status_update',
                 'title' => 'Pickup Status Updated',
                 'message' => "Your pickup request status has been updated to: {$statusMsg}",
                 'recipients' => ['user:' . $record['customerId']],
                 'status' => 'pending'
+            ];
+
+            $this->notification->create($notificationData);
+
+            // Send email notification
+            sendNotificationEmail($notificationData);
+        }
+
+        // Notify admins when waste collection is completed
+        if ($success && $normalizedStatus === 'completed') {
+            $this->notification->create([
+                'type' => 'waste_collected',
+                'title' => 'New Waste Collected',
+                'message' => "Pickup #{$id} completed. Waste is now available for bidding round creation.",
+                'recipient_group' => 'admin',
+                'status' => 'pending'
             ]);
         }
+
 
         // [FUTURE] Wallet Integration
         // When status is 'completed', we should calculate the total value of the pickup

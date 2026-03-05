@@ -425,7 +425,7 @@
       gap: var(--space-2);
       margin-bottom: var(--space-6);
     }*/
-.tabs-trigger {
+/* .tabs-trigger {
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--neutral-300);
   border-radius: var(--radius-md);
@@ -433,7 +433,7 @@
   cursor: pointer;
   background: var(--neutral-0);
   transition: background var(--transition-fast);
-}
+} */
 .tabs-trigger.active {
   background: var(--primary);
   color: var(--neutral-0);
@@ -538,15 +538,6 @@ textarea[disabled] {
   width: 100%;
   padding: 8px;
 }
-.toast {
-  background: #333;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 6px;
-  position: fixed;
-  bottom: 15px;
-  right: 15px;
-}
 
 form {
   display: grid;
@@ -572,7 +563,9 @@ form select {
   border-radius: 8px;
   font-size: 14px;
   outline: none;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition:
+    border 0.2s,
+    box-shadow 0.2s;
 }
 
 form input:focus,
@@ -628,7 +621,7 @@ form select:focus {
   width: 100%;
   justify-content: space-between;
 
-  & span{
+  & span {
     display: block;
   }
 }
@@ -1178,7 +1171,9 @@ th {
   font-size: 14px;
   background: #f9fafb;
   outline: none;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition:
+    border 0.2s,
+    box-shadow 0.2s;
 }
 
 .form-group input:focus,
@@ -1279,42 +1274,6 @@ th {
 }
 .close:hover {
   color: #111827;
-}
-
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #22c55e;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  animation: fadein 0.5s, fadeout 0.5s 3s;
-}
-
-@keyframes fadein {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeout {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(20px);
-  }
 }
 
 /* Stars */
@@ -1507,31 +1466,6 @@ textarea {
   resize: vertical;
 }
 
-/* Toast */
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: var(--primary-500);
-  color: var(--neutral-0);
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-weight: bold;
-  animation: fadeout 4s forwards;
-}
-
-@keyframes fadeout {
-  0% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    display: none;
-  }
-}
 
 .pc-card.profile-section {
   display: flex;

@@ -43,6 +43,18 @@ class Bid extends BaseModel
         return array_map(fn(array $row): array => $this->mapCompanyHistoryRow($row, $companyId), $rows);
     }
 
+    public function findByRoundAndCompany(string $roundId, int $companyId): ?array
+    {
+        if ($roundId === '' || $companyId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT id, amount, company_id, bidding_round_id FROM {$this->table} WHERE bidding_round_id = ? AND company_id = ? LIMIT 1";
+        $row = $this->db->fetch($sql, [$roundId, $companyId]);
+
+        return $row ?: null;
+    }
+
     public function findForCompanyById(int $bidId, int $companyId): ?array
     {
         if ($bidId <= 0 || $companyId <= 0) {
@@ -107,8 +119,13 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($round['current_highest_bid']) ? (float) $round['current_highest_bid'] : 0.0;
-            if ($amount <= $currentHighest) {
-                throw new \DomainException('Bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($round['starting_bid']) ? (float) $round['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($amount <= $minimumRequired) {
+                throw new \DomainException('Bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
             if ($this->db->isPgsql()) {
@@ -180,8 +197,13 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
-            if ($newAmount <= $currentHighest) {
-                throw new \DomainException('Updated bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($newAmount <= $minimumRequired) {
+                throw new \DomainException('Updated bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
             $this->db->query("UPDATE {$this->table} SET amount = ? WHERE id = ? AND company_id = ?", [$newAmount, $bidId, $companyId]);
@@ -282,7 +304,7 @@ class Bid extends BaseModel
 
         $status = 'Pending';
         if ($roundStatus === 'active') {
-            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Active';
+            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Lost';
         } elseif ($roundStatus === 'completed') {
             $status = $isWinner ? 'Won' : 'Lost';
         }

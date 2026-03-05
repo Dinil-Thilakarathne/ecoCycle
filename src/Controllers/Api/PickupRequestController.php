@@ -7,16 +7,19 @@ use Core\Http\Request;
 use Core\Http\Response;
 use Models\PickupRequest;
 use Models\User;
+use Models\Vehicle;
 
 class PickupRequestController extends BaseController
 {
     private PickupRequest $pickupRequest;
     private User $userModel;
+    private Vehicle $vehicleModel;
 
     public function __construct()
     {
         $this->pickupRequest = new PickupRequest();
         $this->userModel = new User();
+        $this->vehicleModel = new Vehicle();
     }
 
     public function update(Request $request): Response
@@ -48,6 +51,7 @@ class PickupRequestController extends BaseController
         $collectorInput = $payload['collectorId'] ?? $payload['collector_id'] ?? null;
         $statusInput = $payload['status'] ?? null;
 
+        // Collector Assignment
         if ($collectorInput !== null && $collectorInput !== '') {
             if (!is_numeric($collectorInput)) {
                 return Response::errorJson('Invalid collector id', 422, ['collectorId' => 'Collector id must be numeric.']);
@@ -70,11 +74,90 @@ class PickupRequestController extends BaseController
                 $statusInput = 'assigned';
             }
         } else {
-            $updateData['collector_id'] = null;
-            $updateData['collector_name'] = null;
+            // Unassign Collector - only if explicitly provided in payload (null or empty)
+            // But logic above: if key exists? No, logic above check value != null/empty.
+            // If value IS null/empty, we unassign.
+            // But wait, existing logic was "else". 
+            // If I just update status, collectorInput is null.
+            // Original logic: $collectorInput = $payload['collectorId']...
+            // If I pass ONLY status, collectorInput is null.
+            // Original logic lines 72-79: "else { $updateData['collector_id'] = null ... }"
+            // WAIT! This means if I update status without sending collectorId, it CLEARS collectorId?
+            // That sounds like a bug in original code or intentional design for "replace" style update.
+            // Let's check original code.
+            /*
+            if ($collectorInput !== null && $collectorInput !== '') { ... }
+            else {
+                $updateData['collector_id'] = null;
+                ...
+            }
+            */
+            // YES. The original code UNASSIGNS collector if not provided.
+            // I should respect that or fix it if it's bad.
+            // Assuming the frontend sends full object or at least collectorId.
+            // I will keep the existing behavior to avoid regression, but maybe check if key exists?
+            // Actually, for a partial update (PATCH), we shouldn't clear fields not sent.
+            // But look at line 48: $collectorInput = $payload['collectorId'] ?? ... ?? null;
+            // If I send {status: 'completed'}, collectorInput is null.
+            // Then it goes to else block and sets collector_id = null.
+            // This seems dangerous. But maybe the frontend ALWAYS sends collectorId?
+            // "The edit modal will be updated to include a vehicle selection dropdown."
+            // If I invoke this API, I better send everything.
 
-            if ($statusInput === null || $statusInput === '') {
-                $statusInput = 'pending';
+            // To be safe and improve it: I will check if the key exists in payload.
+            if (array_key_exists('collectorId', $payload) || array_key_exists('collector_id', $payload)) {
+                $updateData['collector_id'] = null;
+                $updateData['collector_name'] = null;
+                $updateData['vehicle_id'] = null; // Also clear vehicle
+
+                if ($statusInput === null || $statusInput === '') {
+                    $statusInput = 'pending';
+                }
+            }
+        }
+
+        // Vehicle Assignment Logic
+        $vehicleInput = $payload['vehicleId'] ?? $payload['vehicle_id'] ?? null;
+        $oldVehicleId = $existing['vehicleId'] ?? null;
+        $vehicleChanged = false;
+        $newVehicleId = null;
+
+        $hasVehicleInput = array_key_exists('vehicleId', $payload) || array_key_exists('vehicle_id', $payload);
+
+        // Use auto-cleared vehicle if set
+        $targetVal = null;
+        if (array_key_exists('vehicle_id', $updateData) && $updateData['vehicle_id'] === null) {
+            $hasVehicleInput = true;
+            $targetVal = null;
+        } elseif ($hasVehicleInput) {
+            $targetVal = $vehicleInput;
+        }
+
+        if ($hasVehicleInput) {
+            if ($targetVal !== null && $targetVal !== '' && $targetVal !== 0 && $targetVal !== '0') {
+                if (!is_numeric($targetVal)) {
+                    return Response::errorJson('Invalid vehicle id', 422, ['vehicleId' => 'Vehicle ID must be numeric.']);
+                }
+                $newVehicleId = (int) $targetVal;
+
+                if ($newVehicleId !== (int) $oldVehicleId) {
+                    $vehicle = $this->vehicleModel->find($newVehicleId);
+                    if (!$vehicle) {
+                        return Response::errorJson('Vehicle not found', 422, ['vehicleId' => 'Vehicle not found.']);
+                    }
+
+                    if (($vehicle['status'] ?? 'available') !== 'available') {
+                        return Response::errorJson('Vehicle not available', 422, ['vehicleId' => 'Vehicle is currently in use.']);
+                    }
+
+                    $updateData['vehicle_id'] = $newVehicleId;
+                    $vehicleChanged = true;
+                }
+            } else {
+                if ($oldVehicleId !== null) {
+                    $updateData['vehicle_id'] = null;
+                    $vehicleChanged = true;
+                }
             }
         }
 
@@ -94,9 +177,7 @@ class PickupRequestController extends BaseController
 
         if (array_key_exists('timeSlot', $payload)) {
             $timeSlot = trim((string) $payload['timeSlot']);
-            if ($timeSlot !== '') {
-                $updateData['time_slot'] = $timeSlot;
-            }
+            $updateData['time_slot'] = $timeSlot === '' ? null : $timeSlot;
         }
 
         if (array_key_exists('scheduledAt', $payload)) {
@@ -113,10 +194,7 @@ class PickupRequestController extends BaseController
         }
 
         if (array_key_exists('address', $payload)) {
-            $address = trim((string) $payload['address']);
-            if ($address !== '') {
-                $updateData['address'] = $address;
-            }
+            $updateData['address'] = trim((string) $payload['address']);
         }
 
         if (empty($updateData)) {
@@ -128,6 +206,28 @@ class PickupRequestController extends BaseController
 
         try {
             $ok = $this->pickupRequest->update($pickupId, $updateData);
+
+            if ($ok) {
+                if ($vehicleChanged) {
+                    if ($oldVehicleId) {
+                        $this->vehicleModel->markStatus((int) $oldVehicleId, 'available');
+                    }
+                    if ($newVehicleId) {
+                        $this->vehicleModel->markStatus((int) $newVehicleId, 'in-use');
+                    }
+                }
+
+                $finalStatus = $updateData['status'] ?? $existing['statusRaw'] ?? 'pending';
+                $finalVehicleId = array_key_exists('vehicle_id', $updateData) ? $updateData['vehicle_id'] : ($existing['vehicleId'] ?? null);
+
+                if ($finalVehicleId) {
+                    if (in_array($finalStatus, ['completed', 'cancelled'])) {
+                        $this->vehicleModel->markStatus((int) $finalVehicleId, 'available');
+                    } elseif (in_array($finalStatus, ['assigned', 'in_progress'])) {
+                        $this->vehicleModel->markStatus((int) $finalVehicleId, 'in-use');
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to update pickup request', 500, ['detail' => $e->getMessage()]);
         }
@@ -240,18 +340,38 @@ class PickupRequestController extends BaseController
             // 4. Update Status to Completed
             $this->pickupRequest->update($id, ['status' => 'completed']);
 
-            // 5. Generate Payout Payment
+            // 5. Generate Customer Payout Payment
             if ($totalPayoutAmount > 0) {
                 $paymentService = new \Services\Payment\PaymentService();
                 $paymentService->createManualPayment([
                     'type' => 'payout',
                     'recipientId' => (int) $pickup['customerId'],
                     'amount' => $totalPayoutAmount,
-                    'status' => 'pending', // Pending until wallet processes it or admin approves cash? Assuming wallet credit logic in Service handles it.
+                    'status' => 'pending',
                     'notes' => "Payout for Pickup #{$id}",
-                    'txnId' => "PO-{$id}-" . time() // Auto-generate specific ref
+                    'txnId' => "PO-{$id}-" . time()
                 ]);
             }
+
+            // 6. Generate Collector Commission Payment
+            $collectorId = (int) ($pickup['collectorId'] ?? 0);
+            if ($collectorId > 0 && $totalPayoutAmount > 0) {
+                // Commission: Rs. 100 base + 10% of customer payout
+                $baseCommission = 100.00;
+                $percentageCommission = $totalPayoutAmount * 0.10; // 10%
+                $totalCommission = round($baseCommission + $percentageCommission, 2);
+
+                $paymentService = new \Services\Payment\PaymentService();
+                $paymentService->createManualPayment([
+                    'type' => 'payout',
+                    'recipientId' => $collectorId,
+                    'amount' => $totalCommission,
+                    'status' => 'pending',
+                    'notes' => "Commission for Pickup #{$id} (Base: Rs.{$baseCommission} + {(10)}% of Rs.{$totalPayoutAmount})",
+                    'txnId' => "COM-{$id}-" . time()
+                ]);
+            }
+
 
             $pdo->commit();
         } catch (\Throwable $e) {

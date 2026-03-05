@@ -108,9 +108,15 @@ class Notification extends BaseModel
         }
 
         $limit = max(1, (int) $limit);
-
+        
+        // Normalize role to lowercase to match predefined recipient groups (which are lowercase)
+        $originalRole = $role;
+        $role = strtolower($role);
         // Map singular role to plural group name if needed, or check both
         $roleGroup = $role . 's'; // e.g. customer -> customers
+        
+        // DEBUG LOGGING
+        file_put_contents(__DIR__ . '/../../storage/logs/notification_debug.log', date('Y-m-d H:i:s') . " - forUser: userId=$userId originalRole=$originalRole normalizedRole=$role roleGroup=$roleGroup\n", FILE_APPEND);
 
         if ($this->db->isPgsql()) {
             $rows = $this->db->fetchAll(
@@ -164,29 +170,40 @@ class Notification extends BaseModel
         return $result;
     }
 
-    public function markAllAsRead(int $userId): bool
+    public function markAllAsRead(int $userId, string $role = ''): bool
     {
-        if ($this->db->isPgsql()) {
-            return $this->db->query(
+        $roleGroup = $role ? $role . 's' : '';
+        // Same logic as forUser/getStats to target correct notifications
+        
+         if ($this->db->isPgsql()) {
+             // PGSQL update with complex where
+             return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ?
-                    )",
-                ['user:' . $userId]
-            );
-        } else {
-            return $this->db->query(
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            WHERE value = ?
+                        )
+                   )",
+                [$role, $roleGroup, 'user:' . $userId]
+             );
+         } else {
+             // MySQL update
+             return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
                  WHERE status != 'read' 
-                   AND JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))",
-                [$userId]
-            );
-        }
+                   AND (
+                       recipient_group IN ('all', 'users', ?, ?)
+                       OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                   )",
+                [$role, $roleGroup, $userId]
+             );
+         }
     }
 
     public function findById($id): ?array
@@ -235,8 +252,61 @@ class Notification extends BaseModel
                 [$role, $roleGroup, $userId]
             );
         }
-
+        
+        
         return (int) ($result['count'] ?? 0);
+    }
+
+    public function getStats(int $userId, string $role = ''): array
+    {
+        $roleGroup = $role ? $role . 's' : '';
+        
+        // Base where clause for user targeting
+        $userWhere = "
+            (
+                recipient_group IN ('all', 'users', ?, ?)
+                OR 
+        ";
+
+        // DB specific JSON check
+        if ($this->db->isPgsql()) {
+            $userWhere .= "
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                    WHERE value = ?
+                )
+            )";
+            $params = [$role, $roleGroup, 'user:' . $userId];
+        } else {
+            $userWhere .= "
+                JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+            )";
+            $params = [$role, $roleGroup, $userId];
+        }
+
+        // Queries
+        // Total
+        $totalSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE {$userWhere}";
+        $total = $this->db->fetch($totalSql, $params)['count'] ?? 0;
+
+        // Unread
+        $unreadSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE status != 'read' AND {$userWhere}";
+        $unread = $this->db->fetch($unreadSql, $params)['count'] ?? 0;
+
+        // Today
+        if ($this->db->isPgsql()) {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE created_at::date = CURRENT_DATE AND {$userWhere}";
+        } else {
+            $todaySql = "SELECT COUNT(*) as count FROM {$this->table} WHERE DATE(created_at) = CURDATE() AND {$userWhere}";
+        }
+        $today = $this->db->fetch($todaySql, $params)['count'] ?? 0;
+
+        return [
+            'total' => (int)$total,
+            'unread' => (int)$unread,
+            'today' => (int)$today
+        ];
     }
 
     public function getAll(int $limit = 100): array
@@ -274,5 +344,71 @@ class Notification extends BaseModel
                 'recipients' => $recipients,
             ];
         }, $rows);
+    }
+    public function search(array $filters = [], int $limit = 20, int $offset = 0): array
+    {
+        $limit = max(1, (int) $limit);
+        $offset = max(0, (int) $offset);
+
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $searchTerm = '%' . $filters['search'] . '%';
+            if ($this->db->isPgsql()) {
+                $where[] = "(title ILIKE ? OR message ILIKE ?)";
+            } else {
+                $where[] = "(title LIKE ? OR message LIKE ?)";
+            }
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        if (!empty($filters['type'])) {
+            $where[] = "type = ?";
+            $params[] = $filters['type'];
+        }
+
+        if (!empty($filters['status'])) {
+            $where[] = "status = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['recipient_group'])) {
+            $where[] = "recipient_group = ?";
+            $params[] = $filters['recipient_group'];
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where[] = "created_at >= ?";
+            $params[] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where[] = "created_at <= ?";
+            $params[] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        // Get total count
+        $countSql = "SELECT COUNT(*) as count FROM {$this->table} {$whereClause}";
+        $countResult = $this->db->fetch($countSql, $params);
+        $total = (int) ($countResult['count'] ?? 0);
+
+        // Get records
+        $sql = "SELECT * FROM {$this->table} {$whereClause} 
+                ORDER BY created_at DESC 
+                LIMIT {$limit} OFFSET {$offset}";
+
+        $rows = $this->db->fetchAll($sql, $params);
+
+        return [
+            'notifications' => $this->formatRows($rows),
+            'total' => $total,
+            'page' => floor($offset / $limit) + 1,
+            'per_page' => $limit,
+            'last_page' => ceil($total / $limit)
+        ];
     }
 }

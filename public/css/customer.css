@@ -211,6 +211,17 @@
   padding: var(--space-3);
   font-size: var(--text-sm);
   background: var(--neutral-0);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.request-form input:focus,
+.request-form select:focus,
+.request-form textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-50);
 }
 
 .form-group textarea {
@@ -226,8 +237,15 @@
 
 .form-actions {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.form-actions .btn {
+  width: auto;
+  min-width: 100px;
 }
 
 .p-btn-delete {
@@ -273,6 +291,8 @@
   width: min(640px, 95vw);
   position: relative;
   box-shadow: 0 35px 60px rgba(15, 23, 42, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .form-modal .close {
@@ -312,6 +332,18 @@
   color: var(--neutral-500);
   font-size: var(--text-xs);
   line-height: 1.4;
+}
+
+.notification-row.unread .notification-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.notification-row.unread {
+  background: #dff4dbff;
+}
+
+.notifications-table .notification-row:hover {
+  background: #f5f5f5;
 }
 
 .unread-dot {
@@ -404,6 +436,176 @@
 }
 
 /* --------------------------------------------------------------------------
+ * Customer dashboard: chart + price per unit layout
+ * -------------------------------------------------------------------------- */
+.customer-dashboard-avatar {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--neutral-100);
+  box-shadow: 0 2px 8px rgba(28, 227, 106, 0.12);
+}
+
+.customer-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .customer-dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.customer-dashboard-card {
+  background: var(--neutral-0);
+  border-radius: var(--rounded-2xl);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  padding: var(--space-8);
+  border: 1px solid var(--neutral-100);
+}
+
+.customer-dashboard-card__header {
+  margin-bottom: var(--space-6);
+}
+
+.customer-dashboard-card__header .section-title {
+  margin-bottom: var(--space-1);
+}
+
+.customer-dashboard-chart-wrap {
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+}
+
+.customer-dashboard-chart-wrap canvas {
+  max-height: 100%;
+  max-width: 100%;
+}
+
+.customer-dashboard-legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--neutral-100);
+  text-align: center;
+}
+
+.customer-dashboard-legend__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.customer-dashboard-legend__value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--neutral-900);
+}
+
+.customer-dashboard-legend__item:nth-child(1) .customer-dashboard-legend__value {
+  color: #1ce36a;
+}
+
+.customer-dashboard-legend__item:nth-child(2) .customer-dashboard-legend__value {
+  color: #3b82f6;
+}
+
+.customer-dashboard-legend__item:nth-child(3) .customer-dashboard-legend__value {
+  color: #10b981;
+}
+
+.customer-dashboard-legend__label {
+  font-size: var(--text-sm);
+  color: var(--neutral-500);
+}
+
+/* Price per unit card */
+.customer-price-unit {
+  display: flex;
+  flex-direction: column;
+}
+
+.customer-price-unit__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 120px;
+}
+
+.customer-price-unit__loading,
+.customer-price-unit__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-6);
+  color: var(--neutral-500);
+  font-size: var(--text-sm);
+}
+
+.customer-price-unit__loading i,
+.customer-price-unit__empty i {
+  font-size: 1.75rem;
+  color: var(--neutral-400);
+}
+
+.customer-price-unit__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--rounded-lg);
+  transition: background 0.15s ease;
+}
+
+.customer-price-unit__row:hover {
+  background: var(--neutral-50);
+}
+
+.customer-price-unit__row:not(:last-child) {
+  border-bottom: 1px solid var(--neutral-100);
+}
+
+.customer-price-unit__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--font-weight-medium);
+  color: var(--neutral-800);
+  font-size: var(--text-sm);
+}
+
+.customer-price-unit__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.customer-price-unit__price {
+  font-weight: var(--font-weight-bold);
+  color: var(--primary);
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+
+.customer-price-unit__price small {
+  font-weight: var(--font-weight-normal);
+  color: var(--neutral-500);
+  font-size: var(--text-xs);
+}
+
+/* --------------------------------------------------------------------------
  * Modal system (notifications + pickup forms)
  * -------------------------------------------------------------------------- */
 .modal-overlay,
@@ -426,6 +628,8 @@
   box-shadow: 0 35px 60px rgba(15, 23, 42, 0.25);
   display: flex;
   flex-direction: column;
+  padding: var(--space-8);
+  /* Increased from implicit/inherited amounts if any */
 }
 
 .modal-overlay .modal-header,
@@ -496,10 +700,36 @@
 .checkbox-grid label {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
+  background: var(--neutral-0);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--rounded-lg);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  font-weight: var(--font-weight-medium);
+  color: var(--neutral-600);
+}
+
+.checkbox-grid label:hover {
   background: var(--neutral-50);
-  border-radius: var(--rounded-full);
-  padding: 0.45rem 0.85rem;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.checkbox-grid label:has(input:checked),
+.checkbox-grid label.checked {
+  background: var(--success-light);
+  border-color: var(--primary);
+  color: var(--primary-600);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.checkbox-grid label input {
+  accent-color: var(--primary);
+  width: 1.1em;
+  height: 1.1em;
 }
 
 /* Notification detail modal */
@@ -588,7 +818,7 @@
   transition: all var(--transition-fast);
 }
 
-.plan-option input:checked + .plan-label {
+.plan-option input:checked+.plan-label {
   border-color: var(--primary);
   background: var(--success-light);
 }
@@ -611,6 +841,7 @@
  * Responsive tweaks
  * -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+
   .section,
   .table-section,
   .billing-content,
@@ -635,6 +866,7 @@
 }
 
 @media (max-width: 520px) {
+
   .form-modal-content,
   .modal-overlay .modal-content,
   .modal .modal-content {
@@ -642,4 +874,3 @@
     border-radius: var(--rounded-2xl);
   }
 }
-

@@ -77,12 +77,18 @@ class PaymentController extends BaseController
 
         // Extract updateable fields
         $updateData = [];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-        if (isset($data['type'])) $updateData['type'] = $data['type'];
-        if (isset($data['amount'])) $updateData['amount'] = $data['amount'];
-        if (isset($data['recipientId'])) $updateData['recipientId'] = $data['recipientId'];
-        if (isset($data['txnId'])) $updateData['txnId'] = $data['txnId'];
-        if (isset($data['gatewayResponse'])) $updateData['gatewayResponse'] = $data['gatewayResponse'];
+        if (isset($data['status']))
+            $updateData['status'] = $data['status'];
+        if (isset($data['type']))
+            $updateData['type'] = $data['type'];
+        if (isset($data['amount']))
+            $updateData['amount'] = $data['amount'];
+        if (isset($data['recipientId']))
+            $updateData['recipientId'] = $data['recipientId'];
+        if (isset($data['txnId']))
+            $updateData['txnId'] = $data['txnId'];
+        if (isset($data['gatewayResponse']))
+            $updateData['gatewayResponse'] = $data['gatewayResponse'];
 
         try {
             $record = $this->service->updatePayment($id, $updateData);
@@ -143,6 +149,21 @@ class PaymentController extends BaseController
         ]);
     }
 
+    public function collectorPayments(Request $request): Response
+    {
+        $user = auth();
+        if (!$user) {
+            return Response::errorJson('Unauthenticated', 401);
+        }
+
+        $status = $request->query('status') ?: null;
+        $records = $this->payments->listCustomerPayments((int) $user['id'], 50, $status);
+
+        return Response::json([
+            'data' => $records,
+        ]);
+    }
+
     private function validateStorePayload(Request $request): array
     {
         $data = $request->all();
@@ -174,15 +195,17 @@ class PaymentController extends BaseController
             return ['errors' => $errors];
         }
 
-        return ['data' => [
-            'recipientId' => $recipientId,
-            'amount' => round($amount, 2),
-            'type' => $type,
-            'status' => $status,
-            'txnId' => $data['txnId'] ?? $data['txn_id'] ?? null,
-            'date' => $data['date'] ?? null,
-            'gatewayResponse' => $data['gatewayResponse'] ?? $data['gateway_response'] ?? null,
-        ]];
+        return [
+            'data' => [
+                'recipientId' => $recipientId,
+                'amount' => round($amount, 2),
+                'type' => $type,
+                'status' => $status,
+                'txnId' => $data['txnId'] ?? $data['txn_id'] ?? null,
+                'date' => $data['date'] ?? null,
+                'gatewayResponse' => $data['gatewayResponse'] ?? $data['gateway_response'] ?? null,
+            ]
+        ];
     }
 
     private function mergeJsonBody(Request $request): void
