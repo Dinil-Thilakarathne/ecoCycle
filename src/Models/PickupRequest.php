@@ -506,22 +506,6 @@ class PickupRequest extends BaseModel
         $wasteEntry = $wasteMap[$pickupId] ?? ['names' => [], 'details' => []];
         $names = $wasteEntry['names'] ?? [];
         $details = $wasteEntry['details'] ?? [];
-        $latitude = null;
-        $longitude = null;
-
-        foreach (['latitude', 'lat', 'pickup_latitude', 'pickup_lat', 'location_latitude', 'location_lat'] as $latKey) {
-            if (array_key_exists($latKey, $row) && $row[$latKey] !== null && $row[$latKey] !== '') {
-                $latitude = (float) $row[$latKey];
-                break;
-            }
-        }
-
-        foreach (['longitude', 'lng', 'pickup_longitude', 'pickup_lng', 'location_longitude', 'location_lng'] as $lngKey) {
-            if (array_key_exists($lngKey, $row) && $row[$lngKey] !== null && $row[$lngKey] !== '') {
-                $longitude = (float) $row[$lngKey];
-                break;
-            }
-        }
 
         $status = $this->normalizeStatusValue($row['status'] ?? 'pending');
 
@@ -542,8 +526,6 @@ class PickupRequest extends BaseModel
             'wasteCategoryDetails' => $details,
             'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
             'price' => isset($row['price']) ? (float) $row['price'] : null,      // pickup_requests price
-            'latitude' => $latitude,
-            'longitude' => $longitude,
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
