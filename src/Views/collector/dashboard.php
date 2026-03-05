@@ -31,7 +31,11 @@ $googleMapsApiKey = (string) env('GOOGLE_MAPS_API_KEY', '');
 $pendingPickupLocations = [];
 foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   $address = trim((string) ($pickupLocationItem['address'] ?? ''));
-  if ($address === '') {
+  $latitude = $pickupLocationItem['latitude'] ?? null;
+  $longitude = $pickupLocationItem['longitude'] ?? null;
+  $hasCoordinates = is_numeric($latitude) && is_numeric($longitude);
+
+  if ($address === '' && !$hasCoordinates) {
     continue;
   }
 
@@ -40,6 +44,8 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     'customerName' => (string) ($pickupLocationItem['customerName'] ?? 'Pickup Location'),
     'address' => $address,
     'status' => (string) ($pickupLocationItem['status'] ?? ''),
+    'latitude' => $hasCoordinates ? (float) $latitude : null,
+    'longitude' => $hasCoordinates ? (float) $longitude : null,
   ];
 }
 ?>
@@ -182,16 +188,71 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     updatePendingMapMessage('');
   }
 
+  function parseCoordinates(locationItem) {
+    const lat = Number(locationItem?.latitude);
+    const lng = Number(locationItem?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return null;
+    }
+
+    return { lat, lng };
+  }
+
   function geocodeAddress(geocoder, address) {
     return new Promise((resolve) => {
       geocoder.geocode({ address }, (results, status) => {
         if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
-          resolve(results[0].geometry.location);
+          resolve({ location: results[0].geometry.location, status: 'OK' });
           return;
         }
-        resolve(null);
+        resolve({ location: null, status: status || 'UNKNOWN_ERROR' });
       });
     });
+  }
+
+  async function resolveLocationForPickup(geocoder, locationItem) {
+    const directCoordinates = parseCoordinates(locationItem);
+    if (directCoordinates) {
+      return { location: directCoordinates, source: 'coordinates', status: 'OK' };
+    }
+
+    const address = String(locationItem?.address || '').trim();
+    if (!address) {
+      return { location: null, source: 'address', status: 'ZERO_RESULTS' };
+    }
+
+    const variants = [address];
+    if (!/,\s*Sri\s*Lanka$/i.test(address)) {
+      variants.push(`${address}, Sri Lanka`);
+    }
+
+    let lastStatus = 'ZERO_RESULTS';
+    for (const variant of variants) {
+      const result = await geocodeAddress(geocoder, variant);
+      if (result.location) {
+        return { location: result.location, source: 'address', status: 'OK' };
+      }
+      lastStatus = result.status || lastStatus;
+    }
+
+    return { location: null, source: 'address', status: lastStatus };
+  }
+
+  function getGeocodeFailureMessage(status) {
+    if (status === 'REQUEST_DENIED') {
+      return 'Geocoding request denied. Enable Geocoding API and billing for this key.';
+    }
+    if (status === 'OVER_QUERY_LIMIT') {
+      return 'Geocoding quota exceeded for the current Google Maps project.';
+    }
+    if (status === 'INVALID_REQUEST') {
+      return 'Invalid geocoding request. Please verify pickup addresses.';
+    }
+    return 'Pending locations could not be mapped from addresses';
   }
 
   function getMarkerColorByStatus(status) {
@@ -223,17 +284,24 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     const infoWindow = new google.maps.InfoWindow();
     const bounds = new google.maps.LatLngBounds();
     let markerCount = 0;
+    let lastGeocodeFailureStatus = '';
 
     for (const locationItem of PENDING_PICKUP_LOCATIONS) {
       const address = String(locationItem.address || '').trim();
-      if (!address) continue;
 
-      const geocodedLocation = await geocodeAddress(geocoder, address);
-      if (!geocodedLocation) continue;
+      const resolved = await resolveLocationForPickup(geocoder, locationItem);
+      if (!resolved.location) {
+        if (resolved.status && resolved.status !== 'OK') {
+          lastGeocodeFailureStatus = resolved.status;
+        }
+        continue;
+      }
+
+      const markerPosition = resolved.location;
 
       const marker = new google.maps.Marker({
         map,
-        position: geocodedLocation,
+        position: markerPosition,
         title: locationItem.customerName || 'Pending Pickup',
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
@@ -249,14 +317,14 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
         infoWindow.setContent(`
           <div style="max-width: 260px;">
             <strong>${String(locationItem.customerName || 'Pending Pickup')}</strong><br>
-            <span>${String(address)}</span>
+            <span>${String(address || 'Coordinates available')}</span>
             <br><small>Status: ${String(locationItem.status || 'pending').replace('_', ' ')}</small>
           </div>
         `);
         infoWindow.open({ anchor: marker, map });
       });
 
-      bounds.extend(geocodedLocation);
+      bounds.extend(markerPosition);
       markerCount += 1;
     }
 
@@ -266,7 +334,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       return;
     }
 
-    setPendingMapEmptyState('Pending locations could not be mapped from addresses');
+    setPendingMapEmptyState(getGeocodeFailureMessage(lastGeocodeFailureStatus));
   };
 
   (function initializePendingPickupMap() {
@@ -274,6 +342,10 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       setPendingMapEmptyState('Google Maps is not configured. Please set GOOGLE_MAPS_API_KEY.');
       return;
     }
+
+    window.gm_authFailure = function gmAuthFailure() {
+      setPendingMapEmptyState('Google Maps authentication failed. Check API key restrictions for this domain.');
+    };
 
     if (window.google?.maps) {
       window.initPendingPickupsMap();
@@ -292,6 +364,12 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       setPendingMapEmptyState('Failed to load Google Maps. Please verify the API key and network access.');
     };
     document.head.appendChild(script);
+
+    window.setTimeout(() => {
+      if (!window.google?.maps) {
+        setPendingMapEmptyState('Google Maps SDK did not initialize. Verify key restrictions and allowed referrers.');
+      }
+    }, 10000);
   })();
 
   // Poll collector stats endpoint and update cards in real time
