@@ -5,6 +5,7 @@ namespace Models;
 class PickupRequest extends BaseModel
 {
     protected string $table = 'pickup_requests';
+    private ?bool $hasVehicleIdColumn = null;
 
     public function listForCustomer(int $customerId, ?string $status = null): array
     {
@@ -72,10 +73,10 @@ class PickupRequest extends BaseModel
 
     public function listAll(?string $timeSlot = null): array
     {
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name" . $this->vehicleSelectSql('pr') . "
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id";
+            LEFT JOIN users col ON col.id = pr.collector_id" . $this->vehicleJoinSql('pr');
         $params = [];
         if ($timeSlot !== null && $timeSlot !== '') {
             $sql .= " WHERE pr.time_slot = ?";
@@ -101,10 +102,11 @@ class PickupRequest extends BaseModel
         }
 
         $row = $this->db->fetch(
-            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name" . $this->vehicleSelectSql('pr') . "
              FROM {$this->table} pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN users col ON col.id = pr.collector_id
+             " . $this->vehicleJoinSql('pr') . "
              WHERE pr.id = ?
              LIMIT 1",
             [$id]
@@ -175,7 +177,11 @@ class PickupRequest extends BaseModel
 
     public function update(string $id, array $data): bool
     {
-        $allowed = ['collector_id', 'collector_name', 'status', 'time_slot', 'scheduled_at', 'address'];
+        $allowed = ['collector_id', 'collector_name', 'vehicle_id', 'status', 'time_slot', 'scheduled_at', 'address'];
+        if (!$this->hasVehicleIdColumn()) {
+            $allowed = array_values(array_filter($allowed, fn($column) => $column !== 'vehicle_id'));
+        }
+
         $filtered = [];
         foreach ($data as $column => $value) {
             if (in_array($column, $allowed, true)) {
@@ -279,10 +285,20 @@ class PickupRequest extends BaseModel
         }
 
         if ($weights === null) {
-            return $this->db->query(
+            $updated = $this->db->query(
                 "UPDATE {$this->table} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
                 [$status, $id, $collectorId]
             );
+
+            if ($updated && $status === 'completed' && $this->hasVehicleIdColumn()) {
+                $this->db->query(
+                    "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                    [$id]
+                );
+            }
+
+            return $updated;
         }
 
         // Handle the new array format for weights
@@ -326,31 +342,55 @@ class PickupRequest extends BaseModel
                 }
 
                 // 2. Update the main request with totals and status
-                $this->db->query(
+                error_log("Updating pickup {$id}: status={$status}, weight={$totalWeight}, price={$totalPrice}, collector_id={$collectorId}");
+
+                $updateResult = $this->db->query(
                     "UPDATE {$this->table} 
                      SET status = ?, weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
                      WHERE id = ? AND collector_id = ?",
                     [$status, $totalWeight, $totalPrice, $id, $collectorId]
                 );
 
+                if (!$updateResult) {
+                    throw new \Exception("Failed to update pickup request. Pickup may not be assigned to collector {$collectorId}");
+                }
+
+                // 3. Release vehicle if completed
+                if ($status === 'completed' && $this->hasVehicleIdColumn()) {
+                    $this->db->query(
+                        "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                         WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                        [$id]
+                    );
+                }
+
                 $pdo->commit();
                 return true;
 
             } catch (\Throwable $e) {
                 $pdo->rollBack();
-                // rethrow or log? For now, return false to indicate failure.
-                // ideally we should facilitate error bubbling, but matching interface return bool
+                // Re-throw the exception so the controller can handle it with proper error messages
                 error_log("Failed updating pickup weights: " . $e->getMessage());
-                return false;
+                throw $e;
             }
         }
 
         // Fallback for legacy calls (if any) passing single float
         // logic should ideally be deprecated or removed if we are sure no legacy calls remain
-        return $this->db->query(
+        $legacyResult = $this->db->query(
             "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
             [$status, (float) $weights, $id, $collectorId]
         );
+
+        if ($legacyResult && $status === 'completed' && $this->hasVehicleIdColumn()) {
+            $this->db->query(
+                "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+                 WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+                [$id]
+            );
+        }
+
+        return $legacyResult;
     }
 
     public function cancelForCustomer(string $id, int $customerId): bool
@@ -426,7 +466,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.default_minimum_bid
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -457,10 +497,66 @@ class PickupRequest extends BaseModel
                     'name' => $name,
                     'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
                     'unit' => $row['unit'] ?? null,
+                    'price_per_unit' => isset($row['default_minimum_bid']) ? (float) $row['default_minimum_bid'] : 0.0,
                 ];
             }
         }
         return $map;
+    }
+
+    private function hasVehicleIdColumn(): bool
+    {
+        if ($this->hasVehicleIdColumn !== null) {
+            return $this->hasVehicleIdColumn;
+        }
+
+        try {
+            if ($this->db->isPgsql()) {
+                $row = $this->db->fetch(
+                    "SELECT 1 AS present
+                     FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            } else {
+                $row = $this->db->fetch(
+                    "SELECT 1 AS present
+                     FROM information_schema.columns
+                     WHERE table_schema = DATABASE()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            }
+
+            $this->hasVehicleIdColumn = (bool) $row;
+        } catch (\Throwable $e) {
+            $this->hasVehicleIdColumn = false;
+        }
+
+        return $this->hasVehicleIdColumn;
+    }
+
+    private function vehicleSelectSql(string $tableAlias): string
+    {
+        if ($this->hasVehicleIdColumn()) {
+            return ", {$tableAlias}.vehicle_id AS vehicle_id, v.plate_number AS vehicle_plate, v.type AS vehicle_type";
+        }
+
+        return ", NULL AS vehicle_id, NULL AS vehicle_plate, NULL AS vehicle_type";
+    }
+
+    private function vehicleJoinSql(string $tableAlias): string
+    {
+        if ($this->hasVehicleIdColumn()) {
+            return "\n                LEFT JOIN vehicles v ON v.id = {$tableAlias}.vehicle_id";
+        }
+
+        return '';
     }
 
     private function formatRow(array $row, array $wasteMap): array
@@ -469,6 +565,22 @@ class PickupRequest extends BaseModel
         $wasteEntry = $wasteMap[$pickupId] ?? ['names' => [], 'details' => []];
         $names = $wasteEntry['names'] ?? [];
         $details = $wasteEntry['details'] ?? [];
+        $latitude = null;
+        $longitude = null;
+
+        foreach (['latitude', 'lat', 'pickup_latitude', 'pickup_lat', 'location_latitude', 'location_lat'] as $latKey) {
+            if (array_key_exists($latKey, $row) && $row[$latKey] !== null && $row[$latKey] !== '') {
+                $latitude = (float) $row[$latKey];
+                break;
+            }
+        }
+
+        foreach (['longitude', 'lng', 'pickup_longitude', 'pickup_lng', 'location_longitude', 'location_lng'] as $lngKey) {
+            if (array_key_exists($lngKey, $row) && $row[$lngKey] !== null && $row[$lngKey] !== '') {
+                $longitude = (float) $row[$lngKey];
+                break;
+            }
+        }
 
         $status = $this->normalizeStatusValue($row['status'] ?? 'pending');
 
@@ -482,10 +594,15 @@ class PickupRequest extends BaseModel
             'statusRaw' => $row['status'] ?? 'pending',
             'collectorId' => $row['collector_id'],
             'collectorName' => $row['collector_name'] ?? '',
+            'vehicleId' => $row['vehicle_id'] ?? null,
+            'vehiclePlate' => $row['vehicle_plate'] ?? '',
+            'vehicleType' => $row['vehicle_type'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
-            'weight' => isset($row['weight']) ? (float)$row['weight'] : null,   // pickup_requests weight
-            'price' => isset($row['price']) ? (float)$row['price'] : null,      // pickup_requests price
+            'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
+            'price' => isset($row['price']) ? (float) $row['price'] : null,      // pickup_requests price
+            'latitude' => $latitude,
+            'longitude' => $longitude,
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
@@ -499,10 +616,12 @@ class PickupRequest extends BaseModel
 
         foreach ($categories as $category) {
             $categoryId = $category['id'] ?? null;
-            if ($categoryId === null) continue;
+            if ($categoryId === null)
+                continue;
 
             $weight = $category['weight'] ?? null;
-            if ($weight !== null) $weight = (float) $weight;
+            if ($weight !== null)
+                $weight = (float) $weight;
 
             $unit = $category['unit'] ?? null;
 
@@ -513,7 +632,7 @@ class PickupRequest extends BaseModel
         }
     }
 
-    public function updateStatus(int $pickupId, string $status): void
+    public function updateStatus(string $pickupId, string $status): void
     {
         $this->db->query(
             "UPDATE {$this->table}
@@ -523,7 +642,7 @@ class PickupRequest extends BaseModel
         );
     }
 
-  private function generateId(): string
+    private function generateId(): string
     {
         do {
             $id = 'PR' . strtoupper(bin2hex(random_bytes(5)));
@@ -565,12 +684,12 @@ class PickupRequest extends BaseModel
     }
 
     /**
- * Get all pickups for a collector (for dashboard)
- * Includes waste categories, weights, and price per unit
- */
-public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
-{
-    $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
+     * Get all pickups for a collector (for dashboard)
+     * Includes waste categories, weights, and price per unit
+     */
+    public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
+    {
+        $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
                    c.name AS customer_name,
                    wc.id AS waste_category_id, wc.name AS waste_category_name, wc.unit, wc.price_per_unit,
                    prw.weight
@@ -580,54 +699,145 @@ public function listForCollectorDashboard(int $collectorId, ?string $status = nu
             LEFT JOIN waste_categories wc ON prw.waste_category_id = wc.id
             WHERE pr.collector_id = ?";
 
-    $params = [$collectorId];
+        $params = [$collectorId];
 
-    if ($status !== null && $status !== '') {
-        $sql .= " AND pr.status = ?";
-        $params[] = $status;
-    }
-
-    $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
-
-    $rows = $this->db->fetchAll($sql, $params);
-    if (!$rows) {
-        return [];
-    }
-
-    // Map pickups
-    $map = [];
-    foreach ($rows as $row) {
-        $pid = $row['id'];
-        if (!isset($map[$pid])) {
-            $map[$pid] = [
-                'id' => $pid,
-                'customerId' => $row['customer_id'],
-                'customerName' => $row['customer_name'] ?? '',
-                'collectorId' => $row['collector_id'],
-                'address' => $row['address'] ?? '',
-                'timeSlot' => $row['time_slot'] ?? '',
-                'status' => $this->normalizeStatusValue($row['status'] ?? 'pending'),
-                'createdAt' => $row['created_at'] ?? null,
-                'scheduledAt' => $row['scheduled_at'] ?? null,
-                'wasteCategories' => [],
-                'weight' => 0,
-                'price' => 0
-            ];
+        if ($status !== null && $status !== '') {
+            $sql .= " AND pr.status = ?";
+            $params[] = $status;
         }
 
-        if (isset($row['waste_category_id'])) {
-            $map[$pid]['wasteCategories'][] = [
-                'id' => $row['waste_category_id'],
-                'name' => $row['waste_category_name'],
-                'weight' => $row['weight'] !== null ? (float)$row['weight'] : 0,
-                'unit' => $row['unit'] ?? null,
-                'price_per_unit' => (float)$row['price_per_unit']
-            ];
-            $map[$pid]['weight'] += $row['weight'] !== null ? (float)$row['weight'] : 0;
+        $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
+
+        $rows = $this->db->fetchAll($sql, $params);
+        if (!$rows) {
+            return [];
         }
+
+        // Map pickups
+        $map = [];
+        foreach ($rows as $row) {
+            $pid = $row['id'];
+            if (!isset($map[$pid])) {
+                $map[$pid] = [
+                    'id' => $pid,
+                    'customerId' => $row['customer_id'],
+                    'customerName' => $row['customer_name'] ?? '',
+                    'collectorId' => $row['collector_id'],
+                    'address' => $row['address'] ?? '',
+                    'timeSlot' => $row['time_slot'] ?? '',
+                    'status' => $this->normalizeStatusValue($row['status'] ?? 'pending'),
+                    'createdAt' => $row['created_at'] ?? null,
+                    'scheduledAt' => $row['scheduled_at'] ?? null,
+                    'wasteCategories' => [],
+                    'weight' => 0,
+                    'price' => 0
+                ];
+            }
+
+            if (isset($row['waste_category_id'])) {
+                $map[$pid]['wasteCategories'][] = [
+                    'id' => $row['waste_category_id'],
+                    'name' => $row['waste_category_name'],
+                    'weight' => $row['weight'] !== null ? (float) $row['weight'] : 0,
+                    'unit' => $row['unit'] ?? null,
+                    'price_per_unit' => (float) $row['price_per_unit']
+                ];
+                $map[$pid]['weight'] += $row['weight'] !== null ? (float) $row['weight'] : 0;
+            }
+        }
+
+        return array_values($map);
     }
 
-    return array_values($map);
-}
+    /**
+     * Get all completed pickups that haven't been allocated to bidding rounds yet
+     * Returns waste grouped by category
+     * 
+     * @return array Array of waste categories with unallocated quantities
+     */
+    public function getUnallocatedWaste(): array
+    {
+        $sql = "SELECT 
+                    wc.id AS category_id,
+                    wc.name AS category_name,
+                    wc.unit,
+                    wc.price_per_unit,
+                    SUM(COALESCE(prw.weight, 0)) AS total_weight,
+                    SUM(COALESCE(prw.amount, 0)) AS total_value,
+                    COUNT(DISTINCT pr.id) AS pickup_count
+                FROM pickup_requests pr
+                INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
+                WHERE pr.status = 'completed'
+                AND prw.weight IS NOT NULL
+                AND prw.weight > 0
+                AND NOT EXISTS (
+                    SELECT 1 FROM bidding_round_sources brs 
+                    WHERE brs.pickup_id = pr.id
+                )
+                GROUP BY wc.id, wc.name, wc.unit, wc.price_per_unit
+                ORDER BY wc.name";
+
+        $rows = $this->db->fetchAll($sql);
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function (array $row): array {
+            return [
+                'categoryId' => (int) $row['category_id'],
+                'categoryName' => $row['category_name'] ?? 'Unknown',
+                'unit' => $row['unit'] ?? 'kg',
+                'pricePerUnit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
+                'totalWeight' => isset($row['total_weight']) ? (float) $row['total_weight'] : 0.0,
+                'totalValue' => isset($row['total_value']) ? (float) $row['total_value'] : 0.0,
+                'pickupCount' => isset($row['pickup_count']) ? (int) $row['pickup_count'] : 0,
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Get pickup IDs that contributed to unallocated waste for a specific category
+     * Used when creating bidding rounds to link source pickups
+     * 
+     * @param int $categoryId The waste category ID
+     * @param float|null $maxQuantity Maximum quantity to allocate (optional)
+     * @return array Array of pickup IDs
+     */
+    public function getUnallocatedPickupIds(int $categoryId, ?float $maxQuantity = null): array
+    {
+        $sql = "SELECT 
+                    pr.id,
+                    prw.weight
+                FROM pickup_requests pr
+                INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                WHERE pr.status = 'completed'
+                AND prw.waste_category_id = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM bidding_round_sources brs 
+                    WHERE brs.pickup_id = pr.id
+                )
+                ORDER BY pr.created_at ASC";
+
+        $rows = $this->db->fetchAll($sql, [$categoryId]);
+        if (!$rows) {
+            return [];
+        }
+
+        $pickupIds = [];
+        $totalAllocated = 0.0;
+
+        foreach ($rows as $row) {
+            if ($maxQuantity !== null && $totalAllocated >= $maxQuantity) {
+                break;
+            }
+
+            $pickupIds[] = $row['id'];
+            $totalAllocated += (float) ($row['weight'] ?? 0);
+        }
+
+        return $pickupIds;
+    }
+
 
 }
