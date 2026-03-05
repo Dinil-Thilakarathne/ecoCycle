@@ -458,9 +458,10 @@ class BiddingRound extends BaseModel
     {
         $this->expireEndedRounds();
         $rows = $this->db->fetchAll(
-            "SELECT br.*, wc.name AS waste_category_name
+            "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name
              FROM {$this->table} br
              LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+             LEFT JOIN users u ON u.id = br.leading_company_id
              WHERE br.status = 'active'
              ORDER BY br.end_time ASC, br.created_at DESC"
         );
@@ -488,6 +489,8 @@ class BiddingRound extends BaseModel
                 'quantity' => $quantity,
                 'unit' => $row['unit'] ?? 'kg',
                 'currentHighestBid' => $currentHighestBid,
+                'biddingCompany' => $row['company_name'] ?? '',
+                'leadingCompanyId' => $leadingCompanyId !== null ? (int) $leadingCompanyId : null,
                 'status' => $row['status'] ?? 'active',
                 'endTime' => $row['end_time'] ?? null,
                 'startingBid' => $startingBid,

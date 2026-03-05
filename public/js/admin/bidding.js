@@ -790,12 +790,15 @@ window.viewBiddingDetails = async function (el, biddingId) {
   try {
     // Fetch fresh data including bids
     const data = await apiRequest(`/api/bidding/rounds/${biddingId}`);
+    console.log(data);
     if (!data || !data.round) {
       throw new Error("Details could not be loaded.");
     }
 
     const record = data.round;
     const bids = data.bids || [];
+
+    console.log(record);
 
     // Build Details Grid
     const gridContainer = document.createElement("div");

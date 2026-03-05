@@ -5,6 +5,7 @@ namespace Controllers\Api;
 use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
+use Models\Notification;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
@@ -226,6 +227,24 @@ class PickupRequestController extends BaseController
                     } elseif (in_array($finalStatus, ['assigned', 'in_progress'])) {
                         $this->vehicleModel->markStatus((int) $finalVehicleId, 'in-use');
                     }
+                }
+            }
+
+            // Fire notification to collector on new assignment
+            if (isset($updateData['collector_id']) && $updateData['collector_id'] !== null) {
+                try {
+                    $notifModel = new Notification();
+                    $notifModel->create([
+                        'type' => 'assignment',
+                        'title' => 'New Pickup Request Assigned',
+                        'message' => "You have been assigned to pickup request #{$pickupId}. Please check your tasks.",
+                        'recipient_group' => null,
+                        'recipients' => ['user:' . $updateData['collector_id']],
+                        'status' => 'pending',
+                    ]);
+                } catch (\Throwable $notifEx) {
+                    // Non-fatal: log but don't fail the whole request
+                    error_log('Failed to create assignment notification: ' . $notifEx->getMessage());
                 }
             }
         } catch (\Throwable $e) {

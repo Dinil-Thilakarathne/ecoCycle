@@ -1,5 +1,6 @@
 <?php
 $pickupRequests = $pickupRequests ?? [];
+consoleLog($pickupRequests);
 $pickupRequests = is_array($pickupRequests) ? $pickupRequests : [];
 $collectors = is_array($collectors ?? null) ? $collectors : [];
 $timeSlots = $timeSlots ?? [];

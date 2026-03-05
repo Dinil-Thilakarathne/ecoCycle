@@ -139,12 +139,6 @@ $bidStatCards = [
         <h2 class="page-header__title">Bidding Management</h2>
         <p class="page-header__description">Manage waste auctions, monitor active bids, and review history</p>
     </div>
-    <div class="page-header__actions">
-        <button type="button" onclick="createNewLot()" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i>
-            <span>New Auction Lot</span>
-        </button>
-    </div>
 </div>
 
 <div class="stats-grid">

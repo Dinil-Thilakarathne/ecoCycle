@@ -11,16 +11,20 @@ class ActivityItem extends HTMLElement {
     if (!this._init) {
       this._renderSkeleton();
       this._init = true;
-    }
-    if (this.hasAttribute("unwrap")) {
-      this._render();
-      const innerRoot = this.firstElementChild; // .activity-item div
-      if (innerRoot) {
-        this.replaceWith(innerRoot);
+      if (this.hasAttribute("unwrap")) {
+        this.unwrap();
+        return;
       }
-      return; // Stop further lifecycle (no dynamic updates post-unwrap)
     }
     this._render();
+  }
+
+  unwrap() {
+    this._render();
+    const innerRoot = this.firstElementChild;
+    if (innerRoot) {
+      this.replaceWith(innerRoot);
+    }
   }
   attributeChangedCallback() {
     if (this._init) this._render();
