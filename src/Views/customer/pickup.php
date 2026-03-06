@@ -169,7 +169,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
             'all' => 'All Requests',
             'pending' => 'Pending',
             'assigned' => 'Assigned',
-            'confirmed' => 'Confirmed',
             'completed' => 'Completed',
             // 'cancelled' intentionally omitted: cancelled requests are not shown anywhere
         ];
@@ -276,9 +275,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 <?php endif; ?>
             </tbody>
         </table>
-    </div>
-    <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary btn-rate" onclick="showRateCollectorForm()">Rate a collector</button>
     </div>
 </div>
 

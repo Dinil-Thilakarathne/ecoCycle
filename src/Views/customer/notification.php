@@ -64,19 +64,6 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php if (empty($filteredNotifications)): ?>
-                    <tr>
-                        <td colspan="5" class="empty-state">
-                            <div class="empty-content">
-                                <div class="empty-icon">📭</div>
-                                <h3>No notifications found</h3>
-                                <p>No notifications match your current filter.</p>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
             <tbody id="notificationsBody">
                 <tr>
                     <td colspan="5" class="loading">Loading notifications…</td>
@@ -84,7 +71,6 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
             </tbody>
         </table>
     </div>
-</div>
 </div>
 
 <!-- View Notification Modal (populated by JS) -->
@@ -185,6 +171,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
     <script>
         (function () {
             const initialFilter = '<?php echo addslashes($filter); ?>';
+            let notificationsState = [];
 
             function timeAgo(ts) {
                 const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
@@ -210,7 +197,10 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
             async function fetchNotifications() {
                 try {
                     const url = '/api/notifications?limit=100'; // Get more for client-side filtering if needed, or implement server-side filter
-                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const res = await fetch(url, {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!res.ok) throw new Error('Failed to load notifications');
                     const data = await res.json();
                     let notifications = data.notifications || [];
@@ -218,6 +208,8 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     if (!Array.isArray(notifications)) {
                         notifications = [];
                     }
+
+                    notificationsState = notifications;
 
                     // Render list
                     renderNotifications(notifications);
@@ -232,6 +224,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 } catch (err) {
                     console.error(err);
                     const notifications = dummyNotifications.slice();
+                    notificationsState = notifications;
                     renderNotifications(notifications);
                     renderStats(notifications);
                 }
@@ -273,6 +266,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 return status === 'read' || status === true || status === 1 || status === '1';
             }
 
+            function notificationId(n) {
+                const id = n && (n.id ?? n._id ?? n.notification_id);
+                return id === null || id === undefined ? '' : String(id);
+            }
+
             function renderNotifications(notifications) {
                 const tbody = document.getElementById('notificationsBody');
                 if (!tbody) return;
@@ -294,7 +292,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
                 tbody.innerHTML = '';
                 filtered.forEach(function (n) {
-                    const id = n.id || n._id || n.notification_id;
+                    const id = notificationId(n);
                     const read = isRead(n);
                     const tr = document.createElement('tr');
                     tr.className = 'notification-row ' + (read ? '' : 'unread');
@@ -314,9 +312,9 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                         <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
                         <td class="actions-cell">
                             <div class="action-buttons">
-                                ${read ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
-                                <button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>
-                                <button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                ${!id ? '' : (read ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`)}
+                                ${!id ? '' : `<button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>`}
+                                ${!id ? '' : `<button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>`}
                             </div>
                         </td>
                     `;
@@ -332,7 +330,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
             async function markAsRead(id) {
                 try {
-                    const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'PUT', credentials: 'same-origin' });
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!res.ok) throw new Error('Failed to mark as read');
 
                     // Update row UI immediately without refetch
@@ -354,7 +356,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
             async function markAllRead() {
                 try {
-                    const res = await fetch('/api/notifications/read-all', { method: 'PUT', credentials: 'same-origin' });
+                    const res = await fetch('/api/notifications/read-all', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!res.ok) throw new Error('Failed');
                     // Refresh UI
                     fetchNotifications();
@@ -370,7 +376,8 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 try {
                     const res = await fetch('/api/notifications/' + encodeURIComponent(id), {
                         method: 'DELETE',
-                        credentials: 'same-origin'
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
 
                     if (!res.ok) throw new Error('Failed to delete');
@@ -402,7 +409,7 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     } else {
                         markBtn.style.display = '';
                         markBtn.onclick = function () {
-                            markAsRead(notification.id || notification._id);
+                            markAsRead(notificationId(notification));
                             closeModal();
                         };
                     }
@@ -436,11 +443,20 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
             // Find a notification by id and open modal (uses already loaded list from the DOM)
             function openNotificationById(id) {
-                // Re-fetch to be sure or find in current list
-                // For simplicity, find in rendered rows or globally stored list. 
-                // We didn't store list globally, so let's refetch single if possible, or just fetch all
-                fetch('/api/notifications', { credentials: 'same-origin' }).then(r => r.json()).then(data => {
-                    var found = (data.notifications || []).find(n => (n.id || n._id || n.notification_id) == id);
+                const local = notificationsState.find(function (n) {
+                    return notificationId(n) === String(id);
+                });
+
+                if (local) {
+                    openModal(local);
+                    return;
+                }
+
+                fetch('/api/notifications?limit=100', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(r => r.json()).then(data => {
+                    var found = (data.notifications || []).find(n => notificationId(n) === String(id));
                     if (found) openModal(found);
                 }).catch(err => console.error(err));
             }

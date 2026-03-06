@@ -176,7 +176,7 @@ class NotificationController extends BaseController
         error_log("markAllAsRead called for user ID: " . $user['id']);
 
         try {
-            $result = $this->model->markAllAsRead($user['id']);
+            $result = $this->model->markAllAsRead((int) $user['id'], (string) ($user['role'] ?? ''));
 
             error_log("markAllAsRead result: " . ($result ? 'true' : 'false'));
 
