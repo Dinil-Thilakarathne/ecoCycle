@@ -63,6 +63,7 @@ public function getWasteCollectionForCollector(int $collectorId, int $limit = 50
             pr.id AS pickup_id,
             pr.customer_id,
             u.name AS customer_name,
+            pr.address AS location,
             wc.name AS category,
             prw.weight,
             prw.amount
@@ -70,7 +71,8 @@ public function getWasteCollectionForCollector(int $collectorId, int $limit = 50
         LEFT JOIN users u ON u.id = pr.customer_id
         LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
         LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
-        WHERE pr.collector_id = ?
+                WHERE pr.collector_id = ?
+                    AND pr.status = 'completed'
         ORDER BY pr.id DESC
         LIMIT $limit
     ";

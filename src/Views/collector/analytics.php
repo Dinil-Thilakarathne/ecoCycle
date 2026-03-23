@@ -77,7 +77,6 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <table class="data-table">
                     <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <tr>
-                            <th><i class="fa-solid fa-id-card"></i> Customer ID</th>
                             <th><i class="fa-solid fa-user"></i> Customer Name</th>
                             <th><i class="fa-solid fa-calendar-day"></i> Date</th>
                             <th><i class="fa-solid fa-message"></i> Feedback</th>
@@ -86,8 +85,40 @@ $collectorFeedback = []; // Will be populated by JavaScript
                     </thead>
                     <tbody id="feedbackTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 16px;">
+                            <td colspan="4" style="text-align: center; padding: 16px;">
                                 <span class="loading">Loading feedback data...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waste Collection Summary Table -->
+    <div class="activity-card">
+        <div class="activity-card__header">
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-recycle" style="margin-right: 8px;"></i> Waste Collection Summary
+            </h3>
+            <p class="activity-card__description">Customer-wise collected waste summary</p>
+        </div>
+        <div class="activity-card__content">
+            <div style="overflow-x: auto; max-height: 420px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <tr>
+                            <th><i class="fa-solid fa-user"></i> Customer Name</th>
+                            <th><i class="fa-solid fa-location-dot"></i> Location</th>
+                            <th><i class="fa-solid fa-list-check"></i> Waste Collected</th>
+                            <th><i class="fa-solid fa-weight-hanging"></i> Total Weight</th>
+                            <th><i class="fa-solid fa-cubes"></i> Materials</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wasteCollectionTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 16px;">
+                                <span class="loading">Loading waste collection summary...</span>
                             </td>
                         </tr>
                     </tbody>
@@ -311,9 +342,10 @@ async function refreshDashboard() {
         };
         
         // Run fetches in parallel for better performance
-        const [metricsReq, feedbackReq] = await Promise.all([
+        const [metricsReq, feedbackReq, wasteReq] = await Promise.all([
             fetchWithTimeout(`/api/collector/metrics${params}`),
-            fetchWithTimeout(`/api/collector/feedback${params}&limit=50`)
+            fetchWithTimeout(`/api/collector/feedback${params}&limit=50`),
+            fetchWithTimeout(`/api/collector/waste-collection${params}&limit=200`)
         ]);
 
         // Handle metrics
@@ -365,10 +397,27 @@ async function refreshDashboard() {
             updateFeedbackTable([], `API Error ${feedbackReq.status}: ${errorText.substring(0, 100)}`);
         }
 
+        // Handle waste collection summary
+        if (wasteReq.ok) {
+            const wData = await wasteReq.json();
+            console.log('Waste response:', wData);
+            if (wData.success) {
+                updateWasteTable(wData.data);
+            } else {
+                console.error('Waste API error:', wData.error);
+                updateWasteTable([], wData.error || 'Failed to load waste collection summary');
+            }
+        } else {
+            const errorText = await wasteReq.text();
+            console.error('Waste API failed:', wasteReq.status, errorText);
+            updateWasteTable([], `API Error ${wasteReq.status}: ${errorText.substring(0, 100)}`);
+        }
+
     } catch (error) {
         console.error('Polling Error:', error);
         const errorMsg = `Network Error: ${error.message}`;
         updateFeedbackTable([], errorMsg);
+        updateWasteTable([], errorMsg);
     }
 }
 
@@ -400,11 +449,10 @@ function updateMetricsCards(metrics) {
 function updateFeedbackTable(data, error = null) {
     const tableBody = document.getElementById('feedbackTableBody');
     if (error) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
         tableBody.innerHTML = data.map(fb => `
             <tr>
-                <td>${escapeHtml(String(fb.customer_id))}</td>
                 <td>${escapeHtml(fb.customer_name)}</td>
                 <td>${new Date(fb.rating_date).toLocaleDateString()}</td>
                 <td>${escapeHtml(fb.description)}</td>
@@ -412,7 +460,7 @@ function updateFeedbackTable(data, error = null) {
             </tr>
         `).join('');
     } else {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No feedback records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px; color:#888;">No feedback records found.</td></tr>';
     }
 }
 
@@ -425,15 +473,56 @@ function updateWasteTable(data, error = null) {
     if (error) {
         tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
-        tableBody.innerHTML = data.map(r => `
-            <tr>
-                <td>${escapeHtml(String(r.customer_id))}</td>
-                <td>${escapeHtml(r.customer_name)}</td>
-                <td>${escapeHtml(r.category)}</td>
-                <td>${r.weight} kg</td>
-                <td>Rs. ${parseFloat(r.amount).toFixed(2)}</td>
-            </tr>
-        `).join('');
+        const grouped = new Map();
+
+        data.forEach((row) => {
+            const key = String(row.customer_id || 'N/A');
+            if (!grouped.has(key)) {
+                grouped.set(key, {
+                    customerName: row.customer_name || 'Unknown',
+                    location: row.location || 'Not provided',
+                    pickupIds: new Set(),
+                    totalWeight: 0,
+                    materials: new Map()
+                });
+            }
+
+            const item = grouped.get(key);
+            if (row.pickup_id) {
+                item.pickupIds.add(String(row.pickup_id));
+            }
+
+            const rowWeight = Number(row.weight || 0);
+            item.totalWeight += rowWeight;
+
+            const materialName = String(row.category || 'General').trim() || 'General';
+            const prevWeight = Number(item.materials.get(materialName) || 0);
+            item.materials.set(materialName, prevWeight + rowWeight);
+        });
+
+        const rows = Array.from(grouped.values()).map(item => {
+            const materialChips = Array.from(item.materials.entries()).map(([name, weight]) => {
+                return `<span style="display:inline-block; border:1px solid #e5e7eb; border-radius:999px; padding:4px 10px; margin-right:6px; font-size:12px; background:#f8fafc; white-space:nowrap;">${escapeHtml(name)} (${Number(weight).toFixed(2)} kg)</span>`;
+            }).join('');
+
+            const wasteCollected = `${item.pickupIds.size} pickup${item.pickupIds.size === 1 ? '' : 's'}`;
+
+            return `
+                <tr>
+                    <td>${escapeHtml(item.customerName)}</td>
+                    <td>${escapeHtml(item.location)}</td>
+                    <td>${escapeHtml(wasteCollected)}</td>
+                    <td>${item.totalWeight.toFixed(2)} kg</td>
+                    <td>
+                        <div style="max-width: 360px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
+                            ${materialChips || '-'}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableBody.innerHTML = rows.join('');
     } else {
         tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No waste records found.</td></tr>';
     }
@@ -443,7 +532,7 @@ function updateWasteTable(data, error = null) {
 function renderStars(count) {
     let stars = '';
     for (let i = 0; i < 5; i++) {
-        stars += i < count ? '<i class="fa-solid fa-star" style="color: #000;"></i>' : '<i class="fa-regular fa-star" style="color: #ccc;"></i>';
+        stars += i < count ? '<i class="fa-solid fa-star" style="color: gold;"></i>' : '<i class="fa-regular fa-star" style="color: #ccc;"></i>';
     }
     return stars;
 }

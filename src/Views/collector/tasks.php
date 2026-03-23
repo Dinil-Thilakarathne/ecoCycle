@@ -28,6 +28,41 @@ function getStatusBadge($status)
 }
 ?>
 
+<style>
+    .data-table th:nth-child(1),
+    .data-table td:nth-child(1) {
+        text-align: center;
+    }
+    .data-table th:nth-child(2),
+    .data-table td:nth-child(2) {
+        text-align: left;
+    }
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3) {
+        text-align: left;
+    }
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4) {
+        text-align: left;
+    }
+    .data-table th:nth-child(5),
+    .data-table td:nth-child(5) {
+        text-align: center;
+    }
+    .data-table th:nth-child(6),
+    .data-table td:nth-child(6) {
+        text-align: center;
+    }
+    .data-table th:nth-child(7),
+    .data-table td:nth-child(7) {
+        text-align: center;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+</style>
+
 <script>
     window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     window.__FILTERS = {

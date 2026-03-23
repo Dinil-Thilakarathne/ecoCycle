@@ -219,7 +219,10 @@ class CollectorDashboardController extends DashboardController
             $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
             $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
 
-            return array_merge($assigned, $inProgress);
+            $allPending = array_merge($assigned, $inProgress);
+            
+            // Filter to show only today's pending pickups
+            return array_values(array_filter($allPending, fn(array $record) => $this->isPickupForToday($record)));
         } catch (\Throwable $e) {
             return [];
         }
@@ -246,7 +249,7 @@ class CollectorDashboardController extends DashboardController
             $pickupRequest = new PickupRequest();
             $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
             if (!empty($records)) {
-                return $records;
+                return array_values(array_filter($records, fn(array $record) => $this->isPickupForToday($record)));
             }
         } catch (\Throwable $e) {
             error_log('Collector tasks load failed: ' . $e->getMessage());
@@ -306,6 +309,23 @@ class CollectorDashboardController extends DashboardController
         }
 
         return $status;
+    }
+
+    private function isPickupForToday(array $pickup): bool
+    {
+        $today = date('Y-m-d');
+
+        $scheduledDate = isset($pickup['scheduled_at']) ? substr((string) $pickup['scheduled_at'], 0, 10) : '';
+        if ($scheduledDate !== '') {
+            return $scheduledDate === $today;
+        }
+
+        $createdDate = isset($pickup['created_at']) ? substr((string) $pickup['created_at'], 0, 10) : '';
+        if ($createdDate !== '') {
+            return $createdDate === $today;
+        }
+
+        return false;
     }
     private function getRouteHistory(): array
     {
@@ -868,6 +888,7 @@ class CollectorDashboardController extends DashboardController
                 return [
                     'customer_id' => $r['customer_id'] ?? 'N/A',
                     'customer_name' => $r['customer_name'] ?? 'Unknown',
+                    'location' => $r['location'] ?? 'Not provided',
                     'category' => $r['category'] ?? 'General',
                     'weight' => (float) ($r['weight'] ?? 0),
                     'amount' => (float) ($r['amount'] ?? 0),
