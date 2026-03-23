@@ -17,7 +17,10 @@ $collectorName = htmlspecialchars((string) $collectorName, ENT_QUOTES, 'UTF-8');
 // SAME image logic as profile page
 $profileImage = $collectorProfile['profile_pic']
   ?? ($collectorProfile['profileImage']
-  ?? ($collectorProfile['profileImagePath'] ?? null));
+  ?? ($collectorProfile['profileImagePath']
+  ?? (auth()['profileImagePath']
+  ?? (auth()['profile_image_path']
+  ?? (session('profileImagePath') ?? null)))));
 
 if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = $profileImage;

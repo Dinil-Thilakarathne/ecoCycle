@@ -38,6 +38,7 @@ class CollectorDashboardController extends DashboardController
     {
         $data = [
             'pageTitle' => 'Collector Dashboard',
+            'collectorProfile' => $this->getCollectorProfile(),
             'todayPickups' => $this->getTodayPickups(),
             'completedPickups' => $this->getCompletedPickupsToday(),
             'pendingPickups' => $this->getPendingPickups(),
