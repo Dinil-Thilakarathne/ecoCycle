@@ -382,6 +382,35 @@
   font-weight: 600;
 }
 
+.tab-nav-wrapper {
+        background-color: #f1f3f5;
+        padding: 5px;
+        border-radius: 12px;
+        display: inline-flex;
+        gap: 4px;
+        margin-bottom: 1.5rem;
+    }
+
+    .tab-trigger {
+        padding: 8px 18px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+        border-radius: 9px;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+
+    .tab-trigger.active {
+        background-color: #ffffff;
+        color: #000000;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .notification-row.unread { background-color: #e9f8f0; }
+
 .pickup-bottom {
   display: flex;
   justify-content: space-between;

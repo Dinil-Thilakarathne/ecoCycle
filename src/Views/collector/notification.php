@@ -55,8 +55,17 @@ $readCount = $totalCount - $unreadCount;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    .unread-dot { height: 8px; width: 8px; background-color: #ff4d4f; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .notification-row.unread { background-color: #f8fbff; }
+    .notification-row.unread { background-color: #e9f8f0; }
+
+    .notifications-table th:first-child,
+    .notifications-table td:first-child {
+        text-align: left;
+    }
+
+    .notifications-table th:not(:first-child),
+    .notifications-table td:not(:first-child) {
+        text-align: center;
+    }
 </style>
 
 <main class="content">
@@ -81,17 +90,17 @@ $readCount = $totalCount - $unreadCount;
                 </button>
             </div>
 </div>
-            <!-- <div class="action-buttons">
+            <div class="action-buttons">
                 <button onclick="markAllAsRead()" class="btn btn-primary">Mark All as Read</button>
-            </div> -->
+            </div>
 
         <div class="table-container" style="overflow-x:auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <table class="notifications-table data-table" style="width:100%;">
                 <thead>
                     <tr>
                         <th style="width:25%;">Notification</th>
-                        <th style="width:25%;">Type</th>
-                        <th style="width:25%;">Date</th>
+                        <th style="width:25%; text-align: center;">Type</th>
+                        <th style="width:25%; text-align: center;">Date</th>
                         <th style="width:25%; text-align: center;">Actions</th>
                     </tr>
                 </thead>
@@ -152,14 +161,16 @@ let activeFilter = 'all';
         return String(notification?.status || '').toLowerCase() !== 'read';
     }
 
-    function timeAgo(timestamp) {
-        if (!timestamp) return '';
-        const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
-        if (seconds < 60) return 'Just now';
-        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
-        if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
-        return new Date(timestamp).toLocaleDateString();
-    }
+function timeAgo(timestamp) {
+  const date = new Date(timestamp);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month} ${day}, ${year} ${hours}:${minutes}`;
+}
 
     // Tab Switching Logic
     window.filterTable = function(filter, btn) {
@@ -205,7 +216,6 @@ let activeFilter = 'all';
             tr.innerHTML = `
                 <td>
                     <div class="notification-details">
-                        ${isUnread ? '<span class="unread-dot"></span>' : ''}
                         <div class="notification-title" style="font-size: 14px;">${notif.title}</div>
                         <div style="font-size: 12px; color: #666;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
                     </div>
