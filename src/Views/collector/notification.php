@@ -71,7 +71,7 @@ $readCount = $totalCount - $unreadCount;
 <main class="content">
     <header class="page-header">
         <div class="page-header__content">
-            <h2 class="page-header__title"><i class="fa-solid fa-bell"></i> Notifications</h2>
+            <h2 class="page-header__title"></i> Notifications</h2>
             <p class="page-header__description">Stay on top of your platform updates</p>
         </div>
     </header>
@@ -234,16 +234,42 @@ function timeAgo(timestamp) {
     }
 
     window.markAllAsRead = async function() {
+        const unreadNotifications = notificationsState.filter(isUnreadNotification);
+
+        if (unreadNotifications.length === 0) {
+            return;
+        }
+
         try {
-            const res = await fetch('/api/collector/notifications/read-all', { 
-                method: 'PUT',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const result = await res.json();
-            if (result.success) {
-                fetchNotifications(); 
+            const requests = unreadNotifications.map((notif) =>
+                fetch(`/api/collector/notifications/${encodeURIComponent(notif.id)}/read`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+            );
+
+            const responses = await Promise.allSettled(requests);
+            const successCount = responses.filter(
+                (result) => result.status === 'fulfilled' && result.value.ok
+            ).length;
+
+            if (successCount > 0) {
+                // Optimistic local update so unread notifications immediately move to read.
+                notificationsState = notificationsState.map((notif) => ({
+                    ...notif,
+                    status: isUnreadNotification(notif) ? 'read' : notif.status
+                }));
+                renderNotifications(notificationsState);
             }
-        } catch (e) { console.error("Update failed", e); }
+
+            setTimeout(() => fetchNotifications(), 300);
+        } catch (e) {
+            console.error('Mark all as read failed', e);
+            alert('Failed to mark all notifications as read. Please try again.');
+        }
     };
 
     window.viewNotification = function(id) {
