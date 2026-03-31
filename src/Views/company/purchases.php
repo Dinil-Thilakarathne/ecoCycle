@@ -5,6 +5,9 @@
 $summary = $purchaseSummary ?? ['total' => format_rs(0), 'active_orders' => 0, 'completed' => 0];
 $purchases = $acceptedPurchases ?? [];
 $history = $purchaseHistory ?? [];
+
+// Detect PayHere return status from URL (return_url / cancel_url redirect)
+$paymentReturn = $_GET['payment'] ?? '';
 ?>
 
 <main class="content">
@@ -14,6 +17,46 @@ $history = $purchaseHistory ?? [];
             <p class="page-header__description">Manage your invoices and track your purchased waste lots</p>
         </div>
     </header>
+
+    <?php if ($paymentReturn === 'success'): ?>
+    <div id="payhereBanner" style="
+        display:flex; align-items:center; gap:12px;
+        margin-bottom:20px; padding:14px 18px;
+        background:linear-gradient(135deg,#d1fae5,#ecfdf5);
+        border:1.5px solid #6ee7b7; border-radius:12px;
+        color:#065f46; font-size:14px; font-weight:500;
+        box-shadow: 0 2px 8px rgba(16,185,129,0.12);
+    ">
+        <span style="font-size:22px;">✅</span>
+        <div>
+            <strong>Payment Successful!</strong> Your payment was confirmed by PayHere.
+            <span id="pollStatus" style="opacity:0.7; font-size:13px; margin-left:4px;">Updating invoice status…</span>
+        </div>
+        <button onclick="document.getElementById('payhereBanner').remove()" style="
+            margin-left:auto; background:none; border:none; font-size:18px;
+            cursor:pointer; color:#065f46; padding:4px;
+        ">×</button>
+    </div>
+
+    <?php elseif ($paymentReturn === 'cancelled'): ?>
+    <div id="payhereBanner" style="
+        display:flex; align-items:center; gap:12px;
+        margin-bottom:20px; padding:14px 18px;
+        background:linear-gradient(135deg,#fef3c7,#fffbeb);
+        border:1.5px solid #fcd34d; border-radius:12px;
+        color:#92400e; font-size:14px; font-weight:500;
+        box-shadow: 0 2px 8px rgba(245,158,11,0.12);
+    ">
+        <span style="font-size:22px;">⚠️</span>
+        <div>
+            <strong>Payment Cancelled.</strong> You cancelled the PayHere payment. Your invoice remains pending — you can try again anytime.
+        </div>
+        <button onclick="document.getElementById('payhereBanner').remove()" style="
+            margin-left:auto; background:none; border:none; font-size:18px;
+            cursor:pointer; color:#92400e; padding:4px;
+        ">×</button>
+    </div>
+    <?php endif; ?>
 
     <div class="purchases-grid" style="margin-bottom: 24px;">
         <!-- Purchased Lots Summary -->
@@ -44,50 +87,12 @@ $history = $purchaseHistory ?? [];
         </div>
     </div>
 
-    <!-- My Purchased Lots (Ready for Pickup) -->
-    <div class="activity-card" style="margin-bottom: 24px;">
-        <div class="activity-card__header">
-            <h3 class="activity-card__title">Ready for Collection</h3>
-        </div>
 
-        <?php
-        $readyForPickup = array_filter($history, function ($p) {
-            return strtolower($p['delivery_status'] ?? '') === 'ready_for_pickup';
-        });
-        ?>
-
-        <?php if (empty($readyForPickup)): ?>
-            <div style="padding: 20px; text-align: center; color: #666;">
-                <p>No lots currently ready for collection.</p>
-                <p style="font-size: 13px; margin-top: 5px;">Lots appear here after your invoice payments are verified by
-                    the Admin.</p>
-            </div>
-        <?php else: ?>
-            <div
-                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; padding: 15px;">
-                <?php foreach ($readyForPickup as $lot): ?>
-                    <div class="purchase-box" style="border: 2px solid #10b981; background: #f0fdf4;">
-                        <h3 style="font-size: 18px; font-weight: bold; color: #065f46;">Lot <?= htmlspecialchars($lot['id']) ?>
-                        </h3>
-                        <p style="margin: 5px 0;"><strong>Category:</strong> <?= htmlspecialchars($lot['type']) ?></p>
-                        <p style="margin: 5px 0;"><strong>Quantity:</strong> <?= htmlspecialchars($lot['amount']) ?></p>
-                        <span class="tag completed" style="position: absolute; top: 15px; right: 20px;">Ready To Collect</span>
-                        <div
-                            style="margin-top: 15px; padding: 10px; background: white; border-radius: 6px; font-size: 13px; color: #374151;">
-                            <strong>Collection Instructions:</strong><br>
-                            Please arrange transport to collect this lot from the nearest facility. Reference the Lot ID upon
-                            arrival.
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
 
     <!-- Invoice/Purchase History -->
     <div class="activity-card">
         <div class="activity-card__header">
-            <h3 class="activity-card__title">All Invoices & Transactions</h3>
+            <h3 class="activity-card__title">All Invoices &amp; Transactions</h3>
         </div>
         <table class="data-table">
             <thead>
@@ -117,42 +122,30 @@ $history = $purchaseHistory ?? [];
         <h2 style="font-size:22px;font-weight:bold;">Invoice Details</h2>
         <div id="invoiceDetails"></div>
 
-        <!-- Payment Reference Form (shown for pending/processing invoices) -->
-        <div id="paymentRefSection" style="display:none; margin-top:20px;">
+        <!-- ── PayHere Online Payment ─────────────────────────────────────── -->
+        <div id="payhereSection" style="display:none; margin-top:20px;">
             <hr style="margin-bottom:16px;">
-            <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Submit Payment Reference</h3>
-            <p style="color:#6b7280;font-size:13px;margin-bottom:14px;">
-                Transfer the amount to our bank account, then enter your bank reference or transaction ID below.
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                Pay Online with PayHere
+            </h3>
+            <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">
+                Pay securely using your Visa, Mastercard, or AMEX card via PayHere — Sri Lanka's leading payment gateway.
             </p>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-                <div>
-                    <label style="font-weight:600;font-size:14px;display:block;margin-bottom:4px;">Transaction /
-                        Reference ID <span style="color:#dc2626;">*</span></label>
-                    <input type="text" id="payRefTxnId" placeholder="e.g. TRF-20240227-001234"
-                        style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;box-sizing:border-box;">
-                </div>
-                <div>
-                    <label style="font-weight:600;font-size:14px;display:block;margin-bottom:4px;">Payment
-                        Method</label>
-                    <select id="payRefMethod"
-                        style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="Online Transfer">Online Transfer</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div id="payRefError" style="color:#dc2626;font-size:13px;display:none;"></div>
-                <button id="submitPayRefBtn" class="btn btn-primary" style="width:100%;margin-top:4px;">
-                    Submit Payment Reference
-                </button>
-            </div>
-        </div>
-
-        <!-- Success message (shown after submission) -->
-        <div id="paymentRefSuccess"
-            style="display:none;margin-top:16px;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#166534;font-size:14px;">
-            ✅ Payment reference submitted! We will confirm receipt and update your invoice status shortly.
+            <div id="payhereError" style="color:#dc2626;font-size:13px;display:none;margin-bottom:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca;"></div>
+            <button id="payWithPayhereBtn" style="
+                width:100%; padding:12px 16px; font-size:15px; font-weight:600;
+                background:linear-gradient(135deg,#1a56db,#2563eb);
+                border:none; border-radius:8px; color:white; cursor:pointer;
+                display:flex; align-items:center; justify-content:center; gap:8px;
+                box-shadow:0 4px 14px rgba(37,99,235,0.35); transition:opacity 0.2s;
+            " onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                Pay Rs.&nbsp;<span id="payhereAmountLabel">0.00</span>&nbsp;with PayHere
+            </button>
+            <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:8px;">
+                🔒 You will be redirected to PayHere's secure payment page
+            </p>
         </div>
 
         <br>
@@ -161,12 +154,23 @@ $history = $purchaseHistory ?? [];
     </div>
 </div>
 
+
+<!-- Hidden PayHere auto-submit form (built & submitted by JS) -->
+<form id="payhereAutoForm" method="POST" style="display:none;"></form>
+
 <script>
     document.addEventListener("DOMContentLoaded", async () => {
         const API_URL = '/api/company/invoices';
         let allInvoices = [];
 
-        // Fetch invoices
+        // Remove ?payment= param from URL without reload (keeps history clean)
+        if (window.location.search.includes('payment=')) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('payment');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        // ── Fetch invoices ────────────────────────────────────────────────
         async function loadInvoices() {
             try {
                 const response = await fetch(API_URL, {
@@ -191,20 +195,18 @@ $history = $purchaseHistory ?? [];
             }
         }
 
-        // Render pending/processing invoices as cards
+        // ── Render pending/processing invoices as cards ───────────────────
         function renderInvoices(invoices) {
             const actionable = invoices.filter(inv => inv.status === 'pending' || inv.status === 'processing');
-            const container = document.getElementById('pendingInvoicesContainer');
+            const container  = document.getElementById('pendingInvoicesContainer');
 
             if (actionable.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No pending invoices</p>';
             } else {
                 container.innerHTML = actionable.map(invoice => {
-                    const isPending = invoice.status === 'pending';
-                    const isProcessing = invoice.status === 'processing';
-                    const badgeColor = isPending ? '#f59e0b' : '#3b82f6';
+                    const isPending  = invoice.status === 'pending';
+                    const tagClass   = isPending ? 'pending' : 'processing';
                     const badgeLabel = isPending ? 'PENDING' : 'REFERENCE SUBMITTED';
-                    const tagClass = isPending ? 'pending' : 'processing';
                     return `
                     <div class="purchase-box" data-invoice-id="${invoice.id}">
                         <h3 style="font-size: 18px; font-weight: bold;">${escapeHtml(invoice.notes || 'Invoice')}</h3>
@@ -214,13 +216,12 @@ $history = $purchaseHistory ?? [];
                         <p>Date: ${formatDate(invoice.date || invoice.createdAt)}</p>
                         <span class="tag ${tagClass}" style="position: absolute; top: 15px; right: 20px;">${badgeLabel}</span>
                         <button class="btn btn-primary outline view-invoice-btn" style="width: 100%; margin-top: 15px;" data-invoice='${JSON.stringify(invoice)}'>
-                            ${isPending ? 'Submit Payment Reference' : 'View / Update Reference'}
+                            ${isPending ? '💳 Pay Invoice' : 'View / Update Payment'}
                         </button>
                     </div>
                     `;
                 }).join('');
 
-                // Attach event listeners
                 container.querySelectorAll('.view-invoice-btn').forEach(btn => {
                     btn.addEventListener('click', function () {
                         const invoice = JSON.parse(this.getAttribute('data-invoice'));
@@ -232,7 +233,7 @@ $history = $purchaseHistory ?? [];
             renderInvoiceTable(invoices);
         }
 
-        // Render invoice history table
+        // ── Render invoice history table ──────────────────────────────────
         function renderInvoiceTable(invoices) {
             const tbody = document.getElementById('invoiceHistoryBody');
 
@@ -241,9 +242,9 @@ $history = $purchaseHistory ?? [];
             } else {
                 tbody.innerHTML = invoices.map(invoice => {
                     const statusClass = invoice.status === 'completed' ? 'completed'
-                        : invoice.status === 'failed' ? 'failed'
-                            : invoice.status === 'processing' ? 'processing'
-                                : 'pending';
+                        : invoice.status === 'failed'     ? 'failed'
+                        : invoice.status === 'processing' ? 'processing'
+                        : 'pending';
                     const canAct = invoice.status === 'pending' || invoice.status === 'processing';
                     return `
                     <tr>
@@ -259,7 +260,7 @@ $history = $purchaseHistory ?? [];
                         <td>
                             <button class="btn btn-primary outline" style="padding: 5px 10px; font-size: 12px;"
                                 onclick='showInvoiceDetails(${JSON.stringify(invoice)})'>
-                                ${canAct ? 'Pay / View' : 'View'}
+                                ${canAct ? '💳 Pay / View' : 'View'}
                             </button>
                         </td>
                     </tr>
@@ -268,121 +269,133 @@ $history = $purchaseHistory ?? [];
             }
         }
 
-        // Calculate and display summary
+        // ── Summary ───────────────────────────────────────────────────────
         function calculateSummary(invoices) {
-            const pending = invoices.filter(inv => inv.status === 'pending' || inv.status === 'processing').length;
-            const completed = invoices.filter(inv => inv.status === 'completed').length;
             const total = invoices.reduce((sum, inv) => sum + parseFloat(inv.amount || 0), 0);
 
             const pendingEl = document.getElementById('pendingCount');
-            if (pendingEl) pendingEl.textContent = pending;
+            if (pendingEl) pendingEl.textContent = invoices.filter(i => i.status === 'pending' || i.status === 'processing').length;
 
             const completedEl = document.getElementById('completedCount');
-            if (completedEl) completedEl.textContent = completed;
+            if (completedEl) completedEl.textContent = invoices.filter(i => i.status === 'completed').length;
 
             const totalEl = document.getElementById('totalAmount');
             if (totalEl) totalEl.textContent = `Rs. ${total.toFixed(2)}`;
         }
 
-        // Show invoice details modal
+        // ── Show invoice details modal ────────────────────────────────────
         window.showInvoiceDetails = function (invoice) {
-            const modal = document.getElementById('paymentModal');
-            const detailsDiv = document.getElementById('invoiceDetails');
-            const refSection = document.getElementById('paymentRefSection');
-            const successSection = document.getElementById('paymentRefSuccess');
-            const errorDiv = document.getElementById('payRefError');
+            const modal          = document.getElementById('paymentModal');
+            const detailsDiv     = document.getElementById('invoiceDetails');
+            const payhereSection = document.getElementById('payhereSection');
+            const payhereAmtLbl  = document.getElementById('payhereAmountLabel');
 
-            const canPay = invoice.status === 'pending' || invoice.status === 'processing';
-            const statusMap = { pending: 'Pending', processing: 'Reference Submitted', completed: 'Completed', failed: 'Failed' };
+            const canPay      = invoice.status === 'pending' || invoice.status === 'processing';
+            const statusMap   = { pending: 'Pending', processing: 'Processing', completed: 'Completed', failed: 'Failed' };
             const statusClass = invoice.status === 'completed' ? 'completed'
-                : invoice.status === 'processing' ? 'processing'
-                    : invoice.status === 'failed' ? 'failed'
-                        : 'pending';
+                              : invoice.status === 'processing' ? 'processing'
+                              : invoice.status === 'failed'     ? 'failed'
+                              : 'pending';
+
+            const amount = parseFloat(invoice.amount || 0).toFixed(2);
 
             detailsDiv.innerHTML = `
             <p><strong>Invoice ID:</strong> ${escapeHtml(invoice.id)}</p>
             <p><strong>Description:</strong> ${escapeHtml(invoice.notes || 'N/A')}</p>
-            <p><strong>Amount:</strong> Rs. ${parseFloat(invoice.amount).toFixed(2)}</p>
+            <p><strong>Amount:</strong> <strong style="color:#1a56db">Rs. ${amount}</strong></p>
             <p><strong>Status:</strong> <span class="tag ${statusClass}">${statusMap[invoice.status] || invoice.status}</span></p>
-            <p><strong>Reference:</strong> ${escapeHtml(invoice.txnId || 'Not yet submitted')}</p>
+            <p><strong>Reference:</strong> ${escapeHtml(invoice.txnId || 'Not yet paid')}</p>
             <p><strong>Date:</strong> ${formatDate(invoice.date || invoice.createdAt)}</p>
-            ${invoice.gatewayResponse ? `<p><strong>Payment Method:</strong> ${escapeHtml(invoice.gatewayResponse)}</p>` : ''}
+            ${invoice.gatewayResponse ? `<p><strong>Payment Method:</strong> ${escapeHtml(
+                typeof invoice.gatewayResponse === 'object'
+                    ? (invoice.gatewayResponse.gateway || JSON.stringify(invoice.gatewayResponse))
+                    : invoice.gatewayResponse
+            )}</p>` : ''}
         `;
 
-            // Reset form state
-            document.getElementById('payRefTxnId').value = invoice.txnId || '';
-            errorDiv.style.display = 'none';
-            successSection.style.display = 'none';
-            refSection.style.display = canPay ? 'block' : 'none';
+            // Update PayHere amount label & reset error
+            if (payhereAmtLbl) payhereAmtLbl.textContent = amount;
+            document.getElementById('payhereError').style.display = 'none';
 
-            // Wire up submit button for this specific invoice
-            const submitBtn = document.getElementById('submitPayRefBtn');
-            const newBtn = submitBtn.cloneNode(true); // Remove old listeners
-            submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+            // Show PayHere section only for payable invoices
+            payhereSection.style.display = canPay ? 'block' : 'none';
 
-            newBtn.addEventListener('click', async () => {
-                const txnId = document.getElementById('payRefTxnId').value.trim();
-                const paymentMethod = document.getElementById('payRefMethod').value;
-                const errDiv = document.getElementById('payRefError');
+            // ── Wire up PayHere button ────────────────────────────────────
+            const payhereBtn    = document.getElementById('payWithPayhereBtn');
+            const newPayhereBtn = payhereBtn.cloneNode(true);
+            payhereBtn.parentNode.replaceChild(newPayhereBtn, payhereBtn);
 
-                if (!txnId) {
-                    errDiv.textContent = 'Please enter your bank reference or transaction ID.';
-                    errDiv.style.display = 'block';
-                    return;
-                }
+            // Re-sync amount label after clone
+            const clonedLbl = newPayhereBtn.querySelector('#payhereAmountLabel');
+            if (clonedLbl) clonedLbl.textContent = amount;
 
-                errDiv.style.display = 'none';
-                newBtn.disabled = true;
-                newBtn.textContent = 'Submitting...';
+            newPayhereBtn.addEventListener('click', () => initPayhereCheckout(invoice.id, newPayhereBtn));
 
-                try {
-                    const res = await fetch(`/api/company/invoices/${encodeURIComponent(String(invoice.id))}/pay`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({ txnId, paymentMethod })
-                    });
-
-                    const body = await res.json().catch(() => ({}));
-                    if (!res.ok || !body.success) {
-                        throw new Error(body.message || `Request failed (${res.status})`);
-                    }
-
-                    // Update in-memory list and re-render
-                    const updated = body.data || {};
-                    const idx = allInvoices.findIndex(inv => String(inv.id) === String(invoice.id));
-                    if (idx !== -1) {
-                        allInvoices[idx] = Object.assign({}, allInvoices[idx], {
-                            status: updated.status || 'processing',
-                            txnId: txnId,
-                            gatewayResponse: paymentMethod
-                        });
-                    }
-                    renderInvoices(allInvoices);
-                    calculateSummary(allInvoices);
-
-                    refSection.style.display = 'none';
-                    successSection.style.display = 'block';
-
-                } catch (err) {
-                    errDiv.textContent = err.message || 'Failed to submit. Please try again.';
-                    errDiv.style.display = 'block';
-                } finally {
-                    newBtn.disabled = false;
-                    newBtn.textContent = 'Submit Payment Reference';
-                }
-            });
 
             modal.style.display = 'flex';
         };
 
-        // Close modal
+
+        // ── PayHere Checkout initiator ────────────────────────────────────
+        /**
+         * Calls our backend to get a signed PayHere payload,
+         * then auto-submits a hidden POST form to PayHere Sandbox.
+         */
+        async function initPayhereCheckout(invoiceId, btn) {
+            const errDiv = document.getElementById('payhereError');
+            errDiv.style.display = 'none';
+            btn.disabled   = true;
+            btn.innerHTML  = '<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span>&nbsp;Preparing Payment...';
+
+            try {
+                const res = await fetch(`/api/payhere/checkout/${encodeURIComponent(String(invoiceId))}`, {
+                    method : 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+
+                const body = await res.json().catch(() => ({}));
+
+                if (!res.ok || !body.success) {
+                    throw new Error(body.message || body.error || `Server error (${res.status})`);
+                }
+
+                const payload   = body.payload;
+                const actionUrl = payload.action_url;
+                delete payload.action_url; // not a form field
+
+                // Build hidden form
+                const form = document.getElementById('payhereAutoForm');
+                form.action   = actionUrl;
+                form.innerHTML = '';
+
+                Object.entries(payload).forEach(([key, value]) => {
+                    const input = document.createElement('input');
+                    input.type  = 'hidden';
+                    input.name  = key;
+                    input.value = value ?? '';
+                    form.appendChild(input);
+                });
+
+                // Submit after short delay so user sees the loading state
+                setTimeout(() => form.submit(), 300);
+
+            } catch (err) {
+                console.error('[PayHere]', err);
+                errDiv.textContent   = err.message || 'Failed to initiate PayHere payment. Please try again.';
+                errDiv.style.display = 'block';
+                btn.disabled         = false;
+                btn.innerHTML        = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> Pay with PayHere';
+            }
+        }
+
+        // ── Close modal ───────────────────────────────────────────────────
         document.querySelector('.closePayment').addEventListener('click', function (e) {
             e.preventDefault();
             document.getElementById('paymentModal').style.display = 'none';
         });
 
-        // Helper functions
+        // ── Utility helpers ───────────────────────────────────────────────
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = String(text ?? '');
@@ -392,10 +405,63 @@ $history = $purchaseHistory ?? [];
         function formatDate(dateStr) {
             if (!dateStr) return 'N/A';
             const date = new Date(dateStr);
-   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         }
 
         // Load invoices on page load
         await loadInvoices();
     });
 </script>
+
+<?php if ($paymentReturn === 'success'): ?>
+<script>
+// ── Auto-poll invoice status after successful PayHere return ─────────────────
+// PayHere calls notify_url asynchronously — it may arrive a few seconds after
+// the browser is redirected to return_url. Poll the invoices API until we see
+// a 'completed' status, then reload the page clean (removes ?payment=success).
+(function () {
+    const MAX_ATTEMPTS  = 15;   // poll for up to ~45 seconds
+    const INTERVAL_MS   = 3000; // every 3 seconds
+    let   attempts      = 0;
+
+    const pollEl = document.getElementById('pollStatus');
+
+    const timer = setInterval(async () => {
+        attempts++;
+
+        try {
+            const res  = await fetch('/api/company/invoices', { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            // Look for any invoice that just became completed
+            const invoices = data.data ?? data.invoices ?? data ?? [];
+            const anyCompleted = Array.isArray(invoices) &&
+                invoices.some(inv => (inv.status ?? '').toLowerCase() === 'completed');
+
+            if (anyCompleted) {
+                clearInterval(timer);
+                if (pollEl) pollEl.textContent = 'Invoice updated! Refreshing…';
+                // Reload without the ?payment=success query param
+                setTimeout(() => {
+                    window.location.href = window.location.pathname;
+                }, 800);
+                return;
+            }
+        } catch (e) {
+            // Network error — keep trying
+        }
+
+        // Give up after MAX_ATTEMPTS
+        if (attempts >= MAX_ATTEMPTS) {
+            clearInterval(timer);
+            if (pollEl) pollEl.textContent = 'Refresh the page to see the updated status.';
+        }
+    }, INTERVAL_MS);
+})();
+</script>
+<?php endif; ?>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

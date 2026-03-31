@@ -834,58 +834,5 @@ class BiddingController extends BaseController
         }
     }
 
-    /**
-     * Mark a ready_for_pickup lot as handed over.
-     * POST /api/bidding/{id}/handoff
-     */
-    public function handoff(Request $request): Response
-    {
-        $id = $this->resolveRouteId($request);
-        if ($id === null) {
-            return Response::errorJson('Bidding round id is required', 400);
-        }
 
-        try {
-            $existing = $this->rounds->findById($id);
-            if (!$existing) {
-                return Response::errorJson('Bidding round not found', 404);
-            }
-
-            if (strtolower((string) ($existing['status'] ?? '')) !== 'ready_for_pickup') {
-                return Response::errorJson('Only lots ready for pickup can be marked as handed over', 422);
-            }
-
-            $success = $this->rounds->updateAttributes($id, [
-                'status' => 'handed_over',
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-
-            if (!$success) {
-                return Response::errorJson('Failed to mark lot as handed over in the database', 500);
-            }
-
-            // Notify Company
-            if (!empty($existing['leadingCompanyId'])) {
-                $this->notification->create([
-                    'type' => 'info',
-                    'title' => 'Waste Lot Collected',
-                    'message' => "Your pickup for Lot {$existing['lotId']} has been marked as completed by the Admin.",
-                    'recipients' => ['company:' . $existing['leadingCompanyId']]
-                ]);
-            }
-
-            // Decrease inventory if needed? Wait, inventory reduction was already handled when allocating to round?
-            // Usually, inventory is frozen when round is created, and actually removed when handed over?
-            // According to our previous tests, the inventory was marked allocated when the round started.
-            // Let's assume handoff finalizes it physically.
-
-            return Response::json([
-                'success' => true,
-                'message' => 'Lot successfully marked as handed over',
-            ]);
-
-        } catch (\Throwable $e) {
-            return Response::errorJson('Internal server error', 500, ['detail' => $e->getMessage()]);
-        }
-    }
 }

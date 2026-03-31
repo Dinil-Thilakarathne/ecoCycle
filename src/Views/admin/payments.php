@@ -407,112 +407,64 @@ function getStatusTag($status)
             recipient: dataset.recipientName || 'Unknown recipient'
         };
 
+        // Simple "Mark as Paid" confirmation — system is a ledger, no actual bank integration needed
+        const typeLabel = paymentData.type === 'payout' ? 'Payout to' : 'Payment from';
+        const typeIcon  = paymentData.type === 'payout' ? '↗' : '↙';
+
         const container = document.createElement('div');
         container.innerHTML = `
-            <div style="display:grid;gap:1.5rem;">
-                <div style="background:#f9fafb;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;">
-                    <div style="display:grid;gap:1rem;">
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Transaction ID</span>
-                            <strong style="font-size:1rem;color:#111827;">${escapeHtml(paymentData.id)}</strong>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
-                            <div>
-                                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Type</span>
-                                <strong style="color:#111827;">${escapeHtml(paymentData.type)}</strong>
-                            </div>
-                            <div>
-                                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Amount</span>
-                                <strong style="color:#16a34a;font-size:1.1rem;">${escapeHtml(formatCurrency(paymentData.amount))}</strong>
-                            </div>
-                        </div>
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Recipient</span>
-                            <strong style="color:#111827;">${escapeHtml(paymentData.recipient)}</strong>
-                        </div>
+            <div style="display:grid;gap:1.25rem;">
+
+                <!-- Flow summary -->
+                <div style="display:flex;align-items:center;gap:1rem;padding:1.25rem;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:10px;border:1px solid #86efac;">
+                    <div style="width:48px;height:48px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fa-solid fa-arrow-up-from-bracket" style="color:#fff;font-size:1.1rem;"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:0.8rem;color:#166534;margin-bottom:2px;">${escapeHtml(typeLabel)}</div>
+                        <div style="font-weight:700;font-size:1.05rem;color:#14532d;">${escapeHtml(paymentData.recipient)}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.8rem;color:#166534;margin-bottom:2px;">Amount</div>
+                        <div style="font-weight:800;font-size:1.25rem;color:#15803d;">${escapeHtml(formatCurrency(paymentData.amount))}</div>
                     </div>
                 </div>
 
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Method</label>
-                    <select data-payment-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select payment method</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cash">Cash</option>
-                        <option value="check">Check</option>
-                        <option value="online">Online Payment</option>
-                    </select>
+                <!-- Ledger note -->
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:0.85rem 1rem;font-size:0.88rem;color:#374151;line-height:1.6;">
+                    <strong>What this does:</strong> Marks this payout as <strong style="color:#16a34a;">Paid</strong> in the system. The money flow will be recorded in ecoCycle's ledger and the recipient will see the updated status in their payment history.
                 </div>
 
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Reference Number</label>
-                    <input type="text" data-payment-field="reference" placeholder="Enter reference or transaction number" 
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Notes (Optional)</label>
-                    <textarea data-payment-field="notes" rows="3" placeholder="Add any additional notes about this payment..."
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit;font-size:0.95rem;"></textarea>
-                </div>
-
-                <div style="background:#fef3c7;padding:1rem;border-radius:8px;border:1px solid #fde047;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-circle-exclamation" style="color:#ca8a04;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#713f12;font-size:0.9rem;line-height:1.5;">
-                            <strong>Important:</strong> Please verify all payment details before processing. This action will mark the payment as completed.
-                        </p>
-                    </div>
-                </div>
             </div>
         `;
 
         openModal({
-            title: 'Process Payment',
-            size: 'md',
+            title: 'Mark as Paid',
+            size: 'sm',
             content: container,
             actions: [
+                { label: 'Cancel', variant: 'plain' },
                 {
-                    label: 'Cancel',
-                    variant: 'plain'
-                },
-                {
-                    label: 'Process Payment',
+                    label: '✓ Mark as Paid',
                     variant: 'primary',
                     dismiss: false,
-                    loadingLabel: 'Processing...',
-                    onClick: async ({ body, close, setLoading }) => {
-                        const paymentMethod = getFieldValue(body, '[data-payment-field="method"]');
-                        const referenceNumber = getFieldValue(body, '[data-payment-field="reference"]');
-                        const notes = getFieldValue(body, '[data-payment-field="notes"]');
-
-                        if (!paymentMethod) {
-                            showToast('Please select a payment method', 'error');
-                            return;
-                        }
-
+                    loadingLabel: 'Saving...',
+                    onClick: async ({ close, setLoading }) => {
                         setLoading(true);
-
                         try {
-                            const payload = {
+                            const { data } = await updatePayment(paymentId, {
                                 recipientId,
                                 amount: amountValue,
                                 type: paymentData.type || 'payout',
                                 status: 'completed',
-                                txnId: referenceNumber || undefined,
-                                gatewayResponse: {
-                                    method: paymentMethod,
-                                    notes: notes || undefined,
-                                    sourcePaymentId: paymentId
-                                }
-                            };
-
-                            const { data } = await updatePayment(paymentId, payload);
+                                txnId: `ECO-${Date.now()}`,
+                                gatewayResponse: { processed_at: new Date().toISOString() }
+                            });
                             updatePaymentRow(row, data || {});
-                            showToast('Payment updated successfully', 'success');
+                            showToast(`Payout to ${paymentData.recipient} marked as paid`, 'success');
                             close();
                         } catch (error) {
-                            showToast(error.message || 'Payment processing failed', 'error');
+                            showToast(error.message || 'Failed to update payment', 'error');
                         } finally {
                             setLoading(false);
                         }
