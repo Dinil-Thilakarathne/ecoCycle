@@ -534,7 +534,6 @@ function getStatusBadge($status)
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Request ID</th>
                             <th>Customer</th>
                             <th>Address</th>
                             <th>Waste Categories</th>
@@ -548,7 +547,6 @@ function getStatusBadge($status)
                     <tbody>
                         <?php foreach ($filteredRequests as $request): ?>
                             <tr data-id="<?= htmlspecialchars($request['id'] ?? '') ?>">
-                                <td class="font-medium"><?= htmlspecialchars($request['id'] ?? '') ?></td>
                                 <td>
                                     <div class="cell-with-icon">
                                         <i class="fa-solid fa-user"></i>

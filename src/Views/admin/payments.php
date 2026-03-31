@@ -4,7 +4,7 @@ $payments = is_array($payments) ? $payments : [];
 $summary = $paymentSummary ?? [];
 $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 
-$totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 1000.0;
+$totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 0.0;
 $totalPayments = isset($summary['total_payments']) ? (float) $summary['total_payments'] : 0.0;
 $pendingCount = isset($summary['pending_count']) ? (int) $summary['pending_count'] : 0;
 
@@ -46,13 +46,9 @@ function getStatusTag($status)
 <div>
     <!-- Page Header -->
     <page-header title="Payment Overview" description="Manage customer payouts and company payments">
-        <button class="btn btn-outline" onclick="refreshPayments()" style="margin-right: var(--space-2);">
+        <button class="btn btn-outline" onclick="refreshPayments()">
             <i class="fa-solid fa-rotate"></i>
             Refresh
-        </button>
-        <button class="btn btn-primary" onclick="openBatchPaymentModal()">
-            <i class="fa-solid fa-credit-card"></i>
-            Process Payments
         </button>
     </page-header>
 
@@ -61,7 +57,7 @@ function getStatusTag($status)
     $paymentStatCards = [
         [
             'title' => 'Total Payouts',
-            'value' => 'Rs 10,000.00', // TODO: need to change
+            'value' => 'Rs ' . number_format($totalPayouts, 2),
             'icon' => 'fa-solid fa-arrow-trend-down',
             'period' => 'To customers',
         ],
@@ -512,14 +508,43 @@ function getStatusTag($status)
         });
 
         if (record.gatewayResponse) {
-            const gateway = typeof record.gatewayResponse === 'object'
-                ? JSON.stringify(record.gatewayResponse, null, 2)
-                : String(record.gatewayResponse);
+            let parsedResponse = record.gatewayResponse;
+            if (typeof parsedResponse === 'string') {
+                try {
+                    parsedResponse = JSON.parse(parsedResponse);
+                } catch(e) {}
+            }
+
+            let gatewayHtml = '';
+            if (typeof parsedResponse === 'object' && parsedResponse !== null) {
+                const lines = [];
+                for (const [key, value] of Object.entries(parsedResponse)) {
+                    const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    let displayValue = value;
+                    if (key.includes('at') || key.includes('time') || key.includes('date')) {
+                        const d = new Date(value);
+                        if (!isNaN(d.getTime())) {
+                            displayValue = d.toLocaleString(undefined, {
+                                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                            });
+                        }
+                    }
+                    lines.push(`<div style="display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px solid #f3f4f6; padding-bottom:4px;">
+                        <span style="color:#6b7280;">${escapeHtml(formattedKey)}</span>
+                        <strong style="color:#111827; text-align:right;">${escapeHtml(displayValue)}</strong>
+                    </div>`);
+                }
+                gatewayHtml = lines.join('');
+            } else {
+                gatewayHtml = `<div style="color:#111827;">${escapeHtml(String(parsedResponse))}</div>`;
+            }
+
             const gatewayBlock = document.createElement('div');
             gatewayBlock.classList.add('payment-gateway-response');
+            gatewayBlock.style.cssText = 'background:#f9fafb; padding:12px; border-radius:8px; border:1px solid #e5e7eb; font-size:0.85rem;';
             gatewayBlock.innerHTML = `
-                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Gateway Response</span>
-                <pre style="background:#f3f4f6;padding:0.75rem;border-radius:8px;overflow:auto;white-space:pre-wrap;">${escapeHtml(gateway)}</pre>
+                <div style="color:#4b5563; font-weight:600; margin-bottom:10px; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em;">Gateway Details</div>
+                ${gatewayHtml}
             `;
             list.appendChild(gatewayBlock);
         }
@@ -537,123 +562,4 @@ function getStatusTag($status)
         });
     }
 
-    function openBatchPaymentModal() {
-        const container = document.createElement('div');
-        container.innerHTML = `
-            <div style="display:grid;gap:1.5rem;">
-                <div style="background:#f0f9ff;padding:1rem;border-radius:8px;border:1px solid #bae6fd;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-circle-info" style="color:#0284c7;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#075985;font-size:0.9rem;line-height:1.5;">
-                            Process multiple pending payments in a batch. This will mark all selected transactions as completed.
-                        </p>
-                    </div>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Type</label>
-                    <select data-batch-field="type" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select payment type</option>
-                        <option value="all">All Pending</option>
-                        <option value="payout">Payouts Only</option>
-                        <option value="payment">Payments Only</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Processing Method</label>
-                    <select data-batch-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select method</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="bulk_payout">Bulk Payout Service</option>
-                        <option value="manual">Manual Processing</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Reference</label>
-                    <input type="text" data-batch-field="reference" placeholder="Enter batch reference number" 
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Processing Date</label>
-                    <input type="date" data-batch-field="date" value="${new Date().toISOString().split('T')[0]}"
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div style="background:#f9fafb;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;">
-                    <h4 style="margin:0 0 0.75rem 0;font-size:0.95rem;color:#111827;">Summary</h4>
-                    <div style="display:grid;gap:0.5rem;font-size:0.9rem;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span style="color:#6b7280;">Pending Transactions:</span>
-                            <strong style="color:#111827;"><?= $pendingCount ?></strong>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span style="color:#6b7280;">Estimated Total:</span>
-                            <strong style="color:#16a34a;">Calculate on selection</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background:#fef3c7;padding:1rem;border-radius:8px;border:1px solid #fde047;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-triangle-exclamation" style="color:#ca8a04;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#713f12;font-size:0.9rem;line-height:1.5;">
-                            <strong>Warning:</strong> Batch processing will affect multiple transactions. Please ensure all details are correct before proceeding.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        openModal({
-            title: 'Batch Payment Processing',
-            size: 'lg',
-            content: container,
-            actions: [
-                {
-                    label: 'Cancel',
-                    variant: 'plain'
-                },
-                {
-                    label: 'Process Batch',
-                    variant: 'primary',
-                    dismiss: false,
-                    onClick: ({ body, close }) => {
-                        const paymentType = getFieldValue(body, '[data-batch-field="type"]');
-                        const batchMethod = getFieldValue(body, '[data-batch-field="method"]');
-                        const batchReference = getFieldValue(body, '[data-batch-field="reference"]');
-                        const processingDate = getFieldValue(body, '[data-batch-field="date"]');
-
-                        if (!paymentType) {
-                            showToast('Please select a payment type', 'error');
-                            return;
-                        }
-
-                        if (!batchMethod) {
-                            showToast('Please select a processing method', 'error');
-                            return;
-                        }
-
-                        if (!batchReference) {
-                            showToast('Please enter a batch reference', 'error');
-                            return;
-                        }
-
-                        // Here you would typically make an API call to process the batch
-                        console.log('Processing batch payments with:', {
-                            paymentType,
-                            batchMethod,
-                            batchReference,
-                            processingDate
-                        });
-
-                        showToast('Batch payment processing is not yet wired to the API. Please process individually for now.', 'info');
-                        close();
-                    }
-                }
-            ]
-        });
-    }
 </script>

@@ -44,7 +44,7 @@ class AdminDashboardController extends DashboardController
         $activeCollectors = $userModel->countByType('collector', 'active');
         $activePickups = $pickupModel->countByStatuses(['pending', 'assigned']);
         $bidStats = $biddingModel->stats();
-        $monthlyRevenue = max(10000.00, $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m')));
+        $monthlyRevenue = $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m'));
 
         $stats = [
             [
