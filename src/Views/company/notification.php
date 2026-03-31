@@ -3,6 +3,7 @@
 $notifications = $notifications ?? [];
 $currentTab = $_GET['tab'] ?? 'total';
 $selectedNotificationId = $_GET['id'] ?? null;
+$csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 ?>
 
 <main class="content">
@@ -198,36 +199,38 @@ function renderNotifications() {
 async function markAsRead(id) {
   try {
     const url = `/api/notifications/${id}/read`;
-    
+
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : '')
+      },
+      credentials: 'same-origin'
     });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.message) {
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
       // Update local state
       const notification = notificationsState.find(n => n.id == id);
       if (notification) {
         notification.isRead = true;
         notification.status = 'read';
       }
-      
+
       renderNotifications();
       showAlert(data.message || 'Notification marked as read', 'success');
     } else {
-      const errorMsg = data.error || data.message || 'Failed to mark notification as read';
+      const errorMsg = data.error || data.message || `Failed to mark notification as read (${response.status})`;
       showAlert(errorMsg, 'error');
     }
   } catch (error) {
     console.error('Failed to mark as read:', error);
     showAlert('Network error: ' + error.message, 'error');
   }
-} 
+}
 
 async function markAllAsRead() {
   try {
@@ -250,7 +253,8 @@ async function markAllAsRead() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : '')
           }
         });
         
@@ -288,26 +292,53 @@ async function markAllAsRead() {
 function viewNotification(id) {
   const notification = notificationsState.find(n => n.id == id);
   if (!notification) return;
-  
-  // Mark as read when viewing
+
+  // Mark as read when viewing (optimistic + persist)
   if (!notification.isRead) {
+    notification.isRead = true;
+    notification.status = 'read';
+    renderNotifications();
     markAsRead(id);
   }
-  
-  // Toggle: if already viewing this notification, close it
-  if (selectedNotificationId == id) {
-    closeDetail();
-    return;
+
+  // Build modal content
+  const container = document.createElement('div');
+  container.style.cssText = 'display:grid;gap:1rem;max-width:720px;';
+  const title = notification.title || notification.title_text || 'Notification';
+  const message = notification.message || notification.body || '';
+  const timeVal = notification.timestamp || notification.created_at || '';
+
+  container.innerHTML = `
+    <div style="background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e6edf3;">
+      <div style="display:flex;gap:1rem;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:0.85rem;color:#6b7280;margin-bottom:6px;">${escapeHtml(notification.type || '')}</div>
+          <div style="font-weight:700;font-size:1.05rem;color:#111827;">${escapeHtml(title)}</div>
+          <div style="margin-top:6px;color:#374151;">${escapeHtml(message)}</div>
+        </div>
+        <div style="text-align:right;color:#6b7280;font-size:0.85rem;">
+          ${timeVal ? `<div style=\"margin-bottom:4px;\">${escapeHtml(formatDate(timeVal))}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (window.Modal && typeof window.Modal.open === 'function') {
+    window.Modal.open({
+      title: title || 'Notification',
+      size: 'md',
+      content: container,
+      actions: [ { label: 'Close', variant: 'plain' } ]
+    });
+  } else {
+    // Fallback to inline detail expand
+    if (selectedNotificationId == id) { closeDetail(); return; }
+    selectedNotificationId = id;
+    renderNotifications();
+    const params = new URLSearchParams(window.location.search);
+    params.set('id', id);
+    window.history.pushState({}, '', '?' + params.toString());
   }
-  
-  // Set the selected notification and re-render
-  selectedNotificationId = id;
-  renderNotifications();
-  
-  // Update URL
-  const params = new URLSearchParams(window.location.search);
-  params.set('id', id);
-  window.history.pushState({}, '', '?' + params.toString());
 }
 
 function closeDetail() {

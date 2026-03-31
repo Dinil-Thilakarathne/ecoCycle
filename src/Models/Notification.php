@@ -31,7 +31,7 @@ class Notification extends BaseModel
         }, $rows);
     }
 
-    public function forCompany(int $companyId, string $createdAfter, int $limit = 20): array
+    public function forCompany(int $companyId, string $createdAfter = '', int $limit = 20): array
     {
         if ($companyId <= 0) {
             return [];
@@ -39,33 +39,29 @@ class Notification extends BaseModel
 
         $limit = max(1, (int) $limit);
 
+        $dateClause = '';
+        $params = [];
+
+        if (!empty($createdAfter)) {
+            $dateClause = " AND (sent_at >= ? OR created_at >= ?)";
+        }
+
         if ($this->db->isPgsql()) {
-            $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE (recipient_group IN ('company','companies')
-                    OR EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ? OR value = ?
-                    ))
-                 AND (sent_at >= ? OR created_at >= ?)
-                 ORDER BY COALESCE(sent_at, created_at) DESC
-                 LIMIT {$limit}",
-                [(string) $companyId, 'company:' . $companyId, $createdAfter, $createdAfter]
-            );
+            $sql = "SELECT * FROM {$this->table} WHERE (recipient_group IN ('company','companies') OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value) WHERE value = ? OR value = ?))" . $dateClause . " ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}";
+            $params = [(string) $companyId, 'company:' . $companyId];
+            if (!empty($createdAfter)) {
+                $params[] = $createdAfter;
+                $params[] = $createdAfter;
+            }
+            $rows = $this->db->fetchAll($sql, $params);
         } else {
-            $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE (recipient_group IN ('company','companies')
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR)))))
-                 AND (sent_at >= ? OR created_at >= ?)
-                 ORDER BY COALESCE(sent_at, created_at) DESC
-                 LIMIT {$limit}",
-                [$companyId, $companyId, $createdAfter, $createdAfter]
-            );
+            $sql = "SELECT * FROM {$this->table} WHERE (recipient_group IN ('company','companies') OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR))) OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR)))))" . $dateClause . " ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}";
+            $params = [$companyId, $companyId];
+            if (!empty($createdAfter)) {
+                $params[] = $createdAfter;
+                $params[] = $createdAfter;
+            }
+            $rows = $this->db->fetchAll($sql, $params);
         }
 
         return $this->formatRows($rows);
@@ -101,7 +97,7 @@ class Notification extends BaseModel
         return (string) $this->db->lastInsertId();
     }
 
-    public function forUser(int $userId, string $role, string $createdAfter, int $limit = 20): array
+    public function forUser(int $userId, string $role, string $createdAfter = '', int $limit = 20): array
     {
         if ($userId <= 0) {
             return [];
@@ -118,32 +114,29 @@ class Notification extends BaseModel
         // DEBUG LOGGING
         file_put_contents(__DIR__ . '/../../storage/logs/notification_debug.log', date('Y-m-d H:i:s') . " - forUser: userId=$userId originalRole=$originalRole normalizedRole=$role roleGroup=$roleGroup\n", FILE_APPEND);
 
+        $dateClause = '';
+        $params = [];
+
+        if (!empty($createdAfter)) {
+            $dateClause = " AND (sent_at >= ? OR created_at >= ?)";
+        }
+
         if ($this->db->isPgsql()) {
-            $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE (recipient_group IN ('all', 'users', ?, ?)
-                    OR EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
-                        WHERE value = ?
-                    ))
-                 AND (sent_at >= ? OR created_at >= ?)
-                 ORDER BY COALESCE(sent_at, created_at) DESC
-                 LIMIT {$limit}",
-                [$role, $roleGroup, 'user:' . $userId, $createdAfter, $createdAfter]
-            );
+            $sql = "SELECT * FROM {$this->table} WHERE (recipient_group IN ('all', 'users', ?, ?) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value) WHERE value = ?))" . $dateClause . " ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}";
+            $params = [$role, $roleGroup, 'user:' . $userId];
+            if (!empty($createdAfter)) {
+                $params[] = $createdAfter;
+                $params[] = $createdAfter;
+            }
+            $rows = $this->db->fetchAll($sql, $params);
         } else {
-            $rows = $this->db->fetchAll(
-                "SELECT *
-                 FROM {$this->table}
-                 WHERE (recipient_group IN ('all', 'users', ?, ?)
-                    OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR)))))
-                 AND (sent_at >= ? OR created_at >= ?)
-                 ORDER BY COALESCE(sent_at, created_at) DESC
-                 LIMIT {$limit}",
-                [$role, $roleGroup, $userId, $createdAfter, $createdAfter]
-            );
+            $sql = "SELECT * FROM {$this->table} WHERE (recipient_group IN ('all', 'users', ?, ?) OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR)))))" . $dateClause . " ORDER BY COALESCE(sent_at, created_at) DESC LIMIT {$limit}";
+            $params = [$role, $roleGroup, $userId];
+            if (!empty($createdAfter)) {
+                $params[] = $createdAfter;
+                $params[] = $createdAfter;
+            }
+            $rows = $this->db->fetchAll($sql, $params);
         }
 
         return $this->formatRows($rows);
