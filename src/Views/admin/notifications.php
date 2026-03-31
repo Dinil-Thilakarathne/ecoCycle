@@ -84,7 +84,7 @@ function getAlertStatusTag($status)
                             Message
                         </label>
                         <textarea id="message" name="message" required placeholder="Enter your notification message..."
-                            rows="4"
+                            maxlength="500" rows="4"
                             style="width: 100%; padding: var(--space-3); border: 2px solid var(--neutral-300); border-radius: var(--radius-md); resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
@@ -311,7 +311,8 @@ function getAlertStatusTag($status)
                     </span>
 
                     <?php if ($pagination['page'] < $pagination['last_page']): ?>
-                        <a href="?page=<?= $pagination['page'] + 1 ?>&<?= http_build_query($filters) ?>" class="btn btn-sm btn-outline">
+                        <a href="?page=<?= $pagination['page'] + 1 ?>&<?= http_build_query($filters) ?>"
+                            class="btn btn-sm btn-outline">
                             Next <i class="fa-solid fa-chevron-right"></i>
                         </a>
                     <?php endif; ?>

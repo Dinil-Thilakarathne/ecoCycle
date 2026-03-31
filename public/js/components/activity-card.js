@@ -11,17 +11,20 @@ class ActivityCard extends HTMLElement {
     if (!this._init) {
       this._renderSkeleton();
       this._init = true;
-      // If 'unwrap' attribute present, render once then replace this custom element with inner markup
       if (this.hasAttribute("unwrap")) {
-        this._render();
-        const innerRoot = this.firstElementChild; // .feature-card div
-        if (innerRoot) {
-          this.replaceWith(innerRoot);
-        }
-        return; // Stop further lifecycle (no dynamic updates post-unwrap)
+        this.unwrap();
+        return;
       }
     }
     this._render();
+  }
+
+  unwrap() {
+    this._render();
+    const innerRoot = this.firstElementChild;
+    if (innerRoot) {
+      this.replaceWith(innerRoot);
+    }
   }
   attributeChangedCallback() {
     if (this._init) this._render();

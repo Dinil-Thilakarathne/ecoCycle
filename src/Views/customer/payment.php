@@ -124,48 +124,147 @@ function formatCurrency($amount)
 
         <!-- Invoice History Section -->
         <div class="section">
-            <div class="section-header">
-                <h2 class="section-title">Transaction History</h2>
-                <p class="section-subtitle">All your past transactions and payouts</p>
+            <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <h2 class="section-title">Transaction History</h2>
+                    <p class="section-subtitle">All your past transactions and payouts</p>
+                </div>
+                <div id="liveIndicator" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite;"></span>
+                    Live
+                </div>
             </div>
-            <div class="invoice-grid"
-                style="display: grid; grid-template-columns: 1.2fr 0.9fr 0.7fr 0.6fr; gap: 0.15rem; background: #fff; border-radius: 1rem; box-shadow: 0 2px 12px rgba(34,197,94,0.08); padding: 1.2rem; margin-top: 1rem;">
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;">Transaction ID</div>
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;">Date</div>
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;">Amount</div>
-                <div class="invoice-header" style="font-weight:600;color:#1e293b;text-align:center;">Status</div>
-                <?php if (empty($payments)): ?>
-                    <div class="invoice-cell"
-                        style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #64748b;">
-                        No transactions found.
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($payments as $payment): ?>
-                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9;">
-                            <strong><?php echo htmlspecialchars($payment['txnId'] ?? $payment['id']); ?></strong>
-                            <div class="invoice-desc" style="color:#64748b;font-size:0.95em;">
-                                <?php echo htmlspecialchars(ucfirst($payment['type'] ?? 'Payout')); ?>
-                            </div>
-                        </div>
-                        <div class="invoice-cell" style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#475569;">
-                            <?php echo formatDate($payment['date']); ?>
-                        </div>
-                        <div class="invoice-cell"
-                            style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; color:#22c55e;font-weight:500;">
-                            <?php echo formatCurrency($payment['amount']); ?>
-                        </div>
-                        <div class="invoice-cell"
-                            style="padding:0.75rem 0; border-bottom:1px solid #f1f5f9; text-align:center;">
-                            <span class="tag <?php echo ($payment['status'] === 'completed') ? 'success' : 'warning'; ?>">
-                                <?php echo htmlspecialchars(ucfirst($payment['status'])); ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div id="transactionTable" style="background:#fff;border-radius:1rem;box-shadow:0 2px 12px rgba(34,197,94,0.08);padding:1.2rem;margin-top:1rem;">
+                <!-- Populated by JS -->
+                <div style="text-align:center;padding:2rem;color:#64748b;">Loading transactions...</div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+
+<script>
+(function () {
+    const API_URL = '/api/customer/payments';
+    let allPayments = <?= json_encode(array_values($payments ?? []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    let pollInterval = null;
+    let hasPending = false;
+
+    function escHtml(v) {
+        return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtDate(v) {
+        if (!v) return '-';
+        const d = new Date(String(v).replace(' ', 'T'));
+        return isNaN(d) ? v : d.toLocaleDateString(undefined, {month:'short',day:'2-digit',year:'numeric'});
+    }
+    function fmtCurrency(n) {
+        return 'Rs ' + parseFloat(n || 0).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+
+    function renderTable(payments) {
+        const el = document.getElementById('transactionTable');
+        if (!el) return;
+
+        if (!payments || !payments.length) {
+            el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#64748b;">No transactions found.</div>`;
+            return;
+        }
+
+        const header = `
+            <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;">
+                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Transaction ID</div>
+                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Date</div>
+                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Amount</div>
+                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;text-align:center;">Status</div>
+            </div>`;
+
+        const rows = payments.map(p => {
+            const isCompleted = (p.status || '').toLowerCase() === 'completed';
+            const tagClass = isCompleted ? 'success' : 'warning';
+            return `
+                <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;border-top:1px solid #f1f5f9;">
+                    <div style="padding:0.75rem 0;">
+                        <strong>${escHtml(p.txnId || p.id)}</strong>
+                        <div style="color:#64748b;font-size:0.9em;">${escHtml(ucfirst(p.type || 'Payout'))}</div>
+                    </div>
+                    <div style="padding:0.75rem 0;color:#475569;">${escHtml(fmtDate(p.date))}</div>
+                    <div style="padding:0.75rem 0;color:#22c55e;font-weight:500;">${escHtml(fmtCurrency(p.amount))}</div>
+                    <div style="padding:0.75rem 0;text-align:center;">
+                        <span class="tag ${tagClass}">${escHtml(ucfirst(p.status))}</span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        el.innerHTML = header + rows;
+    }
+
+    function updateStats(payments) {
+        const totalEarned   = payments.filter(p => p.status === 'completed').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const totalCount    = payments.length;
+        const cards = document.querySelectorAll('.feature-card .feature-card__body');
+        if (cards[0]) cards[0].textContent = fmtCurrency(totalEarned);
+        if (cards[1]) cards[1].textContent  = totalCount;
+    }
+
+    function ucfirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    async function fetchAndRefresh() {
+        try {
+            const res  = await fetch(API_URL, { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const json = await res.json();
+            const fresh = json.data || [];
+
+            // Detect any status change from pending → completed
+            const prevStatuses = Object.fromEntries(allPayments.map(p => [p.id, p.status]));
+            allPayments = fresh;
+            fresh.forEach(p => {
+                if (prevStatuses[p.id] && prevStatuses[p.id] !== 'completed' && p.status === 'completed') {
+                    showToast(`✅ Payout of ${fmtCurrency(p.amount)} has been received!`, 'success');
+                }
+            });
+
+            renderTable(allPayments);
+            updateStats(allPayments);
+
+            // Stop polling if no pending payouts remain
+            hasPending = fresh.some(p => ['pending','processing'].includes(p.status || ''));
+            if (!hasPending && pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                const liveEl = document.getElementById('liveIndicator');
+                if (liveEl) liveEl.style.display = 'none';
+            }
+        } catch (e) {
+            // Silently ignore network errors
+        }
+    }
+
+    function showToast(msg, type = 'info') {
+        if (typeof window.__createToast === 'function') {
+            window.__createToast(msg, type, 6000);
+        }
+    }
+
+    // Initial render from PHP data
+    renderTable(allPayments);
+    updateStats(allPayments);
+
+    // Start polling only if there are pending payouts
+    hasPending = allPayments.some(p => ['pending','processing'].includes(p.status || ''));
+    if (hasPending) {
+        pollInterval = setInterval(fetchAndRefresh, 5000);
+    } else {
+        const liveEl = document.getElementById('liveIndicator');
+        if (liveEl) liveEl.style.display = 'none';
+    }
+})();
+</script>
+
 
 <!-- Change Plan Modal -->
 <div id="changePlanModal" class="modal">

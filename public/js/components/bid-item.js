@@ -22,13 +22,19 @@ class BidItem extends HTMLElement {
       this._renderSkeleton();
       this._initialized = true;
       if (this.hasAttribute("unwrap")) {
-        this._render();
-        const innerRoot = this.firstElementChild; // .feature-card (with bid-item class)
-        if (innerRoot) this.replaceWith(innerRoot);
+        this.unwrap();
         return;
       }
     }
     this._render();
+  }
+
+  unwrap() {
+    this._render();
+    const innerRoot = this.firstElementChild;
+    if (innerRoot) {
+      this.replaceWith(innerRoot);
+    }
   }
 
   attributeChangedCallback() {

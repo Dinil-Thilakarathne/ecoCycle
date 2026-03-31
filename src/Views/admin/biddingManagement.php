@@ -34,8 +34,7 @@ function getStatusBadge($status, $endTime = null)
             return '<div class="tag assigned">Completed</div>';
         case 'awarded':
             return '<div class="tag assigned">Awarded</div>';
-        case 'ready_for_pickup':
-            return '<div class="tag online" style="background-color: var(--primary-100); color: var(--primary-700);">Ready for Pickup</div>';
+
         case 'collected':
         case 'handed_over':
             return '<div class="tag assigned" style="background-color: var(--success-100); color: var(--success-700);">Collected</div>';
@@ -138,12 +137,6 @@ $bidStatCards = [
     <div class="page-header__content">
         <h2 class="page-header__title">Bidding Management</h2>
         <p class="page-header__description">Manage waste auctions, monitor active bids, and review history</p>
-    </div>
-    <div class="page-header__actions">
-        <button type="button" onclick="createNewLot()" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i>
-            <span>New Auction Lot</span>
-        </button>
     </div>
 </div>
 
@@ -322,13 +315,7 @@ $bidStatCards = [
                                             title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
-                                        <?php if (strtolower((string) $round['status']) === 'ready_for_pickup'): ?>
-                                            <button class="icon-button" style="color: var(--success-600);"
-                                                onclick="markLotAsHandedOver('<?= htmlspecialchars($round['id']) ?>')"
-                                                title="Mark as Handed Over to Company">
-                                                <i class="fa-solid fa-truck-arrow-right"></i>
-                                            </button>
-                                        <?php endif; ?>
+
                                     </div>
                                 </td>
                             </tr>
@@ -449,29 +436,7 @@ $bidStatCards = [
 
     });
 
-    async function markLotAsHandedOver(roundId) {
-        if (!confirm('Are you sure the company has physically collected this waste lot? This cannot be undone.')) {
-            return;
-        }
 
-        try {
-            const res = await fetch(`/api/bidding/${roundId}/handoff`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                alert('Lot marked as handed over successfully.');
-                window.location.reload();
-            } else {
-                alert(data.error || 'Failed to mark lot as handed over.');
-            }
-        } catch (err) {
-            console.error(err);
-            alert('An error occurred while updating the status.');
-        }
-    }
 </script>
 
 <!-- Note: Bidding Details Modal is now handled generically by ModalManager in bidding.js -->

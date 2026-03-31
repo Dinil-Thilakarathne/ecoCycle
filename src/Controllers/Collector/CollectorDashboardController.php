@@ -11,7 +11,6 @@ use Models\Vehicle;
 use Models\IncomeWaste;
 use Models\CollectorFeedback;
 use Models\CollectorRating;
-use Models\Notification;
 
 use Models\Notification;
 
@@ -888,108 +887,9 @@ class CollectorDashboardController extends DashboardController
         }
     }
 
-public function notifications(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
-
-    try {
-        $collectorId = (int) ($this->user['id'] ?? 0);
-        if ($collectorId <= 0) {
-            throw new \Exception('Collector not authenticated');
-        }
-
-        $limit = (int) $request->query('limit', 100);
-        $createdAfter = (string) $request->query('created_after', '1970-01-01 00:00:00');
-
-        $notificationModel = new Notification();
-        $notifications = $notificationModel->forUser($collectorId, 'collector', $createdAfter, $limit);
-
-        echo json_encode([
-            'status' => 'success',
-            'data' => $notifications,
-            'timestamp' => date('Y-m-d H:i:s')
-        ]);
-        exit;
-    } catch (\Throwable $e) {
-        http_response_code(500);
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Failed to fetch notifications',
-            'details' => $e->getMessage()
-        ]);
-        exit;
-    }
-}
-
-public function markNotificationRead(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
-
-    try {
-        $collectorId = (int) ($this->user['id'] ?? 0);
-        $notificationId = (string) $request->route('id', '');
-
-        if ($collectorId <= 0) {
-            throw new \Exception('Collector not authenticated');
-        }
-
-        if ($notificationId === '') {
-            throw new \Exception('Notification ID is required');
-        }
-
-        $notificationModel = new Notification();
-        $result = $notificationModel->markAsRead($notificationId, $collectorId);
-
-        if (!$result) {
-            throw new \Exception('Notification update failed');
-        }
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Notification marked as read'
-        ]);
-        exit;
-    } catch (\Throwable $e) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'message' => $e->getMessage()
-        ]);
-        exit;
-    }
-}
-
-public function markAllNotificationsRead(Request $request)
-{
-    header('Content-Type: application/json; charset=utf-8');
-
-    try {
-        $collectorId = (int) ($this->user['id'] ?? 0);
-        if ($collectorId <= 0) {
-            throw new \Exception('Collector not authenticated');
-        }
-
-        $notificationModel = new Notification();
-        $notificationModel->markAllAsRead($collectorId);
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'All notifications marked as read'
-        ]);
-        exit;
-    } catch (\Throwable $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => $e->getMessage()
-        ]);
-        exit;
-    }
-}
-
-public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
-{
-    $sql = "
+    public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
+    {
+        $sql = "
         SELECT COUNT(*) AS count
         FROM {$this->table}
         WHERE collector_id = ? AND rating <= ?

@@ -65,19 +65,15 @@ class CustomerDashboardController extends DashboardController
      */
     public function payment(): Response
     {
-        $session = session();
-        $user = $session->get('user');
-        $userId = $user['id'] ?? 0;
+        $user   = auth();
+        $userId = (int) ($user['id'] ?? 0);
 
         $paymentModel = new Payment();
-        // Fetch payouts (money received by customer)
-        $transactions = $paymentModel->listCustomerPayments((int) $userId, 50);
+        $transactions = $paymentModel->listCustomerPayments($userId, 50);
 
         $data = [
             'pageTitle' => 'Payments & Payouts',
-            'payments' => $transactions,
-            // Keep specific mock data for layout if needed, or pass empty/null
-            // 'current_plan' => ..., 
+            'payments'  => $transactions,
         ];
 
         return $this->renderDashboard('payment', $data);

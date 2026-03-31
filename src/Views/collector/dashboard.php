@@ -26,29 +26,17 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 } else {
   $profileImageSrc = '/assets/avatar.png';
 }
-
-$googleMapsApiKey = (string) env('GOOGLE_MAPS_API_KEY', '');
-$pendingPickupLocations = [];
-foreach (($pendingPickups ?? []) as $pickupLocationItem) {
-  $address = trim((string) ($pickupLocationItem['address'] ?? ''));
-  $latitude = $pickupLocationItem['latitude'] ?? null;
-  $longitude = $pickupLocationItem['longitude'] ?? null;
-  $hasCoordinates = is_numeric($latitude) && is_numeric($longitude);
-
-  if ($address === '' && !$hasCoordinates) {
-    continue;
-  }
-
-  $pendingPickupLocations[] = [
-    'id' => (string) ($pickupLocationItem['id'] ?? ''),
-    'customerName' => (string) ($pickupLocationItem['customerName'] ?? 'Pickup Location'),
-    'address' => $address,
-    'status' => (string) ($pickupLocationItem['status'] ?? ''),
-    'latitude' => $hasCoordinates ? (float) $latitude : null,
-    'longitude' => $hasCoordinates ? (float) $longitude : null,
-  ];
-}
 ?>
+
+<!-- <img
+      src="<?= htmlspecialchars($profileImageSrc) ?>"
+      alt="Profile Picture"
+      class="header-user__avatar" width="100"
+    >
+<h2 class="page-header__title">Welcome back, <?= $collectorName ?>!</h2>
+<p class="page-header__description">Here is your latest update on your Dashboard</p>
+  </div>
+</div> -->
 
 <table>
       <tr>
@@ -165,213 +153,123 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     <?php endif; ?>
   </activity-card>
 
-  <activity-card title="Pending Pickup Locations" description="Map view of pending pickup request locations">
-    <div id="pending-pickups-map" style="width: 100%; height: 360px; border-radius: var(--radius-lg); overflow: hidden; background: var(--neutral-100);"></div>
-    <div id="pending-pickups-map-message" style="margin-top: 12px; color: var(--neutral-600); font-size: 0.9rem;"></div>
+  <activity-card title="Material Collection Summary" description="Breakdown of This Week's Collected Materials">
+    <!-- Material Chart -->
+    <div class="" style="padding: 0;">
+      <canvas id="materialCollectionChart" style="width: 100%; max-height: 360px;"></canvas>
+    </div>
   </activity-card>
 
+
+<!-- Scripts -->
 <script>
-  const PENDING_PICKUP_LOCATIONS = <?= json_encode(array_values($pendingPickupLocations), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-  const GOOGLE_MAPS_API_KEY = <?= json_encode($googleMapsApiKey, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  // Global chart instance
+  let materialCollectionChart = null;
 
-  function updatePendingMapMessage(message) {
-    const messageEl = document.getElementById('pending-pickups-map-message');
-    if (!messageEl) return;
-    messageEl.textContent = message || '';
-  }
+  // Fetch and render material collection chart in real-time
+  async function fetchAndRenderMaterialCollection() {
+    try {
+      const res = await fetch('/api/collector/material-collection', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json || json.status !== 'success' || !Array.isArray(json.data)) return;
 
-  function setPendingMapEmptyState(message) {
-    const mapEl = document.getElementById('pending-pickups-map');
-    if (mapEl) {
-      mapEl.innerHTML = `<p style="text-align: center; color: #999; padding: 140px 20px;">${message}</p>`;
-    }
-    updatePendingMapMessage('');
-  }
+      const materials = json.data;
 
-  function parseCoordinates(locationItem) {
-    const lat = Number(locationItem?.latitude);
-    const lng = Number(locationItem?.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return null;
-    }
-
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return null;
-    }
-
-    return { lat, lng };
-  }
-
-  function geocodeAddress(geocoder, address) {
-    return new Promise((resolve) => {
-      geocoder.geocode({ address }, (results, status) => {
-        if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
-          resolve({ location: results[0].geometry.location, status: 'OK' });
-          return;
+      // If no data, show empty state
+      if (materials.length === 0) {
+        const el = document.getElementById('materialCollectionChart');
+        if (el) {
+          const parent = el.parentElement;
+          parent.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No materials collected this week</p>';
         }
-        resolve({ location: null, status: status || 'UNKNOWN_ERROR' });
-      });
-    });
-  }
-
-  async function resolveLocationForPickup(geocoder, locationItem) {
-    const directCoordinates = parseCoordinates(locationItem);
-    if (directCoordinates) {
-      return { location: directCoordinates, source: 'coordinates', status: 'OK' };
-    }
-
-    const address = String(locationItem?.address || '').trim();
-    if (!address) {
-      return { location: null, source: 'address', status: 'ZERO_RESULTS' };
-    }
-
-    const variants = [address];
-    if (!/,\s*Sri\s*Lanka$/i.test(address)) {
-      variants.push(`${address}, Sri Lanka`);
-    }
-
-    let lastStatus = 'ZERO_RESULTS';
-    for (const variant of variants) {
-      const result = await geocodeAddress(geocoder, variant);
-      if (result.location) {
-        return { location: result.location, source: 'address', status: 'OK' };
-      }
-      lastStatus = result.status || lastStatus;
-    }
-
-    return { location: null, source: 'address', status: lastStatus };
-  }
-
-  function getGeocodeFailureMessage(status) {
-    if (status === 'REQUEST_DENIED') {
-      return 'Geocoding request denied. Enable Geocoding API and billing for this key.';
-    }
-    if (status === 'OVER_QUERY_LIMIT') {
-      return 'Geocoding quota exceeded for the current Google Maps project.';
-    }
-    if (status === 'INVALID_REQUEST') {
-      return 'Invalid geocoding request. Please verify pickup addresses.';
-    }
-    return 'Pending locations could not be mapped from addresses';
-  }
-
-  function getMarkerColorByStatus(status) {
-    const normalized = String(status || '').toLowerCase();
-    if (normalized === 'in_progress') return '#f59e0b';
-    if (normalized === 'assigned') return '#3b82f6';
-    return '#6b7280';
-  }
-
-  window.initPendingPickupsMap = async function initPendingPickupsMap() {
-    const mapEl = document.getElementById('pending-pickups-map');
-    if (!mapEl) return;
-
-    if (!Array.isArray(PENDING_PICKUP_LOCATIONS) || PENDING_PICKUP_LOCATIONS.length === 0) {
-      setPendingMapEmptyState('No pending pickup locations available');
-      return;
-    }
-
-    const defaultCenter = { lat: 6.9271, lng: 79.8612 };
-    const map = new google.maps.Map(mapEl, {
-      center: defaultCenter,
-      zoom: 12,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-
-    const geocoder = new google.maps.Geocoder();
-    const infoWindow = new google.maps.InfoWindow();
-    const bounds = new google.maps.LatLngBounds();
-    let markerCount = 0;
-    let lastGeocodeFailureStatus = '';
-
-    for (const locationItem of PENDING_PICKUP_LOCATIONS) {
-      const address = String(locationItem.address || '').trim();
-
-      const resolved = await resolveLocationForPickup(geocoder, locationItem);
-      if (!resolved.location) {
-        if (resolved.status && resolved.status !== 'OK') {
-          lastGeocodeFailureStatus = resolved.status;
-        }
-        continue;
+        return;
       }
 
-      const markerPosition = resolved.location;
+      // Extract data for chart
+      const materialLabels = materials.map(m => m.name);
+      const materialWeights = materials.map(m => m.weight);
+      const materialColors = materials.map(m => m.color);
 
-      const marker = new google.maps.Marker({
-        map,
-        position: markerPosition,
-        title: locationItem.customerName || 'Pending Pickup',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: getMarkerColorByStatus(locationItem.status),
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
+      // Render or update Chart.js doughnut chart
+      const el = document.getElementById('materialCollectionChart');
+      if (!el) return;
+
+      // Destroy existing chart if it exists
+      if (materialCollectionChart) {
+        materialCollectionChart.destroy();
+      }
+
+      const ctx = el.getContext('2d');
+      materialCollectionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: materialLabels,
+          datasets: [{
+            label: 'Weight (kg)',
+            data: materialWeights,
+            backgroundColor: materialColors,
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 4
+          }]
         },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                padding: 15,
+                font: {
+                  size: 13
+                },
+                generateLabels: function (chart) {
+                  const data = chart.data;
+                  return data.labels.map((label, i) => {
+                    const material = materials[i];
+                    const value = data.datasets[0].data[i];
+                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(0);
+                    const price = material.price ? ` Rs.${material.price.toFixed(2)}` : '';
+                    return {
+                      text: `${label}: ${value}kg (${percentage}%)${price}`,
+                      fillStyle: data.datasets[0].backgroundColor[i],
+                      hidden: false,
+                      index: i
+                    };
+                  })
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const material = materials[context.dataIndex];
+                  const label = context.label || '';
+                  const value = context.parsed || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  const price = material.price ? ` - Rs.${material.price.toFixed(2)}` : '';
+                  return `${label}: ${value}kg (${percentage}%)${price}`;
+                }
+              }
+            }
+          }
+        }
       });
-
-      marker.addListener('click', () => {
-        infoWindow.setContent(`
-          <div style="max-width: 260px;">
-            <strong>${String(locationItem.customerName || 'Pending Pickup')}</strong><br>
-            <span>${String(address || 'Coordinates available')}</span>
-            <br><small>Status: ${String(locationItem.status || 'pending').replace('_', ' ')}</small>
-          </div>
-        `);
-        infoWindow.open({ anchor: marker, map });
-      });
-
-      bounds.extend(markerPosition);
-      markerCount += 1;
+    } catch (e) {
+      console.error('Failed to fetch material collection:', e);
     }
+  }
 
-    if (markerCount > 0) {
-      map.fitBounds(bounds);
-      updatePendingMapMessage(`${markerCount} pending location(s) shown on map`);
-      return;
-    }
+  // Initial fetch and update every 10 seconds
+  fetchAndRenderMaterialCollection();
+  setInterval(fetchAndRenderMaterialCollection, 10000);
+</script>
 
-    setPendingMapEmptyState(getGeocodeFailureMessage(lastGeocodeFailureStatus));
-  };
-
-  (function initializePendingPickupMap() {
-    if (!GOOGLE_MAPS_API_KEY) {
-      setPendingMapEmptyState('Google Maps is not configured. Please set GOOGLE_MAPS_API_KEY.');
-      return;
-    }
-
-    window.gm_authFailure = function gmAuthFailure() {
-      setPendingMapEmptyState('Google Maps authentication failed. Check API key restrictions for this domain.');
-    };
-
-    if (window.google?.maps) {
-      window.initPendingPickupsMap();
-      return;
-    }
-
-    const existingScript = document.getElementById('google-maps-js-sdk');
-    if (existingScript) return;
-
-    const script = document.createElement('script');
-    script.id = 'google-maps-js-sdk';
-    script.async = true;
-    script.defer = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=initPendingPickupsMap`;
-    script.onerror = () => {
-      setPendingMapEmptyState('Failed to load Google Maps. Please verify the API key and network access.');
-    };
-    document.head.appendChild(script);
-
-    window.setTimeout(() => {
-      if (!window.google?.maps) {
-        setPendingMapEmptyState('Google Maps SDK did not initialize. Verify key restrictions and allowed referrers.');
-      }
-    }, 10000);
-  })();
-
+<script>
   // Poll collector stats endpoint and update cards in real time
   (function () {
     const endpoint = '/api/collector/stats';
