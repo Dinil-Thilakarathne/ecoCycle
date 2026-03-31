@@ -135,7 +135,7 @@ $csrfToken = csrf_token();
         <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" 
              style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
         <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">
-          📷 Change Photo
+          Change Photo
         </a>
       </div>
       <div class="form-group"><label>First Name</label>
@@ -169,10 +169,10 @@ $csrfToken = csrf_token();
   </div>
 
   <div class="p-info-card">
-    <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">About You</h3>
-      <textarea
-        disabled><?= htmlspecialchars($displayDescription ?: 'Share a short summary about your collections...') ?></textarea>
+    <div class="pc-card security-card">
+      <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
+      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 10px; border: 1px solid var(--success);">Change Password</a></p>
+      <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
     </div>
 
     <div class="pc-card">
@@ -197,46 +197,42 @@ $csrfToken = csrf_token();
       </div>
     </div>
   </div>
-
-  <?php if (!empty($vehicleDisplay)): ?>
-    <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Vehicle Information</h3>
-      <div class="vehicle-info-grid">
-        <?php foreach ($vehicleDisplay as $label => $value): ?>
-          <div class="vehicle-info-item">
-            <span class="vehicle-info-label"><?= htmlspecialchars($label) ?></span>
-            <span class="vehicle-info-value"><?= htmlspecialchars($value) ?></span>
+<!-- 
+  <?php if (!empty($vehicleDisplay) || !empty($certificationsList)): ?>
+    <div class="p-info-card">
+      <?php if (!empty($vehicleDisplay)): ?>
+        <div class="pc-card">
+          <h3 style="font-size: 20px; font-weight: bold;">Vehicle Information</h3>
+          <div class="vehicle-info-grid">
+            <?php foreach ($vehicleDisplay as $label => $value): ?>
+              <div class="vehicle-info-item">
+                <span class="vehicle-info-label"><?= htmlspecialchars($label) ?></span>
+                <span class="vehicle-info-value"><?= htmlspecialchars($value) ?></span>
+              </div>
+            <?php endforeach; ?>
           </div>
-        <?php endforeach; ?>
-      </div>
+        </div>
+      <?php endif; ?> -->
+<!-- 
+      <?php if (!empty($certificationsList)): ?>
+        <div class="pc-card">
+          <h3 style="font-size: 20px; font-weight: bold;">Certifications</h3>
+          <div class="certification-list">
+            <?php foreach ($certificationsList as $cert): ?>
+              <span class="certification-badge"><?= htmlspecialchars($cert) ?></span>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?> -->
     </div>
   <?php endif; ?>
-
-  <?php if (!empty($certificationsList)): ?>
-    <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Certifications</h3>
-      <div class="certification-list">
-        <?php foreach ($certificationsList as $cert): ?>
-          <span class="certification-badge"><?= htmlspecialchars($cert) ?></span>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  <?php endif; ?>
-
-  <div class="pc-card">
-    <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 10px; border: 1px solid var(--success);">Change Password</a></p>
-    <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
-  </div>
-    </div>
-  </div>
 </main>
 
 <!-- Photo Upload Modal -->
 <div id="photoUploadModal" class="form-modal">
   <div class="form-modal-content" style="max-width: 500px;">
     <a href="#" class="close">&times;</a>
-    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">📷 Change Profile Photo</h2>
+    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Change Profile Photo</h2>
     
     <div style="text-align: center; margin-bottom: 20px;">
       <img id="photoPreview" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Preview" 
@@ -303,13 +299,6 @@ $csrfToken = csrf_token();
       </div>
       <div class="form-group"><label class="form-lable">Address</label>
         <textarea name="address" required><?= htmlspecialchars($editAddress) ?></textarea>
-      </div>
-      <div class="form-group"><label class="form-lable">About You</label>
-        <textarea name="description" rows="3"><?= htmlspecialchars($editDescription) ?></textarea>
-      </div>
-
-      <div class="form-group"><label class="form-lable">Vehicle Preference</label>
-        <input type="text" name="vehiclePreference" value="<?= htmlspecialchars($editVehiclePreference) ?>">
       </div>
       <div class="form-group"><label class="form-lable">License Number</label>
         <input type="text" name="licenseNumber" value="<?= htmlspecialchars($editLicenseNumber) ?>">
