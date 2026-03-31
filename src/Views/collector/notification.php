@@ -98,7 +98,7 @@ $readCount = $totalCount - $unreadCount;
             <table class="notifications-table data-table" style="width:100%;">
                 <thead>
                     <tr>
-                        <th style="width:25%;">Notification</th>
+                        <th style="width:25%; text-align: left;">Notification</th>
                         <th style="width:25%; text-align: center;">Type</th>
                         <th style="width:25%; text-align: center;">Date</th>
                         <th style="width:25%; text-align: center;">Actions</th>
@@ -213,19 +213,20 @@ function timeAgo(timestamp) {
             const isUnread = isUnreadNotification(notif);
             const tr = document.createElement('tr');
             tr.className = 'notification-row' + (isUnread ? ' unread' : '');
+            
             tr.innerHTML = `
-                <td>
+                <td style="text-align: left;">
                     <div class="notification-details">
                         <div class="notification-title" style="font-size: 14px;">${notif.title}</div>
-                        <div style="font-size: 12px; color: #666;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
+                        <div style="font-size: 12px; color: #666; margin-left: 0;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
                     </div>
                 </td>
-                <td><span class="type-badge ${notif.type}">${notif.type}</span></td>
-                <td>${timeAgo(notif.timestamp)}</td>
-                <td class="actions-cell">
-                    <div style="display:flex; gap:12px; justify-content: center;">
+                <td style="text-align: center;"><span class="type-badge ${notif.type}">${notif.type}</span></td>
+                <td style="text-align: center;">${timeAgo(notif.timestamp)}</td>
+                <td class="actions-cell" style="text-align: center;">
+                    <div style="display:flex; gap:12px; justify-content: center; align-items: center;">
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
-                        <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification" style="color:#000;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             `;

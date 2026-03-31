@@ -47,7 +47,7 @@ function getStatusBadge($status)
     }
     .data-table th:nth-child(5),
     .data-table td:nth-child(5) {
-        text-align: center;
+        text-align: left;
     }
     .data-table th:nth-child(6),
     .data-table td:nth-child(6) {
@@ -55,6 +55,10 @@ function getStatusBadge($status)
     }
     .data-table th:nth-child(7),
     .data-table td:nth-child(7) {
+        text-align: center;
+    }
+    .data-table th:nth-child(8),
+    .data-table td:nth-child(8) {
         text-align: center;
     }
 
@@ -93,6 +97,7 @@ function getStatusBadge($status)
                         <th>Customer</th>
                         <th>Address</th>
                         <th>Waste</th>
+                        <th>Vehicle</th>
                         <th>Time Slot</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -106,6 +111,7 @@ function getStatusBadge($status)
                                 <td><?= htmlspecialchars($r['customerName'] ?? 'Unknown Customer') ?></td>
                                 <td><?= htmlspecialchars($r['address'] ?? 'Not provided') ?></td>
                                 <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'] ?? [])) ?></td>
+                                <td><?= htmlspecialchars($r['vehicle'] ?? $r['vehicleModel'] ?? $r['vehicle_type'] ?? '-') ?></td>
                                 <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
                                 <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
                                 <td>
@@ -118,7 +124,7 @@ function getStatusBadge($status)
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td>
+                            <td colspan="8" style="text-align:center;color:gray;">No tasks assigned.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

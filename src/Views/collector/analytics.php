@@ -7,9 +7,28 @@ $collectorFeedback = []; // Will be populated by JavaScript
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+    .activity-card {
+        margin-bottom: 24px;
+    }
+    .data-table tbody td:nth-child(n+2),
+    .data-table thead th:nth-child(n+2) {
+        text-align: left;
+    }
+</style>
+
 <div>
     <!-- Page Header -->
-    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors"></page-header>
+    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
+         <a class="btn btn-outline" href="?export=salary">
+                <i class="fa-solid fa-download"></i>
+                Salary Transactions Report
+            </a>
+             <a class="btn btn-outline" href="?export=waste">
+                <i class="fa-solid fa-download"></i>
+                Waste Collection Report
+            </a>
+    </page-header>
 
     <!-- Metrics Cards -->
     <div class="feature-cards">
@@ -20,13 +39,6 @@ $collectorFeedback = []; // Will be populated by JavaScript
             </div>
             <div class="feature-card__body" id="avgRatingValue">-</div>
         </div>
-        <!-- <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__title">Pending Reports</div>
-                <div class="feature-card__icon"><i class="fa-solid fa-flag"></i></div>
-            </div>
-            <div class="feature-card__body" id="pendingReportsValue">-</div>
-        </div> -->
         <div class="feature-card">
             <div class="feature-card__header">
                 <div class="feature-card__title">Total Feedbacks</div>
@@ -54,8 +66,11 @@ $collectorFeedback = []; // Will be populated by JavaScript
         </div>
         <div class="activity-card__content">
             <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: 12px; flex-wrap: wrap;">
-                <label for="monthly-collection-month-select" style="font-size: 0.9rem; color: var(--neutral-700);">Month</label>
-                <select id="monthly-collection-month-select" style="padding: 6px 10px; border: 1px solid var(--neutral-300); border-radius: var(--radius-md); min-width: 160px; font-size: 0.9rem;"></select>
+                <label for="monthly-collection-month" style="font-size: 0.9rem; color: var(--neutral-700);">Month</label>
+                <select id="monthly-collection-month" style="padding: 6px 10px; border: 1px solid var(--neutral-300); border-radius: var(--radius-md); min-width: 100px; font-size: 0.9rem;"></select>
+                
+                <label for="monthly-collection-year" style="font-size: 0.9rem; color: var(--neutral-700); margin-left: 8px;">Year</label>
+                <select id="monthly-collection-year" style="padding: 6px 10px; border: 1px solid var(--neutral-300); border-radius: var(--radius-md); min-width: 100px; font-size: 0.9rem;"></select>
                 <!-- <span id="monthly-collection-range" style="color: var(--neutral-600); font-size: 0.9rem;">Month: --</span> -->
             </div>
             <div style="padding: 0;">
@@ -74,13 +89,13 @@ $collectorFeedback = []; // Will be populated by JavaScript
         </div>
         <div class="activity-card__content">
             <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
-                <table class="data-table">
+                <table class="data-table" style="width: 100%;">
                     <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <tr>
-                            <th><i class="fa-solid fa-user"></i> Customer Name</th>
-                            <th><i class="fa-solid fa-calendar-day"></i> Date</th>
-                            <th><i class="fa-solid fa-message"></i> Feedback</th>
-                            <th><i class="fa-solid fa-star"></i> Rating</th>
+                            <th style="text-align: left;">Customer Name</th>
+                            <th style="text-align: left;">Date</th>
+                            <th style="text-align: left;">Feedback</th>
+                            <th style="text-align: left;">Rating</th>
                         </tr>
                     </thead>
                     <tbody id="feedbackTableBody">
@@ -101,18 +116,18 @@ $collectorFeedback = []; // Will be populated by JavaScript
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-recycle" style="margin-right: 8px;"></i> Waste Collection Summary
             </h3>
-            <p class="activity-card__description">Customer-wise collected waste summary</p>
+            <p class="activity-card__description">Customer wise collected waste summary</p>
         </div>
         <div class="activity-card__content">
             <div style="overflow-x: auto; max-height: 420px; overflow-y: auto;">
-                <table class="data-table">
+                <table class="data-table" style="width: 100%;">
                     <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <tr>
-                            <th><i class="fa-solid fa-user"></i> Customer Name</th>
-                            <th><i class="fa-solid fa-location-dot"></i> Location</th>
-                            <th><i class="fa-solid fa-list-check"></i> Waste Collected</th>
-                            <th><i class="fa-solid fa-weight-hanging"></i> Total Weight</th>
-                            <th><i class="fa-solid fa-cubes"></i> Materials</th>
+                            <th style="text-align: left;">Customer Name</th>
+                            <th style="text-align: left;">Location</th>
+                            <th style="text-align: left;">Waste Collected</th>
+                            <th style="text-align: left;">Total Weight</th>
+                            <th style="text-align: left;">Materials</th>
                         </tr>
                     </thead>
                     <tbody id="wasteCollectionTableBody">
@@ -142,7 +157,8 @@ console.log('User Data:', <?= json_encode($user ?? []) ?>);
 
 let monthlyCollectionChart = null;
 const monthlyCollectionRangeEl = document.getElementById('monthly-collection-range');
-const monthlyCollectionMonthSelectEl = document.getElementById('monthly-collection-month-select');
+const monthlyCollectionMonthEl = document.getElementById('monthly-collection-month');
+const monthlyCollectionYearEl = document.getElementById('monthly-collection-year');
 const monthlyCollectionChartContainer = document.getElementById('monthlyCollectionChart')?.parentElement || null;
 const FIXED_MATERIAL_CATEGORIES = [
     { key: 'plastic', label: 'Plastic', color: '#3B82F6' },
@@ -169,12 +185,49 @@ function buildRecentMonthOptions(limit = 12) {
     return options;
 }
 
-function initializeMonthlyCollectionMonthSelect() {
-    if (!monthlyCollectionMonthSelectEl) return;
+function buildMonthOptions() {
+    const months = [
+        { value: '01', label: 'January' },
+        { value: '02', label: 'February' },
+        { value: '03', label: 'March' },
+        { value: '04', label: 'April' },
+        { value: '05', label: 'May' },
+        { value: '06', label: 'June' },
+        { value: '07', label: 'July' },
+        { value: '08', label: 'August' },
+        { value: '09', label: 'September' },
+        { value: '10', label: 'October' },
+        { value: '11', label: 'November' },
+        { value: '12', label: 'December' }
+    ];
+    return months;
+}
 
-    const options = buildRecentMonthOptions(12);
-    monthlyCollectionMonthSelectEl.innerHTML = options
-        .map(option => `<option value="${option.value}">${option.label}</option>`)
+function buildYearOptions(limit = 5) {
+    const years = [];
+    const currentYear = new Date().getFullYear();
+    for (let i = 0; i < limit; i++) {
+        const year = currentYear - i;
+        years.push({ value: String(year), label: String(year) });
+    }
+    return years;
+}
+
+function initializeMonthlyCollectionMonthSelect() {
+    if (!monthlyCollectionMonthEl || !monthlyCollectionYearEl) return;
+
+    const currentDate = new Date();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(currentDate.getFullYear());
+
+    const monthOptions = buildMonthOptions();
+    monthlyCollectionMonthEl.innerHTML = monthOptions
+        .map(option => `<option value="${option.value}" ${option.value === currentMonth ? 'selected' : ''}>${option.label}</option>`)
+        .join('');
+
+    const yearOptions = buildYearOptions(5);
+    monthlyCollectionYearEl.innerHTML = yearOptions
+        .map(option => `<option value="${option.value}" ${option.value === currentYear ? 'selected' : ''}>${option.label}</option>`)
         .join('');
 }
 
@@ -215,8 +268,11 @@ function normalizeMaterialName(name) {
 
 async function fetchAndRenderMonthlyCollection() {
     try {
-        const selectedMonth = monthlyCollectionMonthSelectEl?.value || buildRecentMonthOptions(1)[0]?.value;
-        const res = await fetch(`/api/collector/material-collection?period=monthly-by-material&month=${encodeURIComponent(selectedMonth)}`, { credentials: 'same-origin' });
+        const selectedMonth = monthlyCollectionMonthEl?.value || '01';
+        const selectedYear = monthlyCollectionYearEl?.value || new Date().getFullYear();
+        const monthValue = `${selectedYear}-${selectedMonth}`;
+        
+        const res = await fetch(`/api/collector/material-collection?period=monthly-by-material&month=${encodeURIComponent(monthValue)}`, { credentials: 'same-origin' });
 
         if (!res.ok) {
             let errorMessage = 'Unable to load monthly collection summary';
@@ -453,10 +509,10 @@ function updateFeedbackTable(data, error = null) {
     } else if (data && data.length > 0) {
         tableBody.innerHTML = data.map(fb => `
             <tr>
-                <td>${escapeHtml(fb.customer_name)}</td>
-                <td>${new Date(fb.rating_date).toLocaleDateString()}</td>
-                <td>${escapeHtml(fb.description)}</td>
-                <td>${renderStars(fb.rating)}</td>
+                <td style="text-align: left;">${escapeHtml(fb.customer_name)}</td>
+                <td style="text-align: left;">${new Date(fb.rating_date).toLocaleDateString()}</td>
+                <td style="text-align: left;">${escapeHtml(fb.description)}</td>
+                <td style="text-align: left;">${renderStars(fb.rating)}</td>
             </tr>
         `).join('');
     } else {
@@ -509,11 +565,11 @@ function updateWasteTable(data, error = null) {
 
             return `
                 <tr>
-                    <td>${escapeHtml(item.customerName)}</td>
-                    <td>${escapeHtml(item.location)}</td>
-                    <td>${escapeHtml(wasteCollected)}</td>
-                    <td>${item.totalWeight.toFixed(2)} kg</td>
-                    <td>
+                    <td style="text-align: left;">${escapeHtml(item.customerName)}</td>
+                    <td style="text-align: left;">${escapeHtml(item.location)}</td>
+                    <td style="text-align: left;">${escapeHtml(wasteCollected)}</td>
+                    <td style="text-align: left;">${item.totalWeight.toFixed(2)} kg</td>
+                    <td style="text-align: left;">
                         <div style="max-width: 360px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
                             ${materialChips || '-'}
                         </div>
@@ -566,7 +622,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initializeMonthlyCollectionMonthSelect();
-    monthlyCollectionMonthSelectEl?.addEventListener('change', () => {
+    monthlyCollectionMonthEl?.addEventListener('change', () => {
+        fetchAndRenderMonthlyCollection();
+    });
+    monthlyCollectionYearEl?.addEventListener('change', () => {
         fetchAndRenderMonthlyCollection();
     });
     

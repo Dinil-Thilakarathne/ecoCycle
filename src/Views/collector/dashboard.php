@@ -30,7 +30,6 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = '/assets/avatar.png';
 }
 
-$googleMapsApiKey = (string) env('GOOGLE_MAPS_API_KEY', '');
 $pendingPickupLocations = [];
 foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   $address = trim((string) ($pickupLocationItem['address'] ?? ''));
@@ -172,9 +171,12 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     <div id="pending-pickups-map-message" style="margin-top: 12px; color: var(--neutral-600); font-size: 0.9rem;"></div>
   </activity-card>
 
+<!-- Leaflet CSS and JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+
 <script>
   const PENDING_PICKUP_LOCATIONS = <?= json_encode(array_values($pendingPickupLocations), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-  const GOOGLE_MAPS_API_KEY = <?= json_encode($googleMapsApiKey, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
   function updatePendingMapMessage(message) {
     const messageEl = document.getElementById('pending-pickups-map-message');
@@ -204,19 +206,24 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     return { lat, lng };
   }
 
-  function geocodeAddress(geocoder, address) {
-    return new Promise((resolve) => {
-      geocoder.geocode({ address }, (results, status) => {
-        if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
-          resolve({ location: results[0].geometry.location, status: 'OK' });
-          return;
-        }
-        resolve({ location: null, status: status || 'UNKNOWN_ERROR' });
-      });
-    });
+  async function geocodeAddress(address) {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
+      const results = await response.json();
+      if (results && results[0]) {
+        return {
+          location: { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) },
+          status: 'OK'
+        };
+      }
+      return { location: null, status: 'ZERO_RESULTS' };
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return { location: null, status: 'ERROR' };
+    }
   }
 
-  async function resolveLocationForPickup(geocoder, locationItem) {
+  async function resolveLocationForPickup(locationItem) {
     const directCoordinates = parseCoordinates(locationItem);
     if (directCoordinates) {
       return { location: directCoordinates, source: 'coordinates', status: 'OK' };
@@ -234,7 +241,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 
     let lastStatus = 'ZERO_RESULTS';
     for (const variant of variants) {
-      const result = await geocodeAddress(geocoder, variant);
+      const result = await geocodeAddress(variant);
       if (result.location) {
         return { location: result.location, source: 'address', status: 'OK' };
       }
@@ -245,14 +252,8 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   }
 
   function getGeocodeFailureMessage(status) {
-    if (status === 'REQUEST_DENIED') {
-      return 'Geocoding request denied. Enable Geocoding API and billing for this key.';
-    }
-    if (status === 'OVER_QUERY_LIMIT') {
-      return 'Geocoding quota exceeded for the current Google Maps project.';
-    }
-    if (status === 'INVALID_REQUEST') {
-      return 'Invalid geocoding request. Please verify pickup addresses.';
+    if (status === 'ERROR') {
+      return 'Geocoding service error. Please check your network connection.';
     }
     return 'Pending locations could not be mapped from addresses';
   }
@@ -264,6 +265,21 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     return '#6b7280';
   }
 
+  function createCustomMarker(color) {
+    return L.divIcon({
+      html: `<div style="
+        background-color: ${color};
+        border: 3px solid white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      "></div>`,
+      iconSize: [20, 20],
+      className: 'custom-marker'
+    });
+  }
+
   window.initPendingPickupsMap = async function initPendingPickupsMap() {
     const mapEl = document.getElementById('pending-pickups-map');
     if (!mapEl) return;
@@ -273,25 +289,24 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       return;
     }
 
-    const defaultCenter = { lat: 6.9271, lng: 79.8612 };
-    const map = new google.maps.Map(mapEl, {
-      center: defaultCenter,
-      zoom: 12,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
+    // Initialize Leaflet map with Sri Lanka as default center
+    const defaultCenter = [6.9271, 79.8612];
+    const map = L.map(mapEl).setView(defaultCenter, 12);
 
-    const geocoder = new google.maps.Geocoder();
-    const infoWindow = new google.maps.InfoWindow();
-    const bounds = new google.maps.LatLngBounds();
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    const markerGroup = L.featureGroup().addTo(map);
     let markerCount = 0;
     let lastGeocodeFailureStatus = '';
 
     for (const locationItem of PENDING_PICKUP_LOCATIONS) {
       const address = String(locationItem.address || '').trim();
 
-      const resolved = await resolveLocationForPickup(geocoder, locationItem);
+      const resolved = await resolveLocationForPickup(locationItem);
       if (!resolved.location) {
         if (resolved.status && resolved.status !== 'OK') {
           lastGeocodeFailureStatus = resolved.status;
@@ -299,39 +314,31 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
         continue;
       }
 
-      const markerPosition = resolved.location;
+      const { lat, lng } = resolved.location;
+      const marker = L.marker([lat, lng], {
+        icon: createCustomMarker(getMarkerColorByStatus(locationItem.status)),
+        title: locationItem.customerName || 'Pending Pickup'
+      }).addTo(markerGroup);
 
-      const marker = new google.maps.Marker({
-        map,
-        position: markerPosition,
-        title: locationItem.customerName || 'Pending Pickup',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: getMarkerColorByStatus(locationItem.status),
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
-        },
-      });
+      const popupContent = `
+        <div style="max-width: 260px; font-family: Arial, sans-serif;">
+          <strong style="font-size: 14px;">${String(locationItem.customerName || 'Pending Pickup')}</strong><br>
+          <span style="font-size: 12px;">${String(address || 'Coordinates available')}</span>
+          <br><small style="color: #666; font-size: 11px;">Status: ${String(locationItem.status || 'pending').replace('_', ' ')}</small>
+        </div>
+      `;
 
-      marker.addListener('click', () => {
-        infoWindow.setContent(`
-          <div style="max-width: 260px;">
-            <strong>${String(locationItem.customerName || 'Pending Pickup')}</strong><br>
-            <span>${String(address || 'Coordinates available')}</span>
-            <br><small>Status: ${String(locationItem.status || 'pending').replace('_', ' ')}</small>
-          </div>
-        `);
-        infoWindow.open({ anchor: marker, map });
-      });
-
-      bounds.extend(markerPosition);
+      marker.bindPopup(popupContent);
       markerCount += 1;
+
+      // Add a small delay to avoid rate limiting with Nominatim
+      if (PENDING_PICKUP_LOCATIONS.indexOf(locationItem) < PENDING_PICKUP_LOCATIONS.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
     if (markerCount > 0) {
-      map.fitBounds(bounds);
+      map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
       updatePendingMapMessage(`${markerCount} pending location(s) shown on map`);
       return;
     }
@@ -340,38 +347,11 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   };
 
   (function initializePendingPickupMap() {
-    if (!GOOGLE_MAPS_API_KEY) {
-      setPendingMapEmptyState('Google Maps is not configured. Please set GOOGLE_MAPS_API_KEY.');
-      return;
-    }
-
-    window.gm_authFailure = function gmAuthFailure() {
-      setPendingMapEmptyState('Google Maps authentication failed. Check API key restrictions for this domain.');
-    };
-
-    if (window.google?.maps) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', window.initPendingPickupsMap);
+    } else {
       window.initPendingPickupsMap();
-      return;
     }
-
-    const existingScript = document.getElementById('google-maps-js-sdk');
-    if (existingScript) return;
-
-    const script = document.createElement('script');
-    script.id = 'google-maps-js-sdk';
-    script.async = true;
-    script.defer = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=initPendingPickupsMap`;
-    script.onerror = () => {
-      setPendingMapEmptyState('Failed to load Google Maps. Please verify the API key and network access.');
-    };
-    document.head.appendChild(script);
-
-    window.setTimeout(() => {
-      if (!window.google?.maps) {
-        setPendingMapEmptyState('Google Maps SDK did not initialize. Verify key restrictions and allowed referrers.');
-      }
-    }, 10000);
   })();
 
   // Poll collector stats endpoint and update cards in real time

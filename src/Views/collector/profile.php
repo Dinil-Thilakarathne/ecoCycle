@@ -228,6 +228,8 @@ $csrfToken = csrf_token();
       <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 10px; border: 1px solid var(--success);">Change Password</a></p>
     <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
   </div>
+    </div>
+  </div>
 </main>
 
 <!-- Photo Upload Modal -->
