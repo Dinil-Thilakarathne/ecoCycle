@@ -330,6 +330,24 @@ $router->get('/api/collector/payments', 'Controllers\Api\PaymentController@colle
     'Middleware\Roles\CollectorOnly',
 ]);
 
+// ---------------------------------------------
+// PayHere Payment Gateway Routes
+// ---------------------------------------------
+
+// Company initiates a PayHere checkout for a pending invoice
+// Returns signed form payload; frontend auto-submits it to PayHere
+$router->post('/api/payhere/checkout/{id}', 'Controllers\Api\PayHereController@initiateCheckout', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+// PayHere server-to-server payment notification (webhook)
+// NOTE: NO auth middleware — this is called directly by PayHere servers
+// Verifies md5sig checksum before processing any data
+$router->post('/api/payhere/notify', 'Controllers\Api\PayHereController@notify');
+
+
+
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
 

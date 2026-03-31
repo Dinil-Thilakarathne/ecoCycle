@@ -323,7 +323,7 @@ class BiddingRound extends BaseModel
         }
 
         return $this->updateAttributes($id, [
-            'status' => 'ready_for_pickup',
+            'status' => 'completed',
             'updated_at' => date('Y-m-d H:i:s')
         ]);
     }
