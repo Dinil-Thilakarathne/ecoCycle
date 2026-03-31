@@ -55,7 +55,7 @@ $readCount = $totalCount - $unreadCount;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    .notification-row.unread { background-color: #e9f8f0; }
+    .notification-row.unread { background-color: #dff2e7; }
 
     .notifications-table th:first-child,
     .notifications-table td:first-child {
@@ -65,6 +65,11 @@ $readCount = $totalCount - $unreadCount;
     .notifications-table th:not(:first-child),
     .notifications-table td:not(:first-child) {
         text-align: center;
+    }
+
+    .notifications-table thead th {
+        background-color: #f1f3f5;
+        color: #6c757d;
     }
 </style>
 
@@ -121,9 +126,6 @@ $readCount = $totalCount - $unreadCount;
             <div><strong>Type</strong></div><div class="nd-type"></div>
             <div><strong>Date</strong></div><div class="nd-date"></div>
             <div><strong>Status</strong></div><div class="nd-status"></div>
-        </div>
-        <div style="margin-top: 2rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
-            <button class="btn btn-primary" id="markNotificationReadBtn" onclick="markNotificationAsRead()">Mark as Read</button>
         </div>
     </div>
 </div>
@@ -217,7 +219,7 @@ function timeAgo(timestamp) {
             tr.innerHTML = `
                 <td style="text-align: left;">
                     <div class="notification-details">
-                        <div class="notification-title" style="font-size: 14px;">${notif.title}</div>
+                        <div class="notification-title" style="font-size: 14px;"><b>${notif.title}</b></div>
                         <div style="font-size: 12px; color: #666; margin-left: 0;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
                     </div>
                 </td>
@@ -273,31 +275,27 @@ function timeAgo(timestamp) {
         }
     };
 
-    window.viewNotification = function(id) {
+    window.viewNotification = async function(id) {
         const notif = notificationsState.find(n => n.id == id);
         const modal = document.getElementById('notification-detail-modal');
         if (!notif || !modal) return;
+
+        // Match company behavior: viewing an unread notification marks it as read.
+        if (isUnreadNotification(notif)) {
+            await processMarkRead(notif.id);
+            notif.status = 'read';
+        }
+
         modal.querySelector('.nd-title').textContent = notif.title;
         modal.querySelector('.nd-message').textContent = notif.message;
         modal.querySelector('.nd-type').textContent = notif.type;
         modal.querySelector('.nd-date').textContent = new Date(notif.timestamp).toLocaleString();
         modal.querySelector('.nd-status').textContent = notif.status.toUpperCase();
         modal.setAttribute('data-current-id', notif.id);
-        document.getElementById('markNotificationReadBtn').style.display = (notif.status === 'read') ? 'none' : 'block';
         modal.classList.add('open');
     };
 
     window.closeNotificationModal = () => document.getElementById('notification-detail-modal').classList.remove('open');
-
-    window.markNotificationAsRead = async function() {
-        const id = document.getElementById('notification-detail-modal').getAttribute('data-current-id');
-        if (id) {
-            await processMarkRead(id);
-            closeNotificationModal();
-        }
-    };
-
-    window.markAsReadDirect = async (id) => await processMarkRead(id);
 
     window.deleteNotification = async function(id) {
         if (!id) return;
