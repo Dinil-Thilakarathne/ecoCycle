@@ -159,22 +159,10 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $allPickups = $pickupRequest->listForCollector($collectorId);
-
-            // Count only today's pickups (assigned, in progress, or completed)
-            $today = date('Y-m-d');
-            $count = 0;
-            foreach ($allPickups as $pickup) {
-                $createdDate = isset($pickup['rating_date']) ? substr($pickup['rating_date'], 0, 10) : '';
-                $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
-
-                if (
-                    ($createdDate === $today || $scheduledDate === $today) &&
-                    in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'])
-                ) {
-                    $count++;
-                }
-            }
-            return $count;
+            return count(array_filter(
+                $allPickups,
+                fn(array $pickup) => in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'], true)
+            ));
         } catch (\Throwable $e) {
             return 0;
         }
@@ -190,17 +178,7 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $completedPickups = $pickupRequest->listForCollector($collectorId, 'completed');
-
-            // Count only today's completed pickups
-            $today = date('Y-m-d');
-            $count = 0;
-            foreach ($completedPickups as $pickup) {
-                $updatedDate = isset($pickup['updated_at']) ? substr($pickup['updated_at'], 0, 10) : '';
-                if ($updatedDate === $today) {
-                    $count++;
-                }
-            }
-            return $count;
+            return count($completedPickups);
         } catch (\Throwable $e) {
             return 0;
         }
@@ -215,14 +193,11 @@ class CollectorDashboardController extends DashboardController
 
         try {
             $pickupRequest = new PickupRequest();
-            // Get assigned and in-progress pickups (not completed)
+            // Get assigned and in-progress pickups across all dates.
             $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
             $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
 
-            $allPending = array_merge($assigned, $inProgress);
-            
-            // Filter to show only today's pending pickups
-            return array_values(array_filter($allPending, fn(array $record) => $this->isPickupForToday($record)));
+            return array_values(array_merge($assigned, $inProgress));
         } catch (\Throwable $e) {
             return [];
         }
@@ -249,7 +224,7 @@ class CollectorDashboardController extends DashboardController
             $pickupRequest = new PickupRequest();
             $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
             if (!empty($records)) {
-                return array_values(array_filter($records, fn(array $record) => $this->isPickupForToday($record)));
+                return array_values($records);
             }
         } catch (\Throwable $e) {
             error_log('Collector tasks load failed: ' . $e->getMessage());

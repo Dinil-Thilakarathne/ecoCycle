@@ -83,7 +83,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 <div class="feature-cards">
   <div class="feature-card">
     <div class="feature-card__header">
-      <div class="feature-card__title">Today's Tasks</div>
+      <div class="feature-card__title">Assigned Tasks</div>
       <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-today-tasks"><?= $todayPickups ?? 0 ?></span></div>
@@ -206,13 +206,44 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     return { lat, lng };
   }
 
+  const SRI_LANKA_BOUNDS = {
+    south: 5.85,
+    north: 9.95,
+    west: 79.45,
+    east: 82.15
+  };
+
+  function isWithinSriLanka(lat, lng) {
+    return (
+      lat >= SRI_LANKA_BOUNDS.south &&
+      lat <= SRI_LANKA_BOUNDS.north &&
+      lng >= SRI_LANKA_BOUNDS.west &&
+      lng <= SRI_LANKA_BOUNDS.east
+    );
+  }
+
   async function geocodeAddress(address) {
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
+      const params = new URLSearchParams({
+        q: address,
+        format: 'json',
+        limit: '1',
+        countrycodes: 'lk',
+        bounded: '1',
+        viewbox: `${SRI_LANKA_BOUNDS.west},${SRI_LANKA_BOUNDS.north},${SRI_LANKA_BOUNDS.east},${SRI_LANKA_BOUNDS.south}`
+      });
+
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
       const results = await response.json();
       if (results && results[0]) {
+        const lat = parseFloat(results[0].lat);
+        const lng = parseFloat(results[0].lon);
+        if (!isWithinSriLanka(lat, lng)) {
+          return { location: null, status: 'OUT_OF_BOUNDS' };
+        }
+
         return {
-          location: { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) },
+          location: { lat, lng },
           status: 'OK'
         };
       }
@@ -226,6 +257,9 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   async function resolveLocationForPickup(locationItem) {
     const directCoordinates = parseCoordinates(locationItem);
     if (directCoordinates) {
+      if (!isWithinSriLanka(directCoordinates.lat, directCoordinates.lng)) {
+        return { location: null, source: 'coordinates', status: 'OUT_OF_BOUNDS' };
+      }
       return { location: directCoordinates, source: 'coordinates', status: 'OK' };
     }
 
@@ -255,14 +289,14 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     if (status === 'ERROR') {
       return 'Geocoding service error. Please check your network connection.';
     }
+    if (status === 'OUT_OF_BOUNDS') {
+      return 'Some pickup locations are outside Sri Lanka map bounds.';
+    }
     return 'Pending locations could not be mapped from addresses';
   }
 
-  function getMarkerColorByStatus(status) {
-    const normalized = String(status || '').toLowerCase();
-    if (normalized === 'in_progress') return '#f59e0b';
-    if (normalized === 'assigned') return '#3b82f6';
-    return '#6b7280';
+  function getPendingMarkerColor() {
+    return '#dc2626';
   }
 
   function createCustomMarker(color) {
@@ -280,6 +314,79 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     });
   }
 
+  function createRouteLine(map, from, to) {
+    return L.polyline([
+      [from.lat, from.lng],
+      [to.lat, to.lng]
+    ], {
+      color: '#2563eb',
+      weight: 3,
+      opacity: 0.85,
+      dashArray: '6, 8'
+    }).addTo(map);
+  }
+
+  function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by this browser.'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      });
+    });
+  }
+
+  async function addCurrentLocationAndRoutes(map, destinations, markerGroup) {
+    if (!destinations.length) {
+      return;
+    }
+
+    try {
+      const position = await getCurrentLocation();
+      const currentLat = position.coords.latitude;
+      const currentLng = position.coords.longitude;
+
+      if (!isWithinSriLanka(currentLat, currentLng)) {
+        updatePendingMapMessage('Current location is outside Sri Lanka bounds. Routes were not drawn.');
+        return;
+      }
+
+      const currentPoint = { lat: currentLat, lng: currentLng };
+      const currentMarker = L.marker([currentLat, currentLng], {
+        icon: createCustomMarker('#16a34a'),
+        title: 'Current Location'
+      }).addTo(markerGroup);
+
+      currentMarker.bindPopup('<strong>Your Current Location</strong>');
+
+      let routedCount = 0;
+      for (const destination of destinations) {
+        if (!destination?.lat || !destination?.lng) {
+          continue;
+        }
+
+        createRouteLine(map, currentPoint, { lat: destination.lat, lng: destination.lng });
+        routedCount += 1;
+      }
+
+      const fullBounds = markerGroup.getBounds();
+      if (fullBounds.isValid()) {
+        map.fitBounds(fullBounds, { padding: [50, 50] });
+      }
+
+      if (routedCount > 0) {
+        updatePendingMapMessage(`${destinations.length} pending location(s) shown with routes from your current location.`);
+      }
+    } catch (error) {
+      updatePendingMapMessage('Pending locations shown. Enable location access to draw routes from your current location.');
+    }
+  }
+
   window.initPendingPickupsMap = async function initPendingPickupsMap() {
     const mapEl = document.getElementById('pending-pickups-map');
     if (!mapEl) return;
@@ -289,9 +396,16 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       return;
     }
 
-    // Initialize Leaflet map with Sri Lanka as default center
-    const defaultCenter = [6.9271, 79.8612];
-    const map = L.map(mapEl).setView(defaultCenter, 12);
+    // Initialize Leaflet map centered on Sri Lanka and constrained to Sri Lanka bounds.
+    const sriLankaCenter = [7.8731, 80.7718];
+    const sriLankaBounds = L.latLngBounds(
+      [SRI_LANKA_BOUNDS.south, SRI_LANKA_BOUNDS.west],
+      [SRI_LANKA_BOUNDS.north, SRI_LANKA_BOUNDS.east]
+    );
+    const map = L.map(mapEl, {
+      maxBounds: sriLankaBounds,
+      maxBoundsViscosity: 1.0
+    }).setView(sriLankaCenter, 8);
 
     // Add OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -302,6 +416,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     const markerGroup = L.featureGroup().addTo(map);
     let markerCount = 0;
     let lastGeocodeFailureStatus = '';
+    const resolvedDestinations = [];
 
     for (const locationItem of PENDING_PICKUP_LOCATIONS) {
       const address = String(locationItem.address || '').trim();
@@ -316,9 +431,11 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 
       const { lat, lng } = resolved.location;
       const marker = L.marker([lat, lng], {
-        icon: createCustomMarker(getMarkerColorByStatus(locationItem.status)),
+        icon: createCustomMarker(getPendingMarkerColor()),
         title: locationItem.customerName || 'Pending Pickup'
       }).addTo(markerGroup);
+
+      resolvedDestinations.push({ lat, lng });
 
       const popupContent = `
         <div style="max-width: 260px; font-family: Arial, sans-serif;">
@@ -340,6 +457,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     if (markerCount > 0) {
       map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
       updatePendingMapMessage(`${markerCount} pending location(s) shown on map`);
+      await addCurrentLocationAndRoutes(map, resolvedDestinations, markerGroup);
       return;
     }
 
