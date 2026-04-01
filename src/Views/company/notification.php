@@ -6,6 +6,26 @@ $selectedNotificationId = $_GET['id'] ?? null;
 $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 ?>
 
+<style>
+  .company-notification-tabs {
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .company-actions-header,
+  .company-actions-cell {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .company-actions-cell.action-buttons {
+    justify-content: center;
+    align-items: center;
+  }
+</style>
+
 <main class="content">
   <header class="page-header">
     <div class="page-header__content">
@@ -17,7 +37,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
   <div id="alert-container"></div>
 
   <div class="tabs">
-    <div class="tabs-list">
+    <div class="tabs-list company-notification-tabs">
       <button class="tabs-trigger<?= $currentTab === 'total' ? ' active' : '' ?>" onclick="showTab('total')" id="total-tab">
         Total (<span id="total-count">0</span>)
       </button>
@@ -57,7 +77,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
             <th>Notification</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Actions</th>
+            <th class="company-actions-header">Actions</th>
           </tr>
         </thead>
         <tbody id="total-tbody"></tbody>
@@ -71,7 +91,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
             <th>Notification</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Actions</th>
+            <th class="company-actions-header">Actions</th>
           </tr>
         </thead>
         <tbody id="unread-tbody"></tbody>
@@ -85,7 +105,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
             <th>Notification</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Actions</th>
+            <th class="company-actions-header">Actions</th>
           </tr>
         </thead>
         <tbody id="read-tbody"></tbody>
@@ -163,7 +183,7 @@ function renderNotifications() {
           <td><strong>${title}</strong><br><small>${message}</small></td>
           <td>${type}</td>
           <td>${formatted}</td>
-          <td class="action-buttons">
+          <td class="action-buttons company-actions-cell">
             ${!n.isRead ? `<a href="#" onclick="markAsRead(${n.id}); return false;" class="icon-button" title="Mark as read"><i class="fas fa-check-circle" aria-hidden="true"></i></a> ` : ''}
             <a href="#" onclick="viewNotification(${n.id}); return false;" class="icon-button" title="View notification"><i class="fas fa-eye" aria-hidden="true"></i></a> 
           </td>

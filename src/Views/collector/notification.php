@@ -33,8 +33,12 @@ $readCount = $totalCount - $unreadCount;
         padding: 5px;
         border-radius: 12px;
         display: inline-flex;
+        width: max-content;
+        max-width: 100%;
+        overflow-x: auto;
         gap: 4px;
         margin-bottom: 1.5rem;
+        white-space: nowrap;
     }
 
     .tab-trigger {
@@ -53,6 +57,19 @@ $readCount = $totalCount - $unreadCount;
         background-color: #ffffff;
         color: #000000;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .notification-actions-header,
+    .notification-actions-cell {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .notification-action-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
     }
 
     .unread-dot { height: 8px; width: 8px; background-color: #ff4d4f; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -92,7 +109,7 @@ $readCount = $totalCount - $unreadCount;
                         <th style="width:45%;">Notification</th>
                         <th style="width:15%;">Type</th>
                         <th style="width:20%;">Date</th>
-                        <th style="width:20%; text-align: center;">Actions</th>
+                        <th class="notification-actions-header" style="width:20%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="notifications-tbody">
@@ -187,8 +204,8 @@ let activeFilter = 'all';
                 </td>
                 <td><span class="type-badge ${notif.type}">${notif.type}</span></td>
                 <td>${timeAgo(notif.timestamp)}</td>
-                <td class="actions-cell">
-                    <div style="display:flex; gap:12px; justify-content: center;">
+                <td class="actions-cell notification-actions-cell">
+                    <div class="notification-action-wrap">
                         // ${isUnread ? `<button class="icon-button" onclick="markAsReadDirect('${notif.id}')" title="Mark Read"><i class="fa-solid fa-circle-check"></i></button>` : ''}
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
                     </div>

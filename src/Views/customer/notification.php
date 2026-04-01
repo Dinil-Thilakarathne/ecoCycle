@@ -42,12 +42,10 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
     </div>
 
     <!-- Filter Tabs + Actions -->
-    <div style="display: inline-flex; align-items: center; background-color: #f1f5f9; padding: 0.375rem; border-radius: 0.75rem; margin-bottom: 2rem; gap: 0.25rem;">
-        <a href="?filter=all" style="padding: 0.5rem 1.25rem; border-radius: 0.5rem; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s; <?php echo $filter === 'all' ? 'background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);' : 'color: #64748b;'; ?>">Total (<span id="totalCountInline">0</span>)</a>
-        
-        <a href="?filter=unread" style="padding: 0.5rem 1.25rem; border-radius: 0.5rem; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s; <?php echo $filter === 'unread' ? 'background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);' : 'color: #64748b;'; ?>">Unread (<span id="unreadCountInline">0</span>)</a>
-        
-        <a href="?filter=read" style="padding: 0.5rem 1.25rem; border-radius: 0.5rem; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s; <?php echo $filter === 'read' ? 'background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);' : 'color: #64748b;'; ?>">Read (<span id="readCountInline">0</span>)</a>
+    <div class="notification-tabs-bar">
+        <a href="?filter=all" class="notification-tab-link <?= $filter === 'all' ? 'active' : '' ?>">Total (<span id="totalCountInline">0</span>)</a>
+        <a href="?filter=unread" class="notification-tab-link <?= $filter === 'unread' ? 'active' : '' ?>">Unread (<span id="unreadCountInline">0</span>)</a>
+        <a href="?filter=read" class="notification-tab-link <?= $filter === 'read' ? 'active' : '' ?>">Read (<span id="readCountInline">0</span>)</a>
     </div>
 
     <!-- Notifications Table -->
@@ -59,7 +57,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     <th>Type</th>
                     <th>Date</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th class="notification-actions-header">Actions</th>
                 </tr>
             </thead>
             <tbody id="notificationsBody">
@@ -327,8 +325,8 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                         </td>
                         <td class="time-cell">${escapeHtml(formatDate(n.timestamp || n.created_at || '').split(' ')[0])}</td>
                         <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
-                        <td class="actions-cell" style="text-align:center;">
-                            <div style="display:flex;justify-content:center;">
+                        <td class="actions-cell notification-actions-cell">
+                            <div class="notification-action-wrap">
                                 ${!id ? '' : `<button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>`}
                             </div>
                         </td>
