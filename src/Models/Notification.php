@@ -104,15 +104,10 @@ class Notification extends BaseModel
         }
 
         $limit = max(1, (int) $limit);
-        
-        // Normalize role to lowercase to match predefined recipient groups (which are lowercase)
-        $originalRole = $role;
+
+        // Normalize role to lowercase to match predefined recipient groups
         $role = strtolower($role);
-        // Map singular role to plural group name if needed, or check both
-        $roleGroup = $role . 's'; // e.g. customer -> customers
-        
-        // DEBUG LOGGING
-        file_put_contents(__DIR__ . '/../../storage/logs/notification_debug.log', date('Y-m-d H:i:s') . " - forUser: userId=$userId originalRole=$originalRole normalizedRole=$role roleGroup=$roleGroup\n", FILE_APPEND);
+        $roleGroup = $role . 's';
 
         $dateClause = '';
         $params = [];
@@ -144,23 +139,10 @@ class Notification extends BaseModel
 
     public function markAsRead($id, int $userId): bool
     {
-        error_log("Notification::markAsRead - Updating notification ID: {$id} for user: {$userId}");
-        
         $sql = "UPDATE {$this->table} SET status = 'read' WHERE id = ?";
         $params = [$id];
-        
-        error_log("Notification::markAsRead - SQL: {$sql}");
-        error_log("Notification::markAsRead - Params: " . json_encode($params));
-        
-        $result = $this->db->query($sql, $params);
-        
-        error_log("Notification::markAsRead - Result: " . ($result ? 'true' : 'false'));
-        
-        // Verify the update by fetching the notification
-        $updated = $this->db->fetch("SELECT id, status FROM {$this->table} WHERE id = ?", [$id]);
-        error_log("Notification::markAsRead - After update: " . json_encode($updated));
-        
-        return $result;
+
+        return $this->db->query($sql, $params);
     }
 
     public function markAllAsRead(int $userId, string $role = ''): bool
@@ -213,6 +195,96 @@ class Notification extends BaseModel
         return $this->formatRows([$row])[0];
     }
 
+    public function canUserAccessNotification($id, int $userId, string $role = ''): bool
+    {
+        if (empty($id) || $userId <= 0) {
+            return false;
+        }
+
+        $role = strtolower((string) $role);
+        $roleGroup = $role ? $role . 's' : '';
+
+        if ($role === 'admin') {
+            $row = $this->db->fetch("SELECT COUNT(*) AS count FROM {$this->table} WHERE id = ?", [$id]);
+            return (int) ($row['count'] ?? 0) > 0;
+        }
+
+        if ($role === 'company') {
+            if ($this->db->isPgsql()) {
+                $row = $this->db->fetch(
+                    "SELECT COUNT(*) AS count
+                     FROM {$this->table}
+                     WHERE id = ?
+                       AND (
+                            recipient_group IN ('company', 'companies')
+                            OR EXISTS (
+                                SELECT 1
+                                FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                                WHERE value = ? OR value = ?
+                            )
+                       )",
+                    [$id, (string) $userId, 'company:' . $userId]
+                );
+            } else {
+                $row = $this->db->fetch(
+                    "SELECT COUNT(*) AS count
+                     FROM {$this->table}
+                     WHERE id = ?
+                       AND (
+                            recipient_group IN ('company', 'companies')
+                            OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CAST(? AS CHAR)))
+                            OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('company:', CAST(? AS CHAR))))
+                       )",
+                    [$id, $userId, $userId]
+                );
+            }
+
+            return (int) ($row['count'] ?? 0) > 0;
+        }
+
+        if ($this->db->isPgsql()) {
+            $row = $this->db->fetch(
+                "SELECT COUNT(*) AS count
+                 FROM {$this->table}
+                 WHERE id = ?
+                   AND (
+                        recipient_group IN ('all', 'users', ?, ?)
+                        OR EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(COALESCE(recipients::jsonb, '[]'::jsonb)) AS recipient(value)
+                            WHERE value = ?
+                        )
+                   )",
+                [$id, $role, $roleGroup, 'user:' . $userId]
+            );
+        } else {
+            $row = $this->db->fetch(
+                "SELECT COUNT(*) AS count
+                 FROM {$this->table}
+                 WHERE id = ?
+                   AND (
+                        recipient_group IN ('all', 'users', ?, ?)
+                        OR JSON_CONTAINS(COALESCE(recipients, JSON_ARRAY()), JSON_QUOTE(CONCAT('user:', CAST(? AS CHAR))))
+                   )",
+                [$id, $role, $roleGroup, $userId]
+            );
+        }
+
+        return (int) ($row['count'] ?? 0) > 0;
+    }
+
+    public function deleteById($id): bool
+    {
+        if ($id === null || $id === '') {
+            return false;
+        }
+
+        return $this->db->query(
+            "DELETE FROM {$this->table} WHERE id = ?",
+            [$id]
+        );
+    }
+
 
     public function getUnreadCount(int $userId, string $role = ''): int
     {
@@ -245,8 +317,6 @@ class Notification extends BaseModel
                 [$role, $roleGroup, $userId]
             );
         }
-        
-        
         return (int) ($result['count'] ?? 0);
     }
 

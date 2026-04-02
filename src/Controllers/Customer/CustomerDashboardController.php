@@ -172,13 +172,13 @@ class CustomerDashboardController extends DashboardController
             $nextMonthStart = date('Y-m-01 00:00:00', strtotime('+1 month', strtotime($monthStart)));
 
             $incomeRow = $db->fetchOne(
-                "SELECT COALESCE(SUM(amount), 0) AS total_income
-                 FROM payments
-                 WHERE recipient_id = ?
-                   AND type = 'payout'
-                   AND status = 'completed'
-                   AND date >= ?
-                   AND date < ?",
+                "SELECT COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                 FROM pickup_requests pr
+                 WHERE pr.customer_id = ?
+                   AND pr.status = 'completed'
+                                     AND pr.updated_at IS NOT NULL
+                                     AND pr.updated_at >= ?
+                                     AND pr.updated_at < ?",
                 [$customerId, $monthStart, $nextMonthStart]
             );
 
@@ -265,27 +265,40 @@ class CustomerDashboardController extends DashboardController
         }
 
         try {
-            $incomeRows = $db->fetchAll(
-                "SELECT date, amount
-                 FROM payments
-                 WHERE recipient_id = ?
-                   AND type = 'payout'
-                   AND status = 'completed'",
-                [$customerId]
-            );
+            if (method_exists($db, 'isPgsql') && $db->isPgsql()) {
+                $incomeRows = $db->fetchAll(
+                                        "SELECT TO_CHAR(pr.updated_at, 'YYYY-MM') AS month_key,
+                            COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                     FROM pickup_requests pr
+                     WHERE pr.customer_id = ?
+                       AND pr.status = 'completed'
+                                             AND pr.updated_at IS NOT NULL
+                     GROUP BY month_key
+                     ORDER BY month_key ASC",
+                    [$customerId]
+                );
+            } else {
+                $incomeRows = $db->fetchAll(
+                                        "SELECT DATE_FORMAT(pr.updated_at, '%Y-%m') AS month_key,
+                            COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                     FROM pickup_requests pr
+                     WHERE pr.customer_id = ?
+                       AND pr.status = 'completed'
+                                             AND pr.updated_at IS NOT NULL
+                     GROUP BY month_key
+                     ORDER BY month_key ASC",
+                    [$customerId]
+                );
+            }
 
             foreach ($incomeRows as $row) {
-                $dateValue = (string) ($row['date'] ?? '');
-                $timestamp = strtotime($dateValue);
-                if ($timestamp === false) {
+                $monthKey = (string) ($row['month_key'] ?? '');
+                if ($monthKey === '') {
                     continue;
                 }
 
-                $monthKey = date('Y-m', $timestamp);
-                $monthlyIncomeData[$monthKey] = ($monthlyIncomeData[$monthKey] ?? 0.0) + (float) ($row['amount'] ?? 0);
+                $monthlyIncomeData[$monthKey] = (float) ($row['total_income'] ?? 0);
             }
-
-            ksort($monthlyIncomeData);
         } catch (\Throwable $e) {
             $monthlyIncomeData = [];
         }

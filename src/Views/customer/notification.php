@@ -4,48 +4,46 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF token to JS for API calls
 ?>
 
+<style>
+    .notifications-table th.col-center,
+    .notifications-table td.col-center {
+        text-align: center;
+    }
+
+    .notification-actions-header,
+    .notification-actions-cell {
+        text-align: left;
+    }
+
+    .notification-actions-cell {
+        padding-left: 10px;
+    }
+
+    .notification-action-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+</style>
+
 <div class="dashboard-page">
-    <!-- Header -->
-    <div class="header">
-        <!-- header-actions removed -->
-    </div>
-
-
-    <!-- Stats Feature Cards (values populated from API) -->
-    <div class="stats-grid">
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Notifications</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-bell"></i></div>
-            </div>
-            <p class="feature-card__body" id="totalNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">All time</span></div>
+    <header class="page-header">
+        <div class="page-header__content">
+            <h2 class="page-header__title">Notifications</h2>
+            <p class="page-header__description">Stay on top of your platform updates</p>
         </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Unread</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-envelope-open"></i></div>
-            </div>
-            <p class="feature-card__body" id="unreadNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">Need attention</span></div>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Today</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-calendar-day"></i></div>
-            </div>
-            <p class="feature-card__body" id="todayNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">Received today</span></div>
-        </div>
-    </div>
+    </header>
 
     <!-- Filter Tabs + Actions -->
-    <div class="notification-tabs-bar">
+    <div class="notification-tabs-bar" style="margin-bottom: 6px;">
         <a href="?filter=all" class="notification-tab-link <?= $filter === 'all' ? 'active' : '' ?>">Total (<span id="totalCountInline">0</span>)</a>
         <a href="?filter=unread" class="notification-tab-link <?= $filter === 'unread' ? 'active' : '' ?>">Unread (<span id="unreadCountInline">0</span>)</a>
         <a href="?filter=read" class="notification-tab-link <?= $filter === 'read' ? 'active' : '' ?>">Read (<span id="readCountInline">0</span>)</a>
+    </div>
+
+    <div style="margin: 4px 0 10px;">
+        <button id="markAllAsReadBtn" class="btn btn-primary">Mark All as Read</button>
     </div>
 
     <!-- Notifications Table -->
@@ -53,16 +51,15 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
         <table class="notifications-table data-table" style="min-width:800px;">
             <thead>
                 <tr>
-                    <th>Notification</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th class="notification-actions-header">Actions</th>
+                    <th style="width: 45%;">Notification</th>
+                    <th class="col-center" style="width: 15%;">Type</th>
+                    <th class="col-center" style="width: 25%;">Date</th>
+                    <th class="notification-actions-header" style="width: 15%;">Actions</th>
                 </tr>
             </thead>
             <tbody id="notificationsBody">
                 <tr>
-                    <td colspan="5" class="loading">Loading notifications…</td>
+                    <td colspan="4" class="loading">Loading notifications…</td>
                 </tr>
             </tbody>
         </table>
@@ -235,9 +232,6 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
             }
 
             function renderStatsFromApi(stats) {
-                document.getElementById('totalNotifications').textContent = stats.total || 0;
-                document.getElementById('unreadNotifications').textContent = stats.unread || 0;
-                document.getElementById('todayNotifications').textContent = stats.today || 0;
                 const unreadInline = document.getElementById('unreadCountInline');
                 if (unreadInline) unreadInline.textContent = stats.unread || 0;
                 const totalInline = document.getElementById('totalCountInline');
@@ -253,11 +247,6 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     return !$booleanToBool(v);
                 }).length;
                 const read = total - unread;
-                const today = notifications.filter(n => new Date(n.timestamp || n.created_at).toDateString() === new Date().toDateString()).length;
-
-                document.getElementById('totalNotifications').textContent = total;
-                document.getElementById('unreadNotifications').textContent = unread;
-                document.getElementById('todayNotifications').textContent = today;
                 const unreadInline = document.getElementById('unreadCountInline');
                 if (unreadInline) unreadInline.textContent = unread;
                 const totalInline = document.getElementById('totalCountInline');
@@ -301,7 +290,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                 });
 
                 if (!filtered.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
                     return;
                 }
 
@@ -320,14 +309,14 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                                 <div class="notification-message">${escapeHtml(truncateMessage(n.message || n.body || ''))}</div>
                             </div>
                         </td>
-                        <td>
+                        <td class="col-center">
                             <span class="type-badge ${escapeHtml(n.category || n.type || 'info')}">${escapeHtml((n.category || n.type || 'info').charAt(0).toUpperCase() + (n.category || n.type || 'info').slice(1))}</span>
                         </td>
-                        <td class="time-cell">${escapeHtml(formatDate(n.timestamp || n.created_at || '').split(' ')[0])}</td>
-                        <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
+                        <td class="time-cell col-center">${escapeHtml(formatDate(n.timestamp || n.created_at || ''))}</td>
                         <td class="actions-cell notification-actions-cell">
                             <div class="notification-action-wrap">
                                 ${!id ? '' : `<button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>`}
+                                ${!id ? '' : `<button class="icon-button" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>`}
                             </div>
                         </td>
                     `;
@@ -365,7 +354,6 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     if (row) {
                         row.classList.remove('unread');
                         const btn = row.querySelector('button[data-action="mark-read"]'); if (btn) btn.remove();
-                        const badge = row.querySelector('.status-badge'); if (badge) badge.textContent = 'Read';
                         const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
                     }
 
@@ -377,7 +365,36 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                 }
             }
 
-            // Deleted: markAllRead() and deleteNotification() — not needed when only view action remains
+            async function deleteNotification(id) {
+                try {
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id), {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : ''),
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => '');
+                        console.error('deleteNotification failed', res.status, txt);
+                        return;
+                    }
+
+                    notificationsState = notificationsState.filter(function (n) {
+                        return notificationId(n) !== String(id);
+                    });
+
+                    renderNotifications(notificationsState);
+                    renderStats(notificationsState);
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            // mark-all and delete are handled from table action buttons.
 
             function openModal(notification) {
                 // Safer field fallbacks for modal content
@@ -393,7 +410,6 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     const row = document.querySelector('.notification-row[data-id="' + id + '"]');
                     if (row) {
                         row.classList.remove('unread');
-                        const badge = row.querySelector('.status-badge'); if (badge) badge.textContent = 'Read';
                         const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
                         const markBtn = row.querySelector('button[data-action="mark-read"]'); if (markBtn) markBtn.remove();
                     }
@@ -478,6 +494,12 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     const action = actionEl.getAttribute('data-action');
                     const id = actionEl.getAttribute('data-id');
                     if (action === 'view' && id) { return openNotificationById(id); }
+                    if (action === 'delete' && id) {
+                        if (confirm('Delete this notification?')) {
+                            return deleteNotification(id);
+                        }
+                        return;
+                    }
                 }
 
                 const modalClose = target.closest && (target.closest('#modalClose') || target.closest('#modalClose2'));
@@ -518,6 +540,50 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     closeModal();
                 }
             });
+
+            async function markAllAsRead() {
+                try {
+                    const res = await fetch('/api/notifications/read-all', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : ''),
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => '');
+                        console.error('markAllAsRead failed', res.status, txt);
+                        return;
+                    }
+
+                    const result = await res.json().catch(() => ({}));
+                    if (result && result.success === false) {
+                        console.error('markAllAsRead rejected by API', result);
+                        return;
+                    }
+
+                    notificationsState = notificationsState.map(function (n) {
+                        return Object.assign({}, n, { status: 'read', read: true, is_read: true, isRead: true });
+                    });
+
+                    renderNotifications(notificationsState);
+                    renderStats(notificationsState);
+                    fetchNotifications();
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            const markAllButton = document.getElementById('markAllAsReadBtn');
+            if (markAllButton) {
+                markAllButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    markAllAsRead();
+                });
+            }
 
             // Initialize
             closeModal();

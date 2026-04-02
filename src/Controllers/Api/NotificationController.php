@@ -7,25 +7,16 @@ use Core\Http\Request;
 use Core\Http\Response;
 use Core\Validator;
 use Models\Notification;
-use Models\User;
 
 class NotificationController extends BaseController
 {
     private Notification $model;
-    private User $userModel;
 
     public function __construct()
     {
         $this->model = new Notification();
-        $this->userModel = new User();
     }
 
-    /**
-     * List notifications for the authenticated user
-     */
-    /**
-     * List notifications for the authenticated user
-     */
     /**
      * List notifications for the authenticated user
      */
@@ -113,31 +104,21 @@ class NotificationController extends BaseController
             $id = $request->input('id');
         }
 
-        error_log("NotificationController::markAsRead - User ID: {$user['id']}, Notification ID: {$id}");
-
         if (empty($id)) {
-            error_log("NotificationController::markAsRead - Invalid/Empty ID");
             return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
         }
 
         try {
-            // Check if notification exists
             $notification = $this->model->findById($id);
             if (!$notification) {
-                error_log("NotificationController::markAsRead - Notification not found: {$id}");
                 return $this->json([
                     'success' => false, 
                     'message' => 'Notification not found'
                 ], 404);
             }
 
-            error_log("NotificationController::markAsRead - Found notification: " . json_encode($notification));
-
-            // Mark the notification as read in the database
             $result = $this->model->markAsRead($id, $user['id']);
-            
-            error_log("NotificationController::markAsRead - Update result: " . ($result ? 'true' : 'false'));
-            
+
             if ($result) {
                 return $this->json([
                     'success' => true, 
@@ -145,15 +126,12 @@ class NotificationController extends BaseController
                     'data' => ['id' => $id, 'status' => 'read']
                 ]);
             } else {
-                error_log("NotificationController::markAsRead - Database update failed");
                 return $this->json([
                     'success' => false, 
                     'message' => 'Failed to update notification status'
                 ], 500);
             }
         } catch (\Exception $e) {
-            error_log("NotificationController::markAsRead exception: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return $this->json([
                 'success' => false, 
                 'message' => 'Error: ' . $e->getMessage()
@@ -172,26 +150,19 @@ class NotificationController extends BaseController
             return $this->json(['error' => 'Unauthorized'], 401);
         }
 
-
-        error_log("markAllAsRead called for user ID: " . $user['id']);
-
         try {
-            $result = $this->model->markAllAsRead((int) $user['id'], (string) ($user['role'] ?? ''));
-
-            error_log("markAllAsRead result: " . ($result ? 'true' : 'false'));
+            $this->model->markAllAsRead((int) $user['id'], (string) ($user['role'] ?? ''));
 
             return $this->json([
                 'success' => true,
                 'message' => 'All notifications marked as read'
             ]);
         } catch (\Exception $e) {
-            error_log("markAllAsRead exception: " . $e->getMessage());
             return $this->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
-        return $this->json(['message' => 'All notifications marked as read']);
     }
 
     /**
@@ -212,15 +183,32 @@ class NotificationController extends BaseController
     /**
      * Delete a notification
      */
-    public function destroy(int $id): Response
+    public function destroy(Request $request): Response
     {
         $user = auth();
         if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
+            return $this->json(['success' => false, 'error' => 'Unauthorized'], 401);
         }
 
-        $this->model->delete($id);
+        $id = $request->route('id');
+        if ($id === null || $id === '') {
+            $id = $request->input('id');
+        }
 
-        return $this->json(['message' => 'Notification deleted']);
+        if ($id === null || $id === '') {
+            return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
+        }
+
+        $allowed = $this->model->canUserAccessNotification($id, (int) $user['id'], (string) ($user['role'] ?? ''));
+        if (!$allowed) {
+            return $this->json(['success' => false, 'message' => 'Notification not found'], 404);
+        }
+
+        $deleted = $this->model->deleteById($id);
+        if (!$deleted) {
+            return $this->json(['success' => false, 'message' => 'Failed to delete notification'], 500);
+        }
+
+        return $this->json(['success' => true, 'message' => 'Notification deleted']);
     }
 }
