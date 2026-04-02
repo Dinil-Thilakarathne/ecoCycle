@@ -36,12 +36,12 @@ foreach ($wasteTotals as $name => $value) {
 
 
 <div class="dashboard-page">
-    <div class="page-header">
-        <div class="header-content">
-
-            <h1><b>Track your recycling performance and environmental impact</b></h1>
+    <header class="page-header">
+        <div class="page-header__content">
+            <h2 class="page-header__title">Analytics</h2>
+            <p class="page-header__description">Track your recycling performance and environmental impact</p>
         </div>
-    </div>
+    </header>
 
     <div class="stats-grid analytics-grid" style="margin-bottom:2.5rem;">
         <div class="feature-card">

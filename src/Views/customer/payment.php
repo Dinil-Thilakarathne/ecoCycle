@@ -77,8 +77,10 @@ function formatCurrency($amount)
 
 <div class="container" style="background: var(--neutral-1);">
     <header class="page-header">
-
-        <h1><b>Manage your billing and view transaction history</b></h1>
+        <div class="page-header__content">
+            <h2 class="page-header__title">Payments</h2>
+            <p class="page-header__description">Manage your billing and view transaction history</p>
+        </div>
     </header>
 
     <?php if (isset($success_message)): ?>
