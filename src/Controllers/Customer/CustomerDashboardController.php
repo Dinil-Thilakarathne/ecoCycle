@@ -9,6 +9,7 @@ use Models\User;
 use Models\PickupRequest;
 use Models\WasteCategory;
 use Models\Payment;
+use Models\CollectorRating;
 
 /**
  * Customer Dashboard Controller
@@ -148,6 +149,8 @@ class CustomerDashboardController extends DashboardController
         }
 
         $db = app('db');
+        $isPgsql = method_exists($db, 'isPgsql') && $db->isPgsql();
+        $scheduledDateExpr = 'pr.scheduled_at';
 
         $totalWeight = 0.0;
         $totalIncomeThisMonth = 0.0;
@@ -175,10 +178,10 @@ class CustomerDashboardController extends DashboardController
                 "SELECT COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
                  FROM pickup_requests pr
                  WHERE pr.customer_id = ?
-                   AND pr.status = 'completed'
-                                     AND pr.updated_at IS NOT NULL
-                                     AND pr.updated_at >= ?
-                                     AND pr.updated_at < ?",
+                   AND pr.status IN ('confirmed', 'completed')
+                   AND COALESCE(pr.price, 0) > 0
+                                     AND {$scheduledDateExpr} >= ?
+                                     AND {$scheduledDateExpr} < ?",
                 [$customerId, $monthStart, $nextMonthStart]
             );
 
@@ -204,20 +207,20 @@ class CustomerDashboardController extends DashboardController
 
             $wasteRows = $db->fetchAll(
                 "SELECT pr.scheduled_at,
-                        pr.created_at,
                         wc.name AS category_name,
                         COALESCE(prw.weight, prw.quantity, 0) AS waste_weight
                  FROM pickup_requests pr
                  INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
                  INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                  WHERE pr.customer_id = ?
-                   AND pr.status = 'completed'",
+                                     AND pr.status = 'completed'
+                                     AND pr.scheduled_at IS NOT NULL",
                 [$customerId]
             );
 
             $monthMap = [];
             foreach ($wasteRows as $row) {
-                $dateValue = (string) ($row['scheduled_at'] ?? $row['created_at'] ?? '');
+                $dateValue = (string) ($row['scheduled_at'] ?? '');
                 $timestamp = strtotime($dateValue);
                 if ($timestamp === false) {
                     continue;
@@ -265,26 +268,28 @@ class CustomerDashboardController extends DashboardController
         }
 
         try {
-            if (method_exists($db, 'isPgsql') && $db->isPgsql()) {
+            if ($isPgsql) {
                 $incomeRows = $db->fetchAll(
-                                        "SELECT TO_CHAR(pr.updated_at, 'YYYY-MM') AS month_key,
+                                                                                "SELECT TO_CHAR({$scheduledDateExpr}, 'YYYY-MM') AS month_key,
                             COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
                      FROM pickup_requests pr
                      WHERE pr.customer_id = ?
-                       AND pr.status = 'completed'
-                                             AND pr.updated_at IS NOT NULL
+                       AND pr.status IN ('confirmed', 'completed')
+                       AND COALESCE(pr.price, 0) > 0
+                                             AND {$scheduledDateExpr} IS NOT NULL
                      GROUP BY month_key
                      ORDER BY month_key ASC",
                     [$customerId]
                 );
             } else {
                 $incomeRows = $db->fetchAll(
-                                        "SELECT DATE_FORMAT(pr.updated_at, '%Y-%m') AS month_key,
+                                                                                "SELECT DATE_FORMAT({$scheduledDateExpr}, '%Y-%m') AS month_key,
                             COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
                      FROM pickup_requests pr
                      WHERE pr.customer_id = ?
-                       AND pr.status = 'completed'
-                                             AND pr.updated_at IS NOT NULL
+                       AND pr.status IN ('confirmed', 'completed')
+                       AND COALESCE(pr.price, 0) > 0
+                                             AND {$scheduledDateExpr} IS NOT NULL
                      GROUP BY month_key
                      ORDER BY month_key ASC",
                     [$customerId]
@@ -361,6 +366,7 @@ class CustomerDashboardController extends DashboardController
     {
         $pickupModel = new PickupRequest();
         $wasteCategoryModel = new WasteCategory();
+        $collectorRatingModel = new CollectorRating();
         $customerId = (int) ($this->user['id'] ?? 0);
 
         try {
@@ -377,6 +383,21 @@ class CustomerDashboardController extends DashboardController
             $pickupRequests = $pickupModel->listForCustomer($customerId);
         } catch (\Throwable $e) {
             $pickupRequests = [];
+        }
+
+        try {
+            $ratedPickupIds = $collectorRatingModel->getRatedPickupRequestIds($customerId);
+        } catch (\Throwable $e) {
+            $ratedPickupIds = [];
+        }
+
+        if (!empty($pickupRequests)) {
+            $ratedLookup = array_fill_keys($ratedPickupIds, true);
+            $pickupRequests = array_map(static function (array $request) use ($ratedLookup): array {
+                $id = (string) ($request['id'] ?? '');
+                $request['hasRating'] = isset($ratedLookup[$id]);
+                return $request;
+            }, $pickupRequests);
         }
 
         try {
