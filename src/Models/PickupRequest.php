@@ -41,10 +41,13 @@ class PickupRequest extends BaseModel
             return [];
         }
 
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id
+                LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}
                 WHERE pr.collector_id = ?";
         $params = [$collectorId];
 

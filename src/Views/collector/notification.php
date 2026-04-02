@@ -67,9 +67,47 @@ $readCount = $totalCount - $unreadCount;
         text-align: center;
     }
 
+    .notifications-table {
+        table-layout: fixed;
+    }
+
+    .notifications-table th,
+    .notifications-table td {
+        vertical-align: middle;
+    }
+
+    .notifications-table th:nth-child(1),
+    .notifications-table td:nth-child(1) {
+        width: 48%;
+    }
+
+    .notifications-table th:nth-child(2),
+    .notifications-table td:nth-child(2) {
+        width: 16%;
+    }
+
+    .notifications-table th:nth-child(3),
+    .notifications-table td:nth-child(3) {
+        width: 18%;
+    }
+
+    .notifications-table th:nth-child(4),
+    .notifications-table td:nth-child(4) {
+        width: 18%;
+    }
+
     .notifications-table thead th {
         background-color: #f1f3f5;
         color: #6c757d;
+    }
+
+    .notifications-table tbody td {
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+
+    .notifications-table .actions-cell > div {
+        width: 100%;
     }
 </style>
 
@@ -130,9 +168,23 @@ $readCount = $totalCount - $unreadCount;
     </div>
 </div>
 
+<div id="notification-delete-confirm-modal" class="user-modal" role="dialog" aria-hidden="true">
+    <div class="user-modal__dialog" style="max-width: 420px;">
+        <h2 style="margin-bottom: 10px; color: var(--primary-color);">Delete Notification</h2>
+        <p style="margin-bottom: 18px; color: #4b5563;">    
+            Are you sure you want to delete this notification?
+        </p>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-outline" onclick="closeDeleteConfirmModal(false)">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="closeDeleteConfirmModal(true)">OK</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let notificationsState = <?= json_encode($normalized) ?>;
 let activeFilter = 'all';
+let deleteConfirmResolver = null;
 
 (function () {
     const endpoint = '/api/collector/notifications';
@@ -297,9 +349,36 @@ function timeAgo(timestamp) {
 
     window.closeNotificationModal = () => document.getElementById('notification-detail-modal').classList.remove('open');
 
+    window.openDeleteConfirmModal = function() {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (!modal) return Promise.resolve(false);
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+
+        return new Promise((resolve) => {
+            deleteConfirmResolver = resolve;
+        });
+    };
+
+    window.closeDeleteConfirmModal = function(confirmed) {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        if (typeof deleteConfirmResolver === 'function') {
+            const resolver = deleteConfirmResolver;
+            deleteConfirmResolver = null;
+            resolver(Boolean(confirmed));
+        }
+    };
+
     window.deleteNotification = async function(id) {
         if (!id) return;
-        if (!confirm('Are you sure you want to delete this notification?')) return;
+        const confirmed = await openDeleteConfirmModal();
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, {

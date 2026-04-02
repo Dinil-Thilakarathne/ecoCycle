@@ -57,9 +57,32 @@ function getStatusBadge($status)
     .data-table td:nth-child(7) {
         text-align: center;
     }
-    .data-table th:nth-child(8),
-    .data-table td:nth-child(8) {
-        text-align: center;
+
+    .data-table thead th {
+        background-color: #f1f3f5;
+        color: #6c757d;
+    }
+
+    .data-table tbody td {
+        color: #000000;
+    }
+
+    .data-table td:nth-child(7) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-4) var(--space-6);
+    }
+
+    .vehicle-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .vehicle-cell span {
+        font-weight: 500;
     }
 
     .data-table tbody tr:hover {
@@ -93,7 +116,6 @@ function getStatusBadge($status)
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Customer</th>
                         <th>Address</th>
                         <th>Waste</th>
@@ -107,11 +129,21 @@ function getStatusBadge($status)
                     <?php if (!empty($assignedRequests)): ?>
                         <?php foreach ($assignedRequests as $r): ?>
                             <tr data-id="<?= htmlspecialchars($r['id'] ?? '') ?>">
-                                <td><?= htmlspecialchars($r['id'] ?? '') ?></td>
                                 <td><?= htmlspecialchars($r['customerName'] ?? 'Unknown Customer') ?></td>
                                 <td><?= htmlspecialchars($r['address'] ?? 'Not provided') ?></td>
                                 <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'] ?? [])) ?></td>
-                                <td><?= htmlspecialchars($r['vehicle'] ?? $r['vehicleModel'] ?? $r['vehicle_type'] ?? '-') ?></td>
+                                <td>
+                                    <div class="vehicle-cell">
+                                        <span title="<?= htmlspecialchars($r['vehicleType'] ?? $r['vehicle'] ?? $r['vehicleModel'] ?? 'N/A') ?>">
+                                            <?= htmlspecialchars($r['vehicleType'] ?? $r['vehicle'] ?? $r['vehicleModel'] ?? '-') ?>
+                                        </span>
+                                        <?php if (!empty($r['vehiclePlate'] ?? null)): ?>
+                                            <small style="display: block; color: var(--neutral-500); font-size: 0.8em;">
+                                                <?= htmlspecialchars($r['vehiclePlate']) ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
                                 <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
                                 <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
                                 <td>
@@ -124,7 +156,7 @@ function getStatusBadge($status)
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" style="text-align:center;color:gray;">No tasks assigned.</td>
+                            <td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -139,8 +171,8 @@ function getStatusBadge($status)
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
+            <!-- <div><strong>Request ID</strong></div>
+            <div class="pd-id"></div> -->
             <div><strong>Customer</strong></div>
             <div class="pd-customer"></div>
             <div><strong>Address</strong></div>
@@ -214,7 +246,7 @@ function getStatusBadge($status)
         const modal = document.getElementById('pickup-detail-modal');
         if (!record || !modal) return;
 
-        modal.querySelector('.pd-id').textContent = record.id;
+        // modal.querySelector('.pd-id').textContent = record.id;
         modal.querySelector('.pd-customer').textContent = record.customerName;
         modal.querySelector('.pd-address').textContent = record.address;
         modal.querySelector('.pd-waste').textContent = record.wasteCategories.join(', ');

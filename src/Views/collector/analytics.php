@@ -15,6 +15,26 @@ $collectorFeedback = []; // Will be populated by JavaScript
     .data-table thead th:nth-child(n+2) {
         text-align: left;
     }
+    .data-table thead th {
+        background-color: #f1f3f5;
+        color: #6c757d;
+    }
+    .data-table tbody td {
+        color: #000000;
+    }
+    .materials-breakdown {
+        margin: 0;
+        padding-left: 18px;
+    }
+    .materials-breakdown li {
+        margin: 0 0 4px 0;
+    }
+    .materials-breakdown li:last-child {
+        margin-bottom: 0;
+    }
+    .materials-breakdown .material-weight {
+        color: #6b7280;
+    }
 </style>
 
 <div>
@@ -264,6 +284,50 @@ function updateMonthlyCollectionRange(monthLabel) {
 
 function normalizeMaterialName(name) {
     return String(name || '').trim().toLowerCase();
+}
+
+function normalizeRowStatus(row) {
+    return String(row?.status || row?.status_raw || row?.collection_status || '').trim().toLowerCase();
+}
+
+function getRowCustomerId(row) {
+    return String(
+        row?.customer_id ??
+        row?.customerId ??
+        row?.customer?.id ??
+        row?.user_id ??
+        ''
+    ).trim();
+}
+
+function getRowCustomerName(row) {
+    return String(
+        row?.customer_name ??
+        row?.customerName ??
+        row?.customer?.name ??
+        'Unknown Customer'
+    ).trim() || 'Unknown Customer';
+}
+
+function getRowLocation(row) {
+    return String(
+        row?.location ??
+        row?.address ??
+        row?.customer_address ??
+        row?.customer?.address ??
+        'Not provided'
+    ).trim() || 'Not provided';
+}
+
+function getRowMaterialName(row) {
+    return String(
+        row?.material_name ??
+        row?.category ??
+        row?.waste_category ??
+        row?.waste_category_name ??
+        row?.name ??
+        'General'
+    ).trim() || 'General';
 }
 
 async function fetchAndRenderMonthlyCollection() {
@@ -532,34 +596,51 @@ function updateWasteTable(data, error = null) {
         const grouped = new Map();
 
         data.forEach((row) => {
-            const key = String(row.customer_id || 'N/A');
-            if (!grouped.has(key)) {
-                grouped.set(key, {
-                    customerName: row.customer_name || 'Unknown',
-                    location: row.location || 'Not provided',
+            const status = normalizeRowStatus(row);
+            if (status && !['completed', 'collected'].includes(status)) {
+                return;
+            }
+
+            const customerId = getRowCustomerId(row);
+            const customerName = getRowCustomerName(row);
+            const location = getRowLocation(row);
+            const materialName = getRowMaterialName(row);
+            const rowWeight = Number(row.weight ?? row.total_weight ?? row.quantity ?? 0);
+
+            if (!customerId || customerName === 'Unknown Customer') {
+                return;
+            }
+
+            if (!materialName || Number.isNaN(rowWeight) || rowWeight <= 0) {
+                return;
+            }
+
+            if (!grouped.has(customerId)) {
+                grouped.set(customerId, {
+                    customerName,
+                    location,
                     pickupIds: new Set(),
                     totalWeight: 0,
                     materials: new Map()
                 });
             }
 
-            const item = grouped.get(key);
-            if (row.pickup_id) {
-                item.pickupIds.add(String(row.pickup_id));
+            const item = grouped.get(customerId);
+            if (row.pickup_id ?? row.pickupId ?? row.id) {
+                item.pickupIds.add(String(row.pickup_id ?? row.pickupId ?? row.id));
             }
 
-            const rowWeight = Number(row.weight || 0);
             item.totalWeight += rowWeight;
 
-            const materialName = String(row.category || 'General').trim() || 'General';
             const prevWeight = Number(item.materials.get(materialName) || 0);
             item.materials.set(materialName, prevWeight + rowWeight);
         });
 
         const rows = Array.from(grouped.values()).map(item => {
-            const materialChips = Array.from(item.materials.entries()).map(([name, weight]) => {
-                return `<span style="display:inline-block; border:1px solid #e5e7eb; border-radius:999px; padding:4px 10px; margin-right:6px; font-size:12px; background:#f8fafc; white-space:nowrap;">${escapeHtml(name)} (${Number(weight).toFixed(2)} kg)</span>`;
-            }).join('');
+            const materialList = Array.from(item.materials.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, weight]) => `<li><span>${escapeHtml(name)}</span> <span class="material-weight">(${Number(weight).toFixed(2)} kg)</span></li>`)
+                .join('');
 
             const wasteCollected = `${item.pickupIds.size} pickup${item.pickupIds.size === 1 ? '' : 's'}`;
 
@@ -570,9 +651,7 @@ function updateWasteTable(data, error = null) {
                     <td style="text-align: left;">${escapeHtml(wasteCollected)}</td>
                     <td style="text-align: left;">${item.totalWeight.toFixed(2)} kg</td>
                     <td style="text-align: left;">
-                        <div style="max-width: 360px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
-                            ${materialChips || '-'}
-                        </div>
+                        ${materialList ? `<ul class="materials-breakdown">${materialList}</ul>` : '-'}
                     </td>
                 </tr>
             `;
