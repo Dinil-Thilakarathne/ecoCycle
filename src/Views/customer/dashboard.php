@@ -13,6 +13,8 @@ $pendingCount = 0;
 $scheduledCount = 0;
 $completedCount = 0;
 $totalCount = 0;
+$totalIncome = 0.0;
+$totalWeight = 0.0;
 
 foreach ($pickupRequests as $request) {
     $status = strtolower((string) ($request['status'] ?? ''));
@@ -24,6 +26,8 @@ foreach ($pickupRequests as $request) {
     }
     if ($status === 'completed') {
         $completedCount++;
+        $totalIncome += (float) ($request['price'] ?? 0);
+        $totalWeight += (float) ($request['weight'] ?? 0);
     }
     $totalCount++;
 }
@@ -110,7 +114,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <h3 class="feature-card__title">Total Pickups</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-truck"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;"><?= (int) $totalCount ?></p>
                 <div class="feature-card__footer"><span class="tag success">All time</span></div>
             </div>
             <div class="feature-card" data-stat="income">
@@ -118,7 +122,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <h3 class="feature-card__title">Total Income</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-wallet"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs 0.00</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs <?= number_format($totalIncome, 2) ?></p>
                 <div class="feature-card__footer"><span class="tag success">Earnings</span></div>
             </div>
             <div class="feature-card" data-stat="weight">
@@ -126,7 +130,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <h3 class="feature-card__title">Total Weight</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-weight"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0 kg</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;"><?= number_format($totalWeight, 2) ?> kg</p>
                 <div class="feature-card__footer"><span class="tag success">Waste collected</span></div>
             </div>
         </div>

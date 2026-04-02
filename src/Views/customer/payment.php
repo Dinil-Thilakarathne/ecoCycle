@@ -38,9 +38,7 @@ $payments = $payments ?? [];
 // Calculate stats from real data
 $total_received = 0;
 foreach ($payments as $p) {
-    if (($p['status'] ?? '') === 'completed') {
-        $total_received += ($p['amount'] ?? 0);
-    }
+    $total_received += ($p['amount'] ?? 0);
 }
 $transaction_count = count($payments);
 
@@ -125,19 +123,21 @@ function formatCurrency($amount)
         <!-- Payment Methods Section Removed -->
 
         <!-- Invoice History Section -->
-        <div class="section">
-            <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="activity-card" style="margin-top: var(--space-8);">
+            <div class="activity-card__header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
-                    <h2 class="section-title">Transaction History</h2>
-                    <p class="section-subtitle">All your past transactions and payouts</p>
+                    <h3 class="activity-card__title">
+                        <i class="fa-solid fa-dollar-sign" style="margin-right: var(--space-2);"></i>
+                        Recent Transactions
+                    </h3>
+                    <p class="activity-card__description">Latest payment transactions and their status</p>
                 </div>
                 <div id="liveIndicator" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;">
                     <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite;"></span>
                     Live
                 </div>
             </div>
-            <div id="transactionTable" style="background:#fff;border-radius:1rem;box-shadow:0 2px 12px rgba(34,197,94,0.08);padding:1.2rem;margin-top:1rem;">
-                <!-- Populated by JS -->
+            <div class="activity-card__content" id="transactionTable">
                 <div style="text-align:center;padding:2rem;color:#64748b;">Loading transactions...</div>
             </div>
         </div>
@@ -171,41 +171,51 @@ function formatCurrency($amount)
         const el = document.getElementById('transactionTable');
         if (!el) return;
 
-        if (!payments || !payments.length) {
-            el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#64748b;">No transactions found.</div>`;
-            return;
-        }
+        const hasRows = Array.isArray(payments) && payments.length > 0;
+        const rows = hasRows
+            ? payments.map((p, index) => {
+                const status = String(p.status || '').toLowerCase();
+                const tagClass = status === 'completed' ? 'completed' : (status === 'failed' ? 'danger' : 'pending');
+                const txnId = p.txnId || p.id || ('txn-' + (index + 1));
+                const safeTxnId = encodeURIComponent(String(txnId));
+                return `
+                    <tr>
+                        <td class="font-medium">${index + 1}</td>
+                        <td>${escHtml(fmtCurrency(p.amount))}</td>
+                        <td>${escHtml(fmtDate(p.date))}</td>
+                        <td>
+                            <span class="tag ${tagClass}">${escHtml(ucfirst(p.status || 'pending'))}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="downloadInvoice('${safeTxnId}')">View Details</button>
+                        </td>
+                    </tr>`;
+            }).join('')
+            : `<tr>
+                    <td colspan="5" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">No transactions found.</td>
+               </tr>`;
 
-        const header = `
-            <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;">
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Transaction ID</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Date</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Amount</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;text-align:center;">Status</div>
+        el.innerHTML = `
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
             </div>`;
-
-        const rows = payments.map(p => {
-            const isCompleted = (p.status || '').toLowerCase() === 'completed';
-            const tagClass = isCompleted ? 'success' : 'warning';
-            return `
-                <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;border-top:1px solid #f1f5f9;">
-                    <div style="padding:0.75rem 0;">
-                        <strong>${escHtml(p.txnId || p.id)}</strong>
-                        <div style="color:#64748b;font-size:0.9em;">${escHtml(ucfirst(p.type || 'Payout'))}</div>
-                    </div>
-                    <div style="padding:0.75rem 0;color:#475569;">${escHtml(fmtDate(p.date))}</div>
-                    <div style="padding:0.75rem 0;color:#22c55e;font-weight:500;">${escHtml(fmtCurrency(p.amount))}</div>
-                    <div style="padding:0.75rem 0;text-align:center;">
-                        <span class="tag ${tagClass}">${escHtml(ucfirst(p.status))}</span>
-                    </div>
-                </div>`;
-        }).join('');
-
-        el.innerHTML = header + rows;
     }
 
     function updateStats(payments) {
-        const totalEarned   = payments.filter(p => p.status === 'completed').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const totalEarned   = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
         const totalCount    = payments.length;
         const cards = document.querySelectorAll('.feature-card .feature-card__body');
         if (cards[0]) cards[0].textContent = fmtCurrency(totalEarned);
@@ -436,7 +446,7 @@ function formatCurrency($amount)
 
     function downloadInvoice(invoiceId) {
         // In real application, this would download the invoice
-        alert('Downloading invoice: ' + invoiceId);
+        alert('Downloading invoice: ' + decodeURIComponent(invoiceId));
     }
 
     // Close modals when clicking outside

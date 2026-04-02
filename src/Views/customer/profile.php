@@ -115,8 +115,18 @@ $csrfToken = csrf_token();
 
   <div class="p-info-card">
     <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">About You</h3>
-      <textarea disabled style="width: 100%; height: 100px; border: 1px solid #ccc; border-radius: 8px; padding: 15px; background: white; color: #555; resize: none;"><?= htmlspecialchars($displayDescription ?: 'Share a short summary about your collections...') ?></textarea>
+      <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Security & Privacy</h3>
+
+      <button type="button" class="btn btn-primary"
+       style="margin-bottom: 10px"
+       onclick="openModal('passwordModal')">
+       Change Password
+      </button>
+
+      <form method="POST" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
+        <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
+        <button type="submit" name="deleteAccount" class="btn p-btn-delete">Delete Account</button>
+      </form>
     </div>
 
     <div class="pc-card" style="position: relative;">
@@ -142,20 +152,6 @@ $csrfToken = csrf_token();
         </div>
       </div>
     </div>
-  </div>
-
-  <div class="pc-card">
-    <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-  
-      <button type="button" class="btn btn-primary"
-       style="margin-bottom: 5px"
-       onclick="openModal('passwordModal')">
-       Change Password
-      </button>
-    <form method="POST" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
-        <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
-        <button type="submit" name="deleteAccount" class="btn p-btn-delete">Delete Account</button>
-    </form>
   </div>
 </main>
 
@@ -190,9 +186,6 @@ $csrfToken = csrf_token();
         </div>
         <div class="form-group"><label class="form-lable">Address</label>
           <textarea name="address" required style="height: 80px;"><?= htmlspecialchars($editAddress) ?></textarea>
-        </div>
-        <div class="form-group"><label class="form-lable">About You</label>
-          <textarea name="description" style="height: 80px;" placeholder="Share a short summary about your collections..."><?= htmlspecialchars($displayDescription) ?></textarea>
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 20px;">

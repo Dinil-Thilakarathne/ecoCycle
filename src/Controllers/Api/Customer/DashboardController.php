@@ -41,9 +41,8 @@ class DashboardController extends BaseController
             $scheduledCount = $this->pickupRequest->countByCustomerAndStatus($customerId, ['assigned', 'confirmed']);
             $completedCount = $this->pickupRequest->countByCustomerAndStatus($customerId, 'completed');
 
-            // Get user data for earnings
-            $userData = $this->user->findById($customerId);
-            $totalEarnings = (float) ($userData['total_earnings'] ?? 0);
+            // Calculate total income from completed pickup requests
+            $totalEarnings = $this->getTotalIncome($customerId);
 
             // Calculate total weight from pickup requests
             $totalWeight = $this->getTotalWeight($customerId);
@@ -76,13 +75,33 @@ class DashboardController extends BaseController
         try {
             $db = app('db');
             $query = "
-                SELECT COALESCE(SUM(CAST(prw.weight AS DECIMAL(10,2))), 0) as total_weight
-                FROM pickup_request_weights prw
+                SELECT COALESCE(SUM(COALESCE(prw.weight, prw.quantity, 0)), 0) as total_weight
+                FROM pickup_request_wastes prw
                 INNER JOIN pickup_requests pr ON pr.id = prw.pickup_id
                 WHERE pr.customer_id = ? AND pr.status = 'completed'
             ";
             $result = $db->fetchOne($query, [$customerId]);
             return (float) ($result['total_weight'] ?? 0);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate total income from completed pickup requests
+     */
+    private function getTotalIncome(int $customerId): float
+    {
+        try {
+            $db = app('db');
+            $result = $db->fetchOne(
+                "SELECT COALESCE(SUM(COALESCE(price, 0)), 0) AS total_income
+                 FROM pickup_requests
+                 WHERE customer_id = ? AND status = 'completed'",
+                [$customerId]
+            );
+
+            return (float) ($result['total_income'] ?? 0);
         } catch (\Throwable $e) {
             return 0;
         }
