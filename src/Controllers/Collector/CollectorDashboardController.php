@@ -186,18 +186,14 @@ class CollectorDashboardController extends DashboardController
 
     private function getPendingPickups(): array
     {
-        $collectorId = (int) ($this->user['id'] ?? 0);
-        if ($collectorId <= 0) {
-            return [];
-        }
-
         try {
             $pickupRequest = new PickupRequest();
-            // Get assigned and in-progress pickups across all dates.
-            $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
-            $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
+            $allPickups = $pickupRequest->listAll();
 
-            return array_values(array_merge($assigned, $inProgress));
+            return array_values(array_filter(
+                $allPickups,
+                static fn (array $pickup): bool => strtolower((string) ($pickup['status'] ?? '')) === 'pending'
+            ));
         } catch (\Throwable $e) {
             return [];
         }
@@ -811,19 +807,38 @@ class CollectorDashboardController extends DashboardController
         try {
             $data = $request->json();
 
-            $collectorId = (int) ($data['collector_id'] ?? 0);
             $customerId = (int) ($data['customer_id'] ?? 0);
+            $pickupRequestId = trim((string) ($data['pickup_request_id'] ?? $data['pickupRequestId'] ?? ''));
             $rating = (int) ($data['rating'] ?? 0);
             $description = trim($data['description'] ?? '');
 
-            if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
+            if ($customerId <= 0 || $pickupRequestId === '' || $rating < 1 || $rating > 5 || $description === '') {
                 throw new \Exception('Invalid input');
+            }
+
+            $pickupModel = new PickupRequest();
+            $pickup = $pickupModel->find($pickupRequestId);
+
+            if (!$pickup) {
+                throw new \Exception('Pickup request not found');
+            }
+
+            $pickupCustomerId = (int) ($pickup['customerId'] ?? $pickup['customer_id'] ?? 0);
+            $collectorId = (int) ($pickup['collectorId'] ?? $pickup['collector_id'] ?? 0);
+
+            if ($pickupCustomerId !== $customerId) {
+                throw new \Exception('Pickup request does not match customer_id');
+            }
+
+            if ($collectorId <= 0) {
+                throw new \Exception('collector_id is missing in pickup request');
             }
 
             $model = new CollectorFeedback();
             $model->create([
                 'collector_id' => $collectorId,
                 'customer_id' => $customerId ?: null,
+                'pickup_request_id' => $pickupRequestId,
                 'rating' => $rating,
                 'description' => $description
             ]);

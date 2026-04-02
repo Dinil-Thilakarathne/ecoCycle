@@ -167,13 +167,100 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   </activity-card>
 
   <activity-card title="Pending Pickup Locations" description="Map view of pending pickup request locations">
-    <div id="pending-pickups-map" style="width: 100%; height: 360px; border-radius: var(--radius-lg); overflow: hidden; background: var(--neutral-100);"></div>
-    <div id="pending-pickups-map-message" style="margin-top: 12px; color: var(--neutral-600); font-size: 0.9rem;"></div>
-  </activity-card>
+    <style>
+      .pending-map-frame {
+        position: relative;
+        width: 100%;
+        height: 360px;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        background: linear-gradient(180deg, #dff4ff 0%, #eaf8ff 38%, #f7fbff 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+      }
 
-<!-- Leaflet CSS and JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+      .pending-map-frame svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .pending-map-spots {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .pending-map-spot {
+        position: absolute;
+        transform: translate(-50%, -100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .pending-map-pin {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        background: #dc2626;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.18), 0 10px 18px rgba(15, 23, 42, 0.25);
+      }
+
+      .pending-map-pin::after {
+        content: '';
+        position: absolute;
+        inset: 4px;
+        border-radius: 50%;
+        background: #fff;
+      }
+
+      .pending-map-spot-label {
+        max-width: 120px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #991b1b;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .pending-map-caption {
+        margin-top: 12px;
+        color: var(--neutral-600);
+        font-size: 0.9rem;
+      }
+    </style>
+    <div class="pending-map-frame" id="pending-pickups-map-frame">
+      <svg viewBox="0 0 1000 1200" preserveAspectRatio="xMidYMid meet" aria-label="Sri Lanka map close-up with pending pickup markers" role="img">
+        <defs>
+          <linearGradient id="seaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#dff4ff" />
+            <stop offset="100%" stop-color="#eaf8ff" />
+          </linearGradient>
+          <linearGradient id="landGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f8fafc" />
+            <stop offset="100%" stop-color="#cbd5e1" />
+          </linearGradient>
+        </defs>
+        <rect width="1000" height="1200" fill="url(#seaGradient)" />
+        <circle cx="170" cy="170" r="110" fill="rgba(255,255,255,0.55)" />
+        <circle cx="850" cy="240" r="150" fill="rgba(255,255,255,0.45)" />
+        <path d="M520 70 C565 88 610 132 626 196 C638 247 627 290 610 348 C598 389 590 430 585 476 C580 530 594 581 608 639 C620 687 624 739 612 795 C598 864 565 941 531 1014 C506 1068 484 1107 455 1139 C430 1117 409 1073 401 1021 C391 960 405 898 416 845 C426 799 434 751 431 701 C428 648 410 597 398 548 C385 492 384 436 394 377 C403 322 426 260 454 207 C475 167 495 127 520 70 Z" fill="url(#landGradient)" stroke="#94a3b8" stroke-width="10" stroke-linejoin="round" />
+        <path d="M453 210 C470 238 486 269 493 301 C500 334 495 367 485 400 C477 429 471 461 470 495 C469 537 478 579 488 616 C497 651 503 688 500 726 C496 773 485 818 472 862 C461 899 450 934 436 972" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="4" stroke-linecap="round" />
+        <text x="500" y="1110" text-anchor="middle" fill="#64748b" font-size="34" font-weight="700" font-family="Arial, sans-serif">Sri Lanka</text>
+      </svg>
+      <div class="pending-map-spots" id="pending-pickups-map-spots"></div>
+    </div>
+    <div id="pending-pickups-map-message" class="pending-map-caption"></div>
+  </activity-card>
 
 <script>
   const PENDING_PICKUP_LOCATIONS = <?= json_encode(array_values($pendingPickupLocations), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -185,9 +272,13 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   }
 
   function setPendingMapEmptyState(message) {
-    const mapEl = document.getElementById('pending-pickups-map');
-    if (mapEl) {
-      mapEl.innerHTML = `<p style="text-align: center; color: #999; padding: 140px 20px;">${message}</p>`;
+    const frameEl = document.getElementById('pending-pickups-map-frame');
+    const spotsEl = document.getElementById('pending-pickups-map-spots');
+    if (spotsEl) {
+      spotsEl.innerHTML = '';
+    }
+    if (frameEl) {
+      frameEl.innerHTML = `<p style="text-align: center; color: #64748b; padding: 140px 20px; font-weight: 600;">${message}</p>`;
     }
     updatePendingMapMessage('');
   }
@@ -212,6 +303,16 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     west: 79.45,
     east: 82.15
   };
+
+  function projectToMapPosition(lat, lng) {
+    const xRatio = (lng - SRI_LANKA_BOUNDS.west) / (SRI_LANKA_BOUNDS.east - SRI_LANKA_BOUNDS.west);
+    const yRatio = 1 - ((lat - SRI_LANKA_BOUNDS.south) / (SRI_LANKA_BOUNDS.north - SRI_LANKA_BOUNDS.south));
+
+    const x = Math.min(96, Math.max(4, xRatio * 100));
+    const y = Math.min(94, Math.max(6, yRatio * 100));
+
+    return { x, y };
+  }
 
   function isWithinSriLanka(lat, lng) {
     return (
@@ -295,180 +396,72 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     return 'Pending locations could not be mapped from addresses';
   }
 
-  function getPendingMarkerColor() {
-    return '#dc2626';
-  }
-
-  function createCustomMarker(color) {
-    return L.divIcon({
-      html: `<div style="
-        background-color: ${color};
-        border: 3px solid white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      "></div>`,
-      iconSize: [20, 20],
-      className: 'custom-marker'
-    });
-  }
-
-  function createRouteLine(map, from, to) {
-    return L.polyline([
-      [from.lat, from.lng],
-      [to.lat, to.lng]
-    ], {
-      color: '#2563eb',
-      weight: 3,
-      opacity: 0.85,
-      dashArray: '6, 8'
-    }).addTo(map);
-  }
-
-  function getCurrentLocation() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by this browser.'));
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      });
-    });
-  }
-
-  async function addCurrentLocationAndRoutes(map, destinations, markerGroup) {
-    if (!destinations.length) {
-      return;
-    }
-
-    try {
-      const position = await getCurrentLocation();
-      const currentLat = position.coords.latitude;
-      const currentLng = position.coords.longitude;
-
-      if (!isWithinSriLanka(currentLat, currentLng)) {
-        updatePendingMapMessage('Current location is outside Sri Lanka bounds. Routes were not drawn.');
-        return;
-      }
-
-      const currentPoint = { lat: currentLat, lng: currentLng };
-      const currentMarker = L.marker([currentLat, currentLng], {
-        icon: createCustomMarker('#16a34a'),
-        title: 'Current Location'
-      }).addTo(markerGroup);
-
-      currentMarker.bindPopup('<strong>Your Current Location</strong>');
-
-      let routedCount = 0;
-      for (const destination of destinations) {
-        if (!destination?.lat || !destination?.lng) {
-          continue;
-        }
-
-        createRouteLine(map, currentPoint, { lat: destination.lat, lng: destination.lng });
-        routedCount += 1;
-      }
-
-      const fullBounds = markerGroup.getBounds();
-      if (fullBounds.isValid()) {
-        map.fitBounds(fullBounds, { padding: [50, 50] });
-      }
-
-      if (routedCount > 0) {
-        updatePendingMapMessage(`${destinations.length} pending location(s) shown with routes from your current location.`);
-      }
-    } catch (error) {
-      updatePendingMapMessage('Pending locations shown. Enable location access to draw routes from your current location.');
-    }
-  }
-
-  window.initPendingPickupsMap = async function initPendingPickupsMap() {
-    const mapEl = document.getElementById('pending-pickups-map');
-    if (!mapEl) return;
+  function renderPendingPickupImage() {
+    const spotsLayer = document.getElementById('pending-pickups-map-spots');
+    if (!spotsLayer) return;
 
     if (!Array.isArray(PENDING_PICKUP_LOCATIONS) || PENDING_PICKUP_LOCATIONS.length === 0) {
       setPendingMapEmptyState('No pending pickup locations available');
       return;
     }
 
-    // Initialize Leaflet map centered on Sri Lanka and constrained to Sri Lanka bounds.
-    const sriLankaCenter = [7.8731, 80.7718];
-    const sriLankaBounds = L.latLngBounds(
-      [SRI_LANKA_BOUNDS.south, SRI_LANKA_BOUNDS.west],
-      [SRI_LANKA_BOUNDS.north, SRI_LANKA_BOUNDS.east]
-    );
-    const map = L.map(mapEl, {
-      maxBounds: sriLankaBounds,
-      maxBoundsViscosity: 1.0
-    }).setView(sriLankaCenter, 8);
-
-    // Add OpenStreetMap tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(map);
-
-    const markerGroup = L.featureGroup().addTo(map);
+    spotsLayer.innerHTML = '';
     let markerCount = 0;
     let lastGeocodeFailureStatus = '';
-    const resolvedDestinations = [];
 
-    for (const locationItem of PENDING_PICKUP_LOCATIONS) {
-      const address = String(locationItem.address || '').trim();
+    const renderMarker = (locationItem, lat, lng) => {
+      const position = projectToMapPosition(lat, lng);
+      const spot = document.createElement('div');
+      spot.className = 'pending-map-spot';
+      spot.style.left = `${position.x}%`;
+      spot.style.top = `${position.y}%`;
 
-      const resolved = await resolveLocationForPickup(locationItem);
-      if (!resolved.location) {
-        if (resolved.status && resolved.status !== 'OK') {
-          lastGeocodeFailureStatus = resolved.status;
+      const pin = document.createElement('div');
+      pin.className = 'pending-map-pin';
+
+      const label = document.createElement('div');
+      label.className = 'pending-map-spot-label';
+      label.textContent = locationItem.customerName || 'Pending Pickup';
+
+      spot.appendChild(pin);
+      spot.appendChild(label);
+      spotsLayer.appendChild(spot);
+    };
+
+    const processLocations = async () => {
+      for (const locationItem of PENDING_PICKUP_LOCATIONS) {
+        const resolved = await resolveLocationForPickup(locationItem);
+        if (!resolved.location) {
+          if (resolved.status && resolved.status !== 'OK') {
+            lastGeocodeFailureStatus = resolved.status;
+          }
+          continue;
         }
-        continue;
+
+        renderMarker(locationItem, resolved.location.lat, resolved.location.lng);
+        markerCount += 1;
+
+        if (PENDING_PICKUP_LOCATIONS.indexOf(locationItem) < PENDING_PICKUP_LOCATIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 350));
+        }
       }
 
-      const { lat, lng } = resolved.location;
-      const marker = L.marker([lat, lng], {
-        icon: createCustomMarker(getPendingMarkerColor()),
-        title: locationItem.customerName || 'Pending Pickup'
-      }).addTo(markerGroup);
-
-      resolvedDestinations.push({ lat, lng });
-
-      const popupContent = `
-        <div style="max-width: 260px; font-family: Arial, sans-serif;">
-          <strong style="font-size: 14px;">${String(locationItem.customerName || 'Pending Pickup')}</strong><br>
-          <span style="font-size: 12px;">${String(address || 'Coordinates available')}</span>
-          <br><small style="color: #666; font-size: 11px;">Status: ${String(locationItem.status || 'pending').replace('_', ' ')}</small>
-        </div>
-      `;
-
-      marker.bindPopup(popupContent);
-      markerCount += 1;
-
-      // Add a small delay to avoid rate limiting with Nominatim
-      if (PENDING_PICKUP_LOCATIONS.indexOf(locationItem) < PENDING_PICKUP_LOCATIONS.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (markerCount > 0) {
+        updatePendingMapMessage(`${markerCount} pending location(s) shown on Sri Lanka map`);
+        return;
       }
-    }
 
-    if (markerCount > 0) {
-      map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
-      updatePendingMapMessage(`${markerCount} pending location(s) shown on map`);
-      await addCurrentLocationAndRoutes(map, resolvedDestinations, markerGroup);
-      return;
-    }
+      setPendingMapEmptyState(getGeocodeFailureMessage(lastGeocodeFailureStatus));
+    };
 
-    setPendingMapEmptyState(getGeocodeFailureMessage(lastGeocodeFailureStatus));
-  };
+    processLocations();
+  }
 
   (function initializePendingPickupMap() {
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', window.initPendingPickupsMap);
+      document.addEventListener('DOMContentLoaded', renderPendingPickupImage);
     } else {
-      window.initPendingPickupsMap();
+      renderPendingPickupImage();
     }
   })();
 
