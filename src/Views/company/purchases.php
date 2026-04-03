@@ -58,24 +58,12 @@ $paymentReturn = $_GET['payment'] ?? '';
     </div>
     <?php endif; ?>
 
-    <div class="purchases-grid" style="margin-bottom: 24px;">
-        <!-- Purchased Lots Summary -->
-        <div class="c-purchase-card">
-            <h2 style="font-size: 20px; font-weight: bold;">Purchases Summary</h2>
-            <div class="total"><?= htmlspecialchars($summary['total'] ?? 'Rs. 0') ?></div>
-            <h2 style="font-size: 16px; font-weight: bold; margin-top: 10px;">Won Lots</h2>
-            <div class="summary-box">
-                <div class="box blue"><span><?= (int) ($summary['active_orders'] ?? 0) ?></span> <span>Pending
-                        Collection</span></div>
-                <div class="box purple"><span><?= (int) ($summary['completed'] ?? 0) ?></span> <span>Completed</span>
-                </div>
-            </div>
-        </div>
+    <div class="c-dashboard-grid" style="grid-template-columns: 65% 1fr;">
 
         <!-- Pending Invoices (Loaded via API) -->
-        <div class="c-purchase-card" style="grid-column: span 2;">
+        <div class="available-waste"  >
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="font-size: 20px; font-weight: bold; margin: 0;">Pending Invoices</h2>
+                <h2 style="font-size: 22px; font-weight: bold;">Pending Invoices</h2>
                 <div style="font-size: 14px; color: #666;">
                     Total Invoices: <span id="totalAmount" style="font-weight: bold; color: #333;">Rs. 0.00</span>
                 </div>
@@ -83,6 +71,19 @@ $paymentReturn = $_GET['payment'] ?? '';
             <div id="pendingInvoicesContainer"
                 style="display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 15px; max-height: 400px; overflow-y: auto; padding-right: 10px;">
                 <p style="text-align: center; color: #888; padding: 20px; grid-column: 1/-1;">Loading invoices...</p>
+            </div>
+        </div>
+
+        <!-- Purchased Lots Summary -->
+        <div class="available-waste" style="height:100%; display:flex; flex-direction:column; justify-content:flex-start;">
+            <h2 style="font-size: 22px; font-weight: bold;">Purchases Summary</h2>
+            <div class="total"><?= htmlspecialchars($summary['total'] ?? 'Rs. 0') ?></div>
+            <h2 style="font-size: 16px; font-weight: bold; margin-top: 10px;">Won Lots</h2>
+            <div class="summary-box">
+                <div class="box blue"><span><?= (int) ($summary['active_orders'] ?? 0) ?></span> <span>Pending
+                        Collection</span></div>
+                <div class="box purple"><span><?= (int) ($summary['completed'] ?? 0) ?></span> <span>Completed</span>
+                </div>
             </div>
         </div>
     </div>

@@ -47,10 +47,7 @@ $csrf = app('session')->token();
       <div class="form-group"><label>Name</label>
         <input type="text" value="<?= htmlspecialchars($metadata['companyName'] ?? 'N/A') ?>" disabled>
       </div>
-      <div class="form-group"><label>Type</label>
-        <input type="text" value="<?= htmlspecialchars($metadata['type'] ?? 'N/A') ?>" disabled>
-      </div>
-      <div class="form-group"><label>Registration</label>
+      <div class="form-group"><label>Registration Number</label>
         <input type="text" value="<?= htmlspecialchars($metadata['reg_number'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Website</label>
@@ -183,10 +180,7 @@ $csrf = app('session')->token();
       <div class="form-group"><label>Name</label>
         <input type="text" name="companyName" value="<?= htmlspecialchars($metadata['companyName'] ?? '') ?>">
       </div>
-      <div class="form-group"><label>Type</label>
-        <input type="text" name="type" value="<?= htmlspecialchars($metadata['type'] ?? '') ?>">
-      </div>
-      <div class="form-group"><label>Registration</label>
+      <div class="form-group"><label>Registration Number</label>
         <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Website</label>
