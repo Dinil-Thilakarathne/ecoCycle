@@ -40,24 +40,14 @@ $collectorFeedback = []; // Will be populated by JavaScript
 <div>
     <!-- Page Header -->
     <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
-         <!-- <a class="btn btn-outline" href="?export=salary">
+             <a class="btn btn-outline" href="?format=salary&export=1">
                 <i class="fa-solid fa-download"></i>
                 Salary Transactions Report
             </a>
-             <a class="btn btn-outline" href="?export=waste">
+            <a class="btn btn-outline" href="?format=waste&export=1">
                 <i class="fa-solid fa-download"></i>
                 Waste Collection Report
-            </a> -->
-               <button class="btn btn-outline" onclick="exportReport('salary')">
-                <i class="fa-solid fa-download"></i>
-                Salary Transactions Report
-            </button>
-             <button class="btn btn-outline" onclick="exportReport('waste')">
-                <i class="fa-solid fa-download"></i>
-                Waste Collection Report
-            </button>
-            
-            
+            </a>
 
     </page-header>
 

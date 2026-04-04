@@ -3,8 +3,10 @@
 namespace Controllers\Collector;
 
 use Controllers\DashboardController;
+use Core\Database;
 use Core\Http\Request;
 use EcoCycle\Core\Navigation\NavigationConfig;
+use Models\Payment;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
@@ -87,6 +89,19 @@ class CollectorDashboardController extends DashboardController
      */
     public function analytics(): \Core\Http\Response
     {
+        $request = request();
+        $collectorId = (int) ($this->user['id'] ?? 0);
+
+        if ((string) $request->query('export', '0') === '1' && $collectorId > 0) {
+            $format = strtolower((string) $request->query('format', ''));
+            if ($format === 'waste') {
+                return $this->exportWasteCollectionReport($collectorId);
+            }
+            if ($format === 'salary') {
+                return $this->exportSalaryTransactionReport($collectorId);
+            }
+        }
+
         $data = [
             'pageTitle' => 'Collection Analytics',
             'collectionStats' => $this->getCollectionStats(),
@@ -333,6 +348,127 @@ class CollectorDashboardController extends DashboardController
     private function getMaterialBreakdown(): array
     {
         return [];
+    }
+
+    private function exportWasteCollectionReport(int $collectorId): \Core\Http\Response
+    {
+        $db = new Database();
+        $rows = $db->fetchAll(
+            "SELECT
+                pr.customer_id,
+                COALESCE(c.name, 'Unknown Customer') AS customer_name,
+                COALESCE(pr.address, c.address, 'Not provided') AS location,
+                COALESCE(wc.name, 'General') AS material_name,
+                COALESCE(prw.weight, prw.quantity, 0) AS material_weight
+             FROM pickup_requests pr
+             LEFT JOIN users c ON c.id = pr.customer_id
+             LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+             LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
+             WHERE pr.collector_id = ?
+               AND pr.status = 'completed'
+             ORDER BY pr.customer_id ASC, material_name ASC",
+            [$collectorId]
+        ) ?: [];
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $customerId = (int) ($row['customer_id'] ?? 0);
+            if ($customerId <= 0) {
+                continue;
+            }
+
+            if (!isset($grouped[$customerId])) {
+                $grouped[$customerId] = [
+                    'customer_id' => $customerId,
+                    'name' => (string) ($row['customer_name'] ?? 'Unknown Customer'),
+                    'location' => (string) ($row['location'] ?? 'Not provided'),
+                    'materials' => [],
+                    'weight' => 0.0,
+                ];
+            }
+
+            $material = (string) ($row['material_name'] ?? 'General');
+            $weight = (float) ($row['material_weight'] ?? 0);
+
+            if ($weight > 0) {
+                $grouped[$customerId]['weight'] += $weight;
+                $existing = (float) ($grouped[$customerId]['materials'][$material] ?? 0);
+                $grouped[$customerId]['materials'][$material] = $existing + $weight;
+            }
+        }
+
+        $tableRows = [];
+        foreach ($grouped as $item) {
+            $materialBreakdown = [];
+            foreach ($item['materials'] as $material => $weight) {
+                $materialBreakdown[] = sprintf('%s (%.2f kg)', $material, $weight);
+            }
+
+            $tableRows[] = [
+                (string) $item['customer_id'],
+                $item['name'],
+                $item['location'],
+                implode(', ', $materialBreakdown),
+                number_format((float) $item['weight'], 2),
+            ];
+        }
+
+        return $this->csvResponse(
+            'waste_collection_details_' . date('Ymd_His') . '.csv',
+            ['customer_id', 'name', 'location', 'material_breakdown', 'weight_kg'],
+            $tableRows
+        );
+    }
+
+    private function exportSalaryTransactionReport(int $collectorId): \Core\Http\Response
+    {
+        $paymentModel = new Payment();
+        $records = $paymentModel->listForRecipient($collectorId, 'payout', 500);
+
+        $tableRows = [];
+        foreach ($records as $record) {
+            $tableRows[] = [
+                (string) ($record['txnId'] ?? '-'),
+                (string) ($record['date'] ?? '-'),
+                (string) ($record['status'] ?? 'pending'),
+                number_format((float) ($record['amount'] ?? 0), 2),
+                (string) ($record['notes'] ?? ''),
+            ];
+        }
+
+        return $this->csvResponse(
+            'salary_transactions_' . date('Ymd_His') . '.csv',
+            ['transaction_id', 'date', 'status', 'amount_rs', 'notes'],
+            $tableRows
+        );
+    }
+
+    private function csvResponse(string $filename, array $headers, array $rows): \Core\Http\Response
+    {
+        $output = fopen('php://temp', 'w+');
+        if ($output === false) {
+            return \Core\Http\Response::errorJson('Failed to generate export file', 500);
+        }
+
+        // UTF-8 BOM for Excel compatibility
+        fwrite($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($output, $headers);
+        foreach ($rows as $row) {
+            fputcsv($output, $row);
+        }
+
+        rewind($output);
+        $content = stream_get_contents($output);
+        fclose($output);
+
+        return new \Core\Http\Response((string) $content, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
     private function getCollectorProfile(): array
     {
