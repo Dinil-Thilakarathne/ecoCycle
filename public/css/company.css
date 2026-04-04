@@ -526,6 +526,21 @@ textarea {
   border-radius: 6px;
 }
 
+.required-star { 
+  color: var(--danger); 
+  margin-left: 2px; 
+  font-size: 14px;}
+
+.field-error { 
+  display: block; 
+  color: var(--danger);
+  font-size: 12px; 
+  margin-top: 4px;
+  min-height: 16px; }
+
+  .is-invalid { 
+    border-color: var(--danger); }
+
 /* NOTIFICATION*/
 
 .c-nf-filters {

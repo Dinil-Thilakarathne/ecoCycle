@@ -43,7 +43,8 @@ $csrf = app('session')->token();
         style="display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0;">
         <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture"
           style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
-        <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">Change Photo
+        <a href="#photoUploadModal" class="btn btn-outline"
+          style="padding: 8px 16px; margin-bottom: 5px; background:var(--info-light);">Change Photo
         </a>
       </div>
       <div class="form-group"><label>Name</label>
@@ -70,11 +71,11 @@ $csrf = app('session')->token();
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>" disabled>
       </div>
-      <div class="form-group"><label>Phone</label>
+      <div class="form-group"><label>Phone Number</label>
         <input type="tel" value="<?= htmlspecialchars($company['phone'] ?? '') ?>" disabled>
       </div>
-      <div class="form-group"><label>Land Phone</label>
-        <input type="tel" value="011-1234567" disabled>
+      <div class="form-group"><label>Landline</label>
+        <input type="tel" value="<?= htmlspecialchars($metadata['land_phone'] ?? '') ?>" disabled>
       </div>
       <div class="form-group"><label>Address</label>
         <textarea disabled><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
@@ -94,37 +95,13 @@ $csrf = app('session')->token();
         </div>
       </div>
 
-      <!-- Security -->
-      <div class="pc-card">
-        <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-        <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
-        <a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete
-          Account</a>
-
-      </div>
     </div>
 
-    <!--Bank Details-->
+    <!-- Security -->
     <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
-      <div style="display: grid; grid-template-columns: 2fr 2fr; gap: 20px;">
-        <div class="form-group"><label>Bank Name</label>
-          <input type="text" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>" disabled>
-        </div>
-        <div class="form-group"><label>Account Number</label>
-          <input type="text" value="<?= htmlspecialchars($bankDetails['account_number'] ?? '') ?>" disabled>
-        </div>
-        <div class="form-group"><label>User's Name</label>
-          <input type="text" value="<?= htmlspecialchars($bankDetails['user'] ?? '') ?>" disabled>
-        </div>
-        <div class="form-group"><label>Bank Branch</label>
-          <input type="text" value="<?= htmlspecialchars($bankDetails['branch'] ?? '') ?>" disabled>
-        </div>
-      </div>
-
-      <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light); ">Edit
-          Bank Details</a></p>
-
+      <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
+      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 5px">Change Password</a></p>
+      <a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a>
     </div>
   </div>
 
@@ -176,35 +153,46 @@ $csrf = app('session')->token();
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
     <div id="profileMessage"></div>
 
-    <form method="POST" enctype="multipart/form-data" action="/api/profile/update">
+    <form id="editProfileForm" method="POST" enctype="multipart/form-data" action="/api/profile/update">
       <input type="hidden" name="_token" value="<?= app('session')->token() ?>">
 
-      <div class="form-group"><label>Name</label>
-        <input type="text" name="companyName" value="<?= htmlspecialchars($metadata['companyName'] ?? '') ?>">
+      <div class="form-group"><label>Name<span class="required-star">*</span></label>
+        <input type="text" name="companyName" value="<?= htmlspecialchars($metadata['companyName'] ?? '') ?>" required>
+        <span class="field-error"></span>
       </div>
-      <div class="form-group"><label>Registration Number</label>
-        <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>">
+      <div class="form-group"><label>Registration Number<span class="required-star">*</span></label>
+        <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>" required
+          minlength="7" maxlength="10">
+        <span class="field-error"></span>
       </div>
       <div class="form-group"><label>Website</label>
         <input type="text" name="website" value="<?= htmlspecialchars($metadata['website'] ?? '') ?>">
+        <span class="field-error"></span>
       </div>
 
-      <div class="form-group"><label>Contact Person</label>
-        <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>">
+      <div class="form-group"><label>Contact Person<span class="required-star">*</span></label>
+        <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>" required>
+        <span class="field-error"></span>
       </div>
-      <div class="form-group"><label>Email</label>
-        <input type="email" name="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>">
+      <div class="form-group"><label>Email Address<span class="required-star">*</span></label>
+        <input type="email" name="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>" required>
+        <span class="field-error"></span>
       </div>
-      <div class="form-group"><label>Phone</label>
+      <div class="form-group"><label>Phone Number<span class="required-star">*</span></label>
         <input type="tel" pattern="[0-9]{10}" maxlength="10" name="phone"
-          value="<?= htmlspecialchars($company['phone'] ?? '') ?>">
+          value="<?= htmlspecialchars($company['phone'] ?? '') ?>" required>
       </div>
-      <div class="form-group"><label>Address</label>
-        <textarea name="address"><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
+      <div class="form-group"><label>Landline</label>
+        <input type="tel" pattern="[0-9]{10}" maxlength="10" name="land_phone"
+          value="<?= htmlspecialchars($metadata['land_phone'] ?? '') ?>">
       </div>
-      <div class="form-group"><label>Waste Types</label>
+      <div class="form-group"><label>Address<span class="required-star">*</span></label>
+        <textarea name="address" required><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
+      </div>
+      <div class="form-group"><label>Waste Types<span class="required-star">*</span></label>
         <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(', ', $wasteTypes)) ?>"
           placeholder="Plastic, Organic, Metal, Glass, Paper" required>
+        <span class="field-error"></span>
       </div>
 
       <button type="submit" class="btn btn-primary outline" style="width:100%;">Save Changes</button>
@@ -218,19 +206,21 @@ $csrf = app('session')->token();
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
 
-    <form method="POST" enctype="multipart/form-data" action="/api/profile/bankDetails">
+    <form id="bankDetailsForm" method="POST" enctype="multipart/form-data" action="/api/profile/bankDetails">
       <div class="form-group"><label class="form-lable">Bank Name</label>
-        <input type="text" name="bank_name" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>">
+        <input type="text" name="bank_name" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>" required>
       </div>
       <div class="form-group"><label class="form-lable">Account Number</label>
         <input type="text" name="bank_account_number"
-          value="<?= htmlspecialchars($bankDetails['account_number'] ?? '') ?>">
+          value="<?= htmlspecialchars($bankDetails['account_number'] ?? '') ?>" required minlength="8" maxlength="14">
+        <span class="field-error"></span>
       </div>
       <div class="form-group"><label class="form-lable">User's Name</label>
-        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bankDetails['user'] ?? '') ?>">
+        <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bankDetails['user'] ?? '') ?>"
+          required>
       </div>
       <div class="form-group"><label class="form-lable">Bank Branch</label>
-        <input type="text" name="bank_branch" value="<?= htmlspecialchars($bankDetails['branch'] ?? '') ?>">
+        <input type="text" name="bank_branch" value="<?= htmlspecialchars($bankDetails['branch'] ?? '') ?>" required>
       </div>
       <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
     </form>
@@ -245,7 +235,8 @@ $csrf = app('session')->token();
 
     <form method="POST" enctype="multipart/form-data" action="/api/profile/password">
       <div class="form-group"><label>New Password</label>
-        <input type="password" name="password" placeholder="Leave empty to keep current" required>
+        <input type="password" name="password" placeholder="min 8 characters" required minlength="8">
+        <span class="field-error"></span>
       </div>
       <div class="form-group"><label>Confirm New Password</label>
         <input type="password" name="confirm_password" placeholder="Confirm new password" required>
@@ -262,48 +253,149 @@ $csrf = app('session')->token();
 
 <script>
   (function () {
+
+    /* ── Helpers ──────────────────────────────────────────── */
     const msgBox = document.getElementById('profileMessage');
 
     function showMessage(msg, isError = false) {
       msgBox.innerHTML = `<div class="${isError ? 'error-box' : 'success-box'}">${msg}</div>`;
     }
 
-  })();
-</script>
-
-<script>
-
-  // Live preview before upload
-  document.getElementById('photoInput')?.addEventListener('change', function () {
-    const file = this.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be under 5MB.');
-      this.value = '';
-      return;
+    function setError(input, msg) {
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      const span = input.closest('.form-group')?.querySelector('.field-error');
+      if (span) span.textContent = msg;
     }
 
-    const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById('photoPreview').src = e.target.result;
-      document.getElementById('profileImageDisplay').src = e.target.result; // updates main display too
+    function setValid(input) {
+      input.classList.remove('is-invalid');
+      input.classList.add('is-valid');
+      const span = input.closest('.form-group')?.querySelector('.field-error');
+      if (span) span.textContent = '';
+    }
+
+    function attachLiveValidation(form, rules) {
+      rules.forEach(({ name, validate }) => {
+        const el = form.elements[name];
+        if (!el) return;
+        el.addEventListener('blur', () => {
+          const result = validate(el.value.trim(), form);
+          result === true ? setValid(el) : setError(el, result);
+        });
+        el.addEventListener('input', () => {
+          if (el.classList.contains('is-invalid')) {
+            const result = validate(el.value.trim(), form);
+            result === true ? setValid(el) : setError(el, result);
+          }
+        });
+      });
+    }
+
+    function validateAll(form, rules) {
+      let valid = true;
+      rules.forEach(({ name, validate }) => {
+        const el = form.elements[name];
+        if (!el) return;
+        const result = validate(el.value.trim(), form);
+        if (result === true) { setValid(el); } else { setError(el, result); valid = false; }
+      });
+      return valid;
+    }
+
+    /* ── Edit Profile Rules ───────────────────────────────── */
+    const editRules = [
+      {
+        name: 'website',
+        validate: v => {
+          if (!v) return true;
+          if (!/^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/\S*)?$/.test(v))
+            return 'Enter a valid website (e.g. example.com or https://example.com).';
+          return true;
+        }
+      },
+      {
+        name: 'email',
+        validate: v => {
+          if (!v) return 'Email address is required.';
+          if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(v))
+            return 'Enter a valid email address.';
+          if (/\.{2,}/.test(v))
+            return 'Email must not contain consecutive dots.';
+          return true;
+        }
+      },
+      {
+        name: 'waste_types',
+        validate: v => {
+          if (!v) return 'At least one waste type is required.';
+          const allowed = ['plastic', 'organic', 'metal', 'glass', 'paper'];
+          const entered = v.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+          const invalid = entered.filter(t => !allowed.includes(t));
+          if (invalid.length)
+            return `Invalid type(s): "${invalid.join('", "')}". Allowed: Plastic, Organic, Metal, Glass, Paper.`;
+          return true;
+        }
+      }
+    ];
+
+    const editForm = document.getElementById('editProfileForm');
+    if (editForm) {
+      attachLiveValidation(editForm, editRules);
+      editForm.addEventListener('submit', e => {
+        if (!validateAll(editForm, editRules)) e.preventDefault();
+      });
+    }
+
+    /* ── Bank Details Rules ───────────────────────────────── */
+    const bankRules = [
+      {
+        name: 'bank_account_number',
+        validate: v => {
+          if (!v) return 'Account number is required.';
+          if (!/^\d+$/.test(v)) return 'Account number must contain digits only.';
+          if (v.length < 6 || v.length > 20) return 'Account number must be 6–20 digits.';
+          return true;
+        }
+      }
+    ];
+
+    const bankForm = document.getElementById('bankDetailsForm');
+    if (bankForm) {
+      attachLiveValidation(bankForm, bankRules);
+      bankForm.addEventListener('submit', e => {
+        if (!validateAll(bankForm, bankRules)) e.preventDefault();
+      });
+    }
+
+    /* ── Photo Preview ────────────────────────────────────── */
+    document.getElementById('photoInput')?.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be under 5MB.');
+        this.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('photoPreview').src = e.target.result;
+        document.getElementById('profileImageDisplay').src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    /* ── Delete Confirmation ──────────────────────────────── */
+    window.confirmDeleteProfile = function (event) {
+      event.preventDefault();
+      const confirmed = confirm(
+        "Are you sure you want to delete your account?\n\nThis action is PERMANENT and cannot be undone."
+      );
+      if (confirmed) window.location.href = event.currentTarget.href;
+      return false;
     };
-    reader.readAsDataURL(file);
-  });
 
-  function confirmDeleteProfile(event) {
-    event.preventDefault();
-
-    const confirmDelete = confirm(
-      "Are you sure you want to delete your account?\n\n" +
-      "This action is PERMANENT and cannot be undone."
-    );
-
-    if (confirmDelete) {
-      window.location.href = event.currentTarget.href;
-    }
-
-    return false;
-  }
+  })();
 </script>

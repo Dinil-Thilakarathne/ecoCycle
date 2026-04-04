@@ -66,6 +66,7 @@ class profileController extends BaseController
                     'reg_number'   => trim($request->input('reg_number', '')),
                     'description'  => trim($request->input('description', '')),
                     'website'     => trim($request->input('website', '')),
+                    'land_phone' => trim($request->input('land_phone', '')),
                     'waste_types' => $this->parseCommaList($request->input('waste_types')),
                 ];
                 break;
