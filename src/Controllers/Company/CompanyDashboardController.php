@@ -358,11 +358,15 @@ class CompanyDashboardController extends DashboardController
         $totalPerMonth = [];
         $wonPerMonth = [];
 
-        foreach ($monthlyCounts as $row) {
+        $periodToIndex = [];
+ 
+        foreach ($monthlyCounts as $idx => $row) {
+            // formatMonthLabel now returns "September 2025" — full month + year.
             $label = $this->formatMonthLabel($row['period']);
             $months[] = $label;
             $totalPerMonth[] = $row['total'];
             $wonPerMonth[] = $row['won'];
+            $periodToIndex[$row['period']] = $idx;
         }
 
         if (empty($months)) {
@@ -376,6 +380,7 @@ class CompanyDashboardController extends DashboardController
             $series[$category] = [];
             foreach ($monthlyCounts as $row) {
                 $period = $row['period'];
+                $label  = $this->formatMonthLabel($period);
                 $series[$category][] = isset($values[$period]) ? (float) $values[$period] : 0.0;
             }
         }
@@ -405,7 +410,7 @@ class CompanyDashboardController extends DashboardController
     private function formatMonthLabel(string $period): string
     {
         $dt = \DateTime::createFromFormat('Y-m', $period);
-        return $dt ? $dt->format('M') : $period;
+        return $dt ? $dt->format('F Y') : $period;
     }
 
     private function getCurrentInvoices(): array
