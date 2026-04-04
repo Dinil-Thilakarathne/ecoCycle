@@ -200,16 +200,34 @@ class PickupRequestController extends BaseController
 
         // Validate overlapping assignment
         $finalCollectorId = array_key_exists('collector_id', $updateData) ? $updateData['collector_id'] : ($existing['collectorId'] ?? null);
+        $finalVehicleIdForOverlap = array_key_exists('vehicle_id', $updateData) ? $updateData['vehicle_id'] : ($existing['vehicleId'] ?? null);
         $finalStatus = array_key_exists('status', $updateData) ? $updateData['status'] : ($existing['statusRaw'] ?? 'pending');
         
-        if ($finalCollectorId !== null && !in_array($finalStatus, ['completed', 'cancelled'])) {
+        if (!in_array($finalStatus, ['completed', 'cancelled'])) {
             $finalTimeSlot = array_key_exists('time_slot', $updateData) ? $updateData['time_slot'] : ($existing['timeSlot'] ?? null);
             $finalScheduledAt = array_key_exists('scheduled_at', $updateData) ? $updateData['scheduled_at'] : ($existing['scheduledAt'] ?? null);
 
             if ($finalTimeSlot && $finalScheduledAt) {
                 $dateOnly = date('Y-m-d', strtotime($finalScheduledAt));
-                if ($this->pickupRequest->hasOverlappingAssignment((int) $finalCollectorId, $dateOnly, $finalTimeSlot, $pickupId)) {
-                    return Response::errorJson('Collector is already assigned to another pickup for this time slot on this date.', 422);
+                
+                // Vehicle Overlap Validation
+                if ($finalVehicleIdForOverlap !== null) {
+                    if ($this->pickupRequest->hasOverlappingVehicleAssignment((int) $finalVehicleIdForOverlap, $dateOnly, $finalTimeSlot, $pickupId)) {
+                        return Response::errorJson('The selected vehicle is already assigned to another pickup for this time slot on this date.', 422);
+                    }
+                }
+
+                // Collector Overlap & Availability Validation
+                if ($finalCollectorId !== null) {
+                    if ($this->pickupRequest->hasOverlappingAssignment((int) $finalCollectorId, $dateOnly, $finalTimeSlot, $pickupId)) {
+                        return Response::errorJson('Collector is already assigned to another pickup for this time slot on this date.', 422);
+                    }
+
+                    $dailyStatusModel = new \Models\CollectorDailyStatus();
+                    $statusRecord = $dailyStatusModel->getStatusByDate((int) $finalCollectorId, $dateOnly);
+                    if ($statusRecord !== null && $statusRecord['isAvailable'] === false) {
+                        return Response::errorJson('Collector is marked as unavailable/on-leave for this scheduled date.', 422);
+                    }
                 }
             }
         }
@@ -225,22 +243,23 @@ class PickupRequestController extends BaseController
             $ok = $this->pickupRequest->update($pickupId, $updateData);
 
             if ($ok) {
+                $finalStatus = $updateData['status'] ?? $existing['statusRaw'] ?? 'pending';
+
                 if ($vehicleChanged) {
                     if ($oldVehicleId) {
                         $this->vehicleModel->markStatus((int) $oldVehicleId, 'available');
                     }
-                    if ($newVehicleId) {
+                    if ($newVehicleId && $finalStatus === 'in_progress') {
                         $this->vehicleModel->markStatus((int) $newVehicleId, 'in-use');
                     }
                 }
 
-                $finalStatus = $updateData['status'] ?? $existing['statusRaw'] ?? 'pending';
                 $finalVehicleId = array_key_exists('vehicle_id', $updateData) ? $updateData['vehicle_id'] : ($existing['vehicleId'] ?? null);
 
                 if ($finalVehicleId) {
                     if (in_array($finalStatus, ['completed', 'cancelled'])) {
                         $this->vehicleModel->markStatus((int) $finalVehicleId, 'available');
-                    } elseif (in_array($finalStatus, ['assigned', 'in_progress'])) {
+                    } elseif ($finalStatus === 'in_progress') {
                         $this->vehicleModel->markStatus((int) $finalVehicleId, 'in-use');
                     }
                 }

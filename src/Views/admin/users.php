@@ -224,7 +224,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                                     <th>Company Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>Total Bids</th>
+                                    <th>Active Bids</th>
                                     <th>Total Purchases</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -441,7 +441,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
             { key: 'vehicleId', label: 'Vehicle ID', types: ['collector'], altKeys: ['vehicle'] },
             { key: 'totalPickups', label: 'Total Pickups', types: ['customer', 'collector'], altKeys: ['todayPickups'] },
             { key: 'totalEarnings', label: 'Total Earnings', types: ['customer'], format: v => 'Rs ' + parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-            { key: 'totalBids', label: 'Total Bids', types: ['company'] },
+            { key: 'totalBids', label: 'Active Bids', types: ['company'] },
             { key: 'totalPurchases', label: 'Total Purchases', types: ['company'] }
         ];
 

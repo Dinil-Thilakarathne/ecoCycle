@@ -352,4 +352,15 @@ class WasteCategory extends BaseModel
             'pricing_info' => $this->getPricingTierById($categoryId),
         ];
     }
+
+    /**
+     * Delete a waste category
+     * 
+     * @param int $id The category ID
+     * @return bool True if deletion was successful, false otherwise
+     */
+    public function delete(int $id): bool
+    {
+        return $this->db->query("DELETE FROM {$this->table} WHERE id = ?", [$id]);
+    }
 }

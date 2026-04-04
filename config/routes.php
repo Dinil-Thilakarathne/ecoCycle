@@ -483,9 +483,53 @@ $router->get('/test', function () {
             'routes_list' => '/routes/list',
             'routes_validate' => '/routes/validate',
             'diagnostic' => '/diagnostic',
-            'api_debug_routes' => '/api/debug/routes'
+            'api_debug_routes' => '/debug/api-routes',
+            'api_debug_json' => '/api/debug/api-routes'
         ]
     ]);
+});
+
+// Premium UI route for API Explorer
+$router->get('/debug/api-routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+        $allRoutes = $router->getRoutes();
+    } else {
+        $allRoutes = [];
+    }
+
+    $apiRoutes = [];
+    foreach ($allRoutes as $route) {
+        if (strpos($route['path'], '/api') === 0) {
+            $requiresAuth = in_array('Middleware\AuthMiddleware', $route['middleware'] ?? []);
+            $roles = [];
+            foreach ($route['middleware'] ?? [] as $mw) {
+                if (strpos($mw, 'Middleware\Roles\\') === 0) {
+                    $roles[] = str_replace('Middleware\Roles\\', '', $mw);
+                }
+            }
+
+            $description = 'API endpoint for ' . $route['path'];
+            if (is_string($route['action'])) {
+                $parts = explode('@', $route['action']);
+                if (count($parts) === 2) {
+                    $controllerName = basename(str_replace('\\', '/', $parts[0]));
+                    $methodName = $parts[1];
+                    $description = "{$methodName} operation in {$controllerName}";
+                }
+            }
+
+            $apiRoutes[] = [
+                'method' => $route['method'],
+                'path' => $route['path'],
+                'requires_auth' => $requiresAuth,
+                'roles_allowed' => empty($roles) && $requiresAuth ? ['All Authenticated Users'] : (empty($roles) ? ['Public'] : $roles),
+                'description' => $description,
+                'action' => is_string($route['action']) ? $route['action'] : 'Closure'
+            ];
+        }
+    }
+
+    return view('debug/api_routes', ['routes' => $apiRoutes]);
 });
 
 // Toast Test Page
@@ -500,6 +544,54 @@ $router->get('/api/debug/routes', function () use ($router) {
     }
 
     return view('debug/routes', ['routes' => $routes]);
+});
+
+// Debug route to list all API routes with details as JSON
+$router->get('/api/debug/api-routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+        $allRoutes = $router->getRoutes();
+    } else {
+        $allRoutes = [];
+    }
+
+    $apiRoutes = [];
+    foreach ($allRoutes as $route) {
+        // Only include API routes
+        if (strpos($route['path'], '/api') === 0) {
+            $requiresAuth = in_array('Middleware\AuthMiddleware', $route['middleware'] ?? []);
+            $roles = [];
+            foreach ($route['middleware'] ?? [] as $mw) {
+                if (strpos($mw, 'Middleware\Roles\\') === 0) {
+                    $roles[] = str_replace('Middleware\Roles\\', '', $mw);
+                }
+            }
+
+            $description = 'API endpoint for ' . $route['path'];
+            if (is_string($route['action'])) {
+                $parts = explode('@', $route['action']);
+                if (count($parts) === 2) {
+                    $controllerName = basename(str_replace('\\', '/', $parts[0]));
+                    $methodName = $parts[1];
+                    $description = "{$methodName} operation in {$controllerName}";
+                }
+            }
+
+            $apiRoutes[] = [
+                'method' => $route['method'],
+                'path' => $route['path'],
+                'requires_auth' => $requiresAuth,
+                'roles_allowed' => empty($roles) && $requiresAuth ? ['All Authenticated Users'] : (empty($roles) ? ['Public'] : $roles),
+                'description' => $description,
+                'action' => is_string($route['action']) ? $route['action'] : 'Closure'
+            ];
+        }
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'count' => count($apiRoutes),
+        'routes' => $apiRoutes
+    ]);
 });
 
 // Route diagnostic page
@@ -794,6 +886,22 @@ $router->post('/api/waste-categories', 'Controllers\Api\WasteManagementControlle
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 // notification routes 
 
 // example
@@ -879,21 +987,6 @@ $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationCon
 
 $router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
     'Middleware\AuthMiddleware',
-]);
-
-$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
-]);
-
-$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
-]);
-
-$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
 ]);
 
 
