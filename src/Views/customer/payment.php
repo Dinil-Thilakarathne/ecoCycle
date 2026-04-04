@@ -38,9 +38,7 @@ $payments = $payments ?? [];
 // Calculate stats from real data
 $total_received = 0;
 foreach ($payments as $p) {
-    if (($p['status'] ?? '') === 'completed') {
-        $total_received += ($p['amount'] ?? 0);
-    }
+    $total_received += ($p['amount'] ?? 0);
 }
 $transaction_count = count($payments);
 
@@ -75,10 +73,12 @@ function formatCurrency($amount)
 }
 ?>
 
-<div class="container" style="background: var(--neutral-1);">
+<div style="background: var(--neutral-1);">
     <header class="page-header">
-
-        <h1><b>Manage your billing and view transaction history</b></h1>
+        <div class="page-header__content">
+            <h2 class="page-header__title">Payments</h2>
+            <p class="page-header__description">Manage your billing and view transaction history</p>
+        </div>
     </header>
 
     <?php if (isset($success_message)): ?>
@@ -123,19 +123,21 @@ function formatCurrency($amount)
         <!-- Payment Methods Section Removed -->
 
         <!-- Invoice History Section -->
-        <div class="section">
-            <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="activity-card" style="margin-top: var(--space-8); border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none;">
+            <div class="activity-card__header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
-                    <h2 class="section-title">Transaction History</h2>
-                    <p class="section-subtitle">All your past transactions and payouts</p>
+                    <h3 class="activity-card__title">
+                        <i class="fa-solid fa-dollar-sign" style="margin-right: var(--space-2);"></i>
+                        Recent Transactions
+                    </h3>
+                    <p class="activity-card__description">Latest payment transactions and their status</p>
                 </div>
                 <div id="liveIndicator" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;">
                     <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite;"></span>
                     Live
                 </div>
             </div>
-            <div id="transactionTable" style="background:#fff;border-radius:1rem;box-shadow:0 2px 12px rgba(34,197,94,0.08);padding:1.2rem;margin-top:1rem;">
-                <!-- Populated by JS -->
+            <div class="activity-card__content" id="transactionTable">
                 <div style="text-align:center;padding:2rem;color:#64748b;">Loading transactions...</div>
             </div>
         </div>
@@ -161,56 +163,124 @@ function formatCurrency($amount)
         const d = new Date(String(v).replace(' ', 'T'));
         return isNaN(d) ? v : d.toLocaleDateString(undefined, {month:'short',day:'2-digit',year:'numeric'});
     }
+    function fmtTime(v) {
+        if (!v) return '-';
+        const d = new Date(String(v).replace(' ', 'T'));
+        return isNaN(d) ? '-' : d.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }
     function fmtCurrency(n) {
         return 'Rs ' + parseFloat(n || 0).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function ucfirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    function openModal(options = {}) {
+        if (window.Modal && typeof window.Modal.open === 'function') {
+            return window.Modal.open(options);
+        }
+        return null;
+    }
+
+    function openPaymentDetailsModal(payment = {}) {
+        const details = [
+            { label: 'Amount', value: fmtCurrency(payment.amount) },
+            { label: 'Date', value: fmtDate(payment.date) },
+            { label: 'Time', value: fmtTime(payment.date) },
+            { label: 'Status', value: ucfirst(String(payment.status || 'pending').toLowerCase()) },
+        ];
+
+        const list = document.createElement('div');
+        list.style.cssText = 'display:grid;gap:0.9rem;';
+        details.forEach(item => {
+            const block = document.createElement('div');
+            block.innerHTML = `
+                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.2rem;">${escHtml(item.label)}</span>
+                <strong style="color:#111827;">${escHtml(item.value)}</strong>
+            `;
+            list.appendChild(block);
+        });
+
+        const modal = openModal({
+            title: 'Payment Details',
+            size: 'sm',
+            content: list,
+            actions: [{ label: 'Close', variant: 'plain' }]
+        });
+
+        if (!modal) {
+            alert(
+                `Payment Details\n\n` +
+                `Amount: ${fmtCurrency(payment.amount)}\n` +
+                `Date: ${fmtDate(payment.date)}\n` +
+                `Time: ${fmtTime(payment.date)}\n` +
+                `Status: ${ucfirst(String(payment.status || 'pending').toLowerCase())}`
+            );
+        }
     }
 
     function renderTable(payments) {
         const el = document.getElementById('transactionTable');
         if (!el) return;
 
-        if (!payments || !payments.length) {
-            el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#64748b;">No transactions found.</div>`;
-            return;
-        }
+        const hasRows = Array.isArray(payments) && payments.length > 0;
+        const rows = hasRows
+            ? payments.map((p, index) => {
+                const status = String(p.status || '').toLowerCase();
+                const tagClass = status === 'completed' ? 'completed' : (status === 'failed' ? 'danger' : 'pending');
+                return `
+                    <tr>
+                        <td class="font-medium">${index + 1}</td>
+                        <td>${escHtml(fmtCurrency(p.amount))}</td>
+                        <td>${escHtml(fmtDate(p.date))}</td>
+                        <td>
+                            <span class="tag ${tagClass}">${escHtml(ucfirst(p.status || 'pending'))}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline js-view-payment" data-index="${index}">View Details</button>
+                        </td>
+                    </tr>`;
+            }).join('')
+            : `<tr>
+                    <td colspan="5" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">No transactions found.</td>
+               </tr>`;
 
-        const header = `
-            <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;">
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Transaction ID</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Date</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;">Amount</div>
-                <div style="font-weight:600;color:#1e293b;padding:0.5rem 0;text-align:center;">Status</div>
+        el.innerHTML = `
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
             </div>`;
 
-        const rows = payments.map(p => {
-            const isCompleted = (p.status || '').toLowerCase() === 'completed';
-            const tagClass = isCompleted ? 'success' : 'warning';
-            return `
-                <div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.7fr 0.6fr;gap:0.15rem;border-top:1px solid #f1f5f9;">
-                    <div style="padding:0.75rem 0;">
-                        <strong>${escHtml(p.txnId || p.id)}</strong>
-                        <div style="color:#64748b;font-size:0.9em;">${escHtml(ucfirst(p.type || 'Payout'))}</div>
-                    </div>
-                    <div style="padding:0.75rem 0;color:#475569;">${escHtml(fmtDate(p.date))}</div>
-                    <div style="padding:0.75rem 0;color:#22c55e;font-weight:500;">${escHtml(fmtCurrency(p.amount))}</div>
-                    <div style="padding:0.75rem 0;text-align:center;">
-                        <span class="tag ${tagClass}">${escHtml(ucfirst(p.status))}</span>
-                    </div>
-                </div>`;
-        }).join('');
-
-        el.innerHTML = header + rows;
+        el.querySelectorAll('.js-view-payment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-index'));
+                const payment = Array.isArray(payments) ? payments[idx] : null;
+                if (!payment) {
+                    showToast('Unable to load payment details.', 'error');
+                    return;
+                }
+                openPaymentDetailsModal(payment);
+            });
+        });
     }
 
     function updateStats(payments) {
-        const totalEarned   = payments.filter(p => p.status === 'completed').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const totalEarned   = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
         const totalCount    = payments.length;
         const cards = document.querySelectorAll('.feature-card .feature-card__body');
         if (cards[0]) cards[0].textContent = fmtCurrency(totalEarned);
         if (cards[1]) cards[1].textContent  = totalCount;
     }
-
-    function ucfirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 
     async function fetchAndRefresh() {
         try {
@@ -430,11 +500,6 @@ function formatCurrency($amount)
             document.body.appendChild(form);
             form.submit();
         }
-    }
-
-    function downloadInvoice(invoiceId) {
-        // In real application, this would download the invoice
-        alert('Downloading invoice: ' + invoiceId);
     }
 
     // Close modals when clicking outside

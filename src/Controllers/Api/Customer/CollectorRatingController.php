@@ -38,6 +38,10 @@ class CollectorRatingController extends BaseController
 
         try {
             $record = $this->collectorRating->createForCustomer((int) $user['id'], $payload['data']);
+        } catch (\InvalidArgumentException $e) {
+            return Response::errorJson('Validation failed', 422, ['detail' => $e->getMessage()]);
+        } catch (\RuntimeException $e) {
+            return $this->runtimeErrorResponse($e);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to save rating', 500, ['detail' => $e->getMessage()]);
         }
@@ -60,6 +64,11 @@ class CollectorRatingController extends BaseController
         $collectorName = trim((string) ($source['collectorName'] ?? ''));
         $rating = $source['rating'] ?? null;
         $description = trim((string) ($source['description'] ?? ''));
+        $pickupRequestId = trim((string) ($source['pickupRequestId'] ?? ''));
+
+        if ($pickupRequestId === '') {
+            $errors['pickupRequestId'] = 'Pickup request id is required.';
+        }
 
         if ($collectorName === '') {
             $errors['collectorName'] = 'Collector name is required.';
@@ -67,14 +76,12 @@ class CollectorRatingController extends BaseController
 
         if ($rating === null || $rating === '') {
             $errors['rating'] = 'Rating is required.';
+        } elseif (!is_numeric($rating)) {
+            $errors['rating'] = 'Rating must be a number.';
         } else {
-            if (!is_numeric($rating)) {
-                $errors['rating'] = 'Rating must be a number.';
-            } else {
-                $rating = (int) $rating;
-                if ($rating < 1 || $rating > 5) {
-                    $errors['rating'] = 'Rating must be between 1 and 5.';
-                }
+            $rating = (int) $rating;
+            if ($rating < 1 || $rating > 5) {
+                $errors['rating'] = 'Rating must be between 1 and 5.';
             }
         }
 
@@ -87,15 +94,11 @@ class CollectorRatingController extends BaseController
             }
         }
 
-        if ($customerName !== '') {
-            $data['customerName'] = $customerName;
-        }
-
-        if ($address !== '') {
-            $data['address'] = $address;
-        }
+        $this->setIfNotEmpty($data, 'customerName', $customerName);
+        $this->setIfNotEmpty($data, 'address', $address);
 
         $data['collectorName'] = $collectorName;
+        $data['pickupRequestId'] = $pickupRequestId;
         $data['rating'] = (int) $rating;
         $data['description'] = $description !== '' ? $description : null;
 
@@ -115,6 +118,22 @@ class CollectorRatingController extends BaseController
 
         if (method_exists($request, 'mergeBody')) {
             $request->mergeBody($json);
+        }
+    }
+
+    private function runtimeErrorResponse(\RuntimeException $e): Response
+    {
+        if (stripos($e->getMessage(), 'already rated') !== false) {
+            return Response::errorJson('Rating already exists', 409, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::errorJson('Failed to save rating', 500, ['detail' => $e->getMessage()]);
+    }
+
+    private function setIfNotEmpty(array &$target, string $key, string $value): void
+    {
+        if ($value !== '') {
+            $target[$key] = $value;
         }
     }
 }
