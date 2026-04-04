@@ -315,6 +315,7 @@ class AdminDashboardController extends DashboardController
         $totalRevenue = $summary['total_payments'] ?? 0.0;
         $customerPayouts = $summary['total_payouts'] ?? 0.0;
         $netProfit = $totalRevenue - $customerPayouts;
+        $date = date('Y-m-d H:i:s');
 
         // ── Waste Volume by Category ────────────────────────────────────────
         $wasteData = $reportsModel->getWasteVolumeByCategory();
@@ -445,6 +446,55 @@ class AdminDashboardController extends DashboardController
             
             $filename = 'admin_analytics_' . date('Ymd_His') . '.csv';
             return \Core\Http\Response::csv($filename, [], $csvData);
+        }
+
+        // Handle PDF Export
+        if ($request->query('export') === '1' && $request->query('format') === 'pdf') {
+            $formattedRevenue = number_format($totalRevenue, 2, '.', ',');
+            $formattedPayouts = number_format($customerPayouts, 2, '.', ',');
+            $formattedProfit = number_format($netProfit, 2, '.', ',');
+
+            $html = <<<HTML
+            <style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+            </style>
+            <h1>Analytics Report</h1>
+            <p>Generated on: <strong>{$date}</strong></p>
+            
+            <h3>Summary Metrics</h3>
+            <table>
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Total Waste Collected</td><td>{$totalWaste} kg</td></tr>
+                <tr><td>Avg Collection/Day</td><td>{$avgCollectionPerDay} kg</td></tr>
+                <tr><td>Total Revenue</td><td>Rs. {$formattedRevenue}</td></tr>
+                <tr><td>Customer Payouts</td><td>Rs. {$formattedPayouts}</td></tr>
+                <tr><td>Net Profit</td><td>Rs. {$formattedProfit}</td></tr>
+                <tr><td>Total Pickups</td><td>{$totalPickups}</td></tr>
+                <tr><td>Completed Pickups</td><td>{$completedPickups}</td></tr>
+            </table>
+
+            <h3>Waste Category Breakdown</h3>
+            <table>
+                <tr><th>Category</th><th>Volume (kg)</th><th>Percentage</th></tr>
+HTML;
+            foreach ($wasteCategories as $wc) {
+                $html .= "<tr><td>{$wc['category']}</td><td>{$wc['volume']}</td><td>{$wc['percentage']}%</td></tr>";
+            }
+            $html .= '</table><h3>Pickup Status Breakdown</h3><table><tr><th>Status</th><th>Count</th></tr>';
+            foreach ($pickupStatusBreakdown as $ps) {
+                $statusName = ucfirst(str_replace('_', ' ', $ps['status']));
+                $html .= "<tr><td>{$statusName}</td><td>{$ps['count']}</td></tr>";
+            }
+            $html .= '</table>';
+
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.pdf';
+            return Response::pdf($filename, $html);
         }
 
         return $this->renderDashboard('analytics', $data);
