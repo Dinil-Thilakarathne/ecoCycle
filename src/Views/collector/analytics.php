@@ -40,16 +40,28 @@ $collectorFeedback = []; // Will be populated by JavaScript
 <div>
     <!-- Page Header -->
     <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
-         <a class="btn btn-outline" href="?export=salary">
+         <!-- <a class="btn btn-outline" href="?export=salary">
                 <i class="fa-solid fa-download"></i>
                 Salary Transactions Report
             </a>
              <a class="btn btn-outline" href="?export=waste">
                 <i class="fa-solid fa-download"></i>
                 Waste Collection Report
-            </a>
+            </a> -->
+               <button class="btn btn-outline" onclick="exportReport('salary')">
+                <i class="fa-solid fa-download"></i>
+                Salary Transactions Report
+            </button>
+             <button class="btn btn-outline" onclick="exportReport('waste')">
+                <i class="fa-solid fa-download"></i>
+                Waste Collection Report
+            </button>
+            
+            
+
     </page-header>
 
+   
     <!-- Metrics Cards -->
     <div class="feature-cards">
         <div class="feature-card">
@@ -204,6 +216,12 @@ function buildRecentMonthOptions(limit = 12) {
 
     return options;
 }
+
+function exportReport(format) {
+        // Placeholder for export functionality
+        console.log('Exporting report in ' + format + ' format');
+        alert('Export functionality would be implemented here for ' + format + ' format');
+    }
 
 function buildMonthOptions() {
     const months = [
