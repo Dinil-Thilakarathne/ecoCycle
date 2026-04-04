@@ -621,7 +621,7 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                 
                 <div>
                     <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Phone *</label>
-                    <input type="tel" id="newUserPhone" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="0771234567" />
+                    <input type="tel" id="newUserPhone" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="0771234567" maxlength="10"/>
                     <div class="error-msg" id="phoneError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
                 </div>
                 
@@ -639,13 +639,13 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
                 
                 <div>
                     <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">License Number *</label>
-                    <input type="text" id="newUserLicense" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="Driver's license number" />
+                    <input type="text" id="newUserLicense" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="e.g., B1234567" maxlength="8" />
                     <div class="error-msg" id="licenseError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">NIC *</label>
-                    <input type="text" id="newUserNIC" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="National Identity Card number" />
+                    <input type="text" id="newUserNIC" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;" placeholder="National Identity Card number" maxlength="12"/>
                     <div class="error-msg" id="nicError" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
                 </div>
                 
@@ -724,6 +724,10 @@ if (!empty($_GET['view']) && !empty($_GET['id'])) {
 
                         if (!license) {
                             body.querySelector('#licenseError').textContent = 'License number is required';
+                            body.querySelector('#licenseError').style.display = 'block';
+                            hasError = true;
+                        } else if (!/^[A-Za-z]\d{7}$/.test(license)) {
+                            body.querySelector('#licenseError').textContent = 'Invalid format. Must be 1 letter followed by 7 digits (e.g., B1234567)';
                             body.querySelector('#licenseError').style.display = 'block';
                             hasError = true;
                         }

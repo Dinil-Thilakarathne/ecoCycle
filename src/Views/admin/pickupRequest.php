@@ -260,6 +260,7 @@ if (empty($timeSlots)) {
     <div class="user-modal__dialog" style="width: fit-content;">
         <button class="close" aria-label="Close">&times;</button>
         <h3>Edit Pickup Request</h3>
+        <div id="pe-error-message" style="display: none; background-color: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; border: 1px solid #fca5a5;"></div>
         <div class="user-modal__grid">
             <div><strong>Request ID</strong></div>
             <div class="pe-id"></div>
@@ -321,10 +322,30 @@ if (empty($timeSlots)) {
         // Populate collectors select
         const sel = document.getElementById('pe-collector-select');
         sel.innerHTML = '<option value="">-- Unassigned --</option>';
+        const reqDate = record ? (record.scheduledAt || '') : '';
+        const reqTimeSlot = record ? (record.timeSlot || '') : '';
+
         (window.__COLLECTORS || []).forEach(c => {
             const o = document.createElement('option');
             o.value = c.id;
-            o.textContent = c.name;
+
+            let isUnavailable = false;
+            if (reqDate && reqTimeSlot) {
+                isUnavailable = (window.__PICKUP_DATA || []).some(other => {
+                    return String(other.id) !== String(pickupId)
+                        && String(other.collectorId) === String(c.id)
+                        && (other.scheduledAt || '') === reqDate
+                        && (other.timeSlot || '') === reqTimeSlot
+                        && !['cancelled', 'completed'].includes(String(other.status || '').toLowerCase());
+                });
+            }
+
+            if (isUnavailable) {
+                o.disabled = true;
+                o.textContent = `${c.name} (Unavailable)`;
+            } else {
+                o.textContent = c.name;
+            }
             sel.appendChild(o);
         });
 
@@ -400,6 +421,12 @@ if (empty($timeSlots)) {
         const pickupId = modal.getAttribute('data-editing-id');
         if (!pickupId) return;
 
+        const errorContainer = document.getElementById('pe-error-message');
+        if (errorContainer) {
+            errorContainer.style.display = 'none';
+            errorContainer.textContent = '';
+        }
+
         const select = document.getElementById('pe-collector-select');
         const collectorIdValue = select ? select.value : '';
         const payload = {};
@@ -459,7 +486,11 @@ if (empty($timeSlots)) {
             }
         } catch (error) {
             console.error('Failed to update pickup request', error);
-            if (typeof showToast === 'function') {
+            const errorContainer = document.getElementById('pe-error-message');
+            if (errorContainer) {
+                errorContainer.textContent = error.message || 'Failed to update pickup request.';
+                errorContainer.style.display = 'block';
+            } else if (typeof showToast === 'function') {
                 showToast(error.message || 'Failed to update pickup request.', 'error');
             } else {
                 alert(error.message || 'Failed to update pickup request.');

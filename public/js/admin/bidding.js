@@ -961,36 +961,7 @@ window.viewBiddingDetails = async function (el, biddingId) {
       });
     }
 
-    // Confirm Payment button — awarded round with pending/processing invoice
-    if (
-      (roundStatus === "awarded" || roundStatus === "completed") &&
-      invoice &&
-      (invoice.status === "processing" || invoice.status === "pending")
-    ) {
-      modalActions.unshift({
-        label: "✅ Confirm Payment Received",
-        variant: "primary",
-        onClick: async (ctx) => {
-          try {
-            await apiRequest(
-              `/api/payments/${encodeURIComponent(String(invoice.id))}`,
-              {
-                method: "PUT",
-                body: { status: "completed" },
-              },
-            );
-            showToast(
-              "Payment confirmed! Invoice marked as completed.",
-              "success",
-            );
-            ctx.close();
-          } catch (err) {
-            showToast(err.message || "Failed to confirm payment.", "error");
-            throw err;
-          }
-        },
-      });
-    }
+
 
     modalContext.close(); // Close loading modal
 

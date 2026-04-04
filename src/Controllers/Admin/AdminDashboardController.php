@@ -305,6 +305,7 @@ class AdminDashboardController extends DashboardController
      */
     public function analytics(): Response
     {
+        $request = app('request');
         $paymentModel = new Payment();
         $pickupModel = new PickupRequest();
         $reportsModel = new \Models\ReportsModel();
@@ -413,6 +414,38 @@ class AdminDashboardController extends DashboardController
                 'pickupSeries' => array_values($pickupTrendMap),
             ],
         ];
+
+        // Handle CSV Export
+        if ($request->query('export') === '1' && $request->query('format') === 'csv') {
+            $csvData = [];
+            
+            // Build Summary Section
+            $csvData[] = ['Summary Metrics', 'Value'];
+            $csvData[] = ['Total Waste Collected (kg)', $totalWaste];
+            $csvData[] = ['Average Collection/Day (kg)', $avgCollectionPerDay];
+            $csvData[] = ['Total Revenue (Rs)', number_format($totalRevenue, 2, '.', '')];
+            $csvData[] = ['Customer Payouts (Rs)', number_format($customerPayouts, 2, '.', '')];
+            $csvData[] = ['Net Profit (Rs)', number_format($netProfit, 2, '.', '')];
+            $csvData[] = ['Total Pickups', $totalPickups];
+            $csvData[] = ['Completed Pickups', $completedPickups];
+            $csvData[] = [];
+            
+            // Build Waste Category Section
+            $csvData[] = ['Waste Category Breakdown', 'Volume (kg)', 'Percentage'];
+            foreach ($wasteCategories as $wc) {
+                $csvData[] = [$wc['category'], $wc['volume'], $wc['percentage'] . '%'];
+            }
+            $csvData[] = [];
+            
+            // Build Pickup Status Section
+            $csvData[] = ['Pickup Status Breakdown', 'Count'];
+            foreach ($pickupStatusBreakdown as $ps) {
+                $csvData[] = [ucfirst(str_replace('_', ' ', $ps['status'])), $ps['count']];
+            }
+            
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.csv';
+            return \Core\Http\Response::csv($filename, [], $csvData);
+        }
 
         return $this->renderDashboard('analytics', $data);
     }

@@ -159,10 +159,11 @@ class ReportsModel extends BaseModel
     {
         $days = max(1, $days);
         $rows = $this->db->fetchAll(
-            "SELECT DATE(`date`) AS day, `type`, SUM(amount) AS total
+            "SELECT CAST(\"date\" AS DATE) AS day, type, SUM(amount) AS total
              FROM payments
-             WHERE `date` >= DATE_SUB(CURDATE(), INTERVAL {$days} DAY)
-             GROUP BY day, type"
+             WHERE \"date\" >= CURRENT_DATE - INTERVAL '{$days} days'
+               AND status = 'completed'
+             GROUP BY CAST(\"date\" AS DATE), type"
         );
 
         return $rows ?: [];
@@ -175,10 +176,10 @@ class ReportsModel extends BaseModel
     {
         $days = max(1, $days);
         $rows = $this->db->fetchAll(
-            "SELECT DATE(created_at) AS day, COUNT(*) AS total
+            "SELECT CAST(created_at AS DATE) AS day, COUNT(*) AS total
              FROM pickup_requests
-             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL {$days} DAY)
-             GROUP BY day
+             WHERE created_at >= CURRENT_DATE - INTERVAL '{$days} days'
+             GROUP BY CAST(created_at AS DATE)
              ORDER BY day ASC"
         );
 

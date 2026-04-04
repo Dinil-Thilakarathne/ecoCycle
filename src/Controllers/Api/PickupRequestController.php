@@ -198,6 +198,22 @@ class PickupRequestController extends BaseController
             $updateData['address'] = trim((string) $payload['address']);
         }
 
+        // Validate overlapping assignment
+        $finalCollectorId = array_key_exists('collector_id', $updateData) ? $updateData['collector_id'] : ($existing['collectorId'] ?? null);
+        $finalStatus = array_key_exists('status', $updateData) ? $updateData['status'] : ($existing['statusRaw'] ?? 'pending');
+        
+        if ($finalCollectorId !== null && !in_array($finalStatus, ['completed', 'cancelled'])) {
+            $finalTimeSlot = array_key_exists('time_slot', $updateData) ? $updateData['time_slot'] : ($existing['timeSlot'] ?? null);
+            $finalScheduledAt = array_key_exists('scheduled_at', $updateData) ? $updateData['scheduled_at'] : ($existing['scheduledAt'] ?? null);
+
+            if ($finalTimeSlot && $finalScheduledAt) {
+                $dateOnly = date('Y-m-d', strtotime($finalScheduledAt));
+                if ($this->pickupRequest->hasOverlappingAssignment((int) $finalCollectorId, $dateOnly, $finalTimeSlot, $pickupId)) {
+                    return Response::errorJson('Collector is already assigned to another pickup for this time slot on this date.', 422);
+                }
+            }
+        }
+
         if (empty($updateData)) {
             return Response::json([
                 'message' => 'No changes detected',
@@ -300,6 +316,16 @@ class PickupRequestController extends BaseController
 
         if ($pickup['status'] === 'completed') {
             return Response::errorJson('Pickup is already completed', 422);
+        }
+
+        // Future completion validation
+        $scheduledAt = $pickup['scheduledAt'] ?? null;
+        if ($scheduledAt) {
+            $scheduledDate = date('Y-m-d', strtotime($scheduledAt));
+            $today = date('Y-m-d');
+            if ($scheduledDate > $today) {
+                return Response::errorJson('Cannot complete a pickup scheduled for a future date.', 422);
+            }
         }
 
         $this->mergeJsonBody($request);

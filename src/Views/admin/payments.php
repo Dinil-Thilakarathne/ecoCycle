@@ -113,8 +113,7 @@ function getStatusTag($status)
                 </thead>
                 <tbody>
                     <?php foreach ($payments as $payment): ?>
-                        <tr class="payment-row"
-                            data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
+                        <tr class="payment-row" data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
                             data-recipient-id="<?= htmlspecialchars((string) ($payment['recipientId'] ?? '')) ?>"
                             data-recipient-name="<?= htmlspecialchars($payment['recipient'] ?? $payment['recipientName'] ?? '') ?>"
                             data-amount="<?= htmlspecialchars(number_format((float) ($payment['amount'] ?? 0), 2, '.', '')) ?>"
@@ -139,13 +138,13 @@ function getStatusTag($status)
                                 <?= getStatusTag($payment['status'] ?? '') ?>
                             </td>
                             <td>
-                                <?php if (($payment['status'] ?? '') === 'pending'): ?>
+                                <?php if (($payment['status'] ?? '') === 'pending' && ($payment['type'] ?? '') === 'payout'): ?>
                                     <button class="btn btn-sm btn-primary"
                                         onclick="processPayment('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
                                         Process
                                     </button>
                                 <?php else: ?>
-                                    <button class="btn btn-sm btn-outline"
+                                    <button class="btn btn-sm btn-outline rounded"
                                         onclick="viewPaymentDetails('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
                                         View Details
                                     </button>
@@ -237,7 +236,7 @@ function getStatusTag($status)
     async function refreshPayments() {
         const btn = document.querySelector('button[onclick="refreshPayments()"]');
         const icon = btn ? btn.querySelector('i') : null;
-        
+
         if (icon) icon.classList.add('fa-spin');
         if (btn) btn.disabled = true;
 
@@ -271,7 +270,7 @@ function getStatusTag($status)
             const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount || '0');
             const status = payment.status || 'pending';
             const type = payment.type || 'payment';
-            
+
             // Escape attributes
             const safeId = escapeHtml(payment.id || '');
             const safeRecipientId = escapeHtml(payment.recipientId || payment.recipient_id || '');
@@ -295,10 +294,10 @@ function getStatusTag($status)
                     <td>${escapeHtml(payment.date || '')}</td>
                     <td>${renderStatusBadge(status)}</td>
                     <td>
-                        ${status === 'pending' 
-                            ? `<button class="btn btn-sm btn-primary" onclick="processPayment('${safeId}')">Process</button>`
-                            : `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${safeId}')">View Details</button>`
-                        }
+                        ${(status === 'pending' && type === 'payout')
+                    ? `<button class="btn btn-sm btn-primary" onclick="processPayment('${safeId}')">Process</button>`
+                    : `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${safeId}')">View Details</button>`
+                }
                     </td>
                 </tr>
             `;
@@ -405,7 +404,7 @@ function getStatusTag($status)
 
         // Simple "Mark as Paid" confirmation — system is a ledger, no actual bank integration needed
         const typeLabel = paymentData.type === 'payout' ? 'Payout to' : 'Payment from';
-        const typeIcon  = paymentData.type === 'payout' ? '↗' : '↙';
+        const typeIcon = paymentData.type === 'payout' ? '↗' : '↙';
 
         const container = document.createElement('div');
         container.innerHTML = `
@@ -512,7 +511,7 @@ function getStatusTag($status)
             if (typeof parsedResponse === 'string') {
                 try {
                     parsedResponse = JSON.parse(parsedResponse);
-                } catch(e) {}
+                } catch (e) { }
             }
 
             let gatewayHtml = '';

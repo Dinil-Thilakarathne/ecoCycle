@@ -762,5 +762,22 @@ class PickupRequest extends BaseModel
         return $pickupIds;
     }
 
+    public function hasOverlappingAssignment(int $collectorId, string $date, string $timeSlot, ?string $excludePickupId = null): bool
+    {
+        $sql = "SELECT 1 FROM {$this->table} 
+                WHERE collector_id = ? 
+                AND time_slot = ? 
+                AND DATE(scheduled_at) = DATE(?) 
+                AND status NOT IN ('completed', 'cancelled')";
+        $params = [$collectorId, $timeSlot, $date];
+
+        if ($excludePickupId !== null) {
+            $sql .= " AND id != ?";
+            $params[] = $excludePickupId;
+        }
+
+        $stmt = $this->db->fetch($sql, $params);
+        return (bool) $stmt;
+    }
 
 }
