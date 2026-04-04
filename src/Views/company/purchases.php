@@ -58,7 +58,7 @@ $paymentReturn = $_GET['payment'] ?? '';
     </div>
     <?php endif; ?>
 
-    <div class="c-dashboard-grid" style="grid-template-columns: 65% 1fr;">
+    <div class="c-dashboard-grid" style="grid-template-columns: 65% 1fr; margin-bottom: 20px;">
 
         <!-- Pending Invoices (Loaded via API) -->
         <div class="available-waste"  >
@@ -118,41 +118,53 @@ $paymentReturn = $_GET['payment'] ?? '';
 
 <!-- Payment Details Modal -->
 <div id="paymentModal" class="form-modal">
-    <div class="form-modal-content">
-        <a href="#" class="closePayment" style="float:right;font-size:22px;">&times;</a>
-        <h2 style="font-size:22px;font-weight:bold;">Invoice Details</h2>
+  <div class="form-modal-content" style="background:var(--color-background-primary,#fff); border-radius:12px; max-width:420px; width:100%; padding:0; overflow:hidden; position:relative;">
+
+    <!-- Close button top-right -->
+    <button onclick="document.getElementById('paymentModal').style.display='none'"
+      style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;font-size:22px;line-height:1;color:#6b7280;">&times;</button>
+
+    <!-- Header & invoice details -->
+    <div style="padding:1.25rem 1.5rem 0;">
+      <p style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">Invoice</p>
+      <h2 style="font-size:20px;font-weight:600;margin:0 0 1.25rem;">Invoice details</h2>
+
+      <div style="background:#f9fafb;border-radius:8px;padding:1rem;">
         <div id="invoiceDetails"></div>
-
-        <!-- ── PayHere Online Payment ─────────────────────────────────────── -->
-        <div id="payhereSection" style="display:none; margin-top:20px;">
-            <hr style="margin-bottom:16px;">
-            <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                Pay Online with PayHere
-            </h3>
-            <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">
-                Pay securely using your Visa, Mastercard, or AMEX card via PayHere — Sri Lanka's leading payment gateway.
-            </p>
-            <div id="payhereError" style="color:#dc2626;font-size:13px;display:none;margin-bottom:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca;"></div>
-            <button id="payWithPayhereBtn" style="
-                width:100%; padding:12px 16px; font-size:15px; font-weight:600;
-                background:linear-gradient(135deg,#1a56db,#2563eb);
-                border:none; border-radius:8px; color:white; cursor:pointer;
-                display:flex; align-items:center; justify-content:center; gap:8px;
-                box-shadow:0 4px 14px rgba(37,99,235,0.35); transition:opacity 0.2s;
-            " onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                Pay Rs.&nbsp;<span id="payhereAmountLabel">0.00</span>&nbsp;with PayHere
-            </button>
-            <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:8px;">
-                🔒 You will be redirected to PayHere's secure payment page
-            </p>
-        </div>
-
-        <br>
-        <button onclick="document.getElementById('paymentModal').style.display='none'" class="btn btn-primary"
-            style="width:100%;margin-top:8px;">Close</button>
+      </div>
     </div>
+
+    <!-- PayHere section -->
+    <div id="payhereSection" style="display:none;border-top:1px solid #e5e7eb;padding:1.25rem 1.5rem;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+          <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        <span style="font-size:14px;font-weight:600;">Pay online with PayHere</span>
+      </div>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 1rem;line-height:1.5;">
+        Accepts Visa, Mastercard, and AMEX via Sri Lanka's leading payment gateway.
+      </p>
+
+      <div id="payhereError" style="display:none;color:#dc2626;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca;"></div>
+
+      <button id="payWithPayhereBtn" style="
+        width:100%;padding:11px 16px;font-size:14px;font-weight:600;
+        background:#1a56db;border:none;border-radius:8px;color:#fff;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+          <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        Pay with PayHere
+      </button>
+
+      <p style="font-size:11px;color:#9ca3af;text-align:center;margin:10px 0 0;">
+        🔒 Redirects to PayHere's secure payment page
+      </p>
+    </div>
+  </div>
 </div>
 
 
