@@ -441,7 +441,7 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
 ]);
 
 
-$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+$router->post('/company/profile/photo', 'Controllers\Company\ProfileController@update', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CompanyOnly'
