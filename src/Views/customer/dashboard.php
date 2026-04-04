@@ -108,7 +108,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
 
         <!-- Stats Feature Cards (Using old style) -->
-        <div class="stats-grid" style="margin-bottom: 2.5rem;">
+        <div class="stats-grid" style="margin-bottom: 1.25rem;">
             <div class="feature-card" data-stat="pickups">
                 <div class="feature-card__header">
                     <h3 class="feature-card__title">Total Pickups</h3>
@@ -136,15 +136,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
         </div>
 
         <!-- Main Content Grid: Chart + Price per unit -->
-        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 0.75rem; align-items: stretch;">
             
             <!-- Left: Request Status Chart -->
-            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; height: 100%; display: flex; flex-direction: column;">
                 <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
                     <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">Request Status Overview</h2>
                     <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
                 </div>
-                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 2rem; display:flex; align-items:center; gap:1.25rem;">
+                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 0; display:flex; align-items:center; gap:1.25rem;">
                         <div style="flex:1; height:220px; position: relative;">
                             <canvas id="statusChart"></canvas>
                         </div>
@@ -169,7 +169,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
 
             <!-- Right: Price per unit -->
-            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; height: 100%; display: flex; flex-direction: column;">
                 <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
                     <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">
                         <i class="fa-solid fa-leaf" style="margin-right: 0.75rem; color: #1ce36a;"></i>
@@ -177,7 +177,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     </h2>
                     <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Current rates per kg — earn based on these</p>
                 </div>
-                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem; flex: 1;">
                     <?php if (!empty($wasteCategories) && is_array($wasteCategories)): ?>
                         <?php
                         foreach ($wasteCategories as $material):

@@ -123,7 +123,7 @@ function formatCurrency($amount)
         <!-- Payment Methods Section Removed -->
 
         <!-- Invoice History Section -->
-        <div class="activity-card" style="margin-top: var(--space-8);">
+        <div class="activity-card" style="margin-top: var(--space-8); border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none;">
             <div class="activity-card__header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
                     <h3 class="activity-card__title">
