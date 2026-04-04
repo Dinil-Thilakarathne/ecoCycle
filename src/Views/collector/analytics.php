@@ -44,9 +44,17 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <i class="fa-solid fa-download"></i>
                 Salary Transactions Report
             </a>
-            <a class="btn btn-outline" href="?format=waste&export=1">
+            <a class="btn btn-outline" href="?format=pdf&export=1">
+                <i class="fa-solid fa-download"></i>
+                Export PDF
+            </a>
+             <a class="btn btn-outline" href="?format=waste&export=1">
                 <i class="fa-solid fa-download"></i>
                 Waste Collection Report
+            </a>
+            <a class="btn btn-outline" href="?format=pdf&export=1">
+                <i class="fa-solid fa-download"></i>
+                Export PDF
             </a>
 
     </page-header>
