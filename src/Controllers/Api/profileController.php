@@ -63,7 +63,6 @@ class profileController extends BaseController
             case 'company':
                 $payload['metadata'] = [
                     'companyName' => trim($request->input('companyName', '')),
-                    'type'         => trim($request->input('type', '')),
                     'reg_number'   => trim($request->input('reg_number', '')),
                     'description'  => trim($request->input('description', '')),
                     'website'     => trim($request->input('website', '')),
