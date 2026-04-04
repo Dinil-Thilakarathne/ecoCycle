@@ -63,7 +63,7 @@ function getFormContent(data = {}) {
             <div>
                 <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#374151;">Category Name</label>
                 <input type="text" id="cat_name" value="${escapeHtml(
-                  name
+                  name,
                 )}" placeholder="e.g. Plastic"
                     style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:0.375rem;">
             </div>
@@ -72,7 +72,7 @@ function getFormContent(data = {}) {
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#374151;">Unit</label>
                     <input type="text" id="cat_unit" value="${escapeHtml(
-                      unit
+                      unit,
                     )}" placeholder="kg"
                         style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:0.375rem;">
                 </div>
@@ -80,12 +80,12 @@ function getFormContent(data = {}) {
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#374151;">Color Code</label>
                     <div style="display:flex;gap:0.5rem;">
                         <input type="color" id="cat_color_picker" value="${escapeHtml(
-                          color
+                          color,
                         )}" 
                             style="height:38px;width:50px;padding:0;border:1px solid #d1d5db;"
                             onchange="document.getElementById('cat_color').value = this.value">
                         <input type="text" id="cat_color" value="${escapeHtml(
-                          color
+                          color,
                         )}" 
                             style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:0.375rem;"
                             onchange="document.getElementById('cat_color_picker').value = this.value">
@@ -98,7 +98,7 @@ function getFormContent(data = {}) {
                 <div style="position:relative;">
                     <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:#166534;font-weight:bold;">Rs</span>
                     <input type="number" step="0.01" min="0" id="cat_price" value="${escapeHtml(
-                      price
+                      price,
                     )}" 
                         style="width:100%;padding:0.5rem 0.5rem 0.5rem 2.5rem;border:1px solid #16a34a;border-radius:0.375rem;color:#166534;font-weight:bold;">
                 </div>
@@ -112,7 +112,7 @@ function getFormContent(data = {}) {
                 <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#92400e;">Markup Percentage (%)</label>
                 <div style="position:relative;">
                     <input type="number" step="0.01" min="0" id="cat_markup" value="${escapeHtml(
-                      data.markup || "0.00"
+                      data.markup || "0.00",
                     )}" 
                         style="width:100%;padding:0.5rem;border:1px solid #d97706;border-radius:0.375rem;color:#92400e;font-weight:bold;">
                 </div>
@@ -187,14 +187,14 @@ function openWasteCategoryModal(existingData = null) {
               response = await apiRequest(
                 `/api/waste-categories/${existingData.id}`,
                 "PUT",
-                payload
+                payload,
               );
               showToast("Category updated successfully", "success");
             } else {
               response = await apiRequest(
                 "/api/waste-categories",
                 "POST",
-                payload
+                payload,
               );
               showToast("Category created successfully", "success");
             }
@@ -220,30 +220,47 @@ window.editCategory = function (data) {
 // Global exposure for delete button
 window.deleteCategory = async function (id) {
   if (
-    !confirm(
-      "Are you sure you want to delete this category? This action cannot be undone."
-    )
+    window.Modal.open({
+      title: "Delete Category",
+      content:
+        "Are you sure you want to delete this category? This action cannot be undone.",
+      actions: [
+        {
+          label: "Cancel",
+          variant: "plain",
+        },
+        {
+          label: "Delete Category",
+          variant: "danger",
+          dismiss: false,
+          onClick: async ({ close, setLoading }) => {
+            setLoading(true);
+            try {
+              await apiRequest(`/api/waste-categories/${id}`, "DELETE");
+              showToast("Category deleted successfully", "success");
+              // Remove row from table
+              const row = document.querySelector(`tr[data-id="${id}"]`);
+              if (row) {
+                row.remove();
+                close();
+
+                // Check if table is empty
+                const tbody = document.querySelector(".data-table tbody");
+                if (tbody && tbody.children.length === 0) {
+                  window.location.reload();
+                }
+              } else {
+                setTimeout(() => window.location.reload(), 1000);
+              }
+            } catch (err) {
+              showToast(err.message, "error");
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    })
   ) {
     return;
-  }
-
-  try {
-    await apiRequest(`/api/waste-categories/${id}`, "DELETE");
-    showToast("Category deleted successfully", "success");
-    // Remove row from table
-    const row = document.querySelector(`tr[data-id="${id}"]`);
-    if (row) {
-      row.remove();
-
-      // Check if table is empty
-      const tbody = document.querySelector(".data-table tbody");
-      if (tbody && tbody.children.length === 0) {
-        window.location.reload();
-      }
-    } else {
-      setTimeout(() => window.location.reload(), 1000);
-    }
-  } catch (err) {
-    showToast(err.message, "error");
   }
 };

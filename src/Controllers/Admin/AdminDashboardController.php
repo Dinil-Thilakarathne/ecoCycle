@@ -104,24 +104,42 @@ class AdminDashboardController extends DashboardController
     {
         $request = app('request');
         $selectedTimeSlot = $request->query('time_slot', 'all');
+        $today = date('Y-m-d');
 
         $pickupModel = new PickupRequest();
-        $allRequests = $pickupModel->listAll();
-        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
+        
+        // 1. Today's Schedule (all statuses for today)
+        $todayRequests = $pickupModel->listAll($selectedTimeSlot, $today);
+
+        // 2. Upcoming (future dates, not finished)
+        $upcomingRequests = $pickupModel->listAll($selectedTimeSlot, $today, null, '>');
+        $upcomingRequests = array_filter($upcomingRequests, fn($r) => !in_array($r['statusRaw'], ['completed', 'cancelled']));
+
+        // 3. In Progress (any date)
+        $inProgressRequests = $pickupModel->listAll('all', null, 'in_progress');
+
+        // 4. Completed (any date, for history)
+        $completedRequests = $pickupModel->listAll('all', null, 'completed');
+
+        // 5. Cancelled (any date, for history)
+        $cancelledRequests = $pickupModel->listAll('all', null, 'cancelled');
 
         $collectors = (new User())->listByType('collector', 200);
-
-        $filtered = ($selectedTimeSlot === 'all')
-            ? $allRequests
-            : array_values(array_filter($allRequests, fn($row) => ($row['timeSlot'] ?? null) === $selectedTimeSlot));
+        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
         $data = [
-            'pageTitle' => 'Pickup Requests',
-            'pickupRequests' => $allRequests,
-            'filteredPickupRequests' => $filtered,
+            'pageTitle' => 'Pickup Management',
+            'todayRequests' => $todayRequests,
+            'upcomingRequests' => $upcomingRequests,
+            'inProgressRequests' => $inProgressRequests,
+            'completedRequests' => $completedRequests,
+            'cancelledRequests' => $cancelledRequests,
+            
             'timeSlots' => $timeSlots,
             'selectedTimeSlot' => $selectedTimeSlot,
             'collectors' => $collectors,
+            // Backwards compatibility for some view lookups
+            'pickupRequests' => array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests),
         ];
 
         return $this->renderDashboard('pickupRequest', $data);
