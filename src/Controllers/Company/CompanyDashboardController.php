@@ -258,7 +258,9 @@ class CompanyDashboardController extends DashboardController
             'phone' => $profile['phone'] ?? '',
             'website' => $metadata['website'] ?? '',
             'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
-            'profile_picture' => $profile['profileImagePath'] ?? '/assets/avatar.png',
+            'profile_picture' => isset($profile['profile_image_path']) && $profile['profile_image_path']
+                ? '/' . ltrim($profile['profile_image_path'], '/')
+                : '/assets/avatar.png',
             'waste_types' => $wasteTypes,
             'verification' => $verification,
             'bank_details' => $bankDetails,

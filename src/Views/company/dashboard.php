@@ -50,7 +50,7 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
       $companyName = htmlspecialchars((string) $companyName, ENT_QUOTES, 'UTF-8');
 
       // Resolve profile image (prefer auth user's profileImage, then companyProfile)
-      $profileImagePath = is_array($authUser) ? ($authUser['profileImage'] ?? ($companyProfile['profileImage'] ?? null)) : ($companyProfile['profileImage'] ?? null);
+      $profileImagePath = $companyProfile['profile_picture'] ?? null;
       $profilePic = $profileImagePath ? asset($profileImagePath) : asset('assets/logo-icon.png');
       $profilePic = htmlspecialchars((string) $profilePic, ENT_QUOTES, 'UTF-8');
       ?>

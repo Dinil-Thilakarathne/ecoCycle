@@ -1,5 +1,6 @@
 <?php
 $company = is_array($companyProfile ?? null) ? $companyProfile : [];
+$profileImageSrc = $companyProfile['profile_picture'] ?? '/assets/avatar.png';
 
 if (isset($company['metadata'])) {
   if (is_string($company['metadata'])) {
@@ -38,9 +39,10 @@ $csrf = app('session')->token();
   <div class="p-info-card">
     <div class="pc-card">
       <h3 style="font-size: 20px; font-weight: bold;">Company Information</h3>
-      <div class="profile-picture" style="display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0;">
-        <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" 
-             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
+      <div class="profile-picture"
+        style="display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0;">
+        <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture"
+          style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
         <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">Change Photo
         </a>
       </div>
@@ -133,19 +135,19 @@ $csrf = app('session')->token();
   <div class="form-modal-content" style="max-width: 500px;">
     <a href="#" class="close">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Change Profile Photo</h2>
-    
+
     <div style="text-align: center; margin-bottom: 20px;">
-      <img id="photoPreview" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Preview" 
-           style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
+      <img id="photoPreview" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Preview"
+        style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
     </div>
 
     <form method="POST" enctype="multipart/form-data" action="/company/profile/photo" id="photoUploadForm">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf) ?>">
-      
+
       <div class="form-group">
         <label class="form-lable">Select New Photo</label>
-        <input type="file" name="photo" id="photoInput" accept="image/jpeg,image/png,image/jpg,image/gif" 
-               required style="padding: 10px;">
+        <input type="file" name="photo" id="photoInput" accept="image/jpeg,image/png,image/jpg,image/gif" required
+          style="padding: 10px;">
         <small style="color: #6b7280; display: block; margin-top: 5px;">
           Accepted formats: JPG, PNG, GIF (Max 5MB)
         </small>
@@ -156,9 +158,9 @@ $csrf = app('session')->token();
           ✓ Upload Photo
         </button>
         <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
-          <button type="submit" name="removePhoto" class="btn btn-outline" 
-                  style="flex: 1; background: #fee2e2; color: #dc2626;"
-                  onclick="return confirm('Are you sure you want to remove your profile photo?');">
+          <button type="submit" name="removePhoto" class="btn btn-outline"
+            style="flex: 1; background: #fee2e2; color: #dc2626;"
+            onclick="return confirm('Are you sure you want to remove your profile photo?');">
             🗑️ Remove Photo
           </button>
         <?php endif; ?>
@@ -270,6 +272,26 @@ $csrf = app('session')->token();
 </script>
 
 <script>
+
+  // Live preview before upload
+  document.getElementById('photoInput')?.addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be under 5MB.');
+      this.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('photoPreview').src = e.target.result;
+      document.getElementById('profileImageDisplay').src = e.target.result; // updates main display too
+    };
+    reader.readAsDataURL(file);
+  });
+
   function confirmDeleteProfile(event) {
     event.preventDefault();
 
