@@ -73,7 +73,7 @@ function formatCurrency($amount)
 }
 ?>
 
-<div class="container" style="background: var(--neutral-1);">
+<div style="background: var(--neutral-1);">
     <header class="page-header">
         <div class="page-header__content">
             <h2 class="page-header__title">Payments</h2>
@@ -163,8 +163,58 @@ function formatCurrency($amount)
         const d = new Date(String(v).replace(' ', 'T'));
         return isNaN(d) ? v : d.toLocaleDateString(undefined, {month:'short',day:'2-digit',year:'numeric'});
     }
+    function fmtTime(v) {
+        if (!v) return '-';
+        const d = new Date(String(v).replace(' ', 'T'));
+        return isNaN(d) ? '-' : d.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }
     function fmtCurrency(n) {
         return 'Rs ' + parseFloat(n || 0).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function ucfirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    function openModal(options = {}) {
+        if (window.Modal && typeof window.Modal.open === 'function') {
+            return window.Modal.open(options);
+        }
+        return null;
+    }
+
+    function openPaymentDetailsModal(payment = {}) {
+        const details = [
+            { label: 'Amount', value: fmtCurrency(payment.amount) },
+            { label: 'Date', value: fmtDate(payment.date) },
+            { label: 'Time', value: fmtTime(payment.date) },
+            { label: 'Status', value: ucfirst(String(payment.status || 'pending').toLowerCase()) },
+        ];
+
+        const list = document.createElement('div');
+        list.style.cssText = 'display:grid;gap:0.9rem;';
+        details.forEach(item => {
+            const block = document.createElement('div');
+            block.innerHTML = `
+                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.2rem;">${escHtml(item.label)}</span>
+                <strong style="color:#111827;">${escHtml(item.value)}</strong>
+            `;
+            list.appendChild(block);
+        });
+
+        const modal = openModal({
+            title: 'Payment Details',
+            size: 'sm',
+            content: list,
+            actions: [{ label: 'Close', variant: 'plain' }]
+        });
+
+        if (!modal) {
+            alert(
+                `Payment Details\n\n` +
+                `Amount: ${fmtCurrency(payment.amount)}\n` +
+                `Date: ${fmtDate(payment.date)}\n` +
+                `Time: ${fmtTime(payment.date)}\n` +
+                `Status: ${ucfirst(String(payment.status || 'pending').toLowerCase())}`
+            );
+        }
     }
 
     function renderTable(payments) {
@@ -176,8 +226,6 @@ function formatCurrency($amount)
             ? payments.map((p, index) => {
                 const status = String(p.status || '').toLowerCase();
                 const tagClass = status === 'completed' ? 'completed' : (status === 'failed' ? 'danger' : 'pending');
-                const txnId = p.txnId || p.id || ('txn-' + (index + 1));
-                const safeTxnId = encodeURIComponent(String(txnId));
                 return `
                     <tr>
                         <td class="font-medium">${index + 1}</td>
@@ -187,7 +235,7 @@ function formatCurrency($amount)
                             <span class="tag ${tagClass}">${escHtml(ucfirst(p.status || 'pending'))}</span>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-outline" onclick="downloadInvoice('${safeTxnId}')">View Details</button>
+                            <button type="button" class="btn btn-sm btn-outline js-view-payment" data-index="${index}">View Details</button>
                         </td>
                     </tr>`;
             }).join('')
@@ -212,6 +260,18 @@ function formatCurrency($amount)
                     </tbody>
                 </table>
             </div>`;
+
+        el.querySelectorAll('.js-view-payment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-index'));
+                const payment = Array.isArray(payments) ? payments[idx] : null;
+                if (!payment) {
+                    showToast('Unable to load payment details.', 'error');
+                    return;
+                }
+                openPaymentDetailsModal(payment);
+            });
+        });
     }
 
     function updateStats(payments) {
@@ -221,8 +281,6 @@ function formatCurrency($amount)
         if (cards[0]) cards[0].textContent = fmtCurrency(totalEarned);
         if (cards[1]) cards[1].textContent  = totalCount;
     }
-
-    function ucfirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 
     async function fetchAndRefresh() {
         try {
@@ -442,11 +500,6 @@ function formatCurrency($amount)
             document.body.appendChild(form);
             form.submit();
         }
-    }
-
-    function downloadInvoice(invoiceId) {
-        // In real application, this would download the invoice
-        alert('Downloading invoice: ' + decodeURIComponent(invoiceId));
     }
 
     // Close modals when clicking outside
