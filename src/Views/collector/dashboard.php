@@ -162,82 +162,11 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
         </div>
       <?php endforeach; ?>
     <?php else: ?>
-      <p style="text-align: center; color: #999; padding: 20px;">No pending tasks</p>
+      <p class="collector-empty-state">No pending tasks</p>
     <?php endif; ?>
   </activity-card>
 
   <activity-card title="Pending Pickup Locations" description="Map view of pending pickup request locations">
-    <style>
-      .pending-map-frame {
-        position: relative;
-        width: 100%;
-        height: 360px;
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        background: linear-gradient(180deg, #dff4ff 0%, #eaf8ff 38%, #f7fbff 100%);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-      }
-
-      .pending-map-frame svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-
-      .pending-map-spots {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-
-      .pending-map-spot {
-        position: absolute;
-        transform: translate(-50%, -100%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .pending-map-pin {
-        position: relative;
-        width: 18px;
-        height: 18px;
-        background: #dc2626;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.18), 0 10px 18px rgba(15, 23, 42, 0.25);
-      }
-
-      .pending-map-pin::after {
-        content: '';
-        position: absolute;
-        inset: 4px;
-        border-radius: 50%;
-        background: #fff;
-      }
-
-      .pending-map-spot-label {
-        max-width: 120px;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.92);
-        color: #991b1b;
-        font-size: 11px;
-        font-weight: 600;
-        text-align: center;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .pending-map-caption {
-        margin-top: 12px;
-        color: var(--neutral-600);
-        font-size: 0.9rem;
-      }
-    </style>
     <div class="pending-map-frame" id="pending-pickups-map-frame">
       <svg viewBox="0 0 1000 1200" preserveAspectRatio="xMidYMid meet" aria-label="Sri Lanka map close-up with pending pickup markers" role="img">
         <defs>
@@ -278,7 +207,7 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       spotsEl.innerHTML = '';
     }
     if (frameEl) {
-      frameEl.innerHTML = `<p style="text-align: center; color: #64748b; padding: 140px 20px; font-weight: 600;">${message}</p>`;
+      frameEl.innerHTML = `<p class="pending-map-empty">${message}</p>`;
     }
     updatePendingMapMessage('');
   }
@@ -525,6 +454,18 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       return colorMap[lowerName] || '#6b7280';
     }
 
+    function getDotClassForMaterial(name) {
+      const lowerName = (name || '').toLowerCase();
+      const classMap = {
+        'plastic': 'dot-plastic',
+        'glass': 'dot-glass',
+        'metal': 'dot-metal',
+        'paper': 'dot-paper',
+        'organic': 'dot-organic'
+      };
+      return classMap[lowerName] || 'dot-default';
+    }
+
     async function fetchMaterialPrices() {
       try {
         const res = await fetch(endpoint, { credentials: 'same-origin' });
@@ -539,11 +480,11 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
           div.className = 'goal';
           div.innerHTML = `
             <div class="goal-header">
-              <span style="display: flex; align-items: center; gap: var(--space-2);">
-                <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${getColorForMaterial(material.name)};"></div>
+              <span class="dashboard-goal-material-chip">
+                <div class="dashboard-goal-material-dot ${getDotClassForMaterial(material.name)}"></div>
                 <span class="font-medium">${material.name}</span>
               </span>
-              <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
+              <span class="goal-status dashboard-goal-status-strong">
                 ${formatPrice(material.price_per_unit)}
               </span>
             </div>

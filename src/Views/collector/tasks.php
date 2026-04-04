@@ -28,68 +28,6 @@ function getStatusBadge($status)
 }
 ?>
 
-<style>
-    .data-table th:nth-child(1),
-    .data-table td:nth-child(1) {
-        text-align: center;
-    }
-    .data-table th:nth-child(2),
-    .data-table td:nth-child(2) {
-        text-align: left;
-    }
-    .data-table th:nth-child(3),
-    .data-table td:nth-child(3) {
-        text-align: left;
-    }
-    .data-table th:nth-child(4),
-    .data-table td:nth-child(4) {
-        text-align: left;
-    }
-    .data-table th:nth-child(5),
-    .data-table td:nth-child(5) {
-        text-align: left;
-    }
-    .data-table th:nth-child(6),
-    .data-table td:nth-child(6) {
-        text-align: center;
-    }
-    .data-table th:nth-child(7),
-    .data-table td:nth-child(7) {
-        text-align: center;
-    }
-
-    .data-table thead th {
-        background-color: #f1f3f5;
-        color: #6c757d;
-    }
-
-    .data-table tbody td {
-        color: #000000;
-    }
-
-    .data-table td:nth-child(7) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: var(--space-4) var(--space-6);
-    }
-
-    .vehicle-cell {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-    }
-
-    .vehicle-cell span {
-        font-weight: 500;
-    }
-
-    .data-table tbody tr:hover {
-        background-color: #f9fafb;
-    }
-</style>
-
 <script>
     window.__PICKUP_DATA = <?php echo json_encode($assignedRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     window.__FILTERS = {
@@ -108,12 +46,12 @@ function getStatusBadge($status)
 
 <div class="activity-card">
     <div class="activity-card__header">
-        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
+        <h3 class="activity-card__title"><i class="fa-solid fa-box analytics-icon-gap"></i>My Tasks</h3>
         <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
     <div class="activity-card__content">
-        <div style="overflow-x:auto;">
-            <table class="data-table">
+        <div class="tasks-table-wrap">
+            <table class="data-table tasks-data-table">
                 <thead>
                     <tr>
                         <th>Customer</th>
@@ -138,7 +76,7 @@ function getStatusBadge($status)
                                             <?= htmlspecialchars($r['vehicleType'] ?? $r['vehicle'] ?? $r['vehicleModel'] ?? '-') ?>
                                         </span>
                                         <?php if (!empty($r['vehiclePlate'] ?? null)): ?>
-                                            <small style="display: block; color: var(--neutral-500); font-size: 0.8em;">
+                                            <small class="tasks-vehicle-plate">
                                                 <?= htmlspecialchars($r['vehiclePlate']) ?>
                                             </small>
                                         <?php endif; ?>
@@ -156,7 +94,7 @@ function getStatusBadge($status)
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td>
+                            <td colspan="7" class="tasks-empty">No tasks assigned.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -186,27 +124,26 @@ function getStatusBadge($status)
         </div>
 
 
-        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
-            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+        <div id="weight-entry-row" class="tasks-weight-entry-row">
+            <div class="tasks-weight-entry-label"><strong>Measured Weight (kg)</strong></div>
             <div>
                 <!-- Weight inputs will be injected here -->
             </div>
-            <div id="price-display-row"
-                style="margin-top:1rem; padding: 10px; background-color: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color: #475569;">Total Price:</strong>
-                    <span id="calculatedPriceDisplay" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">Rs.
+            <div id="price-display-row" class="tasks-price-display-row">
+                <div class="tasks-price-display-inner">
+                    <strong class="tasks-price-label">Total Price:</strong>
+                    <span id="calculatedPriceDisplay" class="tasks-price-value">Rs.
                         0.00</span>
                 </div>
             </div>
 
-            <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+            <div id="weightError" class="tasks-weight-error">Please
                 enter a valid weight greater than 0.</div>
 
-            <!-- <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div> -->
+            <!-- <div id="wasteBreakdown" class="tasks-waste-breakdown"></div> -->
         </div>
 
-        <div style="margin-top: var(--space-8); text-align: right;">
+        <div class="tasks-action-wrap">
             <!-- <button class="btn" onclick="closeDetailModal()">Close</button> -->
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
@@ -317,7 +254,7 @@ function getStatusBadge($status)
                     inputContainer.appendChild(div);
                 });
             } else {
-                inputContainer.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+                inputContainer.innerHTML += '<div class="tasks-no-categories">No waste categories found.</div>';
             }
 
             const errorDiv = document.getElementById('weightError');

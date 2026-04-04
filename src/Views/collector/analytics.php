@@ -7,36 +7,6 @@ $collectorFeedback = []; // Will be populated by JavaScript
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<style>
-    .activity-card {
-        margin-bottom: 24px;
-    }
-    .data-table tbody td:nth-child(n+2),
-    .data-table thead th:nth-child(n+2) {
-        text-align: left;
-    }
-    .data-table thead th {
-        background-color: #f1f3f5;
-        color: #6c757d;
-    }
-    .data-table tbody td {
-        color: #000000;
-    }
-    .materials-breakdown {
-        margin: 0;
-        padding-left: 18px;
-    }
-    .materials-breakdown li {
-        margin: 0 0 4px 0;
-    }
-    .materials-breakdown li:last-child {
-        margin-bottom: 0;
-    }
-    .materials-breakdown .material-weight {
-        color: #6b7280;
-    }
-</style>
-
 <div>
     <!-- Page Header -->
     <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
@@ -44,18 +14,11 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <i class="fa-solid fa-download"></i>
                 Salary Transactions Report
             </a>
-            <a class="btn btn-outline" href="?format=pdf&export=1">
-                <i class="fa-solid fa-download"></i>
-                Export PDF
-            </a>
              <a class="btn btn-outline" href="?format=waste&export=1">
                 <i class="fa-solid fa-download"></i>
                 Waste Collection Report
             </a>
-            <a class="btn btn-outline" href="?format=pdf&export=1">
-                <i class="fa-solid fa-download"></i>
-                Export PDF
-            </a>
+
 
     </page-header>
 
@@ -90,21 +53,21 @@ $collectorFeedback = []; // Will be populated by JavaScript
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-chart-column" style="margin-right: 8px;"></i> Monthly Collection Summary
+                <i class="fa-solid fa-chart-column analytics-icon-gap"></i> Monthly Collection Summary
             </h3>
             <p class="activity-card__description">Material collection by selected month</p>
         </div>
         <div class="activity-card__content">
-            <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: 12px; flex-wrap: wrap;">
-                <label for="monthly-collection-month" style="font-size: 0.9rem; color: var(--neutral-700);">Month</label>
-                <select id="monthly-collection-month" style="padding: 6px 10px; border: 1px solid var(--neutral-300); border-radius: var(--radius-md); min-width: 100px; font-size: 0.9rem;"></select>
+            <div class="analytics-filter-row">
+                <label for="monthly-collection-month" class="analytics-filter-label">Month</label>
+                <select id="monthly-collection-month" class="analytics-filter-select"></select>
                 
-                <label for="monthly-collection-year" style="font-size: 0.9rem; color: var(--neutral-700); margin-left: 8px;">Year</label>
-                <select id="monthly-collection-year" style="padding: 6px 10px; border: 1px solid var(--neutral-300); border-radius: var(--radius-md); min-width: 100px; font-size: 0.9rem;"></select>
-                <!-- <span id="monthly-collection-range" style="color: var(--neutral-600); font-size: 0.9rem;">Month: --</span> -->
+                <label for="monthly-collection-year" class="analytics-filter-label analytics-filter-label-spaced">Year</label>
+                <select id="monthly-collection-year" class="analytics-filter-select"></select>
+                <!-- <span id="monthly-collection-range" class="analytics-range-label">Month: --</span> -->
             </div>
-            <div style="padding: 0;">
-                <canvas id="monthlyCollectionChart" style="width: 100%; max-height: 360px;"></canvas>
+            <div class="analytics-chart-shell">
+                <canvas id="monthlyCollectionChart" class="analytics-chart-canvas"></canvas>
             </div>
         </div>
     </div>
@@ -113,24 +76,24 @@ $collectorFeedback = []; // Will be populated by JavaScript
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-comments" style="margin-right: 8px;"></i> Collector Feedback Report
+                <i class="fa-solid fa-comments analytics-icon-gap"></i> Collector Feedback Report
             </h3>
             <p class="activity-card__description">Recent reports and feedbacks</p>
         </div>
         <div class="activity-card__content">
-            <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
-                <table class="data-table" style="width: 100%;">
-                    <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div class="analytics-table-wrap analytics-table-wrap-feedback">
+                <table class="data-table analytics-table-full-width">
+                    <thead class="analytics-table-head-sticky">
                         <tr>
-                            <th style="text-align: left;">Customer Name</th>
-                            <th style="text-align: left;">Date</th>
-                            <th style="text-align: left;">Feedback</th>
-                            <th style="text-align: left;">Rating</th>
+                            <th class="analytics-left">Customer Name</th>
+                            <th class="analytics-left">Date</th>
+                            <th class="analytics-left">Feedback</th>
+                            <th class="analytics-left">Rating</th>
                         </tr>
                     </thead>
                     <tbody id="feedbackTableBody">
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 16px;">
+                            <td colspan="4" class="analytics-table-center-cell">
                                 <span class="loading">Loading feedback data...</span>
                             </td>
                         </tr>
@@ -144,25 +107,25 @@ $collectorFeedback = []; // Will be populated by JavaScript
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-recycle" style="margin-right: 8px;"></i> Waste Collection Summary
+                <i class="fa-solid fa-recycle analytics-icon-gap"></i> Waste Collection Summary
             </h3>
             <p class="activity-card__description">Customer wise collected waste summary</p>
         </div>
         <div class="activity-card__content">
-            <div style="overflow-x: auto; max-height: 420px; overflow-y: auto;">
-                <table class="data-table" style="width: 100%;">
-                    <thead style="position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div class="analytics-table-wrap analytics-table-wrap-waste">
+                <table class="data-table analytics-table-full-width">
+                    <thead class="analytics-table-head-sticky">
                         <tr>
-                            <th style="text-align: left;">Customer Name</th>
-                            <th style="text-align: left;">Location</th>
-                            <th style="text-align: left;">Waste Collected</th>
-                            <th style="text-align: left;">Total Weight</th>
-                            <th style="text-align: left;">Materials</th>
+                            <th class="analytics-left">Customer Name</th>
+                            <th class="analytics-left">Location</th>
+                            <th class="analytics-left">Waste Collected</th>
+                            <th class="analytics-left">Total Weight</th>
+                            <th class="analytics-left">Materials</th>
                         </tr>
                     </thead>
                     <tbody id="wasteCollectionTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 16px;">
+                            <td colspan="5" class="analytics-table-center-cell">
                                 <span class="loading">Loading waste collection summary...</span>
                             </td>
                         </tr>
@@ -271,7 +234,7 @@ function ensureMonthlyCollectionCanvas() {
     if (!monthlyCollectionChartContainer) return null;
     let canvas = document.getElementById('monthlyCollectionChart');
     if (!canvas) {
-        monthlyCollectionChartContainer.innerHTML = '<canvas id="monthlyCollectionChart" style="width: 100%; max-height: 360px;"></canvas>';
+        monthlyCollectionChartContainer.innerHTML = '<canvas id="monthlyCollectionChart" class="analytics-chart-canvas"></canvas>';
         canvas = document.getElementById('monthlyCollectionChart');
     }
     return canvas;
@@ -283,7 +246,7 @@ function showMonthlyCollectionEmptyState(message) {
         monthlyCollectionChart.destroy();
         monthlyCollectionChart = null;
     }
-    monthlyCollectionChartContainer.innerHTML = `<p style="text-align: center; color: #999; padding: 40px;">${message}</p>`;
+    monthlyCollectionChartContainer.innerHTML = `<p class="analytics-empty-message">${message}</p>`;
 }
 
 function formatMonthDate(isoDate) {
@@ -493,10 +456,10 @@ async function refreshDashboard() {
             } else {
                 console.error('Metrics data invalid:', mData);
                 const errMsg = mData.error || 'Invalid data';
-                if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
-                if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
-                if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
-                if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small style="color: #dc3545;">${errMsg.substring(0, 20)}</small>`;
+                if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
+                if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
+                if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
+                if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
             }
         } else {
             const errorText = await metricsReq.text();
@@ -511,10 +474,10 @@ async function refreshDashboard() {
                 errorMsg = errorText.substring(0, 50) || errorMsg;
             }
             
-            if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
-            if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
-            if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
-            if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small style="color: #dc3545; font-size: 0.7em;">${errorMsg}</small>`;
+            if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
+            if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
+            if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
+            if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
         }
 
         // Handle feedback
@@ -585,18 +548,18 @@ function updateMetricsCards(metrics) {
 function updateFeedbackTable(data, error = null) {
     const tableBody = document.getElementById('feedbackTableBody');
     if (error) {
-        tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="4" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
         tableBody.innerHTML = data.map(fb => `
             <tr>
-                <td style="text-align: left;">${escapeHtml(fb.customer_name)}</td>
-                <td style="text-align: left;">${new Date(fb.rating_date).toLocaleDateString()}</td>
-                <td style="text-align: left;">${escapeHtml(fb.description)}</td>
-                <td style="text-align: left;">${renderStars(fb.rating)}</td>
+                <td class="analytics-left">${escapeHtml(fb.customer_name)}</td>
+                <td class="analytics-left">${new Date(fb.rating_date).toLocaleDateString()}</td>
+                <td class="analytics-left">${escapeHtml(fb.description)}</td>
+                <td class="analytics-left">${renderStars(fb.rating)}</td>
             </tr>
         `).join('');
     } else {
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px; color:#888;">No feedback records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" class="analytics-table-center-cell analytics-muted-text">No feedback records found.</td></tr>';
     }
 }
 
@@ -607,7 +570,7 @@ function updateWasteTable(data, error = null) {
     const tableBody = document.getElementById('wasteCollectionTableBody');
     if (!tableBody) return;
     if (error) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc3545;">Error: ${escapeHtml(error)}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="5" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
         const grouped = new Map();
 
@@ -662,11 +625,11 @@ function updateWasteTable(data, error = null) {
 
             return `
                 <tr>
-                    <td style="text-align: left;">${escapeHtml(item.customerName)}</td>
-                    <td style="text-align: left;">${escapeHtml(item.location)}</td>
-                    <td style="text-align: left;">${escapeHtml(wasteCollected)}</td>
-                    <td style="text-align: left;">${item.totalWeight.toFixed(2)} kg</td>
-                    <td style="text-align: left;">
+                    <td class="analytics-left">${escapeHtml(item.customerName)}</td>
+                    <td class="analytics-left">${escapeHtml(item.location)}</td>
+                    <td class="analytics-left">${escapeHtml(wasteCollected)}</td>
+                    <td class="analytics-left">${item.totalWeight.toFixed(2)} kg</td>
+                    <td class="analytics-left">
                         ${materialList ? `<ul class="materials-breakdown">${materialList}</ul>` : '-'}
                     </td>
                 </tr>
@@ -675,7 +638,7 @@ function updateWasteTable(data, error = null) {
 
         tableBody.innerHTML = rows.join('');
     } else {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#888;">No waste records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="analytics-table-center-cell analytics-muted-text">No waste records found.</td></tr>';
     }
 }
 
@@ -683,7 +646,7 @@ function updateWasteTable(data, error = null) {
 function renderStars(count) {
     let stars = '';
     for (let i = 0; i < 5; i++) {
-        stars += i < count ? '<i class="fa-solid fa-star" style="color: gold;"></i>' : '<i class="fa-regular fa-star" style="color: #ccc;"></i>';
+        stars += i < count ? '<i class="fa-solid fa-star analytics-star-filled"></i>' : '<i class="fa-regular fa-star analytics-star-empty"></i>';
     }
     return stars;
 }

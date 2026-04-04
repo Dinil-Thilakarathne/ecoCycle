@@ -357,119 +357,400 @@ class CollectorDashboardController extends DashboardController
             "SELECT
                 pr.customer_id,
                 COALESCE(c.name, 'Unknown Customer') AS customer_name,
-                COALESCE(pr.address, c.address, 'Not provided') AS location,
+                COALESCE(pr.address, 'Not provided') AS address,
                 COALESCE(wc.name, 'General') AS material_name,
-                COALESCE(prw.weight, prw.quantity, 0) AS material_weight
+                COALESCE(prw.weight, 0) AS material_weight,
+                pr.created_at
              FROM pickup_requests pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
              LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
              WHERE pr.collector_id = ?
                AND pr.status = 'completed'
-             ORDER BY pr.customer_id ASC, material_name ASC",
+             ORDER BY pr.created_at DESC, pr.customer_id ASC, material_name ASC",
             [$collectorId]
         ) ?: [];
 
-        $grouped = [];
-        foreach ($rows as $row) {
-            $customerId = (int) ($row['customer_id'] ?? 0);
-            if ($customerId <= 0) {
-                continue;
-            }
-
-            if (!isset($grouped[$customerId])) {
-                $grouped[$customerId] = [
-                    'customer_id' => $customerId,
-                    'name' => (string) ($row['customer_name'] ?? 'Unknown Customer'),
-                    'location' => (string) ($row['location'] ?? 'Not provided'),
-                    'materials' => [],
-                    'weight' => 0.0,
-                ];
-            }
-
-            $material = (string) ($row['material_name'] ?? 'General');
-            $weight = (float) ($row['material_weight'] ?? 0);
-
-            if ($weight > 0) {
-                $grouped[$customerId]['weight'] += $weight;
-                $existing = (float) ($grouped[$customerId]['materials'][$material] ?? 0);
-                $grouped[$customerId]['materials'][$material] = $existing + $weight;
-            }
-        }
-
         $tableRows = [];
-        foreach ($grouped as $item) {
-            $materialBreakdown = [];
-            foreach ($item['materials'] as $material => $weight) {
-                $materialBreakdown[] = sprintf('%s (%.2f kg)', $material, $weight);
-            }
-
+        foreach ($rows as $row) {
             $tableRows[] = [
-                (string) $item['customer_id'],
-                $item['name'],
-                $item['location'],
-                implode(', ', $materialBreakdown),
-                number_format((float) $item['weight'], 2),
+                'customer_id' => (string) ($row['customer_id'] ?? '-'),
+                'customer_name' => (string) ($row['customer_name'] ?? 'Unknown Customer'),
+                'address' => (string) ($row['address'] ?? 'Not provided'),
+                'material_collected' => (string) ($row['material_name'] ?? 'General'),
+                'weight' => (float) ($row['material_weight'] ?? 0),
             ];
         }
 
-        return $this->csvResponse(
-            'waste_collection_details_' . date('Ymd_His') . '.csv',
-            ['customer_id', 'name', 'location', 'material_breakdown', 'weight_kg'],
-            $tableRows
+        $lines = $this->buildWasteReportLines($tableRows);
+
+        return $this->pdfResponse(
+            'waste_collection_details_' . date('Ymd_His') . '.pdf',
+            $lines
         );
+    }
+
+    private function generateWasteCollectionPdf(array $grouped): string
+    {
+        $date = date('Y-m-d H:i:s');
+        $html = "<html><body><h1>Waste Collection Report</h1><p>Generated on: {$date}</p>";
+
+        if (empty($grouped)) {
+            $html .= '<div class="no-data"><p>No waste collection data available for this period.</p></div>';
+        } else {
+            foreach ($grouped as $data) {
+                $customerId = $data['customer_id'];
+                $name = htmlspecialchars($data['name']);
+                $location = htmlspecialchars($data['location']);
+                $totalWeight = number_format($data['weight'], 2);
+                $totalAmount = number_format($data['amount'], 2);
+
+                $html .= <<<HTML
+    <div class="customer-section">
+        <div class="customer-header">
+            Customer ID: {$customerId}
+        </div>
+        <div class="customer-info">
+            <div class="info-item">
+                <label>Customer Name:</label>
+                <strong>{$name}</strong>
+            </div>
+            <div class="info-item">
+                <label>Location:</label>
+                <strong>{$location}</strong>
+            </div>
+            <div class="info-item">
+                <label>Total Amount (Rs):</label>
+                <strong class="total-amount">Rs. {$totalAmount}</strong>
+            </div>
+        </div>
+
+        <table class="materials-table">
+            <thead>
+                <tr>
+                    <th>Material Type</th>
+                    <th>Weight (kg)</th>
+                    <th>Amount (Rs)</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+HTML;
+
+                $totalWeightValue = (float) $data['weight'];
+                foreach ($data['materials'] as $material => $weight) {
+                    $materialWeight = (float) ($weight['weight'] ?? 0);
+                    $materialAmount = (float) ($weight['amount'] ?? 0);
+                    $percentage = $totalWeightValue > 0 ? (($materialWeight / $totalWeightValue) * 100) : 0;
+                    $material = htmlspecialchars($material);
+                    $weight = number_format($materialWeight, 2);
+                    $amount = number_format($materialAmount, 2);
+                    $percentage = number_format($percentage, 1);
+
+                    $html .= <<<HTML
+                <tr>
+                    <td>{$material}</td>
+                    <td>{$weight}</td>
+                    <td>{$amount}</td>
+                    <td>{$percentage}%</td>
+                </tr>
+HTML;
+                }
+
+                $html .= <<<HTML
+                <tr class="summary-row">
+                    <td><strong>Total Waste Collected</strong></td>
+                    <td><strong>{$totalWeight} kg</strong></td>
+                    <td><strong>Rs. {$totalAmount}</strong></td>
+                    <td><strong>100%</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+HTML;
+            }
+        }
+
+        $html .= '<p>This is an automatically generated report. Please ensure accuracy of data.</p></body></html>';
+
+        return $html;
     }
 
     private function exportSalaryTransactionReport(int $collectorId): \Core\Http\Response
     {
         $paymentModel = new Payment();
-        $records = $paymentModel->listForRecipient($collectorId, 'payout', 500);
+        $records = $paymentModel->listForRecipient($collectorId, 'payout', 500) ?: [];
 
-        $tableRows = [];
+        // Group by month
+        $grouped = [];
+        $monthlyTotals = [];
         foreach ($records as $record) {
-            $tableRows[] = [
-                (string) ($record['txnId'] ?? '-'),
-                (string) ($record['date'] ?? '-'),
-                (string) ($record['status'] ?? 'pending'),
-                number_format((float) ($record['amount'] ?? 0), 2),
-                (string) ($record['notes'] ?? ''),
+            $date = (string) ($record['date'] ?? date('Y-m-d'));
+            $month = date('Y-m', strtotime($date));
+            $monthLabel = date('F Y', strtotime($date));
+
+            if (!isset($grouped[$month])) {
+                $grouped[$month] = [
+                    'label' => $monthLabel,
+                    'transactions' => [],
+                    'total' => 0.0,
+                ];
+                $monthlyTotals[$month] = 0.0;
+            }
+
+            $amount = (float) ($record['amount'] ?? 0);
+            $grouped[$month]['transactions'][] = [
+                'id' => (string) ($record['txnId'] ?? '-'),
+                'date' => $date,
+                'status' => (string) ($record['status'] ?? 'pending'),
+                'amount' => $amount,
+                'notes' => (string) ($record['notes'] ?? ''),
             ];
+            $grouped[$month]['total'] += $amount;
+            $monthlyTotals[$month] += $amount;
         }
 
-        return $this->csvResponse(
-            'salary_transactions_' . date('Ymd_His') . '.csv',
-            ['transaction_id', 'date', 'status', 'amount_rs', 'notes'],
-            $tableRows
+        // Sort by month descending
+        krsort($grouped);
+
+        $lines = $this->buildSalaryReportLines($grouped, $monthlyTotals);
+
+        return $this->pdfResponse(
+            'salary_transactions_' . date('Ymd_His') . '.pdf',
+            $lines
         );
     }
 
-    private function csvResponse(string $filename, array $headers, array $rows): \Core\Http\Response
+    private function generateSalaryTransactionPdf(array $grouped, array $monthlyTotals): string
     {
-        $output = fopen('php://temp', 'w+');
-        if ($output === false) {
-            return \Core\Http\Response::errorJson('Failed to generate export file', 500);
+        $date = date('Y-m-d H:i:s');
+        $overallTotal = array_sum($monthlyTotals);
+
+        $html = "<html><body><h1>Salary Transaction Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
+
+        if (empty($grouped)) {
+            $html .= '<div class="no-data"><p>No salary transactions found for this period.</p></div>';
+        } else {
+            foreach ($grouped as $month => $data) {
+                $monthLabel = htmlspecialchars($data['label']);
+                $monthTotal = number_format($data['total'], 2);
+                $transactionCount = count($data['transactions']);
+
+                $html .= <<<HTML
+    <div class="month-section">
+        <div class="month-header">
+            {$monthLabel} ({$transactionCount} transactions)
+        </div>
+        
+        <div class="month-total">
+            <label>Monthly Total:</label>
+            <span class="amount">Rs. {$monthTotal}</span>
+        </div>
+
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Amount (Rs)</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+HTML;
+
+                foreach ($data['transactions'] as $txn) {
+                    $txnId = htmlspecialchars($txn['id']);
+                    $txnDate = htmlspecialchars($txn['date']);
+                    $status = htmlspecialchars($txn['status']);
+                    $amount = number_format($txn['amount'], 2);
+                    $notes = htmlspecialchars($txn['notes']);
+
+                    $statusClass = 'status-pending';
+                    if (strtolower($status) === 'completed') {
+                        $statusClass = 'status-completed';
+                    } elseif (strtolower($status) === 'failed') {
+                        $statusClass = 'status-failed';
+                    }
+
+                    $html .= <<<HTML
+                <tr>
+                    <td><strong>{$txnId}</strong></td>
+                    <td>{$txnDate}</td>
+                    <td><span class="status-badge {$statusClass}">{$status}</span></td>
+                    <td><strong>{$amount}</strong></td>
+                    <td>{$notes}</td>
+                </tr>
+HTML;
+                }
+
+                $html .= <<<HTML
+            </tbody>
+        </table>
+    </div>
+
+HTML;
+            }
         }
 
-        // UTF-8 BOM for Excel compatibility
-        fwrite($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        $html .= '<p>This is an automatically generated report. Please verify all transaction details.</p></body></html>';
 
-        fputcsv($output, $headers);
-        foreach ($rows as $row) {
-            fputcsv($output, $row);
+        return $html;
+    }
+
+    private function formatAmount(float $amount): string
+    {
+        return number_format($amount, 2);
+    }
+
+    private function buildWasteReportLines(array $tableRows): array
+    {
+        $lines = [
+            'Waste Collection Report',
+            'Generated on: ' . date('Y-m-d H:i:s'),
+            str_repeat('=', 95),
+            str_pad('Customer ID', 12)
+                . str_pad('Customer Name', 24)
+                . str_pad('Address', 28)
+                . str_pad('Material', 19)
+                . 'Weight',
+            str_repeat('-', 95),
+        ];
+
+        if (empty($tableRows)) {
+            $lines[] = 'No waste collection data available.';
+            return $lines;
         }
 
-        rewind($output);
-        $content = stream_get_contents($output);
-        fclose($output);
+        foreach ($tableRows as $row) {
+            $lines[] = str_pad(substr((string) ($row['customer_id'] ?? '-'), 0, 11), 12)
+                . str_pad(substr((string) ($row['customer_name'] ?? 'Unknown Customer'), 0, 23), 24)
+                . str_pad(substr((string) ($row['address'] ?? 'Not provided'), 0, 27), 28)
+                . str_pad(substr((string) ($row['material_collected'] ?? 'General'), 0, 18), 19)
+                . number_format((float) ($row['weight'] ?? 0), 2) . ' kg';
+        }
 
-        return new \Core\Http\Response((string) $content, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+        return $lines;
+    }
+
+    private function buildSalaryReportLines(array $grouped, array $monthlyTotals): array
+    {
+        $lines = [
+            'Salary Transaction Report',
+            'Generated on: ' . date('Y-m-d H:i:s'),
+            'Overall Total: Rs. ' . number_format((float) array_sum($monthlyTotals), 2),
+            str_repeat('=', 95),
+        ];
+
+        if (empty($grouped)) {
+            $lines[] = 'No salary transactions found.';
+            return $lines;
+        }
+
+        foreach ($grouped as $monthData) {
+            $monthLabel = (string) ($monthData['label'] ?? 'Unknown Month');
+            $monthTotal = number_format((float) ($monthData['total'] ?? 0), 2);
+            $count = count((array) ($monthData['transactions'] ?? []));
+
+            $lines[] = '';
+            $lines[] = sprintf('%s (%d transactions) - Total Rs. %s', $monthLabel, $count, $monthTotal);
+            $lines[] = str_pad('Txn ID', 24)
+                . str_pad('Date', 22)
+                . str_pad('Status', 14)
+                . str_pad('Amount', 14)
+                . 'Notes';
+            $lines[] = str_repeat('-', 95);
+
+            foreach (($monthData['transactions'] ?? []) as $txn) {
+                $lines[] = str_pad(substr((string) ($txn['id'] ?? '-'), 0, 23), 24)
+                    . str_pad(substr((string) ($txn['date'] ?? '-'), 0, 21), 22)
+                    . str_pad(substr((string) ($txn['status'] ?? 'pending'), 0, 13), 14)
+                    . str_pad(number_format((float) ($txn['amount'] ?? 0), 2), 14)
+                    . substr((string) ($txn['notes'] ?? ''), 0, 20);
+            }
+        }
+
+        return $lines;
+    }
+
+    private function pdfResponse(string $filename, array $lines): \Core\Http\Response
+    {
+        $pdfContent = $this->buildPlainPdf($lines);
+
+        return new \Core\Http\Response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
         ]);
     }
+
+    private function buildPlainPdf(array $lines): string
+    {
+        $maxLinesPerPage = 48;
+        $pages = array_chunk($lines, $maxLinesPerPage);
+        if (empty($pages)) {
+            $pages = [['Empty report']];
+        }
+
+        $objects = [];
+        $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+
+        $kids = [];
+        $fontObjectId = 3;
+        $objects[$fontObjectId] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+
+        $nextId = 4;
+        foreach ($pages as $pageLines) {
+            $pageObjId = $nextId++;
+            $contentObjId = $nextId++;
+
+            $stream = "BT\n/F1 10 Tf\n";
+            $y = 800;
+            foreach ($pageLines as $line) {
+                $safe = str_replace(['\\\\', '(', ')'], ['\\\\\\\\', '\\(', '\\)'], (string) $line);
+                $stream .= sprintf("1 0 0 1 40 %d Tm (%s) Tj\n", $y, $safe);
+                $y -= 16;
+            }
+            $stream .= "ET\n";
+
+            $objects[$contentObjId] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream";
+            $objects[$pageObjId] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents " . $contentObjId . " 0 R >>";
+            $kids[] = $pageObjId . ' 0 R';
+        }
+
+        $objects[2] = '<< /Type /Pages /Count ' . count($kids) . ' /Kids [' . implode(' ', $kids) . '] >>';
+
+        ksort($objects);
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [0 => 0];
+
+        foreach ($objects as $id => $objectContent) {
+            $offsets[$id] = strlen($pdf);
+            $pdf .= $id . " 0 obj\n" . $objectContent . "\nendobj\n";
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= "xref\n";
+        $pdf .= '0 ' . (max(array_keys($objects)) + 1) . "\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        for ($i = 1; $i <= max(array_keys($objects)); $i++) {
+            $offset = $offsets[$i] ?? 0;
+            $pdf .= sprintf('%010d 00000 n ', $offset) . "\n";
+        }
+
+        $pdf .= "trailer\n";
+        $pdf .= '<< /Size ' . (max(array_keys($objects)) + 1) . ' /Root 1 0 R >>' . "\n";
+        $pdf .= "startxref\n" . $xrefOffset . "\n%%EOF";
+
+        return $pdf;
+    }
+
     private function getCollectorProfile(): array
     {
         $record = $this->loadCollectorRecord();

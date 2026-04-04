@@ -130,11 +130,11 @@ $csrfToken = csrf_token();
 
   <div class="p-info-card">
     <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Collector Information</h3>
-      <div class="profile-picture" style="display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0;">
+      <h3 class="collector-section-title">Collector Information</h3>
+      <div class="profile-picture collector-profile-picture-wrap">
         <img id="profileImageDisplay" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Profile Picture" 
-             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
-        <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">
+             class="collector-profile-photo-main">
+        <a href="#photoUploadModal" class="btn btn-outline collector-photo-change-btn">
           Change Photo
         </a>
       </div>
@@ -153,9 +153,8 @@ $csrfToken = csrf_token();
     </div>
 
     <div class="pc-card">
-      <a href="#editModal" class="btn btn-outline"
-        style="position: absolute; right: 6%; top: 2%; background:var(--info-light);">✏️ Edit Profile</a>
-      <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
+      <a href="#editModal" class="btn btn-outline collector-edit-profile-btn">✏️ Edit Profile</a>
+      <h3 class="collector-section-title">Contact Information</h3>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($displayEmail) ?>" disabled>
       </div>
@@ -170,14 +169,14 @@ $csrfToken = csrf_token();
 
   <div class="p-info-card">
     <div class="pc-card security-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Security & Privacy</h3>
-      <p><a href="#passwordModal" class="btn btn-primary" style="margin-bottom: 10px; border: 1px solid var(--success);">Change Password</a></p>
+      <h3 class="collector-section-title">Security & Privacy</h3>
+      <p><a href="#passwordModal" class="btn btn-primary collector-change-password-btn">Change Password</a></p>
       <p><a href="/api/profile/delete" class="p-btn-delete" onclick="return confirmDeleteProfile(event)">Delete Account</a></p>
     </div>
 
     <div class="pc-card">
-      <h3 style="font-size: 20px; font-weight: bold;">Bank Details</h3>
-      <div style="display: grid; grid-template-columns: 2fr 2fr; gap: 20px;">
+      <h3 class="collector-section-title">Bank Details</h3>
+      <div class="collector-bank-grid">
         <div class="form-group"><label>Bank Name</label>
           <input type="text" value="<?= htmlspecialchars($bankDetails['name'] ?? '') ?>" disabled>
         </div>
@@ -192,7 +191,7 @@ $csrfToken = csrf_token();
         </div>
       </div>
       <div class="waste-tags">
-        <p><a href="#bankdetail" class="btn btn-outline" style="margin-bottom: 5px; background:var(--info-light); ">Edit
+        <p><a href="#bankdetail" class="btn btn-outline collector-edit-bank-btn">Edit
             Bank Details</a></p>
       </div>
     </div>
@@ -202,7 +201,7 @@ $csrfToken = csrf_token();
     <div class="p-info-card">
       <?php if (!empty($vehicleDisplay)): ?>
         <div class="pc-card">
-          <h3 style="font-size: 20px; font-weight: bold;">Vehicle Information</h3>
+          <h3 class="collector-section-title">Vehicle Information</h3>
           <div class="vehicle-info-grid">
             <?php foreach ($vehicleDisplay as $label => $value): ?>
               <div class="vehicle-info-item">
@@ -216,7 +215,7 @@ $csrfToken = csrf_token();
 <!-- 
       <?php if (!empty($certificationsList)): ?>
         <div class="pc-card">
-          <h3 style="font-size: 20px; font-weight: bold;">Certifications</h3>
+          <h3 class="collector-section-title">Certifications</h3>
           <div class="certification-list">
             <?php foreach ($certificationsList as $cert): ?>
               <span class="certification-badge"><?= htmlspecialchars($cert) ?></span>
@@ -230,13 +229,13 @@ $csrfToken = csrf_token();
 
 <!-- Photo Upload Modal -->
 <div id="photoUploadModal" class="form-modal">
-  <div class="form-modal-content" style="max-width: 500px;">
+  <div class="form-modal-content collector-photo-modal-content">
     <a href="#" class="close">&times;</a>
-    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Change Profile Photo</h2>
+    <h2 class="collector-modal-title collector-modal-title-spaced">Change Profile Photo</h2>
     
-    <div style="text-align: center; margin-bottom: 20px;">
+        <div class="collector-photo-preview-wrap">
       <img id="photoPreview" src="<?= htmlspecialchars($profileImageSrc) ?>" alt="Preview" 
-           style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #e5e7eb;">
+          class="collector-photo-preview">
     </div>
 
     <form method="POST" enctype="multipart/form-data" action="/collector/profile" id="photoUploadForm">
@@ -245,19 +244,18 @@ $csrfToken = csrf_token();
       <div class="form-group">
         <label class="form-lable">Select New Photo</label>
         <input type="file" name="photo" id="photoInput" accept="image/jpeg,image/png,image/jpg,image/gif" 
-               required style="padding: 10px;">
-        <small style="color: #6b7280; display: block; margin-top: 5px;">
+               required class="collector-file-input">
+        <small class="collector-file-hint">
           Accepted formats: JPG, PNG, GIF (Max 5MB)
         </small>
       </div>
 
-      <div class="form-actions" style="display: flex; gap: 10px; margin-top: 20px;">
-        <button type="submit" name="uploadPhoto" class="btn btn-primary" style="flex: 1;">
+      <div class="form-actions collector-photo-actions">
+        <button type="submit" name="uploadPhoto" class="btn btn-primary collector-flex-1">
           ✓ Upload Photo
         </button>
         <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
-          <button type="submit" name="removePhoto" class="btn btn-outline" 
-                  style="flex: 1; background: #fee2e2; color: #dc2626;"
+          <button type="submit" name="removePhoto" class="btn btn-outline collector-remove-photo-btn"
                   onclick="return confirm('Are you sure you want to remove your profile photo?');">
             🗑️ Remove Photo
           </button>
@@ -271,7 +269,7 @@ $csrfToken = csrf_token();
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
-    <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
+    <h2 class="collector-modal-title">Edit Profile</h2>
     <?php if (!empty($errors)): ?>
       <div class="error-box">
         <ul>
@@ -304,7 +302,7 @@ $csrfToken = csrf_token();
         <input type="text" name="licenseNumber" value="<?= htmlspecialchars($editLicenseNumber) ?>">
       </div>
 
-      <button type="submit" class="btn btn-primary outline" name="saveProfile" style="width:100%">Save Changes</button>
+      <button type="submit" class="btn btn-primary outline collector-full-width" name="saveProfile">Save Changes</button>
     </form>
   </div>
 </div>
@@ -352,7 +350,7 @@ $csrfToken = csrf_token();
 <div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
-    <h2 style="font-size: 20px; font-weight: bold;">Bank Details</h2>
+    <h2 class="collector-modal-title">Bank Details</h2>
     <form method="POST" action="/api/profile/bankDetails">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label class="form-lable">Bank Name</label>
@@ -367,7 +365,7 @@ $csrfToken = csrf_token();
       <div class="form-group"><label class="form-lable">Bank Branch</label>
         <input type="text" name="bank_branch" value="<?= htmlspecialchars($editBankBranch) ?>">
       </div>
-      <button type="submit" class="btn btn-primary outline" style="width: 100%">Save Details</button>
+      <button type="submit" class="btn btn-primary outline collector-full-width">Save Details</button>
     </form>
   </div>
 </div>
@@ -376,7 +374,7 @@ $csrfToken = csrf_token();
 <div id="passwordModal" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
-    <h2 style="font-size: 20px; font-weight: bold;">Change Password</h2>
+    <h2 class="collector-modal-title">Change Password</h2>
     <form method="POST" action="/api/profile/password">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label>New Password</label>
@@ -385,7 +383,7 @@ $csrfToken = csrf_token();
       <div class="form-group"><label>Confirm New Password</label>
         <input type="password" name="confirm_password" minlength="6" required>
       </div>
-      <button type="submit" class="btn btn-primary outline" style="width:100%">Change Password</button>
+      <button type="submit" class="btn btn-primary outline collector-full-width">Change Password</button>
     </form>
   </div>
 

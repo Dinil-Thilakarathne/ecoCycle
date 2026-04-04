@@ -26,91 +26,6 @@ $unreadCount = count(array_filter($normalized, fn($x) => $x['status'] === 'unrea
 $readCount = $totalCount - $unreadCount;
 ?>
 
-<style>
-    /* Pill Style Navigation */
-    .tab-nav-wrapper {
-        background-color: #f1f3f5;
-        padding: 5px;
-        border-radius: 12px;
-        display: inline-flex;
-        gap: 4px;
-        margin-bottom: 1.5rem;
-    }
-
-    .tab-trigger {
-        padding: 8px 18px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-weight: 500;
-        color: #666;
-        border-radius: 9px;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-
-    .tab-trigger.active {
-        background-color: #ffffff;
-        color: #000000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .notification-row.unread { background-color: #dff2e7; }
-
-    .notifications-table th:first-child,
-    .notifications-table td:first-child {
-        text-align: left;
-    }
-
-    .notifications-table th:not(:first-child),
-    .notifications-table td:not(:first-child) {
-        text-align: center;
-    }
-
-    .notifications-table {
-        table-layout: fixed;
-    }
-
-    .notifications-table th,
-    .notifications-table td {
-        vertical-align: middle;
-    }
-
-    .notifications-table th:nth-child(1),
-    .notifications-table td:nth-child(1) {
-        width: 48%;
-    }
-
-    .notifications-table th:nth-child(2),
-    .notifications-table td:nth-child(2) {
-        width: 16%;
-    }
-
-    .notifications-table th:nth-child(3),
-    .notifications-table td:nth-child(3) {
-        width: 18%;
-    }
-
-    .notifications-table th:nth-child(4),
-    .notifications-table td:nth-child(4) {
-        width: 18%;
-    }
-
-    .notifications-table thead th {
-        background-color: #f1f3f5;
-        color: #6c757d;
-    }
-
-    .notifications-table tbody td {
-        padding-top: 14px;
-        padding-bottom: 14px;
-    }
-
-    .notifications-table .actions-cell > div {
-        width: 100%;
-    }
-</style>
-
 <main class="content">
     <header class="page-header">
         <div class="page-header__content">
@@ -120,7 +35,7 @@ $readCount = $totalCount - $unreadCount;
     </header>
 
     <div class="dashboard-page">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+        <div class="notification-tabs-row">
             <div class="tab-nav-wrapper">
                 <button onclick="filterTable('all', this)" class="tab-trigger active">
                     Total (<span id="count-all"><?= $totalCount ?></span>)
@@ -137,14 +52,14 @@ $readCount = $totalCount - $unreadCount;
                 <button onclick="markAllAsRead()" class="btn btn-primary">Mark All as Read</button>
             </div>
 
-        <div class="table-container" style="overflow-x:auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <table class="notifications-table data-table" style="width:100%;">
+        <div class="table-container notification-table-shell">
+            <table class="notifications-table data-table notification-table-full">
                 <thead>
                     <tr>
-                        <th style="width:25%; text-align: left;">Notification</th>
-                        <th style="width:25%; text-align: center;">Type</th>
-                        <th style="width:25%; text-align: center;">Date</th>
-                        <th style="width:25%; text-align: center;">Actions</th>
+                        <th class="notification-th-title">Notification</th>
+                        <th class="notification-th-center">Type</th>
+                        <th class="notification-th-center">Date</th>
+                        <th class="notification-th-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="notifications-tbody">
@@ -157,7 +72,7 @@ $readCount = $totalCount - $unreadCount;
 <div id="notification-detail-modal" class="user-modal" role="dialog" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" onclick="closeNotificationModal()">&times;</button>
-        <h2 style="margin-bottom: 10px; color: var(--primary-color);">Notification Details</h2>
+        <h2 class="notification-modal-title">Notification Details</h2>
         <div class="user-modal__grid">
             <div><strong>Title</strong></div><div class="nd-title"></div>
             <div><strong>Message</strong></div><div class="nd-message"></div>
@@ -169,12 +84,12 @@ $readCount = $totalCount - $unreadCount;
 </div>
 
 <div id="notification-delete-confirm-modal" class="user-modal" role="dialog" aria-hidden="true">
-    <div class="user-modal__dialog" style="max-width: 420px;">
-        <h2 style="margin-bottom: 10px; color: var(--primary-color);">Delete Notification</h2>
-        <p style="margin-bottom: 18px; color: #4b5563;">    
+    <div class="user-modal__dialog notification-delete-dialog">
+        <h2 class="notification-modal-title">Delete Notification</h2>
+        <p class="notification-delete-text">    
             Are you sure you want to delete this notification?
         </p>
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <div class="notification-delete-actions">
             <button type="button" class="btn btn-outline" onclick="closeDeleteConfirmModal(false)">Cancel</button>
             <button type="button" class="btn btn-primary" onclick="closeDeleteConfirmModal(true)">OK</button>
         </div>
@@ -259,7 +174,7 @@ function timeAgo(timestamp) {
         document.getElementById('count-read').textContent = readCount;
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem;">No ${activeFilter} notifications found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="notification-empty">No ${activeFilter} notifications found.</td></tr>`;
             return;
         }
 
@@ -269,16 +184,16 @@ function timeAgo(timestamp) {
             tr.className = 'notification-row' + (isUnread ? ' unread' : '');
             
             tr.innerHTML = `
-                <td style="text-align: left;">
+                <td class="notification-left-cell">
                     <div class="notification-details">
-                        <div class="notification-title" style="font-size: 14px;"><b>${notif.title}</b></div>
-                        <div style="font-size: 12px; color: #666; margin-left: 0;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
+                        <div class="notification-title notification-title-sm"><b>${notif.title}</b></div>
+                        <div class="notification-message-preview">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
                     </div>
                 </td>
-                <td style="text-align: center;"><span class="type-badge ${notif.type}">${notif.type}</span></td>
-                <td style="text-align: center;">${timeAgo(notif.timestamp)}</td>
-                <td class="actions-cell" style="text-align: center;">
-                    <div style="display:flex; gap:12px; justify-content: center; align-items: center;">
+                <td class="notification-center-cell"><span class="type-badge ${notif.type}">${notif.type}</span></td>
+                <td class="notification-center-cell">${timeAgo(notif.timestamp)}</td>
+                <td class="actions-cell notification-center-cell">
+                    <div class="notification-action-row">
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
                         <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification"><i class="fa-solid fa-trash"></i></button>
                     </div>
