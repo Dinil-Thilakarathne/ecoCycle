@@ -256,6 +256,7 @@ class CompanyDashboardController extends DashboardController
             'description' => $metadata['description'] ?? '',
             'email' => $profile['email'] ?? '',
             'phone' => $profile['phone'] ?? '',
+            'land_phone' => $profile['land_phone'] ?? '',
             'website' => $metadata['website'] ?? '',
             'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
             'profile_picture' => isset($profile['profile_image_path']) && $profile['profile_image_path']
