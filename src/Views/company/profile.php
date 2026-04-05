@@ -46,8 +46,8 @@ $csrf = app('session')->token();
         <a href="#photoUploadModal" class="btn btn-outline" style="font-size: 14px; padding: 8px 16px;">Change Photo
         </a>
       </div>
-      <div class="form-group"><label>Name</label>
-        <input type="text" value="<?= htmlspecialchars($metadata['companyName'] ?? 'N/A') ?>" disabled>
+      <div class="form-group"><label>Company Name</label>
+        <input type="text" value="<?= htmlspecialchars($company['name'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Registration Number</label>
         <input type="text" value="<?= htmlspecialchars($metadata['reg_number'] ?? 'N/A') ?>" disabled>
@@ -65,7 +65,7 @@ $csrf = app('session')->token();
         style="position: absolute; right: 6%; top: 2%; background:var(--info-light);">✏️ Edit Profile</a>
       <h3 style="font-size: 20px; font-weight: bold;">Contact Information</h3>
       <div class="form-group"><label>Contact Person</label>
-        <input type="text" value="<?= htmlspecialchars($company['name'] ?? '') ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($metadata['contactPerson'] ?? 'N/A') ?>" disabled>
       </div>
       <div class="form-group"><label>Email</label>
         <input type="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>" disabled>
@@ -179,8 +179,8 @@ $csrf = app('session')->token();
     <form method="POST" enctype="multipart/form-data" action="/api/profile/update">
       <input type="hidden" name="_token" value="<?= app('session')->token() ?>">
 
-      <div class="form-group"><label>Name</label>
-        <input type="text" name="companyName" value="<?= htmlspecialchars($metadata['companyName'] ?? '') ?>">
+      <div class="form-group"><label>Company Name</label>
+        <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Registration Number</label>
         <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>">
@@ -190,7 +190,7 @@ $csrf = app('session')->token();
       </div>
 
       <div class="form-group"><label>Contact Person</label>
-        <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>">
+        <input type="text" name="contactPerson" value="<?= htmlspecialchars($metadata['contactPerson'] ?? '') ?>">
       </div>
       <div class="form-group"><label>Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>">

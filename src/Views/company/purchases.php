@@ -188,7 +188,10 @@ $paymentReturn = $_GET['payment'] ?? '';
             try {
                 const response = await fetch(API_URL, {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
                 });
 
                 if (!response.ok) throw new Error('Failed to load invoices');
@@ -228,7 +231,7 @@ $paymentReturn = $_GET['payment'] ?? '';
                         <p>Reference: ${escapeHtml(invoice.txnId || 'Not yet submitted')}</p>
                         <p>Date: ${formatDate(invoice.date || invoice.createdAt)}</p>
                         <span class="tag ${tagClass}" style="position: absolute; top: 15px; right: 20px;">${badgeLabel}</span>
-                        <button class="btn btn-primary outline view-invoice-btn" style="width: 100%; margin-top: 15px;" data-invoice='${JSON.stringify(invoice)}'>
+                        <button class="btn btn-primary outline view-invoice-btn" style="width: 100%; margin-top: 15px;" data-invoice-id="${invoice.id}">
                             ${isPending ? '💳 Pay Invoice' : 'View / Update Payment'}
                         </button>
                     </div>
@@ -237,8 +240,9 @@ $paymentReturn = $_GET['payment'] ?? '';
 
                 container.querySelectorAll('.view-invoice-btn').forEach(btn => {
                     btn.addEventListener('click', function () {
-                        const invoice = JSON.parse(this.getAttribute('data-invoice'));
-                        showInvoiceDetails(invoice);
+                        const id = this.getAttribute('data-invoice-id');
+                        const invoice = allInvoices.find(inv => String(inv.id) === String(id));
+                        if (invoice) showInvoiceDetails(invoice);
                     });
                 });
             }
@@ -271,14 +275,22 @@ $paymentReturn = $_GET['payment'] ?? '';
                         </td>
                         <td>${formatDate(invoice.date || invoice.createdAt)}</td>
                         <td>
-                            <button class="btn btn-primary outline" style="padding: 5px 10px; font-size: 12px;"
-                                onclick='showInvoiceDetails(${JSON.stringify(invoice)})'>
+                            <button class="btn btn-primary outline view-history-btn" style="padding: 5px 10px; font-size: 12px;"
+                                data-invoice-id="${invoice.id}">
                                 ${canAct ? '💳 Pay / View' : 'View'}
                             </button>
                         </td>
                     </tr>
                     `;
                 }).join('');
+
+                tbody.querySelectorAll('.view-history-btn').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const id = this.getAttribute('data-invoice-id');
+                        const invoice = allInvoices.find(inv => String(inv.id) === String(id));
+                        if (invoice) showInvoiceDetails(invoice);
+                    });
+                });
             }
         }
 
@@ -403,10 +415,13 @@ $paymentReturn = $_GET['payment'] ?? '';
         }
 
         // ── Close modal ───────────────────────────────────────────────────
-        document.querySelector('.closePayment').addEventListener('click', function (e) {
-            e.preventDefault();
-            document.getElementById('paymentModal').style.display = 'none';
-        });
+        const closeBtn = document.querySelector('.closePayment');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.getElementById('paymentModal').style.display = 'none';
+            });
+        }
 
         // ── Utility helpers ───────────────────────────────────────────────
         function escapeHtml(text) {

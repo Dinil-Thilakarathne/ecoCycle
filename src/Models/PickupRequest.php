@@ -328,10 +328,10 @@ class PickupRequest extends BaseModel
                         continue;
 
                     // Fetch price per unit for this category
-                    $catRow = $this->db->fetch("SELECT default_minimum_bid FROM waste_categories WHERE id = ?", [$catId]);
+                    $catRow = $this->db->fetch("SELECT price_per_unit FROM waste_categories WHERE id = ?", [$catId]);
                     $pricePerUnit = 0.0;
                     if ($catRow) {
-                        $pricePerUnit = (float) ($catRow['default_minimum_bid'] ?? 0);
+                        $pricePerUnit = (float) ($catRow['price_per_unit'] ?? 0);
                     }
 
                     $amount = $weight * $pricePerUnit;
@@ -475,7 +475,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.default_minimum_bid
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.price_per_unit
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -506,7 +506,7 @@ class PickupRequest extends BaseModel
                     'name' => $name,
                     'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
                     'unit' => $row['unit'] ?? null,
-                    'price_per_unit' => isset($row['default_minimum_bid']) ? (float) $row['default_minimum_bid'] : 0.0,
+                    'price_per_unit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
                 ];
             }
         }
