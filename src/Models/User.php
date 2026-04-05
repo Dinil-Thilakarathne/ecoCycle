@@ -261,20 +261,36 @@ class User
         return password_verify($password, $user['password_hash']);
     }
 
-    /**
-     * List users optionally filtered by type and/or status.
-     * Returns array of rows.
-     * Note: $limit is cast to int and injected into SQL (safe usage here).
-     */
     public function listByType(?string $type = null, int $limit = 100): array
     {
         $limit = (int) $limit;
-        if ($type === null) {
-            $rows = $this->db->fetchAll("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY u.id DESC LIMIT {$limit}");
-            return array_map(fn($r) => $this->normalizeRow($r), $rows ?: []);
+        
+        $sql = "SELECT u.*, r.name AS role_name";
+        
+        if ($type === 'customer') {
+            $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE customer_id = u.id) AS computed_total_pickups";
+            $sql .= ", (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE recipient_id = u.id AND type = 'payout' AND status = 'completed') AS computed_total_earnings";
+        } elseif ($type === 'collector') {
+            $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id) AS computed_total_pickups";
+            if ($this->db->isPgsql()) {
+                $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id AND DATE(created_at) = CURRENT_DATE) AS computed_today_pickups";
+            } else {
+                $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id AND DATE(created_at) = CURDATE()) AS computed_today_pickups";
+            }
+        } elseif ($type === 'company') {
+            $sql .= ", (SELECT COUNT(id) FROM payments WHERE recipient_id = u.id AND type = 'payment' AND status = 'completed') AS computed_total_purchases";
         }
+        
+        $sql .= " FROM users u LEFT JOIN roles r ON r.id = u.role_id";
 
-        $rows = $this->db->fetchAll("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.type = ? ORDER BY u.id DESC LIMIT {$limit}", [$type]);
+        if ($type === null) {
+            $sql .= " ORDER BY u.id DESC LIMIT {$limit}";
+            $rows = $this->db->fetchAll($sql);
+        } else {
+            $sql .= " WHERE u.type = ? ORDER BY u.id DESC LIMIT {$limit}";
+            $rows = $this->db->fetchAll($sql, [$type]);
+        }
+        
         return array_map(fn($r) => $this->normalizeRow($r), $rows ?: []);
     }
 
@@ -316,23 +332,37 @@ class User
         }
 
         // Map common snake_case DB fields to camelCase keys used by views
-        if (array_key_exists('total_pickups', $row)) {
+        if (array_key_exists('computed_total_pickups', $row)) {
+            $row['totalPickups'] = (int) $row['computed_total_pickups'];
+        } elseif (array_key_exists('total_pickups', $row)) {
             $row['totalPickups'] = (int) $row['total_pickups'];
             if (!isset($row['todayPickups']) && ($row['type'] ?? null) === 'collector') {
                 // Collectors page expects today's pickups; seed data currently stores it in total_pickups
                 $row['todayPickups'] = (int) $row['total_pickups'];
             }
         }
-        if (array_key_exists('total_earnings', $row)) {
+        
+        if (array_key_exists('computed_today_pickups', $row)) {
+            $row['todayPickups'] = (int) $row['computed_today_pickups'];
+        }
+
+        if (array_key_exists('computed_total_earnings', $row)) {
+            $row['totalEarnings'] = (float) $row['computed_total_earnings'];
+        } elseif (array_key_exists('total_earnings', $row)) {
             // keep numeric float
             $row['totalEarnings'] = (float) $row['total_earnings'];
         }
+        
         if (array_key_exists('total_bids', $row)) {
             $row['totalBids'] = (int) $row['total_bids'];
         }
-        if (array_key_exists('total_purchases', $row)) {
+        
+        if (array_key_exists('computed_total_purchases', $row)) {
+            $row['totalPurchases'] = (int) $row['computed_total_purchases'];
+        } elseif (array_key_exists('total_purchases', $row)) {
             $row['totalPurchases'] = (int) $row['total_purchases'];
         }
+        
         if (array_key_exists('vehicle_id', $row)) {
             $row['vehicleId'] = $row['vehicle_id'];
         }

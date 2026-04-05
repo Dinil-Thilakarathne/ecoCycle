@@ -5,6 +5,7 @@ namespace Controllers\Api\Customer;
 use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
+use Models\CollectorRating;
 use Models\PickupRequest;
 use Models\WasteCategory;
 
@@ -12,12 +13,14 @@ class PickupRequestController extends BaseController
 {
     private PickupRequest $pickupRequest;
     private WasteCategory $wasteCategory;
+    private CollectorRating $collectorRating;
     private \Models\Notification $notification;
 
     public function __construct()
     {
         $this->pickupRequest = new PickupRequest();
         $this->wasteCategory = new WasteCategory();
+        $this->collectorRating = new CollectorRating();
         $this->notification = new \Models\Notification();
     }
 
@@ -35,6 +38,21 @@ class PickupRequestController extends BaseController
             $records = $this->pickupRequest->listForCustomer($customerId, $status);
         } catch (\Throwable $e) {
             return Response::errorJson('Unable to load pickup requests', 500);
+        }
+
+        try {
+            $ratedPickupIds = $this->collectorRating->getRatedPickupRequestIds($customerId);
+        } catch (\Throwable $e) {
+            $ratedPickupIds = [];
+        }
+
+        if (!empty($records)) {
+            $ratedLookup = array_fill_keys($ratedPickupIds, true);
+            $records = array_map(static function (array $record) use ($ratedLookup): array {
+                $id = (string) ($record['id'] ?? '');
+                $record['hasRating'] = isset($ratedLookup[$id]);
+                return $record;
+            }, $records);
         }
 
         return Response::json([

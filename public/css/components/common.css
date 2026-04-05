@@ -346,6 +346,10 @@
     justify-content: center;
     column-gap: var(--space-8);
   }
+  &.btn-danger {
+    background-color: var(--danger-light);
+    color: var(--danger);
+  }
 }
 
 /* Table Styles */
