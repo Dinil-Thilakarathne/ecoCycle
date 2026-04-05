@@ -176,7 +176,8 @@ class CollectorDashboardController extends DashboardController
             $allPickups = $pickupRequest->listForCollector($collectorId);
             return count(array_filter(
                 $allPickups,
-                fn(array $pickup) => in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'], true)
+                fn(array $pickup) => $this->isPickupForToday($pickup)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
             ));
         } catch (\Throwable $e) {
             return 0;
@@ -193,7 +194,10 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $completedPickups = $pickupRequest->listForCollector($collectorId, 'completed');
-            return count($completedPickups);
+            return count(array_filter(
+                $completedPickups,
+                fn(array $pickup) => $this->isPickupForToday($pickup)
+            ));
         } catch (\Throwable $e) {
             return 0;
         }
@@ -201,13 +205,19 @@ class CollectorDashboardController extends DashboardController
 
     private function getPendingPickups(): array
     {
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return [];
+        }
+
         try {
             $pickupRequest = new PickupRequest();
-            $allPickups = $pickupRequest->listAll();
+            $allPickups = $pickupRequest->listForCollector($collectorId);
 
             return array_values(array_filter(
                 $allPickups,
-                static fn (array $pickup): bool => strtolower((string) ($pickup['status'] ?? '')) === 'pending'
+                fn(array $pickup): bool => $this->isPickupForToday($pickup)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
             ));
         } catch (\Throwable $e) {
             return [];
@@ -235,7 +245,10 @@ class CollectorDashboardController extends DashboardController
             $pickupRequest = new PickupRequest();
             $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
             if (!empty($records)) {
-                return array_values($records);
+                return array_values(array_filter(
+                    $records,
+                    fn(array $pickup): bool => $this->isPickupForToday($pickup)
+                ));
             }
         } catch (\Throwable $e) {
             error_log('Collector tasks load failed: ' . $e->getMessage());
@@ -301,17 +314,12 @@ class CollectorDashboardController extends DashboardController
     {
         $today = date('Y-m-d');
 
-        $scheduledDate = isset($pickup['scheduled_at']) ? substr((string) $pickup['scheduled_at'], 0, 10) : '';
-        if ($scheduledDate !== '') {
-            return $scheduledDate === $today;
+        $scheduledAt = (string) ($pickup['scheduledAt'] ?? $pickup['scheduled_at'] ?? '');
+        if ($scheduledAt === '') {
+            return false;
         }
 
-        $createdDate = isset($pickup['created_at']) ? substr((string) $pickup['created_at'], 0, 10) : '';
-        if ($createdDate !== '') {
-            return $createdDate === $today;
-        }
-
-        return false;
+        return substr($scheduledAt, 0, 10) === $today;
     }
     private function getRouteHistory(): array
     {

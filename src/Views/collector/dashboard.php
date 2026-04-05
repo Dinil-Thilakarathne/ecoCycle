@@ -409,7 +409,10 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 
     async function fetchStats() {
       try {
-        const res = await fetch(endpoint, { credentials: 'same-origin' });
+        const res = await fetch(endpoint, {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
         if (!res.ok) return;
         const json = await res.json();
         if (!json || json.status !== 'success') return;

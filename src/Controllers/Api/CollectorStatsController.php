@@ -22,7 +22,7 @@ class CollectorStatsController extends BaseController
 
     /**
      * GET /api/collector/stats
-     * Returns counts and total weight for all pickups assigned to the logged-in collector
+     * Returns today's counts and total weight for pickups scheduled for the logged-in collector
      */
     public function stats(Request $request): Response
     {
@@ -33,30 +33,41 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            // All assigned pickups (assigned, in_progress, or completed)
+            $todayStart = (new \DateTimeImmutable('today'))->setTime(0, 0, 0)->format('Y-m-d H:i:s');
+            $todayEnd = (new \DateTimeImmutable('today'))->setTime(23, 59, 59)->format('Y-m-d H:i:s');
+
+            // Today's scheduled pickups that are already in active/completed workflow states
             $tasksSql = "SELECT COUNT(*) AS count FROM pickup_requests 
                          WHERE collector_id = ? 
-                         AND status IN ('assigned', 'in_progress', 'completed')";
-            $tasks = $this->db->fetch($tasksSql, [$collectorId]);
+                         AND status IN ('assigned', 'in_progress', 'completed')
+                         AND scheduled_at >= ?
+                         AND scheduled_at <= ?";
+            $tasks = $this->db->fetch($tasksSql, [$collectorId, $todayStart, $todayEnd]);
 
-            // All completed pickups
+            // Today's completed pickups (by scheduled date)
             $completedSql = "SELECT COUNT(*) AS count FROM pickup_requests 
                              WHERE collector_id = ? 
-                             AND status = 'completed'";
-            $completed = $this->db->fetch($completedSql, [$collectorId]);
+                             AND status = 'completed'
+                             AND scheduled_at >= ?
+                             AND scheduled_at <= ?";
+            $completed = $this->db->fetch($completedSql, [$collectorId, $todayStart, $todayEnd]);
 
-            // Pending tasks (assigned and in_progress)
+            // Today's pending tasks (includes unassigned pending records plus active states)
             $pendingSql = "SELECT COUNT(*) AS count FROM pickup_requests 
                            WHERE collector_id = ? 
-                           AND status IN ('assigned', 'in_progress')";
-            $pending = $this->db->fetch($pendingSql, [$collectorId]);
+                           AND status IN ('pending', 'assigned', 'in_progress')
+                           AND scheduled_at >= ?
+                           AND scheduled_at <= ?";
+            $pending = $this->db->fetch($pendingSql, [$collectorId, $todayStart, $todayEnd]);
 
-            // Total collected weight (only from completed pickups)
+            // Today's collected weight from completed pickups scheduled today
             $weightSql = "SELECT COALESCE(SUM(CAST(weight AS DECIMAL(12,2))), 0) AS total_weight 
                           FROM pickup_requests 
                           WHERE collector_id = ? 
-                          AND status = 'completed'";
-            $weight = $this->db->fetch($weightSql, [$collectorId]);
+                          AND status = 'completed'
+                          AND scheduled_at >= ?
+                          AND scheduled_at <= ?";
+            $weight = $this->db->fetch($weightSql, [$collectorId, $todayStart, $todayEnd]);
 
             return $this->json([
                 'status' => 'success',
