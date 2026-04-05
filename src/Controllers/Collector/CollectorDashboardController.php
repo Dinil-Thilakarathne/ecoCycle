@@ -358,6 +358,7 @@ class CollectorDashboardController extends DashboardController
         return [];
     }
 
+
     private function exportWasteCollectionReport(int $collectorId): \Core\Http\Response
     {
         $db = new Database();
@@ -390,94 +391,49 @@ class CollectorDashboardController extends DashboardController
             ];
         }
 
-        $lines = $this->buildWasteReportLines($tableRows);
+        $html = $this->generateWasteCollectionReportHtml($tableRows);
 
-        return $this->pdfResponse(
-            'waste_collection_details_' . date('Ymd_His') . '.pdf',
-            $lines
+        return $this->htmlReportResponse(
+            'waste_collection_details_' . date('Ymd_His') . '.html',
+            $html
         );
     }
 
-    private function generateWasteCollectionPdf(array $grouped): string
+    private function generateWasteCollectionReportHtml(array $tableRows): string
     {
         $date = date('Y-m-d H:i:s');
-        $html = "<html><body><h1>Waste Collection Report</h1><p>Generated on: {$date}</p>";
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Waste Collection Report</h1><p>Generated on: {$date}</p>";
 
-        if (empty($grouped)) {
-            $html .= '<div class="no-data"><p>No waste collection data available for this period.</p></div>';
+        if (empty($tableRows)) {
+            $html .= '<p>No waste collection data available for this period.</p>';
         } else {
-            foreach ($grouped as $data) {
-                $customerId = $data['customer_id'];
-                $name = htmlspecialchars($data['name']);
-                $location = htmlspecialchars($data['location']);
-                $totalWeight = number_format($data['weight'], 2);
-                $totalAmount = number_format($data['amount'], 2);
+            $html .= '<h3>Collection Details</h3>';
+            $html .= '<table><thead><tr>'
+                . '<th>Customer ID</th>'
+                . '<th>Customer Name</th>'
+                . '<th>Address</th>'
+                . '<th>Material</th>'
+                . '<th>Weight (kg)</th>'
+                . '</tr></thead><tbody>';
 
-                $html .= <<<HTML
-    <div class="customer-section">
-        <div class="customer-header">
-            Customer ID: {$customerId}
-        </div>
-        <div class="customer-info">
-            <div class="info-item">
-                <label>Customer Name:</label>
-                <strong>{$name}</strong>
-            </div>
-            <div class="info-item">
-                <label>Location:</label>
-                <strong>{$location}</strong>
-            </div>
-            <div class="info-item">
-                <label>Total Amount (Rs):</label>
-                <strong class="total-amount">Rs. {$totalAmount}</strong>
-            </div>
-        </div>
+            foreach ($tableRows as $row) {
+                $customerId = htmlspecialchars((string) ($row['customer_id'] ?? '-'));
+                $customerName = htmlspecialchars((string) ($row['customer_name'] ?? 'Unknown Customer'));
+                $address = htmlspecialchars((string) ($row['address'] ?? 'Not provided'));
+                $material = htmlspecialchars((string) ($row['material_collected'] ?? 'General'));
+                $weight = number_format((float) ($row['weight'] ?? 0), 2);
 
-        <table class="materials-table">
-            <thead>
-                <tr>
-                    <th>Material Type</th>
-                    <th>Weight (kg)</th>
-                    <th>Amount (Rs)</th>
-                    <th>Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-HTML;
-
-                $totalWeightValue = (float) $data['weight'];
-                foreach ($data['materials'] as $material => $weight) {
-                    $materialWeight = (float) ($weight['weight'] ?? 0);
-                    $materialAmount = (float) ($weight['amount'] ?? 0);
-                    $percentage = $totalWeightValue > 0 ? (($materialWeight / $totalWeightValue) * 100) : 0;
-                    $material = htmlspecialchars($material);
-                    $weight = number_format($materialWeight, 2);
-                    $amount = number_format($materialAmount, 2);
-                    $percentage = number_format($percentage, 1);
-
-                    $html .= <<<HTML
-                <tr>
-                    <td>{$material}</td>
-                    <td>{$weight}</td>
-                    <td>{$amount}</td>
-                    <td>{$percentage}%</td>
-                </tr>
-HTML;
-                }
-
-                $html .= <<<HTML
-                <tr class="summary-row">
-                    <td><strong>Total Waste Collected</strong></td>
-                    <td><strong>{$totalWeight} kg</strong></td>
-                    <td><strong>Rs. {$totalAmount}</strong></td>
-                    <td><strong>100%</strong></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-HTML;
+                $html .= "<tr>"
+                    . "<td>{$customerId}</td>"
+                    . "<td>{$customerName}</td>"
+                    . "<td>{$address}</td>"
+                    . "<td>{$material}</td>"
+                    . "<td>{$weight}</td>"
+                    . "</tr>";
             }
+
+            $html .= '</tbody></table>';
         }
 
         $html .= '<p>This is an automatically generated report. Please ensure accuracy of data.</p></body></html>';
@@ -522,20 +478,21 @@ HTML;
         // Sort by month descending
         krsort($grouped);
 
-        $lines = $this->buildSalaryReportLines($grouped, $monthlyTotals);
+        $html = $this->generateSalaryTransactionReportHtml($grouped, $monthlyTotals);
 
-        return $this->pdfResponse(
-            'salary_transactions_' . date('Ymd_His') . '.pdf',
-            $lines
+        return $this->htmlReportResponse(
+            'salary_transactions_' . date('Ymd_His') . '.html',
+            $html
         );
     }
 
-    private function generateSalaryTransactionPdf(array $grouped, array $monthlyTotals): string
+    private function generateSalaryTransactionReportHtml(array $grouped, array $monthlyTotals): string
     {
         $date = date('Y-m-d H:i:s');
         $overallTotal = array_sum($monthlyTotals);
 
-        $html = "<html><body><h1>Salary Transaction Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Salary Transaction Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
 
         if (empty($grouped)) {
             $html .= '<div class="no-data"><p>No salary transactions found for this period.</p></div>';
@@ -546,17 +503,10 @@ HTML;
                 $transactionCount = count($data['transactions']);
 
                 $html .= <<<HTML
-    <div class="month-section">
-        <div class="month-header">
-            {$monthLabel} ({$transactionCount} transactions)
-        </div>
-        
-        <div class="month-total">
-            <label>Monthly Total:</label>
-            <span class="amount">Rs. {$monthTotal}</span>
-        </div>
+    <h3>{$monthLabel} ({$transactionCount} transactions)</h3>
+    <p><strong>Monthly Total:</strong> Rs. {$monthTotal}</p>
 
-        <table class="transactions-table">
+    <table>
             <thead>
                 <tr>
                     <th>Transaction ID</th>
@@ -576,18 +526,11 @@ HTML;
                     $amount = number_format($txn['amount'], 2);
                     $notes = htmlspecialchars($txn['notes']);
 
-                    $statusClass = 'status-pending';
-                    if (strtolower($status) === 'completed') {
-                        $statusClass = 'status-completed';
-                    } elseif (strtolower($status) === 'failed') {
-                        $statusClass = 'status-failed';
-                    }
-
                     $html .= <<<HTML
                 <tr>
                     <td><strong>{$txnId}</strong></td>
                     <td>{$txnDate}</td>
-                    <td><span class="status-badge {$statusClass}">{$status}</span></td>
+                    <td>{$status}</td>
                     <td><strong>{$amount}</strong></td>
                     <td>{$notes}</td>
                 </tr>
@@ -611,6 +554,30 @@ HTML;
     private function formatAmount(float $amount): string
     {
         return number_format($amount, 2);
+    }
+
+    private function collectorReportStyle(): string
+    {
+        return '<style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+            </style>';
+    }
+
+    private function htmlReportResponse(string $filename, string $html): \Core\Http\Response
+    {
+        return new \Core\Http\Response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     private function buildWasteReportLines(array $tableRows): array
