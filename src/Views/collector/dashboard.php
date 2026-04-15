@@ -37,10 +37,6 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
   $longitude = $pickupLocationItem['longitude'] ?? null;
   $hasCoordinates = is_numeric($latitude) && is_numeric($longitude);
 
-  if ($address === '' && !$hasCoordinates) {
-    continue;
-  }
-
   $pendingPickupLocations[] = [
     'id' => (string) ($pickupLocationItem['id'] ?? ''),
     'customerName' => (string) ($pickupLocationItem['customerName'] ?? 'Pickup Location'),
@@ -252,77 +248,50 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
     );
   }
 
-  async function geocodeAddress(address) {
-    try {
-      const params = new URLSearchParams({
-        q: address,
-        format: 'json',
-        limit: '1',
-        countrycodes: 'lk',
-        bounded: '1',
-        viewbox: `${SRI_LANKA_BOUNDS.west},${SRI_LANKA_BOUNDS.north},${SRI_LANKA_BOUNDS.east},${SRI_LANKA_BOUNDS.south}`
-      });
+  const FALLBACK_LANDMARK_POINTS = [
+    { x: 51, y: 14 },
+    { x: 56, y: 20 },
+    { x: 59, y: 27 },
+    { x: 58, y: 35 },
+    { x: 57, y: 43 },
+    { x: 56, y: 51 },
+    { x: 55, y: 59 },
+    { x: 54, y: 67 },
+    { x: 53, y: 75 },
+    { x: 51, y: 83 },
+    { x: 49, y: 90 },
+    { x: 47, y: 96 },
+    { x: 45, y: 86 },
+    { x: 46, y: 78 },
+    { x: 47, y: 70 },
+    { x: 48, y: 62 },
+    { x: 49, y: 54 },
+    { x: 50, y: 46 },
+    { x: 50, y: 38 },
+    { x: 50, y: 30 },
+    { x: 50, y: 22 },
+  ];
 
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
-      const results = await response.json();
-      if (results && results[0]) {
-        const lat = parseFloat(results[0].lat);
-        const lng = parseFloat(results[0].lon);
-        if (!isWithinSriLanka(lat, lng)) {
-          return { location: null, status: 'OUT_OF_BOUNDS' };
-        }
+  function getFallbackLandmark(index) {
+    const base = FALLBACK_LANDMARK_POINTS[index % FALLBACK_LANDMARK_POINTS.length];
+    const band = Math.floor(index / FALLBACK_LANDMARK_POINTS.length);
 
-        return {
-          location: { lat, lng },
-          status: 'OK'
-        };
-      }
-      return { location: null, status: 'ZERO_RESULTS' };
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return { location: null, status: 'ERROR' };
-    }
+    const xOffset = ((band % 3) - 1) * 1.6;
+    const yOffset = (Math.floor(band / 3) % 3) * 1.4;
+
+    return {
+      x: Math.min(62, Math.max(38, base.x + xOffset)),
+      y: Math.min(98, Math.max(12, base.y + yOffset)),
+    };
   }
 
-  async function resolveLocationForPickup(locationItem) {
+  function resolveMapPosition(locationItem, index) {
     const directCoordinates = parseCoordinates(locationItem);
-    if (directCoordinates) {
-      if (!isWithinSriLanka(directCoordinates.lat, directCoordinates.lng)) {
-        return { location: null, source: 'coordinates', status: 'OUT_OF_BOUNDS' };
-      }
-      return { location: directCoordinates, source: 'coordinates', status: 'OK' };
+    if (directCoordinates && isWithinSriLanka(directCoordinates.lat, directCoordinates.lng)) {
+      return projectToMapPosition(directCoordinates.lat, directCoordinates.lng);
     }
 
-    const address = String(locationItem?.address || '').trim();
-    if (!address) {
-      return { location: null, source: 'address', status: 'ZERO_RESULTS' };
-    }
-
-    const variants = [address];
-    if (!/,\s*Sri\s*Lanka$/i.test(address)) {
-      variants.push(`${address}, Sri Lanka`);
-    }
-
-    let lastStatus = 'ZERO_RESULTS';
-    for (const variant of variants) {
-      const result = await geocodeAddress(variant);
-      if (result.location) {
-        return { location: result.location, source: 'address', status: 'OK' };
-      }
-      lastStatus = result.status || lastStatus;
-    }
-
-    return { location: null, source: 'address', status: lastStatus };
-  }
-
-  function getGeocodeFailureMessage(status) {
-    if (status === 'ERROR') {
-      return 'Geocoding service error. Please check your network connection.';
-    }
-    if (status === 'OUT_OF_BOUNDS') {
-      return 'Some pickup locations are outside Sri Lanka map bounds.';
-    }
-    return 'Pending locations could not be mapped from addresses';
+    return getFallbackLandmark(index);
   }
 
   function renderPendingPickupImage() {
@@ -336,10 +305,8 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
 
     spotsLayer.innerHTML = '';
     let markerCount = 0;
-    let lastGeocodeFailureStatus = '';
 
-    const renderMarker = (locationItem, lat, lng) => {
-      const position = projectToMapPosition(lat, lng);
+    const renderMarker = (locationItem, position) => {
       const spot = document.createElement('div');
       spot.className = 'pending-map-spot';
       spot.style.left = `${position.x}%`;
@@ -357,33 +324,13 @@ foreach (($pendingPickups ?? []) as $pickupLocationItem) {
       spotsLayer.appendChild(spot);
     };
 
-    const processLocations = async () => {
-      for (const locationItem of PENDING_PICKUP_LOCATIONS) {
-        const resolved = await resolveLocationForPickup(locationItem);
-        if (!resolved.location) {
-          if (resolved.status && resolved.status !== 'OK') {
-            lastGeocodeFailureStatus = resolved.status;
-          }
-          continue;
-        }
+    PENDING_PICKUP_LOCATIONS.forEach((locationItem, index) => {
+      const position = resolveMapPosition(locationItem, index);
+      renderMarker(locationItem, position);
+      markerCount += 1;
+    });
 
-        renderMarker(locationItem, resolved.location.lat, resolved.location.lng);
-        markerCount += 1;
-
-        if (PENDING_PICKUP_LOCATIONS.indexOf(locationItem) < PENDING_PICKUP_LOCATIONS.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 350));
-        }
-      }
-
-      if (markerCount > 0) {
-        updatePendingMapMessage(`${markerCount} pending location(s) shown on Sri Lanka map`);
-        return;
-      }
-
-      setPendingMapEmptyState(getGeocodeFailureMessage(lastGeocodeFailureStatus));
-    };
-
-    processLocations();
+    updatePendingMapMessage(`${markerCount} pending pickup request(s) shown as red landmarks on Sri Lanka map`);
   }
 
   (function initializePendingPickupMap() {

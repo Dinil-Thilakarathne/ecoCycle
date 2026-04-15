@@ -6,7 +6,6 @@ use Controllers\DashboardController;
 use Core\Database;
 use Core\Http\Request;
 use EcoCycle\Core\Navigation\NavigationConfig;
-use Models\Payment;
 use Models\PickupRequest;
 use Models\User;
 use Models\Vehicle;
@@ -443,39 +442,84 @@ class CollectorDashboardController extends DashboardController
 
     private function exportSalaryTransactionReport(int $collectorId): \Core\Http\Response
     {
-        $paymentModel = new Payment();
-        $records = $paymentModel->listForRecipient($collectorId, 'payout', 500) ?: [];
+        $db = new Database();
 
-        // Group by month
+        $queryWithWeight = "SELECT
+                pr.id AS pickup_id,
+                COALESCE(pr.updated_at, pr.created_at) AS collected_at,
+                COALESCE(wc.name, 'General') AS material_name,
+                                COALESCE(prw.weight, 0) AS collected_weight,
+                                COALESCE(wc.price_per_unit, 0) AS unit_amount,
+                                COALESCE(prw.weight, 0) * COALESCE(wc.price_per_unit, 0) AS line_amount
+            FROM pickup_requests pr
+            INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+            INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
+            WHERE pr.collector_id = ?
+              AND pr.status = 'completed'
+            ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC, material_name ASC";
+
+                $rows = $db->fetchAll($queryWithWeight, [$collectorId]) ?: [];
+
         $grouped = [];
         $monthlyTotals = [];
-        foreach ($records as $record) {
-            $date = (string) ($record['date'] ?? date('Y-m-d'));
-            $month = date('Y-m', strtotime($date));
-            $monthLabel = date('F Y', strtotime($date));
 
-            if (!isset($grouped[$month])) {
-                $grouped[$month] = [
-                    'label' => $monthLabel,
-                    'transactions' => [],
-                    'total' => 0.0,
-                ];
-                $monthlyTotals[$month] = 0.0;
+        foreach ($rows as $row) {
+            $collectedAt = (string) ($row['collected_at'] ?? '');
+            $timestamp = strtotime($collectedAt);
+            if (!$timestamp) {
+                continue;
             }
 
-            $amount = (float) ($record['amount'] ?? 0);
-            $grouped[$month]['transactions'][] = [
-                'id' => (string) ($record['txnId'] ?? '-'),
-                'date' => $date,
-                'status' => (string) ($record['status'] ?? 'pending'),
-                'amount' => $amount,
-                'notes' => (string) ($record['notes'] ?? ''),
-            ];
-            $grouped[$month]['total'] += $amount;
-            $monthlyTotals[$month] += $amount;
+            $monthKey = date('Y-m', $timestamp);
+            $monthLabel = date('F Y', $timestamp);
+            $materialName = (string) ($row['material_name'] ?? 'General');
+            $materialKey = strtolower(trim($materialName));
+            $weight = (float) ($row['collected_weight'] ?? 0.0);
+            $unitAmount = (float) ($row['unit_amount'] ?? 0.0);
+            $lineAmount = (float) ($row['line_amount'] ?? ($weight * $unitAmount));
+            $pickupId = (string) ($row['pickup_id'] ?? '');
+
+            if (!isset($grouped[$monthKey])) {
+                $grouped[$monthKey] = [
+                    'label' => $monthLabel,
+                    'materials' => [],
+                    'total' => 0.0,
+                    'pickupIds' => [],
+                ];
+                $monthlyTotals[$monthKey] = 0.0;
+            }
+
+            if (!isset($grouped[$monthKey]['materials'][$materialKey])) {
+                $grouped[$monthKey]['materials'][$materialKey] = [
+                    'material' => $materialName,
+                    'weight' => 0.0,
+                    'unitAmount' => $unitAmount,
+                    'amount' => 0.0,
+                ];
+            }
+
+            $grouped[$monthKey]['materials'][$materialKey]['weight'] += $weight;
+            $grouped[$monthKey]['materials'][$materialKey]['amount'] += $lineAmount;
+            $grouped[$monthKey]['materials'][$materialKey]['unitAmount'] = $unitAmount;
+            $grouped[$monthKey]['total'] += $lineAmount;
+            $monthlyTotals[$monthKey] += $lineAmount;
+
+            if ($pickupId !== '') {
+                $grouped[$monthKey]['pickupIds'][$pickupId] = true;
+            }
         }
 
-        // Sort by month descending
+        foreach ($grouped as $monthKey => $monthData) {
+            $materials = array_values($monthData['materials']);
+            usort($materials, static function (array $a, array $b): int {
+                return strcasecmp((string) ($a['material'] ?? ''), (string) ($b['material'] ?? ''));
+            });
+
+            $grouped[$monthKey]['materials'] = $materials;
+            $grouped[$monthKey]['pickupCount'] = count($monthData['pickupIds']);
+            unset($grouped[$monthKey]['pickupIds']);
+        }
+
         krsort($grouped);
 
         $html = $this->generateSalaryTransactionReportHtml($grouped, $monthlyTotals);
@@ -492,50 +536,54 @@ class CollectorDashboardController extends DashboardController
         $overallTotal = array_sum($monthlyTotals);
 
         $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
-            . "<h1>Salary Transaction Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
+            . "<h1>Salary Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
 
         if (empty($grouped)) {
-            $html .= '<div class="no-data"><p>No salary transactions found for this period.</p></div>';
+            $html .= '<div class="no-data"><p>No completed material collections found for this period.</p></div>';
         } else {
             foreach ($grouped as $month => $data) {
                 $monthLabel = htmlspecialchars($data['label']);
                 $monthTotal = number_format($data['total'], 2);
-                $transactionCount = count($data['transactions']);
+                $pickupCount = (int) ($data['pickupCount'] ?? 0);
 
                 $html .= <<<HTML
-    <h3>{$monthLabel} ({$transactionCount} transactions)</h3>
+    <h3>{$monthLabel} ({$pickupCount} completed pickups)</h3>
     <p><strong>Monthly Total:</strong> Rs. {$monthTotal}</p>
 
     <table>
             <thead>
                 <tr>
-                    <th>Transaction ID</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Amount (Rs)</th>
-                    <th>Notes</th>
+                    <th>Material</th>
+                    <th>Total Weight</th>
+                    <th>Unit Amount (Rs)</th>
+                    <th>Monthly Amount (Rs)</th>
                 </tr>
             </thead>
             <tbody>
 HTML;
 
-                foreach ($data['transactions'] as $txn) {
-                    $txnId = htmlspecialchars($txn['id']);
-                    $txnDate = htmlspecialchars($txn['date']);
-                    $status = htmlspecialchars($txn['status']);
-                    $amount = number_format($txn['amount'], 2);
-                    $notes = htmlspecialchars($txn['notes']);
+                foreach (($data['materials'] ?? []) as $materialRow) {
+                    $material = htmlspecialchars((string) ($materialRow['material'] ?? 'General'));
+                    $weight = number_format((float) ($materialRow['weight'] ?? 0), 2);
+                    $unitAmount = number_format((float) ($materialRow['unitAmount'] ?? 0), 2);
+                    $amount = number_format((float) ($materialRow['amount'] ?? 0), 2);
 
                     $html .= <<<HTML
                 <tr>
-                    <td><strong>{$txnId}</strong></td>
-                    <td>{$txnDate}</td>
-                    <td>{$status}</td>
+                    <td><strong>{$material}</strong></td>
+                    <td>{$weight} kg</td>
+                    <td>{$unitAmount}</td>
                     <td><strong>{$amount}</strong></td>
-                    <td>{$notes}</td>
                 </tr>
 HTML;
                 }
+
+                $html .= <<<HTML
+                <tr class="monthly-total-row">
+                    <td colspan="3"><strong>Monthly Total</strong></td>
+                    <td><strong>{$monthTotal}</strong></td>
+                </tr>
+HTML;
 
                 $html .= <<<HTML
             </tbody>
@@ -546,7 +594,7 @@ HTML;
             }
         }
 
-        $html .= '<p>This is an automatically generated report. Please verify all transaction details.</p></body></html>';
+        $html .= '<p>This is an automatically generated report based on completed pickup material records.</p></body></html>';
 
         return $html;
     }
@@ -566,6 +614,7 @@ HTML;
                 th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
                 th { background-color: #f3f4f6; font-weight: bold; }
                 tr:nth-child(even) { background-color: #f9fafb; }
+                .monthly-total-row td { background-color: #ecfdf5; font-weight: 700; }
             </style>';
     }
 

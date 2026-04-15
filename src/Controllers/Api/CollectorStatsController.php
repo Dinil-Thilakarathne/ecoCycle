@@ -206,6 +206,7 @@ class CollectorStatsController extends BaseController
                 'month_key' => $monthKey,
                 'month_label' => $monthDate->format('M Y'),
                 'weight' => 0.0,
+                'salary' => 0.0,
             ];
         }
 
@@ -213,7 +214,9 @@ class CollectorStatsController extends BaseController
             return "
                 SELECT
                     COALESCE(pr.updated_at, pr.created_at) AS collected_at,
-                    COALESCE({$weightExpr}, 0) AS collected_weight
+                    COALESCE(prw.weight, 0) AS collected_weight,
+                    COALESCE(wc.price_per_unit, 0) AS unit_amount,
+                    COALESCE(prw.weight, 0) * COALESCE(wc.price_per_unit, 0) AS line_amount
                 FROM {$wasteTable} prw
                 INNER JOIN pickup_requests pr ON prw.pickup_id = pr.id
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
@@ -225,12 +228,7 @@ class CollectorStatsController extends BaseController
         };
 
         $sqlPrimary = $buildSql('pickup_request_wastes', 'prw.weight');
-        try {
-            $rows = $this->db->fetchAll($sqlPrimary, [$collectorId, $startMonth->format('Y-m-d H:i:s'), $endMonth->format('Y-m-d H:i:s')]);
-        } catch (\Throwable $queryError) {
-            $sqlFallback = $buildSql('pickup_request_wastes', 'prw.weight');
-            $rows = $this->db->fetchAll($sqlFallback, [$collectorId, $startMonth->format('Y-m-d H:i:s'), $endMonth->format('Y-m-d H:i:s')]);
-        }
+        $rows = $this->db->fetchAll($sqlPrimary, [$collectorId, $startMonth->format('Y-m-d H:i:s'), $endMonth->format('Y-m-d H:i:s')]);
 
         foreach ($rows ?: [] as $row) {
             $timestamp = strtotime((string) ($row['collected_at'] ?? ''));
@@ -243,7 +241,12 @@ class CollectorStatsController extends BaseController
                 continue;
             }
 
-            $monthBuckets[$monthKey]['weight'] += (float) ($row['collected_weight'] ?? 0);
+            $weight = (float) ($row['collected_weight'] ?? 0);
+            $unitAmount = (float) ($row['unit_amount'] ?? 0);
+            $lineAmount = (float) ($row['line_amount'] ?? ($weight * $unitAmount));
+
+            $monthBuckets[$monthKey]['weight'] += $weight;
+            $monthBuckets[$monthKey]['salary'] += $lineAmount;
         }
 
         $formattedData = array_map(static function (array $bucket): array {
@@ -251,6 +254,7 @@ class CollectorStatsController extends BaseController
                 'month_key' => $bucket['month_key'],
                 'month_label' => $bucket['month_label'],
                 'weight' => round((float) $bucket['weight'], 2),
+                'salary' => round((float) $bucket['salary'], 2),
             ];
         }, array_values($monthBuckets));
 

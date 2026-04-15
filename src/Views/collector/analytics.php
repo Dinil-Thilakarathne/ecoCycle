@@ -646,8 +646,10 @@ function updateWasteTable(data, error = null) {
 function renderStars(count) {
     let stars = '';
     for (let i = 0; i < 5; i++) {
-        stars += i < count ? '<i class="fa-solid fa-star analytics-star-filled"></i>' : '<i class="fa-regular fa-star analytics-star-empty"></i>';
-    }
+    stars += i < count 
+        ? '<i class="fa-solid fa-star analytics-star-filled" style="color: gold;"></i>' 
+        : '<i class="fa-regular fa-star analytics-star-empty" style="color: #ccc;"></i>';
+}
     return stars;
 }
 
