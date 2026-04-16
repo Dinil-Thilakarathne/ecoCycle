@@ -47,6 +47,7 @@ class CompanyDashboardController extends DashboardController
             'highestBids' => $this->getHighestBids(),
             'recentBidActivity' => $this->getBiddingHistory(5),
             'companyProfile' => $profile,
+            'monthlyPurchases' => $this->getMonthlyPurchasesByCategory(),
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -360,7 +361,7 @@ class CompanyDashboardController extends DashboardController
         $wonPerMonth = [];
 
         $periodToIndex = [];
- 
+
         foreach ($monthlyCounts as $idx => $row) {
             // formatMonthLabel now returns "September 2025" — full month + year.
             $label = $this->formatMonthLabel($row['period']);
@@ -381,7 +382,7 @@ class CompanyDashboardController extends DashboardController
             $series[$category] = [];
             foreach ($monthlyCounts as $row) {
                 $period = $row['period'];
-                $label  = $this->formatMonthLabel($period);
+                $label = $this->formatMonthLabel($period);
                 $series[$category][] = isset($values[$period]) ? (float) $values[$period] : 0.0;
             }
         }
@@ -462,5 +463,34 @@ class CompanyDashboardController extends DashboardController
         }
 
         return $formatted;
+    }
+
+    private function getMonthlyPurchasesByCategory(): array
+    {
+        $payment = new Payment();
+        $rows = $payment->purchasesByCategory($this->companyId);
+
+        $iconMap = [
+            'plastic' => 'fa-solid fa-bottle-water',
+            'paper' => 'fa-solid fa-paper-plane',
+            'metal' => 'fa-solid fa-box',
+            'glass' => 'fa-solid fa-wine-bottle',
+            'organic' => 'fa-solid fa-leaf',
+            'cardboard' => 'fa-solid fa-clipboard',
+        ];
+
+        return array_map(function (array $row) use ($iconMap): array {
+            $category = $row['category'] ?? 'Unknown';
+            $quantity = (float) ($row['total_quantity'] ?? 0);
+            $unit = $row['unit'] ?? 'kg';
+
+            return [
+                'title' => $category,
+                'value' => number_format($quantity) . ' ' . $unit,
+                'quantity' => $quantity,
+                'unit' => $unit,
+                'icon' => $iconMap[strtolower($category)] ?? 'fa-solid fa-recycle',
+            ];
+        }, $rows);
     }
 }

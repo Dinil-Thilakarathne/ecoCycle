@@ -126,7 +126,7 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
       </div>
 
       <div class="c-dashboard-card">
-        <h3>Purchased waste amounts last month</h3>
+        <h3>Total Purchased Waste</h3>
         <div style="height:400px; margin-bottom:1rem;">
           <canvas id="availableWasteChart" aria-label="Available waste distribution" role="img"></canvas>
         </div>
@@ -138,7 +138,7 @@ $totalWaste = array_reduce($availableWaste, function (float $carry, array $item)
 <script>
   // Build chart data from server-side $availableWaste
   (function () {
-    const availableWaste = <?= json_encode(array_values($availableWaste), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
+    const availableWaste = <?= json_encode(array_values($monthlyPurchases ?? []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
 
     // Extract labels and numeric values (prefer 'quantity' then numeric part of 'value')
     const labels = [];
