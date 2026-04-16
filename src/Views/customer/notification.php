@@ -1,55 +1,49 @@
 <?php
 $filter = $_GET['filter'] ?? 'all';
 $showSettings = (($_GET['action'] ?? '') === 'settings');
+$csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF token to JS for API calls
 ?>
 
+<style>
+    .notifications-table th.col-center,
+    .notifications-table td.col-center {
+        text-align: center;
+    }
+
+    .notification-actions-header,
+    .notification-actions-cell {
+        text-align: left;
+    }
+
+    .notification-actions-cell {
+        padding-left: 10px;
+    }
+
+    .notification-action-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+</style>
+
 <div class="dashboard-page">
-    <!-- Header -->
-    <div class="header">
-        <!-- header-actions removed -->
-    </div>
-
-
-    <!-- Stats Feature Cards (values populated from API) -->
-    <div class="stats-grid">
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Total Notifications</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-bell"></i></div>
-            </div>
-            <p class="feature-card__body" id="totalNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">All time</span></div>
+    <header class="page-header">
+        <div class="page-header__content">
+            <h2 class="page-header__title">Notifications</h2>
+            <p class="page-header__description">Stay on top of your platform updates</p>
         </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Unread</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-envelope-open"></i></div>
-            </div>
-            <p class="feature-card__body" id="unreadNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">Need attention</span></div>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <h3 class="feature-card__title">Today</h3>
-                <div class="feature-card__icon"><i class="fa-solid fa-calendar-day"></i></div>
-            </div>
-            <p class="feature-card__body" id="todayNotifications">0</p>
-            <div class="feature-card__footer"><span class="tag success">Received today</span></div>
-        </div>
-    </div>
+    </header>
 
     <!-- Filter Tabs + Actions -->
-    <div class="action-buttons" style="margin-bottom:2rem;">
-        <a href="?filter=all" class="btn <?php echo $filter === 'all' ? 'btn-primary' : 'btn-outline'; ?>">All</a>
-        <a href="?filter=unread" class="btn <?php echo $filter === 'unread' ? 'btn-primary' : 'btn-outline'; ?>">Unread
-            (<span id="unreadCountInline">0</span>)</a>
-        <a href="?filter=pickup"
-            class="btn <?php echo $filter === 'pickup' ? 'btn-primary' : 'btn-outline'; ?>">Pickup</a>
-        <a href="?filter=payment"
-            class="btn <?php echo $filter === 'payment' ? 'btn-primary' : 'btn-outline'; ?>">Payment</a>
-        <button id="markAllReadBtn" class="btn btn-outline" style="margin-left:1rem;">Mark all read</button>
+    <div class="notification-tabs-bar" style="margin-bottom: 6px;">
+        <a href="?filter=all" class="notification-tab-link <?= $filter === 'all' ? 'active' : '' ?>">Total (<span id="totalCountInline">0</span>)</a>
+        <a href="?filter=unread" class="notification-tab-link <?= $filter === 'unread' ? 'active' : '' ?>">Unread (<span id="unreadCountInline">0</span>)</a>
+        <a href="?filter=read" class="notification-tab-link <?= $filter === 'read' ? 'active' : '' ?>">Read (<span id="readCountInline">0</span>)</a>
+    </div>
+
+    <div style="margin: 4px 0 10px;">
+        <button id="markAllAsReadBtn" class="btn btn-primary">Mark All as Read</button>
     </div>
 
     <!-- Notifications Table -->
@@ -57,60 +51,49 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
         <table class="notifications-table data-table" style="min-width:800px;">
             <thead>
                 <tr>
-                    <th>Notification</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th style="width: 45%;">Notification</th>
+                    <th class="col-center" style="width: 15%;">Type</th>
+                    <th class="col-center" style="width: 25%;">Date</th>
+                    <th class="notification-actions-header" style="width: 15%;">Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php if (empty($filteredNotifications)): ?>
-                    <tr>
-                        <td colspan="5" class="empty-state">
-                            <div class="empty-content">
-                                <div class="empty-icon">📭</div>
-                                <h3>No notifications found</h3>
-                                <p>No notifications match your current filter.</p>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
             <tbody id="notificationsBody">
                 <tr>
-                    <td colspan="5" class="loading">Loading notifications…</td>
+                    <td colspan="4" class="loading">Loading notifications…</td>
                 </tr>
             </tbody>
         </table>
     </div>
 </div>
-</div>
 
 <!-- View Notification Modal (populated by JS) -->
-<div id="viewNotificationModal" class="modal-overlay" style="display:none;">
+<div id="viewNotificationModal" class="modal-overlay" aria-hidden="true" style="display:none;position:fixed;left:0;top:0;right:0;bottom:0;align-items:center;justify-content:center;padding:1rem;z-index:1300;pointer-events:none;">
     <div class="modal-content">
         <div class="modal-header">
             <h2 id="modalTitle"></h2>
             <a href="#" id="modalClose" class="modal-close">×</a>
         </div>
-        <div class="modal-body">
-            <div class="notification-detail">
-                <div class="detail-content">
-                    <div class="detail-meta">
-                        <span id="modalCategory" class="type-badge"></span>
-                        <span id="modalPriority" class="priority-badge"></span>
-                        <span id="modalTime" class="time-badge"></span>
-                    </div>
-                    <p id="modalMessage" class="detail-message"></p>
-                    <div class="detail-timestamp">
-                        <strong>Received:</strong> <span id="modalReceived"></span>
-                    </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+            <div style="display:flex;flex-direction:column;gap:1.25rem;">
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TYPE</div>
+                    <div id="modalCategory" style="font-size: 0.95rem; color: #111827;"></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TYPE</div>
+                    <div id="modalCategory" style="font-size: 0.95rem; color: #111827;"></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TIME</div>
+                    <div id="modalTime" style="font-size: 0.95rem; color: #111827;"></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">MESSAGE</div>
+                    <div id="modalMessage" style="font-size: 0.95rem; color: #111827; line-height: 1.5;"></div>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
-            <button id="modalMarkRead" class="btn-primary" style="display:none;">Mark as Read</button>
             <a href="#" id="modalClose2" class="btn-secondary">Close</a>
         </div>
     </div>
@@ -184,15 +167,20 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
     <script>
         (function () {
+            const csrfToken = <?php echo json_encode($csrfToken, JSON_UNESCAPED_UNICODE); ?>;
             const initialFilter = '<?php echo addslashes($filter); ?>';
+            let notificationsState = [];
 
-            function timeAgo(ts) {
-                const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-                if (diff < 60) return 'Just now';
-                if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
-                if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
-                if (diff < 2592000) return Math.floor(diff / 86400) + ' days ago';
-                return new Date(ts).toLocaleDateString();
+            function formatDate(ts) {
+                if (!ts) return '';
+                const d = new Date(ts);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
             }
 
             function truncateMessage(msg, len = 80) {
@@ -210,7 +198,10 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
             async function fetchNotifications() {
                 try {
                     const url = '/api/notifications?limit=100'; // Get more for client-side filtering if needed, or implement server-side filter
-                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const res = await fetch(url, {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!res.ok) throw new Error('Failed to load notifications');
                     const data = await res.json();
                     let notifications = data.notifications || [];
@@ -218,6 +209,8 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     if (!Array.isArray(notifications)) {
                         notifications = [];
                     }
+
+                    notificationsState = notifications;
 
                     // Render list
                     renderNotifications(notifications);
@@ -232,29 +225,34 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 } catch (err) {
                     console.error(err);
                     const notifications = dummyNotifications.slice();
+                    notificationsState = notifications;
                     renderNotifications(notifications);
                     renderStats(notifications);
                 }
             }
 
             function renderStatsFromApi(stats) {
-                document.getElementById('totalNotifications').textContent = stats.total || 0;
-                document.getElementById('unreadNotifications').textContent = stats.unread || 0;
-                document.getElementById('todayNotifications').textContent = stats.today || 0;
-                const inline = document.getElementById('unreadCountInline');
-                if (inline) inline.textContent = stats.unread || 0;
+                const unreadInline = document.getElementById('unreadCountInline');
+                if (unreadInline) unreadInline.textContent = stats.unread || 0;
+                const totalInline = document.getElementById('totalCountInline');
+                if (totalInline) totalInline.textContent = stats.total || 0;
+                const readInline = document.getElementById('readCountInline');
+                if (readInline) readInline.textContent = (stats.total || 0) - (stats.unread || 0);
             }
 
             function renderStats(notifications) {
                 const total = notifications.length;
-                const unread = notifications.filter(n => !($booleanToBool(n.read ?? n.is_read ?? n.isRead))).length;
-                const today = notifications.filter(n => new Date(n.timestamp || n.created_at).toDateString() === new Date().toDateString()).length;
-
-                document.getElementById('totalNotifications').textContent = total;
-                document.getElementById('unreadNotifications').textContent = unread;
-                document.getElementById('todayNotifications').textContent = today;
-                const inline = document.getElementById('unreadCountInline');
-                if (inline) inline.textContent = unread;
+                const unread = notifications.filter(n => {
+                    const v = n.status ?? n.read ?? n.is_read ?? n.isRead;
+                    return !$booleanToBool(v);
+                }).length;
+                const read = total - unread;
+                const unreadInline = document.getElementById('unreadCountInline');
+                if (unreadInline) unreadInline.textContent = unread;
+                const totalInline = document.getElementById('totalCountInline');
+                if (totalInline) totalInline.textContent = total;
+                const readInline = document.getElementById('readCountInline');
+                if (readInline) readInline.textContent = read;
             }
 
             // Helper to defensively read boolean-like values
@@ -273,6 +271,11 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                 return status === 'read' || status === true || status === 1 || status === '1';
             }
 
+            function notificationId(n) {
+                const id = n && (n.id ?? n._id ?? n.notification_id);
+                return id === null || id === undefined ? '' : String(id);
+            }
+
             function renderNotifications(notifications) {
                 const tbody = document.getElementById('notificationsBody');
                 if (!tbody) return;
@@ -282,19 +285,18 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     // if ((n.category || n.type || '').toLowerCase() === 'system') return false; 
 
                     if (f === 'unread') return !isRead(n);
-                    if (f === 'pickup') return (n.category || n.type || '').toLowerCase() === 'pickup';
-                    if (f === 'payment') return (n.category || n.type || '').toLowerCase() === 'payment';
+                    if (f === 'read') return isRead(n);
                     return true;
                 });
 
                 if (!filtered.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-content"><div class="empty-icon">📭</div><h3>No notifications found</h3><p>No notifications match your current filter.</p></div></td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = '';
                 filtered.forEach(function (n) {
-                    const id = n.id || n._id || n.notification_id;
+                    const id = notificationId(n);
                     const read = isRead(n);
                     const tr = document.createElement('tr');
                     tr.className = 'notification-row ' + (read ? '' : 'unread');
@@ -307,16 +309,14 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                                 <div class="notification-message">${escapeHtml(truncateMessage(n.message || n.body || ''))}</div>
                             </div>
                         </td>
-                        <td>
+                        <td class="col-center">
                             <span class="type-badge ${escapeHtml(n.category || n.type || 'info')}">${escapeHtml((n.category || n.type || 'info').charAt(0).toUpperCase() + (n.category || n.type || 'info').slice(1))}</span>
                         </td>
-                        <td class="time-cell">${escapeHtml(timeAgo(n.timestamp || n.created_at || ''))}</td>
-                        <td><span class="status-badge">${read ? 'Read' : 'Unread'}</span></td>
-                        <td class="actions-cell">
-                            <div class="action-buttons">
-                                ${read ? '' : `<button class="icon-button" data-action="mark-read" data-id="${escapeHtml(id)}" title="Mark Read"><i class="fa-solid fa-check"></i></button>`}
-                                <button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>
-                                <button class="icon-button danger" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                        <td class="time-cell col-center">${escapeHtml(formatDate(n.timestamp || n.created_at || ''))}</td>
+                        <td class="actions-cell notification-actions-cell">
+                            <div class="notification-action-wrap">
+                                ${!id ? '' : `<button class="icon-button" data-action="view" data-id="${escapeHtml(id)}" title="View"><i class="fa-solid fa-eye"></i></button>`}
+                                ${!id ? '' : `<button class="icon-button" data-action="delete" data-id="${escapeHtml(id)}" title="Delete"><i class="fa-solid fa-trash"></i></button>`}
                             </div>
                         </td>
                     `;
@@ -332,15 +332,28 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
 
             async function markAsRead(id) {
                 try {
-                    const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'PUT', credentials: 'same-origin' });
-                    if (!res.ok) throw new Error('Failed to mark as read');
+                    const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : ''),
+                            'Accept': 'application/json'
+                        }
+                    });
 
-                    // Update row UI immediately without refetch
+                    if (!res.ok) {
+                        // don't show an alert to the user; log and return so UI is already optimistic
+                        const txt = await res.text().catch(() => '');
+                        console.error('markAsRead failed', res.status, txt);
+                        return;
+                    }
+
+                    // Update row UI immediately without refetch (idempotent)
                     const row = document.querySelector('.notification-row[data-id="' + id + '"]');
                     if (row) {
                         row.classList.remove('unread');
                         const btn = row.querySelector('button[data-action="mark-read"]'); if (btn) btn.remove();
-                        const badge = row.querySelector('.status-badge'); if (badge) badge.textContent = 'Read';
                         const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
                     }
 
@@ -348,70 +361,128 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     fetchNotifications();
                 } catch (err) {
                     console.error(err);
-                    alert('Could not mark notification as read');
-                }
-            }
-
-            async function markAllRead() {
-                try {
-                    const res = await fetch('/api/notifications/read-all', { method: 'PUT', credentials: 'same-origin' });
-                    if (!res.ok) throw new Error('Failed');
-                    // Refresh UI
-                    fetchNotifications();
-                } catch (err) {
-                    console.error(err);
-                    alert('Could not mark all as read');
+                    // swallow alert to avoid interrupting UX; UI is already updated optimistically
                 }
             }
 
             async function deleteNotification(id) {
-                if (!confirm('Are you sure you want to delete this notification?')) return;
-
                 try {
                     const res = await fetch('/api/notifications/' + encodeURIComponent(id), {
                         method: 'DELETE',
-                        credentials: 'same-origin'
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : ''),
+                            'Accept': 'application/json'
+                        }
                     });
 
-                    if (!res.ok) throw new Error('Failed to delete');
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => '');
+                        console.error('deleteNotification failed', res.status, txt);
+                        return;
+                    }
 
-                    // Remove row
-                    const row = document.querySelector('.notification-row[data-id="' + id + '"]');
-                    if (row) row.remove();
+                    notificationsState = notificationsState.filter(function (n) {
+                        return notificationId(n) !== String(id);
+                    });
 
-                    // Refresh counts
-                    fetchNotifications();
-
+                    renderNotifications(notificationsState);
+                    renderStats(notificationsState);
                 } catch (err) {
                     console.error(err);
-                    alert('Could not delete notification');
                 }
             }
 
+            // mark-all and delete are handled from table action buttons.
+
             function openModal(notification) {
-                document.getElementById('modalTitle').textContent = notification.title || '';
-                document.getElementById('modalCategory').textContent = (notification.category || notification.type || '').charAt(0).toUpperCase() + (notification.category || notification.type || '').slice(1);
-                document.getElementById('modalPriority').textContent = (notification.priority || 'Normal').charAt(0).toUpperCase() + (notification.priority || 'Normal').slice(1);
-                document.getElementById('modalTime').textContent = timeAgo(notification.timestamp || notification.created_at || '');
-                document.getElementById('modalMessage').textContent = notification.message || notification.body || '';
-                document.getElementById('modalReceived').textContent = new Date(notification.timestamp || notification.created_at || '').toLocaleString();
-                const markBtn = document.getElementById('modalMarkRead');
-                if (markBtn) {
-                    if (isRead(notification)) {
-                        markBtn.style.display = 'none';
-                    } else {
-                        markBtn.style.display = '';
-                        markBtn.onclick = function () {
-                            markAsRead(notification.id || notification._id);
-                            closeModal();
-                        };
+                // Safer field fallbacks for modal content
+                const title = notification.title || notification.title_text || notification.subject || '';
+                const message = notification.message || notification.body || notification.text || '';
+                const categoryText = (notification.category || notification.type || '').toString();
+                const priorityText = (notification.priority || notification.level || 'Normal').toString();
+                const timeVal = notification.timestamp || notification.created_at || notification.sent_at || '';
+
+                // If unread: optimistic UI update + update in-memory state
+                const id = notificationId(notification);
+                if (id && !isRead(notification)) {
+                    const row = document.querySelector('.notification-row[data-id="' + id + '"]');
+                    if (row) {
+                        row.classList.remove('unread');
+                        const dot = row.querySelector('.unread-dot'); if (dot) dot.remove();
+                        const markBtn = row.querySelector('button[data-action="mark-read"]'); if (markBtn) markBtn.remove();
                     }
+
+                    for (let i = 0; i < notificationsState.length; i++) {
+                        if (notificationId(notificationsState[i]) === String(id)) {
+                            notificationsState[i].status = 'read';
+                            break;
+                        }
+                    }
+
+                    renderStats(notificationsState);
+                    // persist change (async)
+                    markAsRead(id);
                 }
-                document.getElementById('viewNotificationModal').style.display = 'block';
+
+                // Build content element used by modal manager if available
+                const container = document.createElement('div');
+                container.style.cssText = 'display:flex;flex-direction:column;gap:1.25rem;padding:0.5rem;';
+                
+                const typeVal = categoryText ? escapeHtml(categoryText.charAt(0).toUpperCase() + categoryText.slice(1)) : 'Info';
+
+                container.innerHTML = `
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TYPE</div>
+                        <div style="font-size: 0.95rem; color: #111827;">${typeVal}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TIME</div>
+                        <div style="font-size: 0.95rem; color: #111827;">${escapeHtml(formatDate(timeVal))}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">MESSAGE</div>
+                        <div style="font-size: 0.95rem; color: #111827; line-height: 1.5;">${escapeHtml(message)}</div>
+                    </div>
+                `;
+
+                // If a global Modal manager (payments-style) is available, use it for consistent UI
+                if (window.Modal && typeof window.Modal.open === 'function') {
+                    window.Modal.open({
+                        title: title || 'Notification',
+                        size: 'md',
+                        content: container,
+                        actions: [
+                            { label: 'Close', variant: 'plain' }
+                        ]
+                    });
+                    return;
+                }
+
+                // Fallback: use existing inline modal if Modal manager isn't available
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalCategory').textContent = categoryText ? (categoryText.charAt(0).toUpperCase() + categoryText.slice(1)) : 'Info';
+                document.getElementById('modalTime').textContent = timeVal ? formatDate(timeVal) : '';
+                document.getElementById('modalMessage').textContent = message;
+
+                const modal = document.getElementById('viewNotificationModal');
+                if (!modal) return;
+
+                modal.classList.add('modal-open');
+                modal.style.display = 'flex';
+                modal.style.pointerEvents = 'auto';
+                modal.setAttribute('aria-hidden', 'false');
             }
 
             function closeModal() {
-                document.getElementById('viewNotificationModal').style.display = 'none';
+                const modal = document.getElementById('viewNotificationModal');
+                if (!modal) return;
+
+                modal.classList.remove('modal-open');
+                modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
+                modal.setAttribute('aria-hidden', 'true');
             }
 
             // Event delegation for action buttons using data-action attributes
@@ -422,30 +493,100 @@ $showSettings = (($_GET['action'] ?? '') === 'settings');
                     e.preventDefault();
                     const action = actionEl.getAttribute('data-action');
                     const id = actionEl.getAttribute('data-id');
-                    if (action === 'mark-read' && id) { return markAsRead(id); }
                     if (action === 'view' && id) { return openNotificationById(id); }
-                    if (action === 'delete' && id) { return deleteNotification(id); }
+                    if (action === 'delete' && id) {
+                        if (confirm('Delete this notification?')) {
+                            return deleteNotification(id);
+                        }
+                        return;
+                    }
                 }
 
                 const modalClose = target.closest && (target.closest('#modalClose') || target.closest('#modalClose2'));
                 if (modalClose) { e.preventDefault(); closeModal(); return; }
 
-                const markAll = target.closest && target.closest('#markAllReadBtn');
-                if (markAll) { e.preventDefault(); if (confirm('Mark all notifications as read?')) markAllRead(); return; }
+                const modalOverlay = target.closest && target.closest('#viewNotificationModal');
+                if (modalOverlay && target.id === 'viewNotificationModal') {
+                    e.preventDefault();
+                    closeModal();
+                    return;
+                }
+
+                // removed: global mark-all-read button handler
             });
 
             // Find a notification by id and open modal (uses already loaded list from the DOM)
             function openNotificationById(id) {
-                // Re-fetch to be sure or find in current list
-                // For simplicity, find in rendered rows or globally stored list. 
-                // We didn't store list globally, so let's refetch single if possible, or just fetch all
-                fetch('/api/notifications', { credentials: 'same-origin' }).then(r => r.json()).then(data => {
-                    var found = (data.notifications || []).find(n => (n.id || n._id || n.notification_id) == id);
+                const local = notificationsState.find(function (n) {
+                    return notificationId(n) === String(id);
+                });
+
+                if (local) {
+                    openModal(local);
+                    return;
+                }
+
+                fetch('/api/notifications?limit=100', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(r => r.json()).then(data => {
+                    var found = (data.notifications || []).find(n => notificationId(n) === String(id));
                     if (found) openModal(found);
                 }).catch(err => console.error(err));
             }
 
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+
+            async function markAllAsRead() {
+                try {
+                    const res = await fetch('/api/notifications/read-all', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : ''),
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => '');
+                        console.error('markAllAsRead failed', res.status, txt);
+                        return;
+                    }
+
+                    const result = await res.json().catch(() => ({}));
+                    if (result && result.success === false) {
+                        console.error('markAllAsRead rejected by API', result);
+                        return;
+                    }
+
+                    notificationsState = notificationsState.map(function (n) {
+                        return Object.assign({}, n, { status: 'read', read: true, is_read: true, isRead: true });
+                    });
+
+                    renderNotifications(notificationsState);
+                    renderStats(notificationsState);
+                    fetchNotifications();
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            const markAllButton = document.getElementById('markAllAsReadBtn');
+            if (markAllButton) {
+                markAllButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    markAllAsRead();
+                });
+            }
+
             // Initialize
+            closeModal();
             fetchNotifications();
 
 

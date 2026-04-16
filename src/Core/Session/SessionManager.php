@@ -232,7 +232,14 @@ class SessionManager
      */
     public function flash(string $key, $value): void
     {
-        $this->put("_flash.{$key}", $value);
+        $flashKey = "_flash.{$key}";
+        $this->put($flashKey, $value);
+
+        $newFlashKeys = $this->get('_flash_new', []);
+        if (!in_array($flashKey, $newFlashKeys, true)) {
+            $newFlashKeys[] = $flashKey;
+            $this->put('_flash_new', $newFlashKeys);
+        }
     }
 
     /**
@@ -245,17 +252,7 @@ class SessionManager
     public function getFlash(string $key, $default = null)
     {
         $flashKey = "_flash.{$key}";
-        $value = $this->get($flashKey, $default);
-
-        // Track that this flash key was accessed
-        $accessed = $this->getAccessedFlashKeys();
-        $accessed[] = $flashKey;
-        $this->put('_flash_accessed', array_unique($accessed));
-
-        // Remove the flash data immediately after access
-        $this->forget($flashKey);
-
-        return $value;
+        return $this->get($flashKey, $default);
     }
 
     /**
@@ -385,43 +382,17 @@ class SessionManager
     {
         $this->start();
 
-        // Get all flash data keys
-        $flashKeys = [];
-        foreach ($_SESSION as $key => $value) {
-            if (strpos($key, '_flash.') === 0) {
-                $flashKeys[] = $key;
-            }
+        // Remove flash keys that were created in the previous request.
+        $oldFlashKeys = $this->get('_flash_old', []);
+        foreach ($oldFlashKeys as $key) {
+            unset($_SESSION[$key]);
         }
 
-        // Remove old flash data that wasn't accessed this request
-        foreach ($flashKeys as $key) {
-            if (!in_array($key, $this->getAccessedFlashKeys())) {
-                unset($_SESSION[$key]);
-            }
-        }
-
-        // Reset accessed flash keys for next request
-        $this->resetAccessedFlashKeys();
-    }
-
-    /**
-     * Get accessed flash keys
-     * 
-     * @return array
-     */
-    protected function getAccessedFlashKeys(): array
-    {
-        return $this->get('_flash_accessed', []);
-    }
-
-    /**
-     * Reset accessed flash keys
-     * 
-     * @return void
-     */
-    protected function resetAccessedFlashKeys(): void
-    {
-        $this->put('_flash_accessed', []);
+        // Promote current new flash keys so they survive this request and
+        // are cleaned up on the following request.
+        $newFlashKeys = $this->get('_flash_new', []);
+        $this->put('_flash_old', $newFlashKeys);
+        $this->put('_flash_new', []);
     }
 
     /**

@@ -115,57 +115,30 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            $period = strtolower((string) $request->query('period', 'weekly'));
-            $months = (int) $request->query('months', 6);
-            $month = (string) $request->query('month', '');
+            // Get the start of the week (7 days ago) and end of today
+            $weekStart = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
+            $weekEnd = date('Y-m-d') . ' 23:59:59';
 
-            if ($period === 'monthly') {
-                return $this->json($this->buildMonthlyMaterialCollectionResponse((int) $collectorId, $months));
-            }
+            $sql = "
+                SELECT 
+                    wc.id,
+                    wc.name,
+                    wc.price_per_unit,
+                    wc.color,
+                    COALESCE(SUM(prw.quantity), 0) AS total_weight,
+                    COALESCE(SUM(prw.quantity * wc.price_per_unit), 0) AS total_price
+                FROM waste_categories wc
+                LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
+                LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
+                WHERE pr.collector_id = ?
+                    AND pr.created_at >= ? AND pr.created_at <= ?
+                    AND pr.status = 'completed'
+                GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
+                HAVING total_weight > 0
+                ORDER BY total_weight DESC
+            ";
 
-            if ($period === 'monthly-by-material') {
-                return $this->json($this->buildMonthlyMaterialByCategoryResponse((int) $collectorId, $month));
-            }
-
-            // Current week window: Monday 00:00:00 to Sunday 23:59:59
-            $now = new \DateTimeImmutable('now');
-            $weekStartDate = $now->modify('monday this week')->setTime(0, 0, 0);
-            $weekEndDate = $weekStartDate->modify('+6 days')->setTime(23, 59, 59);
-
-            $weekStart = $weekStartDate->format('Y-m-d H:i:s');
-            $weekEnd = $weekEndDate->format('Y-m-d H:i:s');
-
-            $buildSql = static function (string $weightExpr): string {
-                return "
-                    SELECT 
-                        wc.id,
-                        wc.name,
-                        wc.price_per_unit,
-                        wc.color,
-                        COALESCE(SUM({$weightExpr}), 0) AS total_weight,
-                        COALESCE(SUM({$weightExpr} * COALESCE(wc.price_per_unit, 0)), 0) AS total_price
-                    FROM waste_categories wc
-                    LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
-                    LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
-                    WHERE pr.collector_id = ?
-                        AND COALESCE(pr.updated_at, pr.created_at) >= ?
-                        AND COALESCE(pr.updated_at, pr.created_at) <= ?
-                        AND pr.status = 'completed'
-                    GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
-                    HAVING COALESCE(SUM({$weightExpr}), 0) > 0
-                    ORDER BY total_weight DESC
-                ";
-            };
-
-            $sqlWithWeight = $buildSql('COALESCE(prw.weight, prw.quantity, 0)');
-
-            try {
-                $materials = $this->db->fetchAll($sqlWithWeight, [$collectorId, $weekStart, $weekEnd]);
-            } catch (\Throwable $queryError) {
-                // Backward compatibility: some databases may not have pickup_request_wastes.weight yet.
-                $sqlWithQuantity = $buildSql('COALESCE(prw.quantity, 0)');
-                $materials = $this->db->fetchAll($sqlWithQuantity, [$collectorId, $weekStart, $weekEnd]);
-            }
+            $materials = $this->db->fetchAll($sql, [$collectorId, $weekStart, $weekEnd]);
 
             $formattedMaterials = array_map(function($m) {
                 return [
@@ -181,8 +154,6 @@ class CollectorStatsController extends BaseController
             return $this->json([
                 'status' => 'success',
                 'data' => $formattedMaterials,
-                'week_start' => $weekStartDate->format('Y-m-d'),
-                'week_end' => $weekEndDate->format('Y-m-d'),
                 'timestamp' => date('Y-m-d H:i:s')
             ]);
         } catch (\Throwable $e) {

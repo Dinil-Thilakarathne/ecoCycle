@@ -4,25 +4,29 @@ $payments = is_array($payments) ? $payments : [];
 $summary = $paymentSummary ?? [];
 $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 
-$totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 1000.0;
+$totalPayouts = isset($summary['total_payouts']) ? (float) $summary['total_payouts'] : 0.0;
 $totalPayments = isset($summary['total_payments']) ? (float) $summary['total_payments'] : 0.0;
 $pendingCount = isset($summary['pending_count']) ? (int) $summary['pending_count'] : 0;
+$completedCount = 0;
+$failedCount = 0;
 
-// Fallback to calculating from provided payments if summary missing
-if ($summary === [] && !empty($payments)) {
-    foreach ($payments as $payment) {
-        $type = $payment['type'] ?? '';
-        $status = $payment['status'] ?? '';
-        $amount = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
-        if ($type === 'payout' && $status === 'completed') {
-            $totalPayouts += $amount;
+// Calculate counts for tabs
+foreach ($payments as $payment) {
+    $type = $payment['type'] ?? '';
+    $status = strtolower($payment['status'] ?? '');
+    $amount = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
+
+    if ($status === 'completed') {
+        $completedCount++;
+        // If summary is missing, accumulate totals here
+        if ($summary === []) {
+             if ($type === 'payout') $totalPayouts += $amount;
+             else if ($type === 'payment') $totalPayments += $amount;
         }
-        if ($type === 'payment' && $status === 'completed') {
-            $totalPayments += $amount;
-        }
-        if ($status === 'pending') {
-            $pendingCount++;
-        }
+    } else if ($status === 'pending') {
+        if ($summary === []) $pendingCount++;
+    } else if ($status === 'failed') {
+        $failedCount++;
     }
 }
 
@@ -30,7 +34,7 @@ $netRevenue = $totalPayments - $totalPayouts;
 
 function getStatusTag($status)
 {
-    switch ($status) {
+    switch (strtolower((string)$status)) {
         case 'completed':
             return '<div class="tag completed">Completed</div>';
         case 'pending':
@@ -38,140 +42,140 @@ function getStatusTag($status)
         case 'failed':
             return '<div class="tag danger">Failed</div>';
         default:
-            return '<div class="tag secondary">' . htmlspecialchars($status) . '</div>';
+            return '<div class="tag secondary">' . htmlspecialchars((string)$status) . '</div>';
     }
 }
 ?>
 
-<div>
+<div class="payment-management-page">
     <!-- Page Header -->
     <page-header title="Payment Overview" description="Manage customer payouts and company payments">
-        <button class="btn btn-outline" onclick="refreshPayments()" style="margin-right: var(--space-2);">
+        <button class="btn btn-outline" onclick="refreshPayments()">
             <i class="fa-solid fa-rotate"></i>
             Refresh
         </button>
-        <button class="btn btn-primary" onclick="openBatchPaymentModal()">
-            <i class="fa-solid fa-credit-card"></i>
-            Process Payments
-        </button>
     </page-header>
 
-    <!-- Statistics Grid (feature-card components) -->
-    <?php
-    $paymentStatCards = [
-        [
-            'title' => 'Total Payouts',
-            'value' => 'Rs 10,000.00', // TODO: need to change
-            'icon' => 'fa-solid fa-arrow-trend-down',
-            'period' => 'To customers',
-        ],
-        [
-            'title' => 'Total Income',
-            'value' => 'Rs ' . number_format($totalPayments, 2),
-            'icon' => 'fa-solid fa-arrow-trend-up',
-            'period' => 'From companies',
-        ],
-        [
-            'title' => 'Pending Transactions',
-            'value' => $pendingCount,
-            'icon' => 'fa-solid fa-dollar-sign',
-            'period' => 'Awaiting processing',
-        ],
-        [
-            'title' => 'Net Revenue',
-            'value' => 'Rs ' . number_format($netRevenue, 2),
-            'icon' => 'fa-solid fa-arrow-trend-up',
-            'period' => 'After payouts',
-        ],
-    ];
-    ?>
+    <!-- Statistics Grid -->
     <div class="stats-grid">
-        <?php foreach ($paymentStatCards as $card): ?>
-            <feature-card unwrap title="<?= htmlspecialchars($card['title']) ?>"
-                value="<?= htmlspecialchars($card['value']) ?>" icon="<?= htmlspecialchars($card['icon']) ?>"
-                period="<?= htmlspecialchars($card['period']) ?>"></feature-card>
-        <?php endforeach; ?>
+        <feature-card unwrap title="Total Payouts"
+            value="Rs <?= number_format($totalPayouts, 2) ?>" icon="fa-solid fa-arrow-trend-down"
+            period="To customers"></feature-card>
+        <feature-card unwrap title="Total Income"
+            value="Rs <?= number_format($totalPayments, 2) ?>" icon="fa-solid fa-arrow-trend-up"
+            period="From companies"></feature-card>
+        <feature-card unwrap title="Pending Transactions"
+            value="<?= $pendingCount ?>" icon="fa-solid fa-dollar-sign"
+            period="Awaiting processing"></feature-card>
+        <feature-card unwrap title="Net Revenue"
+            value="Rs <?= number_format($netRevenue, 2) ?>" icon="fa-solid fa-arrow-trend-up"
+            period="After payouts"></feature-card>
     </div>
 
     <!-- Recent Transactions Card -->
     <div class="activity-card" style="margin-top: var(--space-8);">
         <div class="activity-card__header">
-            <h3 class="activity-card__title">
-                <i class="fa-solid fa-dollar-sign" style="margin-right: var(--space-2);"></i>
-                Recent Transactions
-            </h3>
-            <p class="activity-card__description">Latest payment transactions and their status</p>
+            <div>
+                <h3 class="activity-card__title">
+                    <i class="fa-solid fa-dollar-sign" style="margin-right: var(--space-2);"></i>
+                    Recent Transactions
+                </h3>
+                <p class="activity-card__description">Latest payment transactions and their status</p>
+            </div>
         </div>
+
         <div class="activity-card__content">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Transaction ID</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Recipient</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($payments as $payment): ?>
-                        <tr class="payment-row"
-                            data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
-                            data-recipient-id="<?= htmlspecialchars((string) ($payment['recipientId'] ?? '')) ?>"
-                            data-recipient-name="<?= htmlspecialchars($payment['recipient'] ?? $payment['recipientName'] ?? '') ?>"
-                            data-amount="<?= htmlspecialchars(number_format((float) ($payment['amount'] ?? 0), 2, '.', '')) ?>"
-                            data-type="<?= htmlspecialchars($payment['type'] ?? '') ?>"
-                            data-status="<?= htmlspecialchars($payment['status'] ?? '') ?>">
-                            <td class="font-medium"><?= htmlspecialchars($payment['id'] ?? '') ?></td>
-                            <td>
-                                <div class="cell-with-icon">
-                                    <?php if (($payment['type'] ?? '') === 'payout'): ?>
-                                        <i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i>
-                                        Payout
-                                    <?php else: ?>
-                                        <i class="fa-solid fa-arrow-trend-up" style="color: #16a34a;"></i>
-                                        Payment
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                            <td>Rs <?= number_format((float) ($payment['amount'] ?? 0), 2) ?></td>
-                            <td><?= htmlspecialchars($payment['recipient'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($payment['date'] ?? '') ?></td>
-                            <td>
-                                <?= getStatusTag($payment['status'] ?? '') ?>
-                            </td>
-                            <td>
-                                <?php if (($payment['status'] ?? '') === 'pending'): ?>
-                                    <button class="btn btn-sm btn-primary"
-                                        onclick="processPayment('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
-                                        Process
-                                    </button>
-                                <?php else: ?>
-                                    <button class="btn btn-sm btn-outline"
-                                        onclick="viewPaymentDetails('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
-                                        View Details
-                                    </button>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($payments)): ?>
+            <!-- Status Tabs -->
+            <div class="tabs" style="margin-bottom: var(--space-4);">
+                <div class="tabs-list">
+                    <button class="tabs-trigger active" onclick="switchTab('all')" id="tab-all">
+                        All (<?= count($payments) ?>)
+                    </button>
+                    <button class="tabs-trigger" onclick="switchTab('pending')" id="tab-pending">
+                        Pending (<?= $pendingCount ?>)
+                    </button>
+                    <button class="tabs-trigger" onclick="switchTab('completed')" id="tab-completed">
+                        Completed (<?= $completedCount ?>)
+                    </button>
+                    <button class="tabs-trigger" onclick="switchTab('failed')" id="tab-failed">
+                        Failed (<?= $failedCount ?>)
+                    </button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td colspan="7" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
-                                No payment records found.
-                            </td>
+                            <th>Transaction ID</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Recipient</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($payments)): ?>
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
+                                    No payment records found.
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($payments as $payment): ?>
+                                <tr class="payment-row" data-payment-id="<?= htmlspecialchars($payment['id'] ?? '') ?>"
+                                    data-recipient-id="<?= htmlspecialchars((string) ($payment['recipientId'] ?? '')) ?>"
+                                    data-recipient-name="<?= htmlspecialchars($payment['recipient'] ?? $payment['recipientName'] ?? '') ?>"
+                                    data-amount="<?= htmlspecialchars(number_format((float) ($payment['amount'] ?? 0), 2, '.', '')) ?>"
+                                    data-type="<?= htmlspecialchars($payment['type'] ?? '') ?>"
+                                    data-status="<?= htmlspecialchars($payment['status'] ?? '') ?>">
+                                    <td class="font-medium"><?= htmlspecialchars($payment['id'] ?? '') ?></td>
+                                    <td>
+                                        <div class="cell-with-icon">
+                                            <?php if (($payment['type'] ?? '') === 'payout'): ?>
+                                                <i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i>
+                                                Payout
+                                            <?php else: ?>
+                                                <i class="fa-solid fa-arrow-trend-up" style="color: #16a34a;"></i>
+                                                Payment
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>Rs <?= number_format((float) ($payment['amount'] ?? 0), 2) ?></td>
+                                    <td><?= htmlspecialchars($payment['recipient'] ?? '') ?></td>
+                                    <td><?= htmlspecialchars($payment['date'] ?? '') ?></td>
+                                    <td>
+                                        <?= getStatusTag($payment['status'] ?? '') ?>
+                                    </td>
+                                    <td>
+                                        <?php if (($payment['status'] ?? '') === 'pending' && ($payment['type'] ?? '') === 'payout'): ?>
+                                            <button class="btn btn-sm btn-primary rounded"
+                                                onclick="processPayment('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
+                                                Process
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn btn-sm btn-outline rounded"
+                                                onclick="viewPaymentDetails('<?= htmlspecialchars($payment['id'] ?? '') ?>')">
+                                                View Details
+                                            </button>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     const csrfToken = <?= json_encode($csrfToken, JSON_UNESCAPED_UNICODE) ?>;
+    window.allPayments = <?= json_encode($payments) ?>;
+    window.activeStatusTab = 'all';
 
     const paymentIcons = {
         payout: '<i class="fa-solid fa-arrow-trend-down" style="color: #dc2626;"></i> Payout',
@@ -201,9 +205,7 @@ function getStatusTag($status)
         if (window.Modal && typeof window.Modal.open === 'function') {
             return window.Modal.open(options);
         }
-
-        console.error('ModalManager is unavailable. Ensure the modal script is loaded.');
-        showToast('Modal component is unavailable right now.', 'error');
+        console.error('ModalManager unavailable.');
         return null;
     }
 
@@ -219,36 +221,31 @@ function getStatusTag($status)
         });
 
         let payload = {};
-        try {
-            payload = await response.json();
-        } catch (error) {
-            // ignore JSON parse errors; payload remains {}
-        }
+        try { payload = await response.json(); } catch (e) {}
 
         if (!response.ok) {
-            const message = payload && payload.message ? payload.message : `Payment API failed (${response.status})`;
-            throw new Error(message);
+            throw new Error(payload.message || `API error ${response.status}`);
         }
-
         return payload;
     }
 
-    const recordPayment = (data) => paymentApi('/api/payments', { method: 'POST', body: data });
     const updatePayment = (id, data) => paymentApi(`/api/payments/${encodeURIComponent(id)}`, { method: 'PUT', body: data });
     const fetchPaymentDetails = (id) => paymentApi(`/api/payments/${encodeURIComponent(id)}`);
-    const fetchPayments = () => paymentApi('/api/payments');
+    const fetchPaymentsRaw = () => paymentApi('/api/payments');
 
     async function refreshPayments() {
         const btn = document.querySelector('button[onclick="refreshPayments()"]');
         const icon = btn ? btn.querySelector('i') : null;
-        
+
         if (icon) icon.classList.add('fa-spin');
         if (btn) btn.disabled = true;
 
         try {
-            const { data } = await fetchPayments();
-            renderPaymentTable(data || []);
-            showToast('Payment list updated', 'success');
+            const { data } = await fetchPaymentsRaw();
+            window.allPayments = data || [];
+            updateTabCounts();
+            renderPaymentTable(window.allPayments);
+            showToast('Payments updated', 'success');
         } catch (error) {
             showToast('Failed to refresh payments', 'error');
         } finally {
@@ -257,41 +254,66 @@ function getStatusTag($status)
         }
     }
 
+    function switchTab(status) {
+        window.activeStatusTab = status;
+
+        // Update UI classes
+        document.querySelectorAll('.tabs-trigger').forEach(el => el.classList.remove('active'));
+        const activeTab = document.getElementById(`tab-${status}`);
+        if (activeTab) activeTab.classList.add('active');
+
+        renderPaymentTable(window.allPayments);
+    }
+
+    function updateTabCounts() {
+        const counts = { all: 0, pending: 0, completed: 0, failed: 0 };
+        window.allPayments.forEach(p => {
+            counts.all++;
+            const s = (p.status || '').toLowerCase();
+            if (counts.hasOwnProperty(s)) counts[s]++;
+        });
+
+        Object.keys(counts).forEach(s => {
+            const el = document.getElementById(`tab-${s}`);
+            if (el) el.textContent = `${s.charAt(0).toUpperCase() + s.slice(1)} (${counts[s]})`;
+        });
+    }
+
     function renderPaymentTable(payments) {
         const tbody = document.querySelector('.data-table tbody');
         if (!tbody) return;
 
-        if (!payments || payments.length === 0) {
+        // Filter by active status
+        const filtered = window.activeStatusTab === 'all'
+            ? payments
+            : payments.filter(p => (p.status || '').toLowerCase() === window.activeStatusTab);
+
+        if (filtered.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align:center; padding: var(--space-16); color: var(--neutral-500);">
-                        No payment records found.
+                        No ${window.activeStatusTab === 'all' ? '' : window.activeStatusTab} transactions found.
                     </td>
                 </tr>`;
             return;
         }
 
-        tbody.innerHTML = payments.map(payment => {
+        tbody.innerHTML = filtered.map(payment => {
             const amount = typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount || '0');
             const status = payment.status || 'pending';
             const type = payment.type || 'payment';
-            
-            // Escape attributes
+
             const safeId = escapeHtml(payment.id || '');
-            const safeRecipientId = escapeHtml(payment.recipientId || payment.recipient_id || '');
             const safeRecipientName = escapeHtml(payment.recipient || payment.recipientName || '');
-            const safeAmount = amount.toFixed(2);
-            const safeType = escapeHtml(type);
-            const safeStatus = escapeHtml(status);
 
             return `
                 <tr class="payment-row"
                     data-payment-id="${safeId}"
-                    data-recipient-id="${safeRecipientId}"
+                    data-recipient-id="${escapeHtml(payment.recipientId || payment.recipient_id || '')}"
                     data-recipient-name="${safeRecipientName}"
-                    data-amount="${safeAmount}"
-                    data-type="${safeType}"
-                    data-status="${safeStatus}">
+                    data-amount="${amount.toFixed(2)}"
+                    data-type="${escapeHtml(type)}"
+                    data-status="${escapeHtml(status)}">
                     <td class="font-medium">${safeId}</td>
                     <td>${renderTypeCell(type)}</td>
                     <td>${formatCurrency(amount)}</td>
@@ -299,9 +321,9 @@ function getStatusTag($status)
                     <td>${escapeHtml(payment.date || '')}</td>
                     <td>${renderStatusBadge(status)}</td>
                     <td>
-                        ${status === 'pending' 
-                            ? `<button class="btn btn-sm btn-primary" onclick="processPayment('${safeId}')">Process</button>`
-                            : `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${safeId}')">View Details</button>`
+                        ${(status === 'pending' && type === 'payout')
+                            ? `<button class="btn btn-sm btn-primary rounded" onclick="processPayment('${safeId}')">Process</button>`
+                            : `<button class="btn btn-sm btn-outline rounded" onclick="viewPaymentDetails('${safeId}')">View Details</button>`
                         }
                     </td>
                 </tr>
@@ -310,209 +332,93 @@ function getStatusTag($status)
     }
 
     function findPaymentRow(paymentId) {
-        if (!paymentId) {
-            return null;
-        }
         return document.querySelector(`tr[data-payment-id="${CSS.escape(paymentId)}"]`);
     }
 
     function formatCurrency(amount) {
-        const value = typeof amount === 'number' ? amount : parseFloat(amount || '0');
-        return `Rs ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const val = typeof amount === 'number' ? amount : parseFloat(amount || '0');
+        return `Rs ${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     function renderStatusBadge(status) {
         const normalized = (status || '').toLowerCase();
-        if (normalized === 'completed') {
-            return '<div class="tag completed">Completed</div>';
-        }
-        if (normalized === 'pending') {
-            return '<div class="tag pending">Pending</div>';
-        }
-        if (normalized === 'failed') {
-            return '<div class="tag danger">Failed</div>';
-        }
+        if (normalized === 'completed') return '<div class="tag completed">Completed</div>';
+        if (normalized === 'pending') return '<div class="tag pending">Pending</div>';
+        if (normalized === 'failed') return '<div class="tag danger">Failed</div>';
         return `<div class="tag secondary">${escapeHtml(status || 'N/A')}</div>`;
     }
 
     function renderTypeCell(type) {
         const normalized = (type || '').toLowerCase();
-        return `<div class="cell-with-icon">${paymentIcons[normalized] || escapeHtml(type || 'Unknown')}</div>`;
-    }
-
-    function getFieldValue(container, selector) {
-        const element = container ? container.querySelector(selector) : null;
-        return element ? element.value : '';
+        return `<div class="cell-with-icon">${paymentIcons[normalized] || escapeHtml(type)}</div>`;
     }
 
     function updatePaymentRow(row, record) {
-        if (!row || !record) {
-            return;
-        }
-
-        const cells = row.querySelectorAll('td');
-        const amountNumber = typeof record.amount === 'number' ? record.amount : parseFloat(record.amount || '0');
-        const status = record.status || 'completed';
-
-        row.dataset.paymentId = record.id || '';
-        row.dataset.recipientId = record.recipientId || record.recipient_id || '';
-        row.dataset.recipientName = record.recipient || record.recipientName || record.recipient_name || '';
-        row.dataset.amount = amountNumber.toFixed(2);
-        row.dataset.type = record.type || '';
-        row.dataset.status = status;
-
-        if (cells[0]) {
-            cells[0].textContent = record.id || '';
-        }
-        if (cells[1]) {
-            cells[1].innerHTML = renderTypeCell(record.type || 'payment');
-        }
-        if (cells[2]) {
-            cells[2].textContent = formatCurrency(amountNumber);
-        }
-        if (cells[3]) {
-            cells[3].textContent = record.recipient || record.recipientName || '';
-        }
-        if (cells[4]) {
-            cells[4].textContent = record.date || new Date().toISOString().slice(0, 19).replace('T', ' ');
-        }
-        if (cells[5]) {
-            cells[5].innerHTML = renderStatusBadge(status);
-        }
-        if (cells[6]) {
-            cells[6].innerHTML = `<button class="btn btn-sm btn-outline" onclick="viewPaymentDetails('${escapeHtml(record.id || '')}')">View Details</button>`;
-        }
+        if (!row || !record) return;
+        
+        // Update the global state too
+        const idx = window.allPayments.findIndex(p => p.id === record.id);
+        if (idx !== -1) window.allPayments[idx] = record;
+        
+        updateTabCounts();
+        renderPaymentTable(window.allPayments);
     }
 
     function processPayment(paymentId) {
         const row = findPaymentRow(paymentId);
-        if (!row) {
-            showToast('Unable to locate the selected payment row.', 'error');
-            return;
-        }
+        if (!row) return;
 
-        const dataset = row.dataset || {};
-        const recipientId = Number(dataset.recipientId || '0');
-        const amountValue = Number(dataset.amount || '0');
-
-        if (!recipientId) {
-            showToast('Recipient information is missing for this payment.', 'error');
-            return;
-        }
-
+        const ds = row.dataset;
         const paymentData = {
             id: paymentId,
-            type: dataset.type || 'payout',
-            amount: amountValue,
-            recipient: dataset.recipientName || 'Unknown recipient'
+            type: ds.type || 'payout',
+            amount: Number(ds.amount || 0),
+            recipient: ds.recipientName || 'Unknown'
         };
 
         const container = document.createElement('div');
         container.innerHTML = `
-            <div style="display:grid;gap:1.5rem;">
-                <div style="background:#f9fafb;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;">
-                    <div style="display:grid;gap:1rem;">
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Transaction ID</span>
-                            <strong style="font-size:1rem;color:#111827;">${escapeHtml(paymentData.id)}</strong>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
-                            <div>
-                                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Type</span>
-                                <strong style="color:#111827;">${escapeHtml(paymentData.type)}</strong>
-                            </div>
-                            <div>
-                                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Amount</span>
-                                <strong style="color:#16a34a;font-size:1.1rem;">${escapeHtml(formatCurrency(paymentData.amount))}</strong>
-                            </div>
-                        </div>
-                        <div>
-                            <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Recipient</span>
-                            <strong style="color:#111827;">${escapeHtml(paymentData.recipient)}</strong>
-                        </div>
+            <div style="display:grid;gap:1rem;">
+                <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:#f0fdf4;border-radius:10px;border:1px solid #86efac;">
+                    <div style="width:40px;height:40px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;color:#fff;">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:0.75rem;color:#166534;">Payout To</div>
+                        <div style="font-weight:600;">${escapeHtml(paymentData.recipient)}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.75rem;color:#166534;">Amount</div>
+                        <div style="font-weight:700;">${formatCurrency(paymentData.amount)}</div>
                     </div>
                 </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Method</label>
-                    <select data-payment-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select payment method</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cash">Cash</option>
-                        <option value="check">Check</option>
-                        <option value="online">Online Payment</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Reference Number</label>
-                    <input type="text" data-payment-field="reference" placeholder="Enter reference or transaction number" 
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Notes (Optional)</label>
-                    <textarea data-payment-field="notes" rows="3" placeholder="Add any additional notes about this payment..."
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit;font-size:0.95rem;"></textarea>
-                </div>
-
-                <div style="background:#fef3c7;padding:1rem;border-radius:8px;border:1px solid #fde047;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-circle-exclamation" style="color:#ca8a04;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#713f12;font-size:0.9rem;line-height:1.5;">
-                            <strong>Important:</strong> Please verify all payment details before processing. This action will mark the payment as completed.
-                        </p>
-                    </div>
-                </div>
+                <p style="font-size:0.875rem;color:#4b5563;">Marking this as paid will record it in the system ledger.</p>
             </div>
         `;
 
         openModal({
-            title: 'Process Payment',
-            size: 'md',
+            title: 'Confirm Payment',
+            size: 'sm',
             content: container,
             actions: [
+                { label: 'Cancel', variant: 'plain' },
                 {
-                    label: 'Cancel',
-                    variant: 'plain'
-                },
-                {
-                    label: 'Process Payment',
+                    label: 'Mark as Paid',
                     variant: 'primary',
                     dismiss: false,
-                    loadingLabel: 'Processing...',
-                    onClick: async ({ body, close, setLoading }) => {
-                        const paymentMethod = getFieldValue(body, '[data-payment-field="method"]');
-                        const referenceNumber = getFieldValue(body, '[data-payment-field="reference"]');
-                        const notes = getFieldValue(body, '[data-payment-field="notes"]');
-
-                        if (!paymentMethod) {
-                            showToast('Please select a payment method', 'error');
-                            return;
-                        }
-
+                    loadingLabel: 'Saving...',
+                    onClick: async ({ close, setLoading }) => {
                         setLoading(true);
-
                         try {
-                            const payload = {
-                                recipientId,
-                                amount: amountValue,
-                                type: paymentData.type || 'payout',
+                            const { data } = await updatePayment(paymentId, {
                                 status: 'completed',
-                                txnId: referenceNumber || undefined,
-                                gatewayResponse: {
-                                    method: paymentMethod,
-                                    notes: notes || undefined,
-                                    sourcePaymentId: paymentId
-                                }
-                            };
-
-                            const { data } = await updatePayment(paymentId, payload);
+                                processed_at: new Date().toISOString()
+                            });
                             updatePaymentRow(row, data || {});
-                            showToast('Payment updated successfully', 'success');
+                            showToast('Payment processed', 'success');
                             close();
-                        } catch (error) {
-                            showToast(error.message || 'Payment processing failed', 'error');
+                        } catch (e) {
+                            showToast(e.message, 'error');
                         } finally {
                             setLoading(false);
                         }
@@ -523,185 +429,27 @@ function getStatusTag($status)
     }
 
     async function viewPaymentDetails(paymentId) {
-        if (!paymentId) {
-            showToast('Missing payment identifier', 'error');
-            return;
-        }
-
         try {
             const { data } = await fetchPaymentDetails(paymentId);
-            openPaymentDetailsModal(data || {});
-        } catch (error) {
-            showToast(error.message || 'Failed to load payment details', 'error');
-        }
-    }
+            const list = document.createElement('div');
+            list.style.display = 'grid';
+            list.style.gap = '0.75rem';
+            
+            const fields = [
+                ['ID', data.id],
+                ['Recipient', data.recipient || data.recipientName],
+                ['Amount', formatCurrency(data.amount)],
+                ['Status', (data.status || '').toUpperCase()],
+                ['Date', data.date]
+            ];
 
-    function openPaymentDetailsModal(record) {
-        const entries = [
-            { label: 'Transaction ID', value: record.id || 'N/A' },
-            { label: 'Reference', value: record.txnId || '—' },
-            { label: 'Type', value: (record.type || '').toUpperCase() },
-            { label: 'Amount', value: formatCurrency(record.amount || 0) },
-            { label: 'Recipient', value: record.recipient || record.recipientName || 'N/A' },
-            { label: 'Status', value: (record.status || '').toUpperCase() },
-            { label: 'Date', value: record.date || 'N/A' }
-        ];
+            fields.forEach(([l, v]) => {
+                const item = document.createElement('div');
+                item.innerHTML = `<span style="font-size:0.75rem;color:#6b7280;display:block;">${l}</span><strong>${escapeHtml(v)}</strong>`;
+                list.appendChild(item);
+            });
 
-        const list = document.createElement('div');
-        list.style.cssText = 'display:grid;gap:1rem;';
-        entries.forEach(entry => {
-            const block = document.createElement('div');
-            block.classList.add('payment-detail-entry');
-            block.innerHTML = `
-                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">${escapeHtml(entry.label)}</span>
-                <strong style="color:#111827;">${escapeHtml(entry.value)}</strong>
-            `;
-            list.appendChild(block);
-        });
-
-        if (record.gatewayResponse) {
-            const gateway = typeof record.gatewayResponse === 'object'
-                ? JSON.stringify(record.gatewayResponse, null, 2)
-                : String(record.gatewayResponse);
-            const gatewayBlock = document.createElement('div');
-            gatewayBlock.classList.add('payment-gateway-response');
-            gatewayBlock.innerHTML = `
-                <span style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:0.25rem;">Gateway Response</span>
-                <pre style="background:#f3f4f6;padding:0.75rem;border-radius:8px;overflow:auto;white-space:pre-wrap;">${escapeHtml(gateway)}</pre>
-            `;
-            list.appendChild(gatewayBlock);
-        }
-
-        openModal({
-            title: 'Payment Details',
-            size: 'md',
-            content: list,
-            actions: [
-                {
-                    label: 'Close',
-                    variant: 'plain'
-                }
-            ]
-        });
-    }
-
-    function openBatchPaymentModal() {
-        const container = document.createElement('div');
-        container.innerHTML = `
-            <div style="display:grid;gap:1.5rem;">
-                <div style="background:#f0f9ff;padding:1rem;border-radius:8px;border:1px solid #bae6fd;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-circle-info" style="color:#0284c7;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#075985;font-size:0.9rem;line-height:1.5;">
-                            Process multiple pending payments in a batch. This will mark all selected transactions as completed.
-                        </p>
-                    </div>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Payment Type</label>
-                    <select data-batch-field="type" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select payment type</option>
-                        <option value="all">All Pending</option>
-                        <option value="payout">Payouts Only</option>
-                        <option value="payment">Payments Only</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Processing Method</label>
-                    <select data-batch-field="method" style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-                        <option value="">Select method</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="bulk_payout">Bulk Payout Service</option>
-                        <option value="manual">Manual Processing</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Batch Reference</label>
-                    <input type="text" data-batch-field="reference" placeholder="Enter batch reference number" 
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#111827;">Processing Date</label>
-                    <input type="date" data-batch-field="date" value="${new Date().toISOString().split('T')[0]}"
-                        style="width:100%;padding:0.625rem;border:2px solid #d1d5db;border-radius:6px;font-size:0.95rem;" />
-                </div>
-
-                <div style="background:#f9fafb;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;">
-                    <h4 style="margin:0 0 0.75rem 0;font-size:0.95rem;color:#111827;">Summary</h4>
-                    <div style="display:grid;gap:0.5rem;font-size:0.9rem;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span style="color:#6b7280;">Pending Transactions:</span>
-                            <strong style="color:#111827;"><?= $pendingCount ?></strong>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;">
-                            <span style="color:#6b7280;">Estimated Total:</span>
-                            <strong style="color:#16a34a;">Calculate on selection</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background:#fef3c7;padding:1rem;border-radius:8px;border:1px solid #fde047;">
-                    <div style="display:flex;gap:0.75rem;align-items:start;">
-                        <i class="fa-solid fa-triangle-exclamation" style="color:#ca8a04;margin-top:0.125rem;"></i>
-                        <p style="margin:0;color:#713f12;font-size:0.9rem;line-height:1.5;">
-                            <strong>Warning:</strong> Batch processing will affect multiple transactions. Please ensure all details are correct before proceeding.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        openModal({
-            title: 'Batch Payment Processing',
-            size: 'lg',
-            content: container,
-            actions: [
-                {
-                    label: 'Cancel',
-                    variant: 'plain'
-                },
-                {
-                    label: 'Process Batch',
-                    variant: 'primary',
-                    dismiss: false,
-                    onClick: ({ body, close }) => {
-                        const paymentType = getFieldValue(body, '[data-batch-field="type"]');
-                        const batchMethod = getFieldValue(body, '[data-batch-field="method"]');
-                        const batchReference = getFieldValue(body, '[data-batch-field="reference"]');
-                        const processingDate = getFieldValue(body, '[data-batch-field="date"]');
-
-                        if (!paymentType) {
-                            showToast('Please select a payment type', 'error');
-                            return;
-                        }
-
-                        if (!batchMethod) {
-                            showToast('Please select a processing method', 'error');
-                            return;
-                        }
-
-                        if (!batchReference) {
-                            showToast('Please enter a batch reference', 'error');
-                            return;
-                        }
-
-                        // Here you would typically make an API call to process the batch
-                        console.log('Processing batch payments with:', {
-                            paymentType,
-                            batchMethod,
-                            batchReference,
-                            processingDate
-                        });
-
-                        showToast('Batch payment processing is not yet wired to the API. Please process individually for now.', 'info');
-                        close();
-                    }
-                }
-            ]
-        });
+            openModal({ title: 'Transaction Details', content: list, actions: [{ label: 'Close', variant: 'plain' }] });
+        } catch (e) { showToast(e.message, 'error'); }
     }
 </script>

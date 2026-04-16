@@ -790,12 +790,15 @@ window.viewBiddingDetails = async function (el, biddingId) {
   try {
     // Fetch fresh data including bids
     const data = await apiRequest(`/api/bidding/rounds/${biddingId}`);
+    console.log(data);
     if (!data || !data.round) {
       throw new Error("Details could not be loaded.");
     }
 
     const record = data.round;
     const bids = data.bids || [];
+
+    console.log(record);
 
     // Build Details Grid
     const gridContainer = document.createElement("div");
@@ -958,36 +961,7 @@ window.viewBiddingDetails = async function (el, biddingId) {
       });
     }
 
-    // Confirm Payment button — awarded round with pending/processing invoice
-    if (
-      (roundStatus === "awarded" || roundStatus === "completed") &&
-      invoice &&
-      (invoice.status === "processing" || invoice.status === "pending")
-    ) {
-      modalActions.unshift({
-        label: "✅ Confirm Payment Received",
-        variant: "primary",
-        onClick: async (ctx) => {
-          try {
-            await apiRequest(
-              `/api/payments/${encodeURIComponent(String(invoice.id))}`,
-              {
-                method: "PUT",
-                body: { status: "completed" },
-              },
-            );
-            showToast(
-              "Payment confirmed! Invoice marked as completed.",
-              "success",
-            );
-            ctx.close();
-          } catch (err) {
-            showToast(err.message || "Failed to confirm payment.", "error");
-            throw err;
-          }
-        },
-      });
-    }
+
 
     modalContext.close(); // Close loading modal
 

@@ -44,7 +44,7 @@ class AdminDashboardController extends DashboardController
         $activeCollectors = $userModel->countByType('collector', 'active');
         $activePickups = $pickupModel->countByStatuses(['pending', 'assigned']);
         $bidStats = $biddingModel->stats();
-        $monthlyRevenue = max(10000.00, $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m')));
+        $monthlyRevenue = $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m'));
 
         $stats = [
             [
@@ -104,24 +104,42 @@ class AdminDashboardController extends DashboardController
     {
         $request = app('request');
         $selectedTimeSlot = $request->query('time_slot', 'all');
+        $today = date('Y-m-d');
 
         $pickupModel = new PickupRequest();
-        $allRequests = $pickupModel->listAll();
-        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
+        
+        // 1. Today's Schedule (all statuses for today)
+        $todayRequests = $pickupModel->listAll($selectedTimeSlot, $today);
+
+        // 2. Upcoming (future dates, not finished)
+        $upcomingRequests = $pickupModel->listAll($selectedTimeSlot, $today, null, '>');
+        $upcomingRequests = array_filter($upcomingRequests, fn($r) => !in_array($r['statusRaw'], ['completed', 'cancelled']));
+
+        // 3. In Progress (any date)
+        $inProgressRequests = $pickupModel->listAll('all', null, 'in_progress');
+
+        // 4. Completed (any date, for history)
+        $completedRequests = $pickupModel->listAll('all', null, 'completed');
+
+        // 5. Cancelled (any date, for history)
+        $cancelledRequests = $pickupModel->listAll('all', null, 'cancelled');
 
         $collectors = (new User())->listByType('collector', 200);
-
-        $filtered = ($selectedTimeSlot === 'all')
-            ? $allRequests
-            : array_values(array_filter($allRequests, fn($row) => ($row['timeSlot'] ?? null) === $selectedTimeSlot));
+        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
         $data = [
-            'pageTitle' => 'Pickup Requests',
-            'pickupRequests' => $allRequests,
-            'filteredPickupRequests' => $filtered,
+            'pageTitle' => 'Pickup Management',
+            'todayRequests' => $todayRequests,
+            'upcomingRequests' => $upcomingRequests,
+            'inProgressRequests' => $inProgressRequests,
+            'completedRequests' => $completedRequests,
+            'cancelledRequests' => $cancelledRequests,
+            
             'timeSlots' => $timeSlots,
             'selectedTimeSlot' => $selectedTimeSlot,
             'collectors' => $collectors,
+            // Backwards compatibility for some view lookups
+            'pickupRequests' => array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests),
         ];
 
         return $this->renderDashboard('pickupRequest', $data);
@@ -305,6 +323,7 @@ class AdminDashboardController extends DashboardController
      */
     public function analytics(): Response
     {
+        $request = app('request');
         $paymentModel = new Payment();
         $pickupModel = new PickupRequest();
         $reportsModel = new \Models\ReportsModel();
@@ -314,6 +333,7 @@ class AdminDashboardController extends DashboardController
         $totalRevenue = $summary['total_payments'] ?? 0.0;
         $customerPayouts = $summary['total_payouts'] ?? 0.0;
         $netProfit = $totalRevenue - $customerPayouts;
+        $date = date('Y-m-d H:i:s');
 
         // ── Waste Volume by Category ────────────────────────────────────────
         $wasteData = $reportsModel->getWasteVolumeByCategory();
@@ -413,6 +433,87 @@ class AdminDashboardController extends DashboardController
                 'pickupSeries' => array_values($pickupTrendMap),
             ],
         ];
+
+        // Handle CSV Export
+        if ($request->query('export') === '1' && $request->query('format') === 'csv') {
+            $csvData = [];
+            
+            // Build Summary Section
+            $csvData[] = ['Summary Metrics', 'Value'];
+            $csvData[] = ['Total Waste Collected (kg)', $totalWaste];
+            $csvData[] = ['Average Collection/Day (kg)', $avgCollectionPerDay];
+            $csvData[] = ['Total Revenue (Rs)', number_format($totalRevenue, 2, '.', '')];
+            $csvData[] = ['Customer Payouts (Rs)', number_format($customerPayouts, 2, '.', '')];
+            $csvData[] = ['Net Profit (Rs)', number_format($netProfit, 2, '.', '')];
+            $csvData[] = ['Total Pickups', $totalPickups];
+            $csvData[] = ['Completed Pickups', $completedPickups];
+            $csvData[] = [];
+            
+            // Build Waste Category Section
+            $csvData[] = ['Waste Category Breakdown', 'Volume (kg)', 'Percentage'];
+            foreach ($wasteCategories as $wc) {
+                $csvData[] = [$wc['category'], $wc['volume'], $wc['percentage'] . '%'];
+            }
+            $csvData[] = [];
+            
+            // Build Pickup Status Section
+            $csvData[] = ['Pickup Status Breakdown', 'Count'];
+            foreach ($pickupStatusBreakdown as $ps) {
+                $csvData[] = [ucfirst(str_replace('_', ' ', $ps['status'])), $ps['count']];
+            }
+            
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.csv';
+            return \Core\Http\Response::csv($filename, [], $csvData);
+        }
+
+        // Handle PDF Export
+        if ($request->query('export') === '1' && $request->query('format') === 'pdf') {
+            $formattedRevenue = number_format($totalRevenue, 2, '.', ',');
+            $formattedPayouts = number_format($customerPayouts, 2, '.', ',');
+            $formattedProfit = number_format($netProfit, 2, '.', ',');
+
+            $html = <<<HTML
+            <style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+            </style>
+            <h1>Analytics Report</h1>
+            <p>Generated on: <strong>{$date}</strong></p>
+            
+            <h3>Summary Metrics</h3>
+            <table>
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Total Waste Collected</td><td>{$totalWaste} kg</td></tr>
+                <tr><td>Avg Collection/Day</td><td>{$avgCollectionPerDay} kg</td></tr>
+                <tr><td>Total Revenue</td><td>Rs. {$formattedRevenue}</td></tr>
+                <tr><td>Customer Payouts</td><td>Rs. {$formattedPayouts}</td></tr>
+                <tr><td>Net Profit</td><td>Rs. {$formattedProfit}</td></tr>
+                <tr><td>Total Pickups</td><td>{$totalPickups}</td></tr>
+                <tr><td>Completed Pickups</td><td>{$completedPickups}</td></tr>
+            </table>
+
+            <h3>Waste Category Breakdown</h3>
+            <table>
+                <tr><th>Category</th><th>Volume (kg)</th><th>Percentage</th></tr>
+HTML;
+            foreach ($wasteCategories as $wc) {
+                $html .= "<tr><td>{$wc['category']}</td><td>{$wc['volume']}</td><td>{$wc['percentage']}%</td></tr>";
+            }
+            $html .= '</table><h3>Pickup Status Breakdown</h3><table><tr><th>Status</th><th>Count</th></tr>';
+            foreach ($pickupStatusBreakdown as $ps) {
+                $statusName = ucfirst(str_replace('_', ' ', $ps['status']));
+                $html .= "<tr><td>{$statusName}</td><td>{$ps['count']}</td></tr>";
+            }
+            $html .= '</table>';
+
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.pdf';
+            return Response::pdf($filename, $html);
+        }
 
         return $this->renderDashboard('analytics', $data);
     }

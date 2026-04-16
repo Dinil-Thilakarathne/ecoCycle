@@ -1,7 +1,8 @@
 <?php
 $stats = $stats ?? [];
 $recentActivity = $recentActivity ?? [];
-?>
+consoleLog($stats)
+    ?>
 
 <div>
     <div class="page-header">
@@ -52,8 +53,14 @@ $recentActivity = $recentActivity ?? [];
                 <p style="color: var(--neutral-500); font-size: var(--text-sm);">No waste categories found.</p>
             <?php else: ?>
                 <?php foreach ($wasteCategories as $category): ?>
-                    <status-item label="<?= htmlspecialchars($category['name']) ?>"
-                        state="Rs <?= number_format($category['pricePerUnit'], 2) ?>" state-class="text-primary"></status-item>
+                    <div style="display: flex; gap: .5rem; align-items: center;">
+                        <span
+                            style="
+                        display:inline;width:12px;height:12px;border-radius:50%;background-color:<?= htmlspecialchars($category['color'] ?? '#ccc') ?>;"></span>
+                        <status-item unwrap label="<?= htmlspecialchars($category['name']) ?>"
+                            state="Rs <?= number_format($category['pricePerUnit'], 2) ?>"
+                            state-class="text-primary"></status-item>
+                    </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </activity-card>

@@ -22,191 +22,261 @@ $allMonths = [
     'July','August','September','October','November','December'
 ];
 
-// Replace the above with a fiscal window starting in November and ending in October
-$fiscalOrder = [
-    'November','December','January','February','March','April',
-    'May','June','July','August','September','October'
-];
-
-// Determine the fiscal end year (the most recent October that has completed)
-// If current month is November or December, the most recent October is in the current year.
-// Otherwise (Jan-Oct), the most recent October was in the previous year.
 $currentMonth = (int) date('n');
-$currentYear = (int) date('Y');
-$fiscalEndYear = ($currentMonth >= 11) ? $currentYear : ($currentYear - 1);
+$currentYear  = (int) date('Y');
 
-// Build labels with year (e.g. "November 2024") and also a base-month list for mapping
-$monthsWithYear = [];
-$fiscalBaseMonths = []; // just month names in fiscal order for normalization mapping
-foreach ($fiscalOrder as $m) {
-    $yearForMonth = in_array($m, ['November','December']) ? ($fiscalEndYear - 1) : $fiscalEndYear;
-    $monthsWithYear[] = $m . ' ' . $yearForMonth;
-    $fiscalBaseMonths[] = $m;
+// Build a flat list of {year, month} entries covering the last N fiscal years.
+// Each fiscal year runs January–December of a single calendar year.
+// We expose the current year and the two preceding years so the user can pick.
+$availableYears = [$currentYear - 2, $currentYear - 1, $currentYear];
+
+// For each year, store month labels, normalised totals, won, and category series.
+// ──────────────────────────────────────────────────────────────────────────────
+// Helper: normalise a series keyed by month name / index to a 12-element array
+// for a specific calendar year.
+// $months is now ["September 2025", "October 2025", ...] — full "F Y" labels.
+// $totalBidsPerMonth and $wonBidsPerMonth are positional arrays aligned to $months.
+// $categorySeries[$cat] is a string-keyed array: ["September 2025" => 12.5, ...]
+//
+// Build a positional lookup: "F Y" label => index in $months array.
+$monthIndexMap = [];
+foreach ($months as $idx => $label) {
+    $t = strtotime($label);
+    $key = $t !== false ? date('F Y', $t) : trim($label);
+    $monthIndexMap[$key] = $idx;
 }
 
-// Build a map from normalized month name => original index in $months (if provided)
-$monthPosMap = [];
-foreach ($months as $idx => $m) {
-    $t = strtotime($m);
-    if ($t !== false) {
-        $norm = date('F', $t);
-    } elseif (is_numeric($m) && intval($m) >= 1 && intval($m) <= 12) {
-        $norm = date('F', mktime(0, 0, 0, intval($m), 1));
-    } else {
-        $norm = ucfirst(strtolower($m));
-    }
-    // If multiple same months exist in source, keep the earliest index (existing behavior)
-    if (!isset($monthPosMap[$norm])) {
-        $monthPosMap[$norm] = $idx;
-    }
-}
-
-// Normalizer: produce array of 12 values (one per fiscal month) from various possible input shapes
-$normalizeSeries = function($series) use ($fiscalBaseMonths, $monthPosMap) {
+// Returns a strict 12-element array (Jan–Dec) for $year.
+// - Category series: looked up directly by "Month YYYY" string key
+// - Positional series (totals/won): looked up via $monthIndexMap
+// Only data whose label matches BOTH the month AND $year is used. No cross-year bleed.
+$normalizeSeriesForYear = function($series, $year) use ($allMonths, $monthIndexMap) {
     $out = [];
-    for ($i = 0; $i < 12; $i++) {
-        $m = $fiscalBaseMonths[$i]; // month name without year
+    foreach ($allMonths as $m) {
+        $key = $m . ' ' . $year;
         $val = 0;
         if (is_array($series)) {
-            // If series uses month-name keys (e.g. 'November' or 'November 2024' => val)
-            if (array_key_exists($m, $series)) {
-                $val = $series[$m];
-            } else {
-                // try to find keys that include the month (e.g. 'November 2024')
-                foreach ($series as $k => $v) {
-                    $t = strtotime($k);
-                    if ($t !== false && date('F', $t) === $m) {
-                        $val = $v;
-                        break;
-                    }
-                }
+            if (array_key_exists($key, $series)) {
+                // Category series: keyed by "F Y" label
+                $val = $series[$key];
+            } elseif (isset($monthIndexMap[$key]) && array_key_exists($monthIndexMap[$key], $series)) {
+                // Positional series (totals/won): look up by index
+                $val = $series[$monthIndexMap[$key]];
             }
-            // If series is indexed and corresponds to the original $months order
-            if ($val === 0 && isset($monthPosMap[$m]) && array_key_exists($monthPosMap[$m], $series)) {
-                $val = $series[$monthPosMap[$m]];
-            }
+            // No other fallbacks — different year always returns 0.
         }
-        $out[] = is_numeric($val) ? (float)$val : 0.0;
+        $out[] = is_numeric($val) ? (float) $val : 0.0;
     }
     return $out;
 };
 
-// Normalize category series. Ensure expected categories exist (safe defaults)
 $expectedCats = ['Plastic','Paper','Metal','Glass','Organic'];
-$normalizedBidding = [];
-if (is_array($biddingValues) && count($biddingValues) > 0) {
-    // For each provided category, normalize
-    foreach ($biddingValues as $cat => $series) {
-        $normalizedBidding[$cat] = $normalizeSeries($series);
-    }
-}
-// Ensure all expected categories exist
-foreach ($expectedCats as $cat) {
-    if (!isset($normalizedBidding[$cat])) {
-        $normalizedBidding[$cat] = array_fill(0, 12, 0.0);
-    }
-}
 
-// Normalize monthly totals
-$normalizedTotalBids = $normalizeSeries($totalBidsPerMonth);
-$normalizedWonBids = $normalizeSeries($wonBidsPerMonth);
+// Build per-year data structures
+$yearData = [];
+foreach ($availableYears as $yr) {
+    $catData = [];
+    if (is_array($biddingValues) && count($biddingValues) > 0) {
+        foreach ($biddingValues as $cat => $series) {
+            $catData[$cat] = $normalizeSeriesForYear($series, $yr);
+        }
+    }
+    foreach ($expectedCats as $cat) {
+        if (!isset($catData[$cat])) {
+            $catData[$cat] = array_fill(0, 12, 0.0);
+        }
+    }
 
-// Use fiscal 12 months (with year) for charts
-$months = $monthsWithYear;
+    $yearData[$yr] = [
+        'months'     => $allMonths,
+        'shortMonths'=> array_map(fn($m) => substr($m, 0, 3), $allMonths),
+        'totalBids'  => $normalizeSeriesForYear($totalBidsPerMonth, $yr),
+        'wonBids'    => $normalizeSeriesForYear($wonBidsPerMonth, $yr),
+        'categories' => $catData,
+    ];
+}
 ?>
 
 <main class="content">
-    <header class="page-header">
-        <div class="page-header__content">
-            <h2 class="page-header__title">Reports & Analytics</h2>
-        </div>
-    </header>
-
-    <div class="stats">
-        <div class="stat blue">
-            <h2><?= (int) $totalBids ?></h2>
-            <p>Total Bids Placed</p>
-        </div>
-        <div class="stat green">
-            <h2><?= (int) $successfulBids ?></h2>
-            <p>Successful Bids</p>
-        </div>
-        <div class="stat purple">
-            <h2><?= htmlspecialchars(number_format((float) $successRate, 2)) ?>%</h2>
-            <p>Success Rate</p>
-        </div>
+  <header class="page-header">
+    <div class="page-header__content">
+      <h2 class="page-header__title">Reports &amp; Analytics</h2>
     </div>
+  </header>
 
-        <div class="chart-box">
-            <h3 style="font-size: 20px; font-weight: bold;">Bidding Values for Each Waste Type</h3>
-            <canvas id="biddingChart"></canvas>
-        </div>
+  <div class="stats">
+    <div class="stat blue"><h2><?= (int) $totalBids ?></h2><p>Total Bids Placed</p></div>
+    <div class="stat green"><h2><?= (int) $successfulBids ?></h2><p>Successful Bids</p></div>
+    <div class="stat purple"><h2><?= htmlspecialchars(number_format((float) $successRate, 2)) ?>%</h2><p>Success Rate</p></div>
+  </div>
 
-        <div class="chart-box">
-            <h3 style="font-size: 20px; font-weight: bold;">Monthly Performance</h3>
-            <canvas id="performanceChart"></canvas>
-        </div>
+  <!-- Filter UI -->
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:1rem 1.25rem; background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:1rem;">
+
+    <!-- Year selector -->
+    <label style="font-size:16px; font-weight:500;">Year:</label>
+    <select id="yearSelect" style="font-size:13px; padding:5px 8px; border:1px solid #e5e7eb; border-radius:5px;">
+      <?php foreach ($availableYears as $yr): ?>
+        <option value="<?= $yr ?>" <?= $yr === $currentYear ? 'selected' : '' ?>><?= $yr ?></option>
+      <?php endforeach; ?>
+    </select>
+
+    <div style="width:1px; height:24px; background:#e5e7eb; margin:0 4px;"></div>
+
+    <!-- Preset ranges -->
+    <label style="font-size:16px;">Preset range:</label>
+    <button class="range-btn" style="border:1px solid #e5e7eb; padding:5px 8px; border-radius:5px;" data-range="0">Jan – Apr</button>
+    <button class="range-btn" style="border:1px solid #e5e7eb; padding:5px 8px; border-radius:5px;" data-range="1">May – Aug</button>
+    <button class="range-btn" style="border:1px solid #e5e7eb; padding:5px 8px; border-radius:5px;" data-range="2">Sep – Dec</button>
+
+    <div style="width:1px; height:24px; background:#e5e7eb; margin:0 4px;"></div>
+
+    <!-- Custom month range -->
+    <label style="font-size:16px;">Custom:</label>
+    <select id="customStart" style="font-size:13px; padding:5px 8px; border:1px solid #e5e7eb; border-radius:5px;"></select>
+    <span style="font-size:13px; color:#666;">to</span>
+    <select id="customEnd" style="font-size:13px; padding:5px 8px; border:1px solid #e5e7eb; border-radius:5px;"></select>
+    <button id="applyCustom" style="border:1px solid #e5e7eb; padding:5px 8px; border-radius:8px; cursor:pointer;">Apply</button>
+  </div>
+
+  <!-- Side-by-side charts -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div class="chart-box">
+      <h3 style="font-size:20px; font-weight:bold; margin-bottom:12px;">Bidding values per waste type</h3>
+      <div style="position:relative; width:100%; height:520px;">
+        <canvas id="biddingChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3 style="font-size:20px; font-weight:bold; margin-bottom:12px;">Monthly performance</h3>
+      <div style="position:relative; width:100%; height:520px;">
+        <canvas id="performanceChart"></canvas>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
-    // PHP to JS data
-    const months = <?= json_encode($months) ?>;
-    const biddingValues = <?= json_encode($normalizedBidding) ?>;
-    const totalBids = <?= json_encode($normalizedTotalBids) ?>;
-    const wonBids = <?= json_encode($normalizedWonBids) ?>;
+// All per-year data from PHP
+const yearData = <?= json_encode($yearData) ?>;
+const presets  = [[0,3],[4,7],[8,11]];
 
-    // Line Chart - Bidding Values
-    new Chart(document.getElementById('biddingChart'), {
-        type: 'line',
-        data: {
-            labels: months,
-            datasets: [
-                { label: 'Plastic', data: biddingValues.Plastic, borderColor: '#0000ff', fill: false },
-                { label: 'Paper', data: biddingValues.Paper, borderColor: '#008000', fill: false },
-                { label: 'Metal', data: biddingValues.Metal, borderColor: '#ffa500', fill: false },
-                { label: 'Glass', data: biddingValues.Glass, borderColor: '#ff0000', fill: false },
-                { label: 'Organic', data: biddingValues.Organic, borderColor: '#8b5a2b', fill: false }
-            ]
-        },
-        options: {
-            scales: {
-                x: {
-                    title: {
-                        display: true, text: 'Months', font: { size: 14, weight: 'bold' }
-                    }
-                },
-                y: {
-                    title: {
-                        display: true, text: 'Bidding Value', font: { size: 14, weight: 'bold' }
-                    }
-                }
-            }
-        }
-    });
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const yearSelect   = document.getElementById('yearSelect');
+const startSel     = document.getElementById('customStart');
+const endSel       = document.getElementById('customEnd');
+const applyBtn     = document.getElementById('applyCustom');
 
-    // Bar Chart - Monthly Performance
-    new Chart(document.getElementById('performanceChart'), {
-        type: 'bar',
-        data: {
-            labels: months,
-            datasets: [
-                { label: 'Total Bids', data: totalBids, backgroundColor: 'lightblue' },
-                { label: 'Won Bids', data: wonBids, backgroundColor: 'green' }
-            ]
-        },
-        options: {
-            scales: {
-                x: {
-                    title: {
-                        display: true, text: 'Months', font: { size: 14, weight: 'bold' }
-                    }
-                },
-                y: {
-                    title: {
-                        display: true, text: 'Number of Bids', font: { size: 14, weight: 'bold' }
-                    }
-                }
-            }
-        }
+// ── Chart setup ───────────────────────────────────────────────────────────────
+const biddingChart = new Chart(document.getElementById('biddingChart'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'Plastic', data:[], borderColor:'#3b82f6', fill:false, tension:0.3 },
+    { label:'Paper',   data:[], borderColor:'#22c55e', fill:false, tension:0.3 },
+    { label:'Metal',   data:[], borderColor:'#f59e0b', fill:false, tension:0.3 },
+    { label:'Glass',   data:[], borderColor:'#ef4444', fill:false, tension:0.3 },
+    { label:'Organic', data:[], borderColor:'#a16207', fill:false, tension:0.3 },
+  ]},
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { ticks:{ autoSkip:false }, title:{ display:true, text:'Month' } },
+      y: { title:{ display:true, text:'Bidding value' } }
+    }
+  }
+});
+
+const perfChart = new Chart(document.getElementById('performanceChart'), {
+  type: 'bar',
+  data: { labels: [], datasets: [
+    { label:'Total bids', data:[], backgroundColor:'lightblue' },
+    { label:'Won bids',   data:[], backgroundColor:'green' },
+  ]},
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { ticks:{ autoSkip:false }, title:{ display:true, text:'Month' } },
+      y: { title:{ display:true, text:'Number of bids' } }
+    }
+  }
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getSlice(arr, s, e) { return arr.slice(s, e + 1); }
+
+function populateMonthDropdowns(shortMonths) {
+  [startSel, endSel].forEach(sel => {
+    const cur = parseInt(sel.value) || 0;
+    sel.innerHTML = '';
+    shortMonths.forEach((m, i) => {
+      sel.innerHTML += `<option value="${i}">${m}</option>`;
     });
+    // Restore previous value if valid, otherwise clamp
+    sel.value = Math.min(cur, shortMonths.length - 1);
+  });
+}
+
+function updateCharts(s, e) {
+  const yr   = parseInt(yearSelect.value);
+  const data = yearData[yr];
+  if (!data) return;
+
+  const labels = data.shortMonths.slice(s, e + 1);
+
+  biddingChart.data.labels = labels;
+  ['Plastic','Paper','Metal','Glass','Organic'].forEach((cat, i) => {
+    biddingChart.data.datasets[i].data = getSlice(data.categories[cat], s, e);
+  });
+  biddingChart.update();
+
+  perfChart.data.labels = labels;
+  perfChart.data.datasets[0].data = getSlice(data.totalBids, s, e);
+  perfChart.data.datasets[1].data = getSlice(data.wonBids, s, e);
+  perfChart.update();
+}
+
+function currentRange() {
+  let s = parseInt(startSel.value);
+  let e = parseInt(endSel.value);
+  if (s > e) [s, e] = [e, s];
+  return [s, e];
+}
+
+// ── Year change: rebuild month dropdowns, keep range ─────────────────────────
+yearSelect.addEventListener('change', () => {
+  const yr   = parseInt(yearSelect.value);
+  const data = yearData[yr];
+  populateMonthDropdowns(data.shortMonths);
+  const [s, e] = currentRange();
+  updateCharts(s, e);
+});
+
+// ── Preset buttons ────────────────────────────────────────────────────────────
+document.querySelectorAll('.range-btn[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const [s, e] = presets[parseInt(btn.dataset.range)];
+    startSel.value = s;
+    endSel.value   = e;
+    updateCharts(s, e);
+  });
+});
+
+// ── Custom apply ──────────────────────────────────────────────────────────────
+applyBtn.addEventListener('click', () => {
+  document.querySelectorAll('.range-btn[data-range]').forEach(b => b.classList.remove('active'));
+  const [s, e] = currentRange();
+  updateCharts(s, e);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(function init() {
+  const yr   = parseInt(yearSelect.value);
+  const data = yearData[yr];
+  populateMonthDropdowns(data.shortMonths);
+  startSel.value = 0;
+  endSel.value   = 3;
+  updateCharts(0, 3);
+})();
 </script>

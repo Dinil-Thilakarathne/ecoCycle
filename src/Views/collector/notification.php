@@ -326,7 +326,7 @@ function timeAgo(timestamp) {
     async function processMarkRead(id) {
         console.log('Marking notification as read, ID:', id);
         try {
-            const res = await fetch(`/api/collector/notifications/${id}/read`, { 
+            const res = await fetch(`/api/notifications/${id}/read`, { 
                 method: 'PUT', 
                 headers: { 
                     'X-Requested-With': 'XMLHttpRequest',

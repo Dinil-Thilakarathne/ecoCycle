@@ -127,7 +127,9 @@ const ModalManager = (() => {
       if (variant === "primary") {
         variantClass = "btn btn-primary";
       } else if (variant === "plain") {
-        variantClass = "btn";
+        variantClass = "btn btn-outline";
+      } else if (variant === "danger") {
+        variantClass = "btn btn-danger";
       }
       btn.className = variantClass;
 
