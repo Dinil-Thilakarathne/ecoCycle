@@ -30,10 +30,23 @@ class Environment
      */
     public static function load(string $path): void
     {
-        $envFile = $path . '/.env';
+        // Load base .env first
+        self::loadFile($path . '/.env');
 
+        // Load .env.local if it exists — values here OVERRIDE .env
+        // This is the standard convention for local developer overrides
+        self::loadFile($path . '/.env.local');
+    }
+
+    /**
+     * Load environment variables from a specific file path.
+     *
+     * @param string $envFile Absolute path to the .env file
+     * @return void
+     */
+    private static function loadFile(string $envFile): void
+    {
         if (!file_exists($envFile)) {
-            // In production (Railway, etc.), rely on environment variables set by the platform
             return;
         }
 
@@ -62,6 +75,7 @@ class Environment
             }
         }
     }
+
 
     /**
      * Get environment variable value

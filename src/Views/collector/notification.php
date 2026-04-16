@@ -1,222 +1,379 @@
 <?php
-// Get parameters
-$collectorId = $_GET['collector'] ?? 'COL001';
-$action = $_GET['action'] ?? null;
-$notificationId = $_GET['id'] ?? null;
-$msg = $_GET['msg'] ?? null; // message parameter
+/**
+ * Collector Notifications View
+ * Updated with Pill Tab Switching
+ */
 
-// Example notifications
-$notifications = [
-    [
-        'id' => 'N001',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Request Confirmed',
-        'message' => 'Your pickup request PR001 has been confirmed.',
-        'timestamp' => '2024-01-10',
-        'isRead' => false,
-        'isArchived' => false,
-        'priority' => 'high',
-    ],
-    [
-        'id' => 'N002',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Completed',
-        'message' => 'Your pickup PR002 has been completed successfully.',
-        'timestamp' => '2024-01-08',
-        'isRead' => false,
-        'isArchived' => false,
-        'priority' => 'normal',
-    ],
-    [
-        'id' => 'N003',
-        'collector_id' => 'COL001',
-        'title' => 'Payment Processed',
-        'message' => 'Your payment of Rs 127.50 has been processed.',
-        'timestamp' => '2024-01-07',
-        'isRead' => true,
-        'isArchived' => false,
-        'priority' => 'normal',
-    ],
-    [
-        'id' => 'N004',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Reminder',
-        'message' => 'Reminder: Your scheduled pickup is tomorrow.',
-        'timestamp' => '2024-01-14',
-        'isRead' => true,
-        'isArchived' => false,
-        'priority' => 'low',
-    ],
-    [
-        'id' => 'N005',
-        'collector_id' => 'COL001',
-        'title' => 'Pickup Cancelled',
-        'message' => 'Your pickup request PR005 has been cancelled.',
-        'timestamp' => '2024-01-03',
-        'isRead' => true,
-        'isArchived' => true,
-        'priority' => 'high',
-    ],
-];
+$notifications = is_array($notifications ?? null) ? $notifications : [];
+$currentTab = $_GET['tab'] ?? 'all';
 
-// Handle actions
-if ($action === 'mark_read' && $notificationId) {
-    foreach ($notifications as &$notification) {
-        if ($notification['id'] === $notificationId) {
-            $notification['isRead'] = true;
-            break;
-        }
-    }
-    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+marked+as+read");
-    exit;
-}
+// Normalize notifications
+$normalized = array_map(function ($n) {
+    $timestamp = $n['timestamp'] ?? ($n['sent_at'] ?? $n['created_at'] ?? null);
+    $isRead = $n['is_read'] ?? ($n['isRead'] ?? (($n['status'] ?? '') === 'read' ? true : false));
+    return [
+        'id' => (string) ($n['id'] ?? ''),
+        'title' => $n['title'] ?? '',
+        'message' => $n['message'] ?? '',
+        'timestamp' => $timestamp,
+        'status' => $isRead ? 'read' : 'unread',
+        'type' => $n['type'] ?? 'general',
+    ];
+}, $notifications);
 
-if ($action === 'mark_all_read') {
-    foreach ($notifications as &$notification) {
-        $notification['isRead'] = true;
-    }
-    header("Location: notifications-page.php?collector=$collectorId&msg=All+notifications+marked+as+read");
-    exit;
-}
-
-if ($action === 'delete' && $notificationId) {
-    $notifications = array_filter($notifications, fn($n) => $n['id'] !== $notificationId);
-    header("Location: notifications-page.php?collector=$collectorId&msg=Notification+deleted");
-    exit;
-}
-
-// Filter only this collector's notifications
-$collectorNotifications = array_filter($notifications, fn($n) => $n['collector_id'] === $collectorId);
-
-// Categorize
-$total = $collectorNotifications;
-$unread = array_filter($collectorNotifications, fn($n) => !$n['isRead'] && !$n['isArchived']);
-$read = array_filter($collectorNotifications, fn($n) => $n['isRead'] && !$n['isArchived']);
-$archived = array_filter($collectorNotifications, fn($n) => $n['isArchived']);
-
-// Functions
-function renderNotifications($list, $filter = 'all')
-{
-    if (empty($list)) {
-        echo "<tr><td colspan='5' style='text-align:center;'>No notifications found</td></tr>";
-        return;
-    }
-
-    foreach ($list as $n) {
-        echo "<tr>
-            <td><strong>{$n['title']}</strong><br><small>{$n['message']}</small></td>
-            <td>" . date('M j, Y', strtotime($n['timestamp'])) . "</td>
-            <td>" . ($n['isRead'] ? 'Read' : 'Unread') . "</td>
-            <td>";
-
-        if (!$n['isRead']) {
-            echo "<a href='?action=mark_read&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                    class='btn btn-sm btn-info'>Mark Read</a> ";
-        }
-
-        echo "<a href='?action=view&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                class='btn btn-sm btn-secondary'>View</a> ";
-
-        echo "<a href='?action=delete&id={$n['id']}&collector={$n['collector_id']}&filter={$filter}' 
-                class='btn btn-sm btn-danger' 
-                onclick=\"return confirm('Are you sure you want to delete this notification?')\">Delete</a>";
-
-        echo "</td></tr>";
-    }
-}
+$totalCount = count($normalized);
+$unreadCount = count(array_filter($normalized, fn($x) => $x['status'] === 'unread'));
+$readCount = $totalCount - $unreadCount;
 ?>
 
-<div>
-    <div class="page-header">
+<main class="content">
+    <header class="page-header">
         <div class="page-header__content">
-            <h2 class="page-header__title">Notifications</h2>
-            <p class="page-header__description">View and manage your notifications</p>
+            <h2 class="page-header__title"></i> Notifications</h2>
+            <p class="page-header__description">Stay on top of your platform updates</p>
+        </div>
+    </header>
+
+    <div class="dashboard-page">
+        <div class="notification-tabs-row">
+            <div class="tab-nav-wrapper">
+                <button onclick="filterTable('all', this)" class="tab-trigger active">
+                    Total (<span id="count-all"><?= $totalCount ?></span>)
+                </button>
+                <button onclick="filterTable('unread', this)" class="tab-trigger">
+                    Unread (<span id="count-unread"><?= $unreadCount ?></span>)
+                </button>
+                <button onclick="filterTable('read', this)" class="tab-trigger">
+                    Read (<span id="count-read"><?= $readCount ?></span>)
+                </button>
+            </div>
+</div>
+            <div class="action-buttons">
+                <button onclick="markAllAsRead()" class="btn btn-primary">Mark All as Read</button>
+            </div>
+
+        <div class="table-container notification-table-shell">
+            <table class="notifications-table data-table notification-table-full">
+                <thead>
+                    <tr>
+                        <th class="notification-th-title">Notification</th>
+                        <th class="notification-th-center">Type</th>
+                        <th class="notification-th-center">Date</th>
+                        <th class="notification-th-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="notifications-tbody">
+                    </tbody>
+            </table>
         </div>
     </div>
+</main>
 
-
-    <?php if ($msg): ?>
-        <div class="alert alert-success"
-            style="margin: 15px 0; padding: 10px; border: 1px solid green; background: #e6ffe6;">
-            <?= htmlspecialchars($msg) ?>
+<div id="notification-detail-modal" class="user-modal" role="dialog" aria-hidden="true">
+    <div class="user-modal__dialog">
+        <button class="close" onclick="closeNotificationModal()">&times;</button>
+        <h2 class="notification-modal-title">Notification Details</h2>
+        <div class="user-modal__grid">
+            <div><strong>Title</strong></div><div class="nd-title"></div>
+            <div><strong>Message</strong></div><div class="nd-message"></div>
+            <div><strong>Type</strong></div><div class="nd-type"></div>
+            <div><strong>Date</strong></div><div class="nd-date"></div>
+            <div><strong>Status</strong></div><div class="nd-status"></div>
         </div>
-    <?php endif; ?>
+    </div>
+</div>
 
-    <div class="tabs">
-        <div class="tabs-list">
-            <button class="tabs-trigger active" onclick="showTab('total')" id="total-tab">Total
-                (<?= count($total) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('unread')" id="unread-tab">Unread
-                (<?= count($unread) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('read')" id="read-tab">Read (<?= count($read) ?>)</button>
-            <button class="tabs-trigger" onclick="showTab('archived')" id="archived-tab">Archived
-                (<?= count($archived) ?>)</button>
-        </div>
-
-        <div class="tabs-content active" id="total-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($total); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="unread-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($unread); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="read-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($read); ?></tbody>
-            </table>
-        </div>
-
-        <div class="tabs-content" id="archived-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Notification</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody><?php renderNotifications($archived); ?></tbody>
-            </table>
+<div id="notification-delete-confirm-modal" class="user-modal" role="dialog" aria-hidden="true">
+    <div class="user-modal__dialog notification-delete-dialog">
+        <h2 class="notification-modal-title">Delete Notification</h2>
+        <p class="notification-delete-text">    
+            Are you sure you want to delete this notification?
+        </p>
+        <div class="notification-delete-actions">
+            <button type="button" class="btn btn-outline" onclick="closeDeleteConfirmModal(false)">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="closeDeleteConfirmModal(true)">OK</button>
         </div>
     </div>
 </div>
 
 <script>
-    function showTab(tab) {
-        document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
-        document.getElementById(tab + '-content').classList.add('active');
-        document.getElementById(tab + '-tab').classList.add('active');
+let notificationsState = <?= json_encode($normalized) ?>;
+let activeFilter = 'all';
+let deleteConfirmResolver = null;
+
+(function () {
+    const endpoint = '/api/collector/notifications';
+    const tbody = document.getElementById('notifications-tbody');
+
+    function normalizeNotification(raw) {
+        const timestamp = raw?.timestamp ?? raw?.sent_at ?? raw?.created_at ?? null;
+        const explicitReadFlag = raw?.is_read ?? raw?.isRead;
+        const statusRaw = String(raw?.status ?? '').toLowerCase();
+        const isRead = explicitReadFlag === true || explicitReadFlag === 1 || explicitReadFlag === '1' || explicitReadFlag === 'true' || statusRaw === 'read';
+
+        return {
+            id: String(raw?.id ?? ''),
+            title: String(raw?.title ?? ''),
+            message: String(raw?.message ?? ''),
+            timestamp,
+            status: isRead ? 'read' : 'unread',
+            type: String(raw?.type ?? 'general')
+        };
     }
+
+    function normalizeNotifications(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(normalizeNotification);
+    }
+
+    function isUnreadNotification(notification) {
+        return String(notification?.status || '').toLowerCase() !== 'read';
+    }
+
+function timeAgo(timestamp) {
+  const date = new Date(timestamp);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month} ${day}, ${year} ${hours}:${minutes}`;
+}
+
+    // Tab Switching Logic
+    window.filterTable = function(filter, btn) {
+        activeFilter = filter;
+        document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        renderNotifications(notificationsState);
+    };
+
+    function renderNotifications(data) {
+        if (!tbody) return;
+        notificationsState = normalizeNotifications(data);
+        tbody.innerHTML = '';
+
+        // Filter based on active pill
+        const filtered = notificationsState.filter(n => {
+            if (activeFilter === 'unread') return isUnreadNotification(n);
+            if (activeFilter === 'read') return !isUnreadNotification(n);
+            return true;
+        });
+
+        // Calculate counts
+        const totalCount = notificationsState.length;
+        const unreadCount = notificationsState.filter(isUnreadNotification).length;
+        const readCount = totalCount - unreadCount;
+        
+        console.log('Rendering notifications - Total:', totalCount, 'Unread:', unreadCount, 'Read:', readCount, 'Active filter:', activeFilter);
+
+        // Update Pill Counts
+        document.getElementById('count-all').textContent = totalCount;
+        document.getElementById('count-unread').textContent = unreadCount;
+        document.getElementById('count-read').textContent = readCount;
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="notification-empty">No ${activeFilter} notifications found.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(notif => {
+            const isUnread = isUnreadNotification(notif);
+            const tr = document.createElement('tr');
+            tr.className = 'notification-row' + (isUnread ? ' unread' : '');
+            
+            tr.innerHTML = `
+                <td class="notification-left-cell">
+                    <div class="notification-details">
+                        <div class="notification-title notification-title-sm"><b>${notif.title}</b></div>
+                        <div class="notification-message-preview">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
+                    </div>
+                </td>
+                <td class="notification-center-cell"><span class="type-badge ${notif.type}">${notif.type}</span></td>
+                <td class="notification-center-cell">${timeAgo(notif.timestamp)}</td>
+                <td class="actions-cell notification-center-cell">
+                    <div class="notification-action-row">
+                        <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
+                        <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    window.markAllAsRead = async function() {
+        const unreadNotifications = notificationsState.filter(isUnreadNotification);
+
+        if (unreadNotifications.length === 0) {
+            return;
+        }
+
+        try {
+            const requests = unreadNotifications.map((notif) =>
+                fetch(`/api/collector/notifications/${encodeURIComponent(notif.id)}/read`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+            );
+
+            const responses = await Promise.allSettled(requests);
+            const successCount = responses.filter(
+                (result) => result.status === 'fulfilled' && result.value.ok
+            ).length;
+
+            if (successCount > 0) {
+                // Optimistic local update so unread notifications immediately move to read.
+                notificationsState = notificationsState.map((notif) => ({
+                    ...notif,
+                    status: isUnreadNotification(notif) ? 'read' : notif.status
+                }));
+                renderNotifications(notificationsState);
+            }
+
+            setTimeout(() => fetchNotifications(), 300);
+        } catch (e) {
+            console.error('Mark all as read failed', e);
+            alert('Failed to mark all notifications as read. Please try again.');
+        }
+    };
+
+    window.viewNotification = async function(id) {
+        const notif = notificationsState.find(n => n.id == id);
+        const modal = document.getElementById('notification-detail-modal');
+        if (!notif || !modal) return;
+
+        // Match company behavior: viewing an unread notification marks it as read.
+        if (isUnreadNotification(notif)) {
+            await processMarkRead(notif.id);
+            notif.status = 'read';
+        }
+
+        modal.querySelector('.nd-title').textContent = notif.title;
+        modal.querySelector('.nd-message').textContent = notif.message;
+        modal.querySelector('.nd-type').textContent = notif.type;
+        modal.querySelector('.nd-date').textContent = new Date(notif.timestamp).toLocaleString();
+        modal.querySelector('.nd-status').textContent = notif.status.toUpperCase();
+        modal.setAttribute('data-current-id', notif.id);
+        modal.classList.add('open');
+    };
+
+    window.closeNotificationModal = () => document.getElementById('notification-detail-modal').classList.remove('open');
+
+    window.openDeleteConfirmModal = function() {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (!modal) return Promise.resolve(false);
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+
+        return new Promise((resolve) => {
+            deleteConfirmResolver = resolve;
+        });
+    };
+
+    window.closeDeleteConfirmModal = function(confirmed) {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        if (typeof deleteConfirmResolver === 'function') {
+            const resolver = deleteConfirmResolver;
+            deleteConfirmResolver = null;
+            resolver(Boolean(confirmed));
+        }
+    };
+
+    window.deleteNotification = async function(id) {
+        if (!id) return;
+        const confirmed = await openDeleteConfirmModal();
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload?.message || 'Failed to delete notification');
+            }
+
+            // Optimistically update list, then sync with backend.
+            notificationsState = notificationsState.filter(n => String(n.id) !== String(id));
+            renderNotifications(notificationsState);
+
+            const modal = document.getElementById('notification-detail-modal');
+            if (modal && modal.getAttribute('data-current-id') === String(id)) {
+                closeNotificationModal();
+            }
+
+            setTimeout(() => fetchNotifications(), 250);
+        } catch (e) {
+            console.error('Delete failed', e);
+            alert('Failed to delete notification. Please try again.');
+        }
+    };
+
+    async function processMarkRead(id) {
+        console.log('Marking notification as read, ID:', id);
+        try {
+            const res = await fetch(`/api/notifications/${id}/read`, { 
+                method: 'PUT', 
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('Response status:', res.status);
+            const result = await res.json();
+            console.log('Response data:', result);
+            
+            if (result.success) {
+                console.log('Successfully marked as read, updating UI...');
+                // Optimistic update: immediately update local state
+                const notif = notificationsState.find(n => String(n.id) === String(id));
+                console.log('Found notification:', notif);
+                if (notif) {
+                    notif.status = 'read';
+                    renderNotifications(notificationsState);
+                }
+                // Wait a moment before fetching to ensure DB is updated
+                setTimeout(() => fetchNotifications(), 300);
+            } else {
+                console.error("Failed to mark as read:", result.message);
+                alert('Failed to mark notification as read: ' + (result.message || 'Unknown error'));
+            }
+        } catch (e) { 
+            console.error("Update failed", e); 
+            alert('Error marking notification as read. Please try again.');
+        }
+    }
+
+    async function fetchNotifications() {
+        try {
+            const res = await fetch(endpoint);
+            const json = await res.json();
+            console.log('Fetched notifications:', json);
+            if (json.status === 'success' && Array.isArray(json.data)) {
+                console.log('Rendering', json.data.length, 'notifications');
+                renderNotifications(normalizeNotifications(json.data));
+            }
+        } catch (e) {
+            console.error("Failed to fetch notifications:", e);
+        }
+    }
+
+    fetchNotifications();
+    setInterval(fetchNotifications, 15000);
+})();
 </script>

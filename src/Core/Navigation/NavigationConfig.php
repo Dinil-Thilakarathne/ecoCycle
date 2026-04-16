@@ -39,6 +39,7 @@ class NavigationConfig
                 ['title' => 'Vehicles', 'url' => '/admin/vehicles', 'icon' => 'car', 'description' => 'Vehicle management'],
                 ['title' => 'Payments', 'url' => '/admin/payments', 'icon' => 'credit-card', 'description' => 'Payment management'],
                 ['title' => 'Analytics', 'url' => '/admin/analytics', 'icon' => 'chart-line', 'description' => 'System analytics'],
+                ['title' => 'Waste Pricing', 'url' => '/admin/waste-categories', 'icon' => 'tags', 'description' => 'Manage waste categories and pricing'],
                 ['title' => 'Notifications', 'url' => '/admin/notifications', 'icon' => 'bell', 'description' => 'System notifications'],
             ],
             'customer' => [

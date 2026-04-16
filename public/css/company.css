@@ -1,10 +1,3 @@
-.content {
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 10px;
-  box-sizing: border-box;
-}
-
 /*Header connected to common css (page-header)*/
 
 /*DASHBOARD*/
@@ -36,102 +29,44 @@
   margin: 10px 0;
 }
 
-.waste-list {
+/*.waste-list {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   gap: 35px;
-}
+}*/
 
 .c-dashboard-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(1, 1fr);
+  grid-template-columns: 40% 1fr;
   gap: 25px;
-  margin-top: 50px;
-  height: 350px;
+  margin-top: 30px;
+  align-items: start;
 }
+
+/*.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}*/
 
 /*bidding status*/
 .bids {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(20%, 1fr));
-  gap: 15px;
-  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .bid-item {
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 15px;
-}
-
-.bid-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.waste-type {
-  font-weight: bold;
-}
-
-.bid-amount {
-  color: var(--primary-500);
-  font-weight: bold;
-}
-
-.bid-details {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  color: #7f8c8d;
-}
-
-/*active bids , dashboard , purchases */
-.tag {
-  &.active,
-  &.completed,
-  &.available {
-    background-color: var(--success-light);
-    color: var(--success);
-    border: 1px solid var(--success);
-  }
-
-  &.Pending,
-  &.in-transit {
-    background-color: var(--warning-light);
-    color: var(--warning);
-    border: 1px solid var(--warning);
-  }
-
-  &.Closed,
-  &.rejected,
-  &.confirmed {
-    background-color: var(--danger-light);
-    color: var(--danger);
-    border: 1px solid var(--danger);
-  }
-
-  &.won,
-  &.delivered {
-    background-color: var(--info-light);
-    color: var(--info);
-    border: 1px solid var(--info);
-  }
-}
-
-/*feedback*/
-.feedback {
-  display: flex;
-  margin-top: 20px;
-}
-
-.feedback input {
-  flex: 3;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: var(--rounded-xl);
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  width: 100%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
 /*ACTIVE BIDS*/
@@ -230,7 +165,7 @@
   padding: 20px;
 }
 
-.purchases-grid {
+/*.purchases-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
   margin-top: 15px;
@@ -248,7 +183,7 @@
   scrollbar-color: var(--primary-500) #f1f1f1;
   scrollbar-width: thin;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
+}*/
 
 .purchase-box {
   border: 1px solid #eee;
@@ -317,33 +252,25 @@
 
 /*REPORTS*/
 
-.filters {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-.filters input,
-.filters select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: var(--rounded-xl);
-}
-
-.charts {
-  display: flex;
+/*.charts {
+  display: flex;           
+  flex-direction: column;
   gap: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;  
 }
 .chart-box {
-  flex: 1;
   background: var(--neutral-0);
   padding: 15px;
   border-radius: 8px;
-}
+  width: 100%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}*/
+
 .stats {
   display: flex;
   gap: 15px;
+  margin-bottom: 20px;
 }
 .stat {
   flex: 1;
@@ -546,7 +473,7 @@ span.unverified {
   border-radius: 20px;
   width: 600px;
   position: relative;
-  margin-top: 175px;
+  margin-top: 0;
 }
 
 .form-group {
@@ -599,28 +526,20 @@ textarea {
   border-radius: 6px;
 }
 
-/* Toast (styled inside a bottom-right container) */
-.toast {
-  /* positioning handled by #toast-container in public/js/toast.js */
-  background: var(--primary-500);
-  color: var(--neutral-0);
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-weight: bold;
-  animation: fadeout 4s forwards;
-}
-@keyframes fadeout {
-  0% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    display: none;
-  }
-}
+.required-star { 
+  color: var(--danger); 
+  margin-left: 2px; 
+  font-size: 14px;}
+
+.field-error { 
+  display: block; 
+  color: var(--danger);
+  font-size: 12px; 
+  margin-top: 4px;
+  min-height: 16px; }
+
+  .is-invalid { 
+    border-color: var(--danger); }
 
 /* NOTIFICATION*/
 
@@ -647,33 +566,6 @@ textarea {
 .data-table tr.unread {
   background: #e9f8f0;
 }
-
-/*.btn-n-mark, .btn-n-view, .btn-n-delete {
-  padding: 5px 10px;
-  border-radius: var(--rounded-full);
-  cursor: pointer;
-  margin-right: 5px;
-  text-decoration: none;
-  border-width: 1px;
-}*/
-
-/*.btn-n-mark {
-  background: var(--success-light);
-  color: var(--success);
-  border-color: var(--success);
-}
-
-.btn-n-view {
-  background: #f3f4f6;
-  color: #111827;
-  border-color: #111827;
-}
-
-.btn-n-delete {
-  background: var(--danger-light);
-  color: var(--danger);
-  border-color:var(--danger);
-}*/
 
 /* Modal */
 .n-modal-overlay {
@@ -705,3 +597,4 @@ textarea {
 .n-modal-body p {
   margin: 8px 0;
 }
+

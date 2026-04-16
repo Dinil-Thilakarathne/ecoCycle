@@ -63,10 +63,10 @@ if (!$notificationsUrl) {
 
     <!-- Main Content -->
     <main class="dashboard-content">
-        <div class="content-header">
+        <div class="content-header" style="display: none;">
             <div class="content-header__title">
                 <i class="fa-solid fa-square-caret-left"></i>
-                <h1><?= $pageTitle ?></h1>
+                <!-- <h1><?= $pageTitle ?></h1> -->
             </div>
         </div>
 

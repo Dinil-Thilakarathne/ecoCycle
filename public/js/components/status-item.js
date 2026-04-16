@@ -11,8 +11,20 @@ class StatusItem extends HTMLElement {
     if (!this._init) {
       this._renderSkeleton();
       this._init = true;
+      if (this.hasAttribute("unwrap")) {
+        this.unwrap();
+        return;
+      }
     }
     this._render();
+  }
+
+  unwrap() {
+    this._render();
+    const innerRoot = this.firstElementChild;
+    if (innerRoot) {
+      this.replaceWith(innerRoot);
+    }
   }
   attributeChangedCallback() {
     if (this._init) this._render();

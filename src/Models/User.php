@@ -16,6 +16,59 @@ class User
 
     public function createTableIfNotExists(): bool
     {
+        if ($this->db->isPgsql()) {
+            $tableSql = <<<'SQL'
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                type VARCHAR(32) NOT NULL DEFAULT 'customer',
+                name VARCHAR(255) DEFAULT NULL,
+                username VARCHAR(100) DEFAULT NULL,
+                nic VARCHAR(30) DEFAULT NULL,
+                email VARCHAR(150) DEFAULT NULL,
+                phone VARCHAR(50) DEFAULT NULL,
+                address TEXT DEFAULT NULL,
+                bank_account_name VARCHAR(255) DEFAULT NULL,
+                bank_account_number VARCHAR(100) DEFAULT NULL,
+                bank_name VARCHAR(150) DEFAULT NULL,
+                bank_branch VARCHAR(150) DEFAULT NULL,
+                profile_image_path VARCHAR(255) DEFAULT NULL,
+                password_hash VARCHAR(255) DEFAULT NULL,
+                role_id INTEGER DEFAULT NULL,
+                vehicle_id INTEGER DEFAULT NULL,
+                status VARCHAR(32) DEFAULT 'active',
+                total_pickups INTEGER DEFAULT 0,
+                total_earnings NUMERIC(12, 2) DEFAULT 0.00,
+                total_bids INTEGER DEFAULT 0,
+                total_purchases INTEGER DEFAULT 0,
+                metadata JSONB DEFAULT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT NULL,
+                CONSTRAINT users_email_unique UNIQUE (email),
+                CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+                CONSTRAINT fk_users_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL ON UPDATE CASCADE
+            );
+            SQL;
+
+            $created = $this->db->query($tableSql);
+            if (!$created) {
+                return false;
+            }
+
+            $indexes = [
+                'CREATE INDEX IF NOT EXISTS idx_users_type ON users (type)',
+                'CREATE INDEX IF NOT EXISTS idx_users_status ON users (status)',
+                'CREATE INDEX IF NOT EXISTS idx_users_nic ON users (nic)',
+                'CREATE INDEX IF NOT EXISTS idx_users_role ON users (role_id)',
+                'CREATE INDEX IF NOT EXISTS idx_users_vehicle ON users (vehicle_id)',
+            ];
+
+            foreach ($indexes as $stmt) {
+                $this->db->query($stmt);
+            }
+
+            return true;
+        }
+
         $sql = "CREATE TABLE IF NOT EXISTS `users` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `type` ENUM('customer','company','collector','admin') NOT NULL DEFAULT 'customer',
@@ -75,8 +128,19 @@ class User
 
         $cols = array_keys($data);
         $placeholders = array_fill(0, count($cols), '?');
+        $params = array_values($data);
+
+        if ($this->db->isPgsql()) {
+            $row = $this->db->fetch(
+                'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeholders) . ') RETURNING id',
+                $params
+            );
+
+            return $row && isset($row['id']) ? (int) $row['id'] : false;
+        }
+
         $sql = 'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeholders) . ')';
-        $ok = $this->db->query($sql, array_values($data));
+        $ok = $this->db->query($sql, $params);
         if (!$ok) {
             return false;
         }
@@ -119,12 +183,12 @@ class User
         $params = [];
 
         foreach ($data as $column => $value) {
-            $setParts[] = "`{$column}` = ?";
+            $setParts[] = "{$column} = ?";
             $params[] = $value;
         }
 
         $params[] = $id;
-        $sql = 'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1';
+        $sql = 'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = ?';
 
         return $this->db->query($sql, $params);
     }
@@ -178,6 +242,12 @@ class User
         return $row ?: null;
     }
 
+    public function findByVehicleId(int $vehicleId): array|null
+    {
+        $row = $this->db->fetch("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.vehicle_id = ? LIMIT 1", [$vehicleId]);
+        return $row ?: null;
+    }
+
     public function verifyPassword(array $user, string $password): bool
     {
         // Assuming password_hash stored in password_hash column
@@ -191,20 +261,36 @@ class User
         return password_verify($password, $user['password_hash']);
     }
 
-    /**
-     * List users optionally filtered by type and/or status.
-     * Returns array of rows.
-     * Note: $limit is cast to int and injected into SQL (safe usage here).
-     */
     public function listByType(?string $type = null, int $limit = 100): array
     {
         $limit = (int) $limit;
-        if ($type === null) {
-            $rows = $this->db->fetchAll("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY u.id DESC LIMIT {$limit}");
-            return array_map(fn($r) => $this->normalizeRow($r), $rows ?: []);
+        
+        $sql = "SELECT u.*, r.name AS role_name";
+        
+        if ($type === 'customer') {
+            $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE customer_id = u.id) AS computed_total_pickups";
+            $sql .= ", (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE recipient_id = u.id AND type = 'payout' AND status = 'completed') AS computed_total_earnings";
+        } elseif ($type === 'collector') {
+            $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id) AS computed_total_pickups";
+            if ($this->db->isPgsql()) {
+                $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id AND DATE(created_at) = CURRENT_DATE) AS computed_today_pickups";
+            } else {
+                $sql .= ", (SELECT COUNT(id) FROM pickup_requests WHERE collector_id = u.id AND DATE(created_at) = CURDATE()) AS computed_today_pickups";
+            }
+        } elseif ($type === 'company') {
+            $sql .= ", (SELECT COUNT(id) FROM payments WHERE recipient_id = u.id AND type = 'payment' AND status = 'completed') AS computed_total_purchases";
         }
+        
+        $sql .= " FROM users u LEFT JOIN roles r ON r.id = u.role_id";
 
-        $rows = $this->db->fetchAll("SELECT u.*, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.type = ? ORDER BY u.id DESC LIMIT {$limit}", [$type]);
+        if ($type === null) {
+            $sql .= " ORDER BY u.id DESC LIMIT {$limit}";
+            $rows = $this->db->fetchAll($sql);
+        } else {
+            $sql .= " WHERE u.type = ? ORDER BY u.id DESC LIMIT {$limit}";
+            $rows = $this->db->fetchAll($sql, [$type]);
+        }
+        
         return array_map(fn($r) => $this->normalizeRow($r), $rows ?: []);
     }
 
@@ -246,23 +332,37 @@ class User
         }
 
         // Map common snake_case DB fields to camelCase keys used by views
-        if (array_key_exists('total_pickups', $row)) {
+        if (array_key_exists('computed_total_pickups', $row)) {
+            $row['totalPickups'] = (int) $row['computed_total_pickups'];
+        } elseif (array_key_exists('total_pickups', $row)) {
             $row['totalPickups'] = (int) $row['total_pickups'];
             if (!isset($row['todayPickups']) && ($row['type'] ?? null) === 'collector') {
                 // Collectors page expects today's pickups; seed data currently stores it in total_pickups
                 $row['todayPickups'] = (int) $row['total_pickups'];
             }
         }
-        if (array_key_exists('total_earnings', $row)) {
+        
+        if (array_key_exists('computed_today_pickups', $row)) {
+            $row['todayPickups'] = (int) $row['computed_today_pickups'];
+        }
+
+        if (array_key_exists('computed_total_earnings', $row)) {
+            $row['totalEarnings'] = (float) $row['computed_total_earnings'];
+        } elseif (array_key_exists('total_earnings', $row)) {
             // keep numeric float
             $row['totalEarnings'] = (float) $row['total_earnings'];
         }
+        
         if (array_key_exists('total_bids', $row)) {
             $row['totalBids'] = (int) $row['total_bids'];
         }
-        if (array_key_exists('total_purchases', $row)) {
+        
+        if (array_key_exists('computed_total_purchases', $row)) {
+            $row['totalPurchases'] = (int) $row['computed_total_purchases'];
+        } elseif (array_key_exists('total_purchases', $row)) {
             $row['totalPurchases'] = (int) $row['total_purchases'];
         }
+        
         if (array_key_exists('vehicle_id', $row)) {
             $row['vehicleId'] = $row['vehicle_id'];
         }
@@ -315,7 +415,7 @@ class User
      */
     public function deleteUser(int $id): bool
     {
-        return $this->db->query('DELETE FROM users WHERE id = ? LIMIT 1', [$id]);
+        return $this->db->query('DELETE FROM users WHERE id = ?', [$id]);
     }
 
     /**
@@ -324,5 +424,62 @@ class User
     public function setStatus(int $id, string $status): bool
     {
         return $this->updateUser($id, ['status' => $status]);
+    }
+
+    /**
+     * Find all users
+     */
+    public function findAll(): array
+    {
+        return $this->db->fetchAll('SELECT * FROM users');
+    }
+
+    /**
+     * Find user by email verification token
+     *
+     * @param string $token Verification token
+     * @return array|null User data if found
+     */
+    public function findByVerificationToken(string $token): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE email_verification_token = ? LIMIT 1";
+        $user = $this->db->fetch($sql, [$token]);
+
+        return $user ?: null;
+    }
+
+    /**
+     * Mark user's email as verified
+     *
+     * @param int $userId User ID
+     * @return bool Success status
+     */
+    public function markEmailAsVerified(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET email_verified = TRUE, 
+                    email_verification_token = NULL,
+                    email_verification_sent_at = NULL
+                WHERE id = ?";
+
+        $this->db->query($sql, [$userId]);
+        return true;
+    }
+
+    /**
+     * Update user's password
+     *
+     * @param int $userId User ID
+     * @param string $newPassword New password (will be hashed)
+     * @return bool Success status
+     */
+    public function updatePassword(int $userId, string $newPassword): bool
+    {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+        $sql = "UPDATE {$this->table} SET password_hash = ? WHERE id = ?";
+        $this->db->query($sql, [$hashedPassword, $userId]);
+
+        return true;
     }
 }

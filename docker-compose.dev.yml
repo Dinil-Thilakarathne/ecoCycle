@@ -14,6 +14,7 @@ services:
     environment:
       APP_ENV: development
       APP_DEBUG: "true"
+      APP_URL: ${APP_URL:-http://localhost:8080}
       # DB connection
       DB_CONNECTION: pgsql
       DB_HOST: db
@@ -21,15 +22,53 @@ services:
       DB_DATABASE: ${DB_DATABASE:-eco_cycle}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-root}
+      # SMTP/Email configuration
+      MAIL_DRIVER: ${MAIL_DRIVER:-smtp}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
+      SMTP_TIMEOUT: ${SMTP_TIMEOUT:-30}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-ecoCycle}
+      # PayHere Payment Gateway (Sandbox)
+      # Get these from: sandbox.payhere.lk > Side Menu > Integrations
+      PAYHERE_SANDBOX: "true"
+      PAYHERE_MERCHANT_ID: ${PAYHERE_MERCHANT_ID:-}
+      PAYHERE_MERCHANT_SECRET: ${PAYHERE_MERCHANT_SECRET:-}
+      # Set to 'auto' to auto-detect ngrok tunnel URL at runtime (recommended for dev)
+      # Or set to a full URL e.g. https://abc.ngrok-free.app/api/payhere/notify
+      PAYHERE_NOTIFY_URL: ${PAYHERE_NOTIFY_URL:-auto}
+      PAYHERE_RETURN_URL: ${PAYHERE_RETURN_URL:-http://localhost:8080/company/purchases?payment=success}
+      PAYHERE_CANCEL_URL: ${PAYHERE_CANCEL_URL:-http://localhost:8080/company/purchases?payment=cancelled}
     volumes:
       # Mount source code for live development
       - ./public:/var/www/html/public:cached
       - ./src:/var/www/html/src:cached
       - ./config:/var/www/html/config:cached
       - ./database:/var/www/html/database:cached
+      - ./resources:/var/www/html/resources:cached
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - ecocycle-network
+
+  # ── ngrok tunnel (auto-exposes app to the internet for PayHere notify_url) ──
+  # ngrok management UI available at http://localhost:4040
+  # Free account authtoken: https://dashboard.ngrok.com/get-started/your-authtoken
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ecocycle-ngrok
+    restart: unless-stopped
+    command: http app:80 --log=stdout
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    ports:
+      - "4040:4040"  # ngrok web inspector UI
+    depends_on:
+      - app
     networks:
       - ecocycle-network
 

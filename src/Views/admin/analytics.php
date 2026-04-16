@@ -1,116 +1,73 @@
 <?php
-// Centralized dummy data usage
-$dummy = require base_path('config/dummy.php');
-$wasteCategories = getWasteCategories();
-$payments = $dummy['payments'];
+/** @var array $analyticsSummary */
+/** @var array $wasteCategories */
+/** @var array $chartData */
+/** @var array $pickupStatusBreakdown */
+/** @var array $topCollectors */
 
-// Compute revenue (completed company payments) and payouts (completed customer payouts)
-$totalRevenue = 0; // Rs
-$customerPayouts = 0; // Rs
-foreach ($payments as $p) {
-    if ($p['type'] === 'payment' && $p['status'] === 'completed') {
-        $totalRevenue += $p['amount'];
-    } elseif ($p['type'] === 'payout' && $p['status'] === 'completed') {
-        $customerPayouts += $p['amount'];
-    }
-}
-$netProfit = $totalRevenue - $customerPayouts;
+// Extract summary data for easier access
+$totalWasteCollected = $analyticsSummary['totalWasteCollected'] ?? 0;
+$avgCollectionPerDay = $analyticsSummary['avgCollectionPerDay'] ?? 0;
+$totalRevenue = $analyticsSummary['totalRevenue'] ?? 0;
+$customerPayouts = $analyticsSummary['customerPayouts'] ?? 0;
+$netProfit = $analyticsSummary['netProfit'] ?? 0;
+$totalPickups = $analyticsSummary['totalPickups'] ?? 0;
+$completedPickups = $analyticsSummary['completedPickups'] ?? 0;
 
-$totalWasteCollected = array_sum(array_column($wasteCategories, 'volume'));
-$avgCollectionPerDay = $totalWasteCollected > 0 ? round($totalWasteCollected / 30) : 0;
+// Prepare JSON data for charts from controller data
+$chartShortLabelsJson = json_encode($chartData['shortLabels'] ?? []);
+$revenueJson = json_encode($chartData['revenueSeries'] ?? []);
+$payoutsJson = json_encode($chartData['payoutSeries'] ?? []);
+$pickupSeriesJson = json_encode($chartData['pickupSeries'] ?? []);
 
-// Prepare revenue & payouts series for the last 30 days
-$chartDays = [];
-for ($i = 29; $i >= 0; $i--) {
-    $chartDays[] = date('Y-m-d', strtotime("-{$i} days"));
-}
-
-$revenueMap = array_fill_keys($chartDays, 0.0);
-$payoutsMap = array_fill_keys($chartDays, 0.0);
-
-try {
-    // Try to load real aggregates from the database using project's DB wrapper
-    $db = new \Core\Database();
-    $sql = "SELECT DATE(`date`) AS day, `type`, SUM(amount) AS total
-            FROM payments
-            WHERE `date` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY day, type
-            ORDER BY day";
-    $rows = $db->fetchAll($sql);
-    foreach ($rows as $r) {
-        $d = $r['day'];
-        if (!in_array($d, $chartDays, true))
-            continue;
-        $val = isset($r['total']) ? (float) $r['total'] : 0.0;
-        if (($r['type'] ?? '') === 'payment') {
-            $revenueMap[$d] = $val;
-        } elseif (($r['type'] ?? '') === 'payout') {
-            $payoutsMap[$d] = $val;
-        }
-    }
-} catch (Throwable $e) {
-    // Fallback: use dummy payments array (from config/dummy.php)
-    foreach ($payments as $p) {
-        $d = date('Y-m-d', strtotime($p['date'] ?? 'now'));
-        if (!in_array($d, $chartDays, true))
-            continue;
-        $amt = isset($p['amount']) ? (float) $p['amount'] : 0.0;
-        if (($p['type'] ?? '') === 'payment')
-            $revenueMap[$d] += $amt;
-        if (($p['type'] ?? '') === 'payout')
-            $payoutsMap[$d] += $amt;
-    }
-}
-
-$chartLabelsJson = json_encode(array_values($chartDays));
-$revenueJson = json_encode(array_values($revenueMap));
-$payoutsJson = json_encode(array_values($payoutsMap));
-// Short labels (day of month like 04,05) for compact x-axis
-$chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d)), array_values($chartDays)));
+// Pickup status chart data
+$statusLabels = json_encode(array_map(fn($r) => ucfirst($r['status']), $pickupStatusBreakdown ?? []));
+$statusCounts = json_encode(array_map(fn($r) => $r['count'], $pickupStatusBreakdown ?? []));
+$statusColors = json_encode(['#16a34a', '#2563eb', '#f59e0b', '#dc2626', '#8b5cf6', '#6b7280']);
 ?>
 
 <div>
     <!-- Page Header (component) -->
     <page-header title="Analytics &amp; Reports" description="View system analytics and generate reports">
         <div data-header-action style="display: flex; gap: var(--space-2);">
-            <button class="btn btn-outline" onclick="exportReport('CSV')">
+            <a class="btn btn-outline" href="?format=csv&export=1">
                 <i class="fa-solid fa-download"></i>
                 Export CSV
-            </button>
-            <button class="btn btn-outline" onclick="exportReport('PDF')">
+            </a>
+            <a class="btn btn-outline" href="?format=pdf&export=1">
                 <i class="fa-solid fa-download"></i>
                 Export PDF
-            </button>
+            </a>
         </div>
     </page-header>
 
-    <!-- Main Statistics Grid (using feature-card component) -->
+    <!-- Main Statistics Grid -->
     <?php
     $statCards = [
         [
             'title' => 'Total Waste Collected',
             'value' => number_format($totalWasteCollected) . ' kg',
             'icon' => 'fa-solid fa-box',
-            'change' => '+12%',
-            'period' => 'from last month',
+            'change' => '',
+            'period' => 'All completed pickups',
             'negative' => false,
         ],
         [
             'title' => 'Total Revenue',
             'value' => 'Rs ' . number_format($totalRevenue, 2),
             'icon' => 'fa-solid fa-arrow-trend-up',
-            'change' => '+8%',
-            'period' => 'from last month',
+            'change' => '',
+            'period' => 'From completed payments',
             'negative' => false,
         ],
         [
-            'title' => 'Avg. Collection/Day',
-            'value' => number_format($avgCollectionPerDay) . ' kg',
-            'icon' => 'fa-solid fa-chart-column',
+            'title' => 'Total Pickups',
+            'value' => number_format($totalPickups),
+            'icon' => 'fa-solid fa-truck',
             'change' => '',
-            'period' => 'Daily average',
+            'period' => 'All time',
             'negative' => false,
-        ],
+        ]
     ];
     ?>
     <div class="stats-grid">
@@ -121,10 +78,11 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
         <?php endforeach; ?>
     </div>
 
-    <!-- Secondary Stats Grid -->
+    <!-- Charts Row 1: Revenue & Payouts + Waste Volume -->
     <div
         style="margin-top: var(--space-8); display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
-        <!-- Waste Volume by Category -->
+
+        <!-- Revenue & Payouts Chart -->
         <div class="activity-card pc-card">
             <div class="activity-card__header">
                 <h3 class="activity-card__title">
@@ -134,16 +92,13 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
                 <p class="activity-card__description">Daily totals for incoming payments and outgoing payouts</p>
             </div>
             <div class="activity-card__content">
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <!-- Chart: Revenue & Payouts -->
-                    <div class="pc-card" style="padding:0;">
-                        <canvas id="revenueChart" style="width:100%; max-height:380px;"></canvas>
-                    </div>
-
-                    <!-- totals removed (displayed in Financial Summary below) -->
+                <div class="pc-card" style="padding:0;">
+                    <canvas id="revenueChart" style="width:100%; max-height:380px;"></canvas>
                 </div>
             </div>
         </div>
+
+        <!-- Waste Volume by Category -->
         <div class="activity-card pc-card">
             <div class="activity-card__header">
                 <h3 class="activity-card__title">
@@ -154,12 +109,9 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
             </div>
             <div class="activity-card__content">
                 <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <!-- Chart: Waste Volume by Category -->
                     <div class="pc-card" style="padding:0;">
                         <canvas id="wasteVolumeChart" style="width:100%; max-height:360px;"></canvas>
                     </div>
-
-                    <!-- Fallback textual list (kept for accessibility) -->
                     <div style="display: flex; flex-direction: column; gap: var(--space-4);">
                         <?php foreach ($wasteCategories as $item): ?>
                             <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -181,66 +133,167 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Area-wise Collection Stats removed per request -->
+    <!-- Charts Row 2: Pickup Trends + Status Breakdown -->
+    <div
+        style="margin-top: var(--space-6); display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+
+        <!-- Pickup Trends -->
+        <div class="activity-card pc-card">
+            <div class="activity-card__header">
+                <h3 class="activity-card__title">
+                    <i class="fa-solid fa-truck" style="margin-right: var(--space-2);"></i>
+                    Pickup Trends (30 days)
+                </h3>
+                <p class="activity-card__description">Number of pickup requests created each day</p>
+            </div>
+            <div class="activity-card__content">
+                <div class="pc-card" style="padding:0;">
+                    <canvas id="pickupTrendsChart" style="width:100%; max-height:300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pickup Status Breakdown -->
+        <div class="activity-card pc-card">
+            <div class="activity-card__header">
+                <h3 class="activity-card__title">
+                    <i class="fa-solid fa-circle-half-stroke" style="margin-right: var(--space-2);"></i>
+                    Pickup Status Breakdown
+                </h3>
+                <p class="activity-card__description">Current distribution of pickup request statuses</p>
+            </div>
+            <div class="activity-card__content">
+                <div style="display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap;">
+                    <div class="pc-card" style="padding:0; flex: 0 0 220px;">
+                        <canvas id="pickupStatusChart" style="width:220px; height:220px; max-height:220px;"></canvas>
+                    </div>
+                    <?php if (!empty($pickupStatusBreakdown)): ?>
+                        <div style="display: flex; flex-direction: column; gap: var(--space-3); flex: 1;">
+                            <?php
+                            $colourPalette = ['#16a34a', '#2563eb', '#f59e0b', '#dc2626', '#8b5cf6', '#6b7280'];
+                            foreach ($pickupStatusBreakdown as $idx => $row):
+                                $colour = $colourPalette[$idx % count($colourPalette)];
+                                ?>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: var(--space-2);">
+                                        <div style="width:10px; height:10px; border-radius:50%; background:<?= $colour ?>;">
+                                        </div>
+                                        <span><?= htmlspecialchars(ucfirst($row['status'])) ?></span>
+                                    </div>
+                                    <div class="tag secondary"><?= number_format($row['count']) ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <p style="color: var(--neutral-500); font-size: var(--text-sm);">No pickup data available.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Collectors Table -->
+    <div class="activity-card" style="margin-top: var(--space-6);">
+        <div class="activity-card__header">
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-medal" style="margin-right: var(--space-2);"></i>
+                Top Collectors
+            </h3>
+            <p class="activity-card__description">Ranked by number of completed pickups</p>
+        </div>
+        <div class="activity-card__content">
+            <?php if (!empty($topCollectors)): ?>
+                <table style="width:100%; border-collapse: collapse; font-size: var(--text-sm);">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--neutral-200); text-align: left;">
+                            <th
+                                style="padding: var(--space-2) var(--space-4); color: var(--neutral-500); font-weight: 600;">
+                                #</th>
+                            <th
+                                style="padding: var(--space-2) var(--space-4); color: var(--neutral-500); font-weight: 600;">
+                                Collector</th>
+                            <th
+                                style="padding: var(--space-2) var(--space-4); color: var(--neutral-500); font-weight: 600; text-align:right;">
+                                Completed Pickups</th>
+                            <th
+                                style="padding: var(--space-2) var(--space-4); color: var(--neutral-500); font-weight: 600; text-align:right;">
+                                Total Weight (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($topCollectors as $rank => $collector): ?>
+                            <tr style="border-bottom: 1px solid var(--neutral-100);">
+                                <td
+                                    style="padding: var(--space-3) var(--space-4); color: var(--neutral-400); font-weight: 700;">
+                                    <?= $rank + 1 ?>
+                                </td>
+                                <td style="padding: var(--space-3) var(--space-4); font-weight: 500;">
+                                    <?= htmlspecialchars($collector['name']) ?>
+                                </td>
+                                <td
+                                    style="padding: var(--space-3) var(--space-4); text-align:right; font-weight: 600; color: var(--green-700);">
+                                    <?= number_format($collector['totalPickups']) ?>
+                                </td>
+                                <td
+                                    style="padding: var(--space-3) var(--space-4); text-align:right; color: var(--neutral-600);">
+                                    <?= number_format($collector['totalWeight'], 1) ?> kg
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <p
+                    style="color: var(--neutral-500); font-size: var(--text-sm); text-align: center; padding: var(--space-8);">
+                    No completed pickups yet.
+                </p>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- Financial Summary -->
+    <?php
+    $financialStats = [
+        ['value' => 'Rs ' . number_format($totalRevenue, 2), 'period' => 'Total Revenue'],
+        ['value' => 'Rs ' . number_format($customerPayouts, 2), 'period' => 'Customer Payouts'],
+        ['value' => 'Rs ' . number_format($netProfit, 2), 'period' => 'Net Profit'],
+    ];
+    ?>
     <div class="activity-card" style="margin-top: var(--space-8);">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-chart-column" style="margin-right: var(--space-2);"></i>
                 Financial Summary
             </h3>
-            <p class="activity-card__description">Monthly financial performance overview</p>
+            <p class="activity-card__description">All-time financial performance overview</p>
         </div>
         <div class="activity-card__content">
-            <div
+            <div class="financial-grid"
                 style="display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #16a34a;">
-                        Rs <?= number_format($totalRevenue, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Total Revenue</p>
-                </div>
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #dc2626;">
-                        Rs <?= number_format($customerPayouts, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Customer Payouts</p>
-                </div>
-                <div style="text-align: center;">
-                    <p style="font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: #2563eb;">
-                        Rs <?= number_format($netProfit, 2) ?>
-                    </p>
-                    <p style="font-size: var(--text-sm); color: var(--neutral-600);">Net Profit</p>
-                </div>
+                <?php foreach ($financialStats as $stat): ?>
+                    <feature-card unwrap value="<?= htmlspecialchars($stat['value']) ?>"
+                        period="<?= htmlspecialchars($stat['period']) ?>">
+                    </feature-card>
+                <?php endforeach; ?>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    function exportReport(format) {
-        // Placeholder for export functionality
-        console.log('Exporting report in ' + format + ' format');
-        alert('Export functionality would be implemented here for ' + format + ' format');
-    }
-</script>
+<!-- ===== CHARTS ===== -->
 
-<!-- Waste Volume Chart script -->
+<!-- Waste Volume Chart -->
 <script>
-    // Prepare data from PHP
     const wasteLabels = <?php echo json_encode(array_map(fn($i) => $i['category'], $wasteCategories)); ?>;
     const wasteData = <?php echo json_encode(array_map(fn($i) => $i['volume'], $wasteCategories)); ?>;
     const wasteColors = <?php echo json_encode(array_map(fn($i) => material_color(lcfirst($i['category'])), $wasteCategories)); ?>;
 
-    // Render Chart.js bar chart
     (function renderWasteVolumeChart() {
         const el = document.getElementById('wasteVolumeChart');
         if (!el) return;
-        const ctx = el.getContext('2d');
-        new Chart(ctx, {
+        new Chart(el.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: wasteLabels,
@@ -254,36 +307,26 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { mode: 'index', intersect: false }
-                },
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Kilograms (kg)' }
-                    },
-                    x: {
-                        title: { display: true, text: 'Material Type' }
-                    }
+                    y: { beginAtZero: true, title: { display: true, text: 'Kilograms (kg)' } },
+                    x: { title: { display: true, text: 'Material Type' } }
                 }
             }
         });
     })();
 </script>
 
-<!-- Revenue & Payouts Chart script -->
+<!-- Revenue & Payouts Chart -->
 <script>
-    // Labels and data prepared by PHP
-    const revenueLabels = <?= $chartShortLabelsJson ?>; // short day labels (DD)
+    const revenueLabels = <?= $chartShortLabelsJson ?>;
     const revenueSeries = <?= $revenueJson ?>;
     const payoutsSeries = <?= $payoutsJson ?>;
 
     (function renderRevenueChart() {
         const el = document.getElementById('revenueChart');
         if (!el) return;
-        const ctx = el.getContext('2d');
-        new Chart(ctx, {
+        new Chart(el.getContext('2d'), {
             type: 'line',
             data: {
                 labels: revenueLabels,
@@ -293,18 +336,14 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
                         data: revenueSeries,
                         borderColor: '#16a34a',
                         backgroundColor: 'rgba(22,163,74,0.08)',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 2,
+                        tension: 0.3, fill: true, pointRadius: 2,
                     },
                     {
                         label: 'Payouts (Rs)',
                         data: payoutsSeries,
                         borderColor: '#dc2626',
                         backgroundColor: 'rgba(220,38,38,0.08)',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 2,
+                        tension: 0.3, fill: true, pointRadius: 2,
                     }
                 ]
             },
@@ -316,6 +355,70 @@ $chartShortLabelsJson = json_encode(array_map(fn($d) => date('d', strtotime($d))
                     y: { beginAtZero: true, title: { display: true, text: 'Amount (Rs)' } },
                     x: { ticks: { maxRotation: 0, minRotation: 0 }, title: { display: true, text: 'Date' } }
                 }
+            }
+        });
+    })();
+</script>
+
+<!-- Pickup Trends Chart -->
+<script>
+    const pickupLabels = <?= $chartShortLabelsJson ?>;
+    const pickupSeries = <?= $pickupSeriesJson ?>;
+
+    (function renderPickupTrendsChart() {
+        const el = document.getElementById('pickupTrendsChart');
+        if (!el) return;
+        new Chart(el.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: pickupLabels,
+                datasets: [{
+                    label: 'Pickups',
+                    data: pickupSeries,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.08)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Pickups' } },
+                    x: { ticks: { maxRotation: 0, minRotation: 0 }, title: { display: true, text: 'Date' } }
+                }
+            }
+        });
+    })();
+</script>
+
+<!-- Pickup Status Doughnut Chart -->
+<script>
+    const statusLabels = <?= $statusLabels ?>;
+    const statusCounts = <?= $statusCounts ?>;
+    const statusColors = <?= $statusColors ?>;
+
+    (function renderPickupStatusChart() {
+        const el = document.getElementById('pickupStatusChart');
+        if (!el) return;
+        new Chart(el.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusCounts,
+                    backgroundColor: statusColors.slice(0, statusLabels.length),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    hoverOffset: 6,
+                }]
+            },
+            options: {
+                responsive: false,
+                cutout: '65%',
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }
             }
         });
     })();

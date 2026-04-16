@@ -43,6 +43,18 @@ class Bid extends BaseModel
         return array_map(fn(array $row): array => $this->mapCompanyHistoryRow($row, $companyId), $rows);
     }
 
+    public function findByRoundAndCompany(string $roundId, int $companyId): ?array
+    {
+        if ($roundId === '' || $companyId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT id, amount, company_id, bidding_round_id FROM {$this->table} WHERE bidding_round_id = ? AND company_id = ? LIMIT 1";
+        $row = $this->db->fetch($sql, [$roundId, $companyId]);
+
+        return $row ?: null;
+    }
+
     public function findForCompanyById(int $bidId, int $companyId): ?array
     {
         if ($bidId <= 0 || $companyId <= 0) {
@@ -107,16 +119,34 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($round['current_highest_bid']) ? (float) $round['current_highest_bid'] : 0.0;
-            if ($amount <= $currentHighest) {
-                throw new \DomainException('Bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($round['starting_bid']) ? (float) $round['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($amount <= $minimumRequired) {
+                throw new \DomainException('Bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
-            $this->db->query(
-                "INSERT INTO bids (bidding_round_id, company_id, amount, created_at) VALUES (?, ?, ?, NOW())",
-                [$roundId, $companyId, $amount]
-            );
+            if ($this->db->isPgsql()) {
+                $row = $this->db->fetch(
+                    "INSERT INTO bids (bidding_round_id, company_id, amount, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id",
+                    [$roundId, $companyId, $amount]
+                );
 
-            $bidId = (int) $this->db->lastInsertId();
+                if (!$row || !isset($row['id'])) {
+                    throw new \RuntimeException('Failed to record bid.');
+                }
+
+                $bidId = (int) $row['id'];
+            } else {
+                $this->db->query(
+                    "INSERT INTO bids (bidding_round_id, company_id, amount, created_at) VALUES (?, ?, ?, NOW())",
+                    [$roundId, $companyId, $amount]
+                );
+
+                $bidId = (int) $this->db->lastInsertId();
+            }
 
             $this->db->query(
                 "UPDATE bidding_rounds SET current_highest_bid = ?, leading_company_id = ?, updated_at = NOW() WHERE id = ?",
@@ -167,8 +197,13 @@ class Bid extends BaseModel
             }
 
             $currentHighest = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
-            if ($newAmount <= $currentHighest) {
-                throw new \DomainException('Updated bid must exceed the current highest bid of Rs ' . number_format($currentHighest, 2) . '.');
+            $startingBid = isset($row['starting_bid']) ? (float) $row['starting_bid'] : 0.0;
+
+            // Use the higher of currentHighest or startingBid as the minimum
+            $minimumRequired = max($currentHighest, $startingBid);
+
+            if ($newAmount <= $minimumRequired) {
+                throw new \DomainException('Updated bid must exceed ' . number_format($minimumRequired, 2) . '.');
             }
 
             $this->db->query("UPDATE {$this->table} SET amount = ? WHERE id = ? AND company_id = ?", [$newAmount, $bidId, $companyId]);
@@ -269,12 +304,11 @@ class Bid extends BaseModel
 
         $status = 'Pending';
         if ($roundStatus === 'active') {
-            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Active';
-        } elseif ($roundStatus === 'completed') {
-            $status = $isWinner ? 'Won' : 'Lost';
-        }
-
-        if ($isWinner && $roundStatus !== 'completed') {
+            $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Lost';
+        } elseif (in_array($roundStatus, ['completed', 'awarded'])) {
+            // Check explicit winner flag OR if they were the leader when it closed
+            $status = ($isWinner || (int) $leadingCompanyId === $companyId) ? 'Won' : 'Lost';
+        } elseif ($isWinner) {
             $status = 'Won';
         }
 
@@ -302,16 +336,27 @@ class Bid extends BaseModel
         }
 
         $months = max(1, $months);
-        $sql = "SELECT DATE_FORMAT(b.created_at, '%Y-%m') AS period,
-                       COUNT(*) AS total,
-                       SUM(CASE WHEN b.is_winner = 1 THEN 1 ELSE 0 END) AS won
-                FROM {$this->table} b
-                WHERE b.company_id = ?
-                  AND b.created_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
-                GROUP BY period
-                ORDER BY period ASC";
+        $periodExpr = $this->db->isPgsql()
+            ? "TO_CHAR(b.created_at, 'YYYY-MM')"
+            : "DATE_FORMAT(b.created_at, '%Y-%m')";
+        $winnerCase = $this->db->isPgsql()
+            ? 'SUM(CASE WHEN b.is_winner IS TRUE THEN 1 ELSE 0 END)'
+            : 'SUM(CASE WHEN b.is_winner = 1 THEN 1 ELSE 0 END)';
 
-        $rows = $this->db->fetchAll($sql, [$companyId, $months]);
+        $startDate = (new \DateTimeImmutable())
+            ->modify('-' . $months . ' months')
+            ->format('Y-m-d H:i:s');
+
+        $sql = "SELECT {$periodExpr} AS period,
+                                             COUNT(*) AS total,
+                       {$winnerCase} AS won
+                                FROM {$this->table} b
+                                WHERE b.company_id = ?
+                                    AND b.created_at >= ?
+                                GROUP BY {$periodExpr}
+                                ORDER BY period ASC";
+
+        $rows = $this->db->fetchAll($sql, [$companyId, $startDate]);
         if (!$rows) {
             return [];
         }
@@ -334,8 +379,12 @@ class Bid extends BaseModel
             return ['total' => 0, 'won' => 0];
         }
 
+        $winnerCase = $this->db->isPgsql()
+            ? 'SUM(CASE WHEN is_winner IS TRUE THEN 1 ELSE 0 END)'
+            : 'SUM(CASE WHEN is_winner = 1 THEN 1 ELSE 0 END)';
+
         $row = $this->db->fetch(
-            "SELECT COUNT(*) AS total, SUM(CASE WHEN is_winner = 1 THEN 1 ELSE 0 END) AS won
+            "SELECT COUNT(*) AS total, {$winnerCase} AS won
              FROM {$this->table}
              WHERE company_id = ?",
             [$companyId]
@@ -354,19 +403,27 @@ class Bid extends BaseModel
         }
 
         $months = max(1, $months);
-        $sql = "SELECT
-                    DATE_FORMAT(b.created_at, '%Y-%m') AS period,
-                    wc.name AS category,
-                    SUM(b.amount) AS total_amount
-                FROM {$this->table} b
-                INNER JOIN bidding_rounds br ON br.id = b.bidding_round_id
-                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
-                WHERE b.company_id = ?
-                  AND b.created_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
-                GROUP BY period, category
-                ORDER BY period ASC";
+        $periodExpr = $this->db->isPgsql()
+            ? "TO_CHAR(b.created_at, 'YYYY-MM')"
+            : "DATE_FORMAT(b.created_at, '%Y-%m')";
 
-        $rows = $this->db->fetchAll($sql, [$companyId, $months]);
+        $startDate = (new \DateTimeImmutable())
+            ->modify('-' . $months . ' months')
+            ->format('Y-m-d H:i:s');
+
+        $sql = "SELECT
+                                        {$periodExpr} AS period,
+                                        wc.name AS category,
+                                        SUM(b.amount) AS total_amount
+                                FROM {$this->table} b
+                                INNER JOIN bidding_rounds br ON br.id = b.bidding_round_id
+                                LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+                                WHERE b.company_id = ?
+                                    AND b.created_at >= ?
+                                GROUP BY {$periodExpr}, wc.name
+                                ORDER BY period ASC";
+
+        $rows = $this->db->fetchAll($sql, [$companyId, $startDate]);
         if (!$rows) {
             return [];
         }

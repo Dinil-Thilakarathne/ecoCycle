@@ -47,6 +47,7 @@ class CompanyDashboardController extends DashboardController
             'highestBids' => $this->getHighestBids(),
             'recentBidActivity' => $this->getBiddingHistory(5),
             'companyProfile' => $profile,
+            'monthlyPurchases' => $this->getMonthlyPurchasesByCategory(),
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -256,9 +257,12 @@ class CompanyDashboardController extends DashboardController
             'description' => $metadata['description'] ?? '',
             'email' => $profile['email'] ?? '',
             'phone' => $profile['phone'] ?? '',
+            'land_phone' => $profile['land_phone'] ?? '',
             'website' => $metadata['website'] ?? '',
             'address' => $profile['address'] ?? ($metadata['address'] ?? ''),
-            'profile_picture' => $profile['profileImagePath'] ?? '/assets/avatar.png',
+            'profile_picture' => isset($profile['profile_image_path']) && $profile['profile_image_path']
+                ? '/' . ltrim($profile['profile_image_path'], '/')
+                : '/assets/avatar.png',
             'waste_types' => $wasteTypes,
             'verification' => $verification,
             'bank_details' => $bankDetails,
@@ -302,7 +306,7 @@ class CompanyDashboardController extends DashboardController
     private function getAcceptedPurchases(): array
     {
         $rounds = new BiddingRound();
-        $active = $rounds->companyRounds($this->companyId, 'active', 10);
+        $active = $rounds->companyRounds($this->companyId, 'completed', 10);
 
         return array_map(function (array $row): array {
             return [
@@ -311,7 +315,7 @@ class CompanyDashboardController extends DashboardController
                 'amount' => number_format($row['quantity']) . ' ' . $row['unit'],
                 'price' => format_rs($row['currentHighestBid']),
                 'pickup_date' => $row['endTime'] ? date('Y-m-d', strtotime($row['endTime'])) : 'TBD',
-                'status' => ucfirst($row['status']),
+
             ];
         }, $active);
     }
@@ -356,11 +360,15 @@ class CompanyDashboardController extends DashboardController
         $totalPerMonth = [];
         $wonPerMonth = [];
 
-        foreach ($monthlyCounts as $row) {
+        $periodToIndex = [];
+
+        foreach ($monthlyCounts as $idx => $row) {
+            // formatMonthLabel now returns "September 2025" — full month + year.
             $label = $this->formatMonthLabel($row['period']);
             $months[] = $label;
             $totalPerMonth[] = $row['total'];
             $wonPerMonth[] = $row['won'];
+            $periodToIndex[$row['period']] = $idx;
         }
 
         if (empty($months)) {
@@ -374,6 +382,7 @@ class CompanyDashboardController extends DashboardController
             $series[$category] = [];
             foreach ($monthlyCounts as $row) {
                 $period = $row['period'];
+                $label = $this->formatMonthLabel($period);
                 $series[$category][] = isset($values[$period]) ? (float) $values[$period] : 0.0;
             }
         }
@@ -396,13 +405,14 @@ class CompanyDashboardController extends DashboardController
     private function getNotifications(): array
     {
         $notifications = new Notification();
-        return $notifications->forCompany($this->companyId, 25);
+        $createdAt = $this->user['created_at'] ?? '2000-01-01 00:00:00';
+        return $notifications->forCompany($this->companyId, $createdAt, 20);
     }
 
     private function formatMonthLabel(string $period): string
     {
         $dt = \DateTime::createFromFormat('Y-m', $period);
-        return $dt ? $dt->format('M') : $period;
+        return $dt ? $dt->format('F Y') : $period;
     }
 
     private function getCurrentInvoices(): array
@@ -453,5 +463,34 @@ class CompanyDashboardController extends DashboardController
         }
 
         return $formatted;
+    }
+
+    private function getMonthlyPurchasesByCategory(): array
+    {
+        $payment = new Payment();
+        $rows = $payment->purchasesByCategory($this->companyId);
+
+        $iconMap = [
+            'plastic' => 'fa-solid fa-bottle-water',
+            'paper' => 'fa-solid fa-paper-plane',
+            'metal' => 'fa-solid fa-box',
+            'glass' => 'fa-solid fa-wine-bottle',
+            'organic' => 'fa-solid fa-leaf',
+            'cardboard' => 'fa-solid fa-clipboard',
+        ];
+
+        return array_map(function (array $row) use ($iconMap): array {
+            $category = $row['category'] ?? 'Unknown';
+            $quantity = (float) ($row['total_quantity'] ?? 0);
+            $unit = $row['unit'] ?? 'kg';
+
+            return [
+                'title' => $category,
+                'value' => number_format($quantity) . ' ' . $unit,
+                'quantity' => $quantity,
+                'unit' => $unit,
+                'icon' => $iconMap[strtolower($category)] ?? 'fa-solid fa-recycle',
+            ];
+        }, $rows);
     }
 }

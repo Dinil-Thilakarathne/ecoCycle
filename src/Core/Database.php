@@ -41,7 +41,8 @@ class Database
         $conn = $connections[$connName];
         $this->driver = $conn['driver'] ?? 'mysql';
         $this->host = $conn['host'] ?? '127.0.0.1';
-        $this->port = (string) ($conn['port'] ?? '3306');
+        $defaultPort = $this->driver === 'pgsql' ? '5432' : '3306';
+        $this->port = (string) ($conn['port'] ?? $defaultPort);
         $this->db = $conn['database'] ?? '';
         $this->user = $conn['username'] ?? '';
         $this->pass = $conn['password'] ?? '';
@@ -74,6 +75,14 @@ class Database
         ];
         try {
             $this->pdo = new \PDO($dsn, $this->user, $this->pass, $options);
+
+            // Set timezone for the current session to match application config
+            $tz = Config::get('app.timezone', 'UTC');
+            if ($this->driver === 'pgsql') {
+                $this->pdo->exec("SET timezone TO '$tz'");
+            } elseif ($this->driver === 'mysql') {
+                $this->pdo->exec("SET time_zone = '$tz'");
+            }
         } catch (\PDOException $e) {
             throw new \PDOException('DB connection failed: ' . $e->getMessage(), (int) $e->getCode());
         }
@@ -105,9 +114,43 @@ class Database
         return $this->stmt->fetch();
     }
 
+    public function fetchOne(string $sql, array $params = []): array|false
+    {
+        return $this->fetch($sql, $params);
+    }
+
+    public function fetchColumn(string $sql, array $params = [], int $column = 0)
+    {
+        $this->query($sql, $params);
+        return $this->stmt->fetchColumn($column);
+    }
+
+    public function insert(string $table, array $data): bool
+    {
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        $sql = "INSERT INTO {$table} ({$columns}) VALUES ({$placeholders})";
+        return $this->query($sql, array_values($data));
+    }
+
     public function lastInsertId(): string|false
     {
         return $this->pdo()->lastInsertId();
+    }
+
+    public function getDriver(): string
+    {
+        return $this->driver;
+    }
+
+    public function isPgsql(): bool
+    {
+        return $this->driver === 'pgsql';
+    }
+
+    public function isMysql(): bool
+    {
+        return $this->driver === 'mysql';
     }
 
     /**

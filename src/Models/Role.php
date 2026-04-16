@@ -10,6 +10,17 @@ class Role extends BaseModel
 
     public function createTableIfNotExists(): bool
     {
+        if ($this->db->isPgsql()) {
+            $sql = 'CREATE TABLE IF NOT EXISTS roles (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(50) NOT NULL UNIQUE,
+                label VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )';
+
+            return $this->db->query($sql);
+        }
+
         $sql = "CREATE TABLE IF NOT EXISTS `roles` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `name` VARCHAR(50) NOT NULL UNIQUE,

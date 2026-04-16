@@ -46,8 +46,13 @@ class ProfileController extends BaseController
             $this->processPhotoRemoval($userModel, $currentUser, $userId);
         } elseif ($request->has('saveProfile')) {
             $this->processProfileSave($request, $userModel, $currentUser, $userId);
+        } elseif ($request->has('saveBankDetails')) {
+            $this->processBankDetailsSave($request, $userModel, $currentUser, $userId);
         } elseif ($request->has('updatePassword')) {
             $this->processPasswordChange($request, $userModel, $currentUser, $userId);
+        } elseif ($request->has('deleteAccount')) {
+            $this->processAccountDeletion($userModel, $userId);
+            return Response::redirect('/login'); // Redirect after deletion
         } else {
             $session->flash('status', 'No changes were detected.');
         }
@@ -61,6 +66,7 @@ class ProfileController extends BaseController
 
         if (!$request->hasFile('photo')) {
             $session->flash('errors', ['Please choose an image to upload.']);
+            $session->flash('active_modal', '#editModal');
             return;
         }
 
@@ -69,12 +75,14 @@ class ProfileController extends BaseController
 
         if (!$result['ok']) {
             $session->flash('errors', [$result['error'] ?? 'Unable to upload the selected image.']);
+            $session->flash('active_modal', '#editModal');
             return;
         }
 
         $relativePath = $result['path'] ?? null;
         if ($relativePath === null) {
             $session->flash('errors', ['Unable to determine stored image path.']);
+            $session->flash('active_modal', '#editModal');
             return;
         }
 
@@ -85,6 +93,7 @@ class ProfileController extends BaseController
         } catch (\Throwable $e) {
             $this->imageManager->delete($relativePath);
             $session->flash('errors', ['Failed to update profile photo.']);
+            $session->flash('active_modal', '#editModal');
         }
     }
 
@@ -98,6 +107,7 @@ class ProfileController extends BaseController
             $session->flash('status', 'Profile photo removed.');
         } catch (\Throwable $e) {
             $session->flash('errors', ['Unable to remove profile photo.']);
+            $session->flash('active_modal', '#editModal');
         }
     }
 
@@ -110,13 +120,12 @@ class ProfileController extends BaseController
         $email = trim((string) $request->input('email'));
         $phone = trim((string) $request->input('phone'));
         $address = trim((string) $request->input('address'));
-        $postalCode = trim((string) $request->input('postalCode'));
-        $bankAccount = trim((string) $request->input('bankAccount'));
+        $description = trim((string) $request->input('description'));
 
         $errors = [];
 
-        if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $address === '' || $postalCode === '' || $bankAccount === '') {
-            $errors[] = 'All fields are required.';
+        if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $address === '') {
+            $errors[] = 'All personal fields are required.';
         }
 
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -125,10 +134,6 @@ class ProfileController extends BaseController
 
         if ($phone !== '' && !preg_match('/^0\d{9}$/', $phone)) {
             $errors[] = 'Phone number must start with 0 and be exactly 10 digits.';
-        }
-
-        if ($postalCode !== '' && !preg_match('/^\d{1,5}$/', $postalCode)) {
-            $errors[] = 'Postal code must be numeric and up to 5 digits.';
         }
 
         try {
@@ -145,21 +150,20 @@ class ProfileController extends BaseController
             'email' => $email,
             'phone' => $phone,
             'address' => $address,
-            'postalCode' => $postalCode,
-            'bankAccount' => $bankAccount,
+            'description' => $description,
         ];
 
         if (!empty($errors)) {
             $session->flash('errors', $errors);
             $session->flash('old', $oldInput);
+            $session->flash('active_modal', '#editModal');
             return;
         }
 
         $metadata = is_array($currentUser['metadata'] ?? null) ? $currentUser['metadata'] : [];
         $metadata['firstName'] = $firstName;
         $metadata['lastName'] = $lastName;
-        $metadata['postalCode'] = $postalCode;
-        $metadata['bankAccount'] = $bankAccount;
+        $metadata['description'] = $description;
 
         $updateData = [
             'name' => trim($firstName . ' ' . $lastName),
@@ -175,6 +179,32 @@ class ProfileController extends BaseController
         } catch (\Throwable $e) {
             $session->flash('errors', ['Failed to update your profile.']);
             $session->flash('old', $oldInput);
+            $session->flash('active_modal', '#editModal');
+        }
+    }
+
+    private function processBankDetailsSave(Request $request, User $userModel, array $currentUser, int $userId): void
+    {
+        $session = session();
+
+        $bankName = trim((string) $request->input('bankName'));
+        $branch = trim((string) $request->input('branch'));
+        $holderName = trim((string) $request->input('holderName'));
+        $bankAccount = trim((string) $request->input('bankAccount'));
+
+        $updateData = [
+            'bank_name' => $bankName,
+            'bank_branch' => $branch,
+            'bank_account_name' => $holderName,
+            'bank_account_number' => $bankAccount,
+        ];
+
+        try {
+            $userModel->updateUser($userId, $updateData);
+            $session->flash('status', 'Bank details updated successfully.');
+        } catch (\Throwable $e) {
+            $session->flash('errors', ['Failed to update bank details.']);
+            $session->flash('active_modal', '#bankdetail');
         }
     }
 
@@ -200,33 +230,32 @@ class ProfileController extends BaseController
             $errors[] = 'New password confirmation does not match.';
         }
 
-        $storedHash = $currentUser['password_hash'] ?? '';
-        $currentValid = false;
-
-        if ($storedHash !== '') {
-            if (preg_match('/^\$2y\$/', $storedHash)) {
-                $currentValid = password_verify($currentPassword, $storedHash);
-            } else {
-                $currentValid = hash_equals($storedHash, $currentPassword);
-            }
-        }
-
-        if (!$currentValid) {
-            $errors[] = 'Current password is incorrect.';
+        if ($currentPassword !== '' && !$userModel->verifyPassword($currentUser, $currentPassword)) {
+            $errors[] = 'Invalid password. Please retry with your current password.';
         }
 
         if (!empty($errors)) {
             $session->flash('errors', $errors);
+            $session->flash('active_modal', '#passwordModal');
             return;
         }
 
-        $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
-
         try {
-            $userModel->updateUser($userId, ['password_hash' => $newHash]);
+            $userModel->updatePassword($userId, $newPassword);
             $session->flash('status', 'Password updated successfully.');
         } catch (\Throwable $e) {
             $session->flash('errors', ['Unable to update password. Please try again.']);
+            $session->flash('active_modal', '#passwordModal');
+        }
+    }
+
+    private function processAccountDeletion(User $userModel, int $userId): void
+    {
+        $userModel->deleteUser($userId);
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
         }
     }
 }
+

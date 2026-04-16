@@ -1,24 +1,18 @@
 <?php
-$pickupRequests = $pickupRequests ?? [];
-$pickupRequests = is_array($pickupRequests) ? $pickupRequests : [];
-$collectors = is_array($collectors ?? null) ? $collectors : [];
-$timeSlots = $timeSlots ?? [];
-$selectedTimeSlot = $selectedTimeSlot ?? 'all';
-$filteredRequests = $filteredPickupRequests ?? $pickupRequests;
-$filteredRequests = is_array($filteredRequests) ? array_values($filteredRequests) : [];
+// Variables from controller: $todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests, $collectors, $timeSlots, $selectedTimeSlot
+$todayRequests = $todayRequests ?? [];
+$upcomingRequests = $upcomingRequests ?? [];
+$inProgressRequests = $inProgressRequests ?? [];
+$completedRequests = $completedRequests ?? [];
+$cancelledRequests = $cancelledRequests ?? [];
+$collectors = $collectors ?? [];
+$timeSlots = $timeSlots ?? ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
-if (empty($timeSlots)) {
-    $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
-}
-?>
-<?php
-// Expose client-side pickup data for modal lookups (use full dataset to allow lookups even when filtered)
+// Combine all for client-side data lookup in modals
+$allPickupData = array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests);
 ?>
 <script>
-    window.__PICKUP_DATA = <?php echo json_encode($pickupRequests, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-</script>
-<script>
-    // Expose collectors list for edit modal
+    window.__PICKUP_DATA = <?php echo json_encode($allPickupData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     window.__COLLECTORS = <?php echo json_encode($collectors, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
@@ -56,11 +50,7 @@ if (empty($timeSlots)) {
         const response = await fetch(url, opts);
         let payload = null;
 
-        try {
-            payload = await response.json();
-        } catch (error) {
-            payload = null;
-        }
+        try { payload = await response.json(); } catch (error) { payload = null; }
 
         if (!response.ok || (payload && payload.success === false)) {
             const message = payload && payload.message ? payload.message : `Request failed (${response.status})`;
@@ -73,326 +63,151 @@ if (empty($timeSlots)) {
 
     function renderPickupStatusBadge(status) {
         const value = String(status ?? '').toLowerCase();
-        if (value === 'pending') {
-            return '<div class="tag pending">Pending</div>';
-        }
-        if (value === 'assigned') {
-            return '<div class="tag assigned">Assigned</div>';
-        }
-        if (value === 'completed') {
-            return '<div class="tag completed">Completed</div>';
-        }
-        if (value === 'cancelled') {
-            return '<div class="tag cancelled">Cancelled</div>';
-        }
-        const fallback = status ?? 'Unknown';
-        return '<div class="tag">' + escapeHtml(fallback) + '</div>';
+        if (value === 'pending') return '<div class="tag pending">Pending</div>';
+        if (value === 'assigned') return '<div class="tag assigned">Assigned</div>';
+        if (value === 'in_progress' || value === 'in progress') return '<div class="tag online">In Progress</div>';
+        if (value === 'completed') return '<div class="tag completed">Completed</div>';
+        if (value === 'cancelled') return '<div class="tag cancelled">Cancelled</div>';
+        return '<div class="tag">' + escapeHtml(status ?? 'Unknown') + '</div>';
     }
 
     function syncPickupCache(pickup) {
-        if (!pickup || pickup.id === undefined) {
-            return;
-        }
-
-        if (!Array.isArray(window.__PICKUP_DATA)) {
-            window.__PICKUP_DATA = [];
-        }
-
+        if (!pickup || pickup.id === undefined) return;
         const targetId = String(pickup.id).toLowerCase();
-        const index = window.__PICKUP_DATA.findIndex(function (item) {
-            return String(item.id).toLowerCase() === targetId;
-        });
-
-        if (index >= 0) {
-            window.__PICKUP_DATA[index] = pickup;
-        } else {
-            window.__PICKUP_DATA.push(pickup);
-        }
+        const index = window.__PICKUP_DATA.findIndex(item => String(item.id).toLowerCase() === targetId);
+        if (index >= 0) window.__PICKUP_DATA[index] = pickup;
+        else window.__PICKUP_DATA.push(pickup);
     }
 
     function updatePickupRow(pickup) {
-        if (!pickup || pickup.id === undefined) {
-            return;
-        }
+        if (!pickup || pickup.id === undefined) return;
+        const rows = document.querySelectorAll(pickupRowSelector(pickup.id));
+        rows.forEach(row => {
+            const statusCell = row.querySelector('[data-field="status"]');
+            if (statusCell) statusCell.innerHTML = renderPickupStatusBadge(pickup.status);
 
-        const row = document.querySelector(pickupRowSelector(pickup.id));
-        if (!row) {
-            return;
-        }
+            const vehicleCell = row.querySelector('[data-field="vehicle"]');
+            if (vehicleCell) vehicleCell.textContent = pickup.vehiclePlate || '-';
 
-        const statusCell = row.querySelector('[data-field="status"]') || row.querySelectorAll('td')[5];
-        if (statusCell) {
-            statusCell.innerHTML = renderPickupStatusBadge(pickup.status);
-        }
-
-        const collectorCell = row.querySelector('[data-field="collector"]') || row.querySelectorAll('td')[6];
-        if (collectorCell) {
-            if (pickup.collectorName) {
-                collectorCell.textContent = pickup.collectorName;
-            } else {
-                collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
+            const collectorCell = row.querySelector('[data-field="collector"]');
+            if (collectorCell) {
+                if (pickup.collectorName) collectorCell.textContent = pickup.collectorName;
+                else collectorCell.innerHTML = '<span style="color: var(--neutral-500);">Unassigned</span>';
             }
-        }
-
-        const badgeGroup = row.querySelector('.badge-group');
-        if (badgeGroup && Array.isArray(pickup.wasteCategories)) {
-            badgeGroup.innerHTML = '';
-            pickup.wasteCategories.forEach(function (category) {
-                const badge = document.createElement('div');
-                badge.className = 'tag secondary';
-                badge.textContent = category;
-                badgeGroup.appendChild(badge);
-            });
-        }
+        });
     }
 
     function refreshPickupDetailModal(pickup) {
         const modal = document.getElementById('pickup-detail-modal');
-        if (!modal || !modal.classList.contains('open')) {
-            return;
-        }
-
-        const setText = function (selector, value) {
+        if (!modal) return;
+        const setText = (selector, value) => {
             const element = modal.querySelector(selector);
-            if (!element) {
-                return;
-            }
-            const label = element.previousElementSibling;
-            if (value === null || value === undefined || String(value).trim() === '') {
-                element.textContent = '';
-                element.style.display = 'none';
-                if (label) {
-                    label.style.display = 'none';
-                }
-            } else {
-                element.textContent = String(value);
-                element.style.display = '';
-                if (label) {
-                    label.style.display = '';
-                }
-            }
+            if (!element) return;
+            element.textContent = String(value ?? '');
         };
 
-        setText('.pd-id', pickup.id ?? '');
-        setText('.pd-customer', pickup.customerName ?? '');
-        setText('.pd-address', pickup.address ?? '');
+        setText('.pd-id', pickup.id);
+        setText('.pd-customer', pickup.customerName);
+        setText('.pd-address', pickup.address);
         setText('.pd-waste', Array.isArray(pickup.wasteCategories) ? pickup.wasteCategories.join(', ') : '');
-        setText('.pd-timeslot', pickup.timeSlot ?? '');
-        setText('.pd-status', pickup.status ? String(pickup.status).charAt(0).toUpperCase() + String(pickup.status).slice(1) : '');
-        setText('.pd-collector', pickup.collectorName ?? '');
+        setText('.pd-timeslot', pickup.timeSlot);
+        setText('.pd-date', pickup.scheduledAt ? new Date(pickup.scheduledAt).toLocaleDateString() : 'Unscheduled');
+        setText('.pd-status', pickup.status ? String(pickup.status).toUpperCase() : '');
+        setText('.pd-vehicle', pickup.vehiclePlate);
+        setText('.pd-weight', pickup.weight ? parseFloat(pickup.weight).toFixed(2) + ' kg' : '-');
+        setText('.pd-price', pickup.price ? 'Rs. ' + parseFloat(pickup.price).toFixed(2) : '-');
+        setText('.pd-collector', pickup.collectorName);
     }
 </script>
 
-<!-- Pickup Detail Modal -->
-<div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="user-modal__dialog">
-        <button class="close" aria-label="Close">&times;</button>
-        <h3>Pickup Request Details</h3>
-        <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
-
-            <div><strong>Customer</strong></div>
-            <div class="pd-customer"></div>
-
-            <div><strong>Address</strong></div>
-            <div class="pd-address"></div>
-
-            <div><strong>Waste Categories</strong></div>
-            <div class="pd-waste"></div>
-
-            <div><strong>Time Slot</strong></div>
-            <div class="pd-timeslot"></div>
-
-            <div><strong>Status</strong></div>
-            <div class="pd-status"></div>
-
-            <div><strong>Collector</strong></div>
-            <div class="pd-collector"></div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Close modal handler (delegated)
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('pickup-detail-modal');
-        if (!modal) return;
-        if (e.target.matches('#pickup-detail-modal .close') || e.target.matches('#pickup-detail-modal')) {
-            modal.classList.remove('open');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-    });
-</script>
-
-<!-- Edit Pickup Modal -->
-<div id="pickup-edit-modal" class="user-modal" role="dialog" aria-modal="true">
-    <div class="user-modal__dialog">
-        <button class="close" aria-label="Close">&times;</button>
-        <h3>Edit Pickup Request</h3>
-        <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pe-id"></div>
-
-            <div><strong>Customer</strong></div>
-            <div class="pe-customer"></div>
-
-            <div><strong>Assign Collector</strong></div>
-            <div>
-                <div class="form-select" style="width: fit-content;">
-                    <select id="pe-collector-select">
-                        <option value="">-- Unassigned --</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div style="margin-top: var(--space-8); display:flex; gap:8px; justify-content:flex-end;">
-            <button class="btn" onclick="closeEditModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveEdit()">Save</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    function openEditModal(el, pickupId) {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-
-        const record = (window.__PICKUP_DATA || []).find(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase()) || null;
-        const row = el && el.closest ? el.closest('tr') : document.querySelector(`tr[data-id="${pickupId}"]`);
-
-        if (!record && !row) return;
-
-        // Populate fields
-        modal.querySelector('.pe-id').textContent = record ? record.id : pickupId;
-        // compute customer display text (avoid nested ternary syntax issues)
-        var customerText = '';
-        if (record) {
-            customerText = record.customerName || '';
-        } else if (row) {
-            var custCell = row.querySelector('td:nth-child(2)');
-            customerText = custCell ? custCell.textContent.trim() : '';
-        }
-        modal.querySelector('.pe-customer').textContent = customerText;
-
-        // Populate collectors select
-        const sel = document.getElementById('pe-collector-select');
-        sel.innerHTML = '<option value="">-- Unassigned --</option>';
-        (window.__COLLECTORS || []).forEach(c => {
-            const o = document.createElement('option');
-            o.value = c.id;
-            o.textContent = c.name;
-            sel.appendChild(o);
-        });
-
-        // Set currently assigned collector if present
-        const current = record ? (record.collectorId || '') : '';
-        sel.value = current;
-
-        // Store current editing id on modal element
-        modal.setAttribute('data-editing-id', pickupId);
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeEditModal() {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-    }
-
-    async function saveEdit() {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-
-        const pickupId = modal.getAttribute('data-editing-id');
-        if (!pickupId) return;
-
-        const select = document.getElementById('pe-collector-select');
-        const collectorIdValue = select ? select.value : '';
-        const payload = {};
-
-        if (collectorIdValue === '') {
-            payload.collectorId = null;
-        } else {
-            payload.collectorId = collectorIdValue;
-        }
-
-        const currentRecord = (window.__PICKUP_DATA || []).find(function (item) {
-            return String(item.id).toLowerCase() === String(pickupId).toLowerCase();
-        });
-
-        if (currentRecord && String(currentRecord.status || '').toLowerCase() === 'completed') {
-            payload.status = 'completed';
-        }
-
-        const saveButton = modal.querySelector('.btn.btn-primary');
-        const originalLabel = saveButton ? saveButton.textContent : '';
-
-        if (saveButton) {
-            saveButton.disabled = true;
-            saveButton.textContent = 'Saving...';
-        }
-
-        try {
-            const response = await pickupApiRequest(`${PICKUP_API_BASE}/${encodeURIComponent(pickupId)}`, {
-                method: 'PUT',
-                body: payload,
-            });
-
-            const updated = response.pickup;
-            if (!updated) {
-                throw new Error('Server returned an empty response.');
-            }
-
-            syncPickupCache(updated);
-            updatePickupRow(updated);
-            refreshPickupDetailModal(updated);
-
-            closeEditModal();
-
-            if (typeof showToast === 'function') {
-                showToast('Pickup updated successfully.', 'success');
-            }
-        } catch (error) {
-            console.error('Failed to update pickup request', error);
-            if (typeof showToast === 'function') {
-                showToast(error.message || 'Failed to update pickup request.', 'error');
-            } else {
-                alert(error.message || 'Failed to update pickup request.');
-            }
-        } finally {
-            if (saveButton) {
-                saveButton.disabled = false;
-                saveButton.textContent = originalLabel;
-            }
-        }
-    }
-
-    // Close edit modal when clicking backdrop or close button
-    document.addEventListener('click', function (e) {
-        const modal = document.getElementById('pickup-edit-modal');
-        if (!modal) return;
-        if (e.target.matches('#pickup-edit-modal .close') || e.target.matches('#pickup-edit-modal')) {
-            closeEditModal();
-        }
-    });
-</script>
 <?php
+// Helper for table rendering
+if (!function_exists('renderPickupTable')) {
+    function renderPickupTable($requests, $isToday = false) {
+    ?>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Address</th>
+                    <th>Waste Categories</th>
+                    <?php if (!$isToday): ?><th>Scheduled Date</th><?php endif; ?>
+                    <th>Time Slot</th>
+                    <th>Status</th>
+                    <th>Vehicle</th>
+                    <th>Collector</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($requests as $request): ?>
+                    <tr data-id="<?= htmlspecialchars($request['id']) ?>">
+                        <td>
+                            <div class="cell-with-icon">
+                                <i class="fa-solid fa-user"></i>
+                                <?= htmlspecialchars($request['customerName']) ?>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="cell-truncate" title="<?= htmlspecialchars($request['address']) ?>"><?= htmlspecialchars($request['address']) ?></span>
+                        </td>
+                        <td>
+                            <div class="badge-group">
+                                <?php foreach ((array)($request['wasteCategories'] ?? []) as $category): ?>
+                                    <div class="tag secondary"><?= htmlspecialchars($category) ?></div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                        <?php if (!$isToday): ?>
+                            <td><?= $request['scheduledAt'] ? date('M j, Y', strtotime($request['scheduledAt'])) : '<span class="text-neutral-500">Unscheduled</span>' ?></td>
+                        <?php endif; ?>
+                        <td><?= htmlspecialchars($request['timeSlot']) ?></td>
+                        <td data-field="status"><?= getStatusBadge($request['statusRaw']) ?></td>
+                        <td data-field="vehicle"><?= htmlspecialchars($request['vehiclePlate'] ?: '-') ?></td>
+                        <td data-field="collector">
+                            <?= !empty($request['collectorName']) ? htmlspecialchars($request['collectorName']) : '<span style="color: var(--neutral-500);">Unassigned</span>' ?>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:8px;">
+                                <button class="icon-button" onclick="viewDetails(this, '<?= $request['id'] ?>')" title="View Details">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                                <?php $canEdit = !in_array($request['statusRaw'], ['completed', 'cancelled']); ?>
+                                <button class="icon-button" onclick="openEditModal(this, '<?= $request['id'] ?>')" 
+                                    title="<?= $canEdit ? 'Edit / Assign' : 'Cannot Edit Finished Request' ?>"
+                                    <?= !$canEdit ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '' ?>>
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($requests)): ?>
+                    <tr>
+                        <td colspan="<?= $isToday ? 8 : 9 ?>" style="text-align: center; padding: 2rem; color: var(--neutral-500);">
+                            No pickup requests found.
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    <?php }
+}
+?>
 
-function getStatusBadge($status)
-{
-    switch ($status) {
-        case 'pending':
-            return '<div class="tag pending">Pending</div>';
-        case 'assigned':
-            return '<div class="tag assigned">Assigned</div>';
-        case 'completed':
-            return '<div class="tag completed">Completed</div>';
-        default:
-            return '<div class="tag">' . htmlspecialchars($status) . '</div>';
+<?php
+if (!function_exists('getStatusBadge')) {
+    function getStatusBadge($status) {
+        $status = strtolower($status);
+        switch ($status) {
+            case 'pending': return '<div class="tag pending">Pending</div>';
+            case 'assigned': return '<div class="tag assigned">Assigned</div>';
+            case 'in_progress':
+            case 'in progress': return '<div class="tag online">In Progress</div>';
+            case 'completed': return '<div class="tag completed">Completed</div>';
+            case 'cancelled': return '<div class="tag cancelled">Cancelled</div>';
+            default: return '<div class="tag">' . htmlspecialchars($status) . '</div>';
+        }
     }
 }
 ?>
@@ -401,233 +216,231 @@ function getStatusBadge($status)
     <!-- Page Header -->
     <div class="page-header">
         <div class="page-header__content">
-            <h2 class="page-header__title">Today's Pickup Requests</h2>
-            <p class="page-header__description">Manage and assign pickup requests</p>
+            <h2 class="page-header__title">Pickup Management</h2>
+            <p class="page-header__description">Manage schedules, assignments, and service history</p>
         </div>
         <div class="form-select">
             <select id="timeSlotFilter" onchange="filterByTimeSlot()">
-                <option value="all" <?= $selectedTimeSlot === 'all' ? 'selected' : '' ?>>All Time Slots</option>
+                <option value="all" <?= ($selectedTimeSlot ?? 'all') === 'all' ? 'selected' : '' ?>>All Time Slots</option>
                 <?php foreach ($timeSlots as $slot): ?>
-                    <option value="<?= htmlspecialchars($slot) ?>" <?= $selectedTimeSlot === $slot ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($slot) ?>
-                    </option>
+                    <option value="<?= htmlspecialchars($slot) ?>" <?= ($selectedTimeSlot ?? '') === $slot ? 'selected' : '' ?>><?= htmlspecialchars($slot) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
     </div>
 
-    <!-- Pickup Requests Card -->
-    <div class="activity-card">
+    <!-- 1. Today's Section -->
+    <div class="activity-card" style="margin-bottom: 2rem;">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
-                <i class="fa-solid fa-box" style="margin-right: 8px;"></i>
-                Pickup Requests
+                <i class="fa-solid fa-calendar-day" style="margin-right: 8px; color: var(--primary-600);"></i>
+                Today's Schedule
             </h3>
-            <p class="activity-card__description">
-                <?= count($filteredRequests) ?> requests
-                <?= $selectedTimeSlot === 'all' ? 'scheduled for today' : 'for ' . htmlspecialchars($selectedTimeSlot) ?>
-            </p>
+            <p class="activity-card__description"><?= count($todayRequests) ?> pickups for today</p>
         </div>
         <div class="activity-card__content">
             <div style="overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Request ID</th>
-                            <th>Customer</th>
-                            <th>Address</th>
-                            <th>Waste Categories</th>
-                            <th>Time Slot</th>
-                            <th>Status</th>
-                            <th>Collector</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($filteredRequests as $request): ?>
-                            <tr data-id="<?= htmlspecialchars($request['id'] ?? '') ?>">
-                                <td class="font-medium"><?= htmlspecialchars($request['id'] ?? '') ?></td>
-                                <td>
-                                    <div class="cell-with-icon">
-                                        <i class="fa-solid fa-user"></i>
-                                        <?= htmlspecialchars($request['customerName'] ?? '') ?>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="cell-with-icon">
-                                        <i class="fa-solid fa-map-marker-alt"></i>
-                                        <span
-                                            class="cell-truncate"><?= htmlspecialchars($request['address'] ?? '') ?></span>
-                                    </div>
-                                </td>
-                                <td data-field="wasteCategories">
-                                    <div class="badge-group">
-                                        <?php foreach ((array) ($request['wasteCategories'] ?? []) as $category): ?>
-                                            <div class="tag secondary"><?= htmlspecialchars($category) ?></div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="cell-with-icon">
-                                        <i class="fa-solid fa-clock"></i>
-                                        <?= htmlspecialchars($request['timeSlot'] ?? '') ?>
-                                    </div>
-                                </td>
-                                <td data-field="status"><?= getStatusBadge($request['status'] ?? 'pending') ?></td>
-                                <td data-field="collector">
-                                    <?php if (!empty($request['collectorName'])): ?>
-                                        <?= htmlspecialchars($request['collectorName']) ?>
-                                    <?php else: ?>
-                                        <span style="color: var(--neutral-500);">Unassigned</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+                <?php renderPickupTable($todayRequests, true); ?>
+            </div>
+        </div>
+    </div>
 
-                                        <!-- Icon-only action buttons: view and edit -->
-                                        <button class="icon-button"
-                                            onclick="viewDetails(this, '<?= htmlspecialchars($request['id'] ?? '') ?>')"
-                                            title="View Details">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                        <button class="icon-button"
-                                            onclick="openEditModal(this, '<?= htmlspecialchars($request['id'] ?? '') ?>')"
-                                            title="Edit / Assign Collector">
-                                            <i class="fa-solid fa-pen"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+    <!-- 2. Tabs Section -->
+    <div class="tabs">
+        <div class="tabs-list">
+            <button class="tabs-trigger active" onclick="showTab('upcoming')" id="upcoming-tab">
+                <i class="fa-solid fa-clock"></i> Upcoming (<?= count($upcomingRequests) ?>)
+            </button>
+            <button class="tabs-trigger" onclick="showTab('inprogress')" id="inprogress-tab">
+                <i class="fa-solid fa-spinner"></i> In Progress (<?= count($inProgressRequests) ?>)
+            </button>
+            <button class="tabs-trigger" onclick="showTab('completed')" id="completed-tab">
+                <i class="fa-solid fa-check-circle"></i> Completed (<?= count($completedRequests) ?>)
+            </button>
+            <button class="tabs-trigger" onclick="showTab('cancelled')" id="cancelled-tab">
+                <i class="fa-solid fa-times-circle"></i> Cancelled (<?= count($cancelledRequests) ?>)
+            </button>
+        </div>
 
-                        <?php if (empty($filteredRequests)): ?>
-                            <tr>
-                                <td colspan="8"
-                                    style="text-align: center; padding: var(--space-16); color: var(--neutral-500);">
-                                    No pickup requests found for the selected time slot.
-                                </td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+        <div class="tabs-content active" id="upcoming-content">
+            <div class="activity-card">
+                <div class="activity-card__content" style="overflow-x: auto;">
+                    <?php renderPickupTable($upcomingRequests); ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs-content" id="inprogress-content">
+            <div class="activity-card">
+                <div class="activity-card__content" style="overflow-x: auto;">
+                    <?php renderPickupTable($inProgressRequests); ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs-content" id="completed-content">
+            <div class="activity-card">
+                <div class="activity-card__content" style="overflow-x: auto;">
+                    <?php renderPickupTable($completedRequests); ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs-content" id="cancelled-content">
+            <div class="activity-card">
+                <div class="activity-card__content" style="overflow-x: auto;">
+                    <?php renderPickupTable($cancelledRequests); ?>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    function filterByTimeSlot() {
-        const select = document.getElementById('timeSlotFilter');
-        const timeSlot = select.value;
-        const url = new URL(window.location);
+    function showTab(tabName, updateUrl = true) {
+        document.querySelectorAll('.tabs-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tabs-trigger').forEach(t => t.classList.remove('active'));
+        
+        const content = document.getElementById(tabName + '-content');
+        const trigger = document.getElementById(tabName + '-tab');
+        if (content) content.classList.add('active');
+        if (trigger) trigger.classList.add('active');
 
-        if (timeSlot === 'all') {
-            url.searchParams.delete('time_slot');
-        } else {
-            url.searchParams.set('time_slot', timeSlot);
+        if (updateUrl && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState(null, '', url.toString());
         }
+    }
 
+    function viewDetails(el, pickupId) {
+        const record = window.__PICKUP_DATA.find(r => r.id == pickupId);
+        if (!record) return;
+
+        const content = document.createElement('div');
+        content.className = 'user-modal__grid';
+        content.style.display = 'grid';
+        content.style.gridTemplateColumns = '1fr 1fr';
+        content.style.gap = '12px';
+
+        const fields = [
+            { label: 'Request ID', value: record.id },
+            { label: 'Customer', value: record.customerName },
+            { label: 'Address', value: record.address },
+            { label: 'Waste', value: Array.isArray(record.wasteCategories) ? record.wasteCategories.join(', ') : '-' },
+            { label: 'Date', value: record.scheduledAt ? new Date(record.scheduledAt).toLocaleDateString() : 'Unscheduled' },
+            { label: 'Time Slot', value: record.timeSlot },
+            { label: 'Status', value: String(record.status || '').toUpperCase() },
+            { label: 'Vehicle', value: record.vehiclePlate || '-' },
+            { label: 'Weight', value: record.weight ? parseFloat(record.weight).toFixed(2) + ' kg' : '-' },
+            { label: 'Price', value: record.price ? 'Rs. ' + parseFloat(record.price).toFixed(2) : '-' },
+            { label: 'Collector', value: record.collectorName || '-' }
+        ];
+
+        fields.forEach(f => {
+            const lbl = document.createElement('strong');
+            lbl.textContent = f.label;
+            const val = document.createElement('div');
+            val.textContent = f.value;
+            content.appendChild(lbl);
+            content.appendChild(val);
+        });
+
+        window.Modal.open({
+            title: 'Pickup Request Details',
+            content: content,
+            actions: [{ label: 'Close', variant: 'plain', dismiss: true }]
+        });
+    }
+
+    function openEditModal(el, pickupId) {
+        const record = window.__PICKUP_DATA.find(r => r.id == pickupId);
+        if (!record) return;
+
+        const container = document.createElement('div');
+        container.innerHTML = `
+            <div id="pe-error-message" style="display: none; background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 16px;"></div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 4px;">Assign Collector</label>
+                <select id="pe-collector-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <option value="">-- Unassigned --</option>
+                    ${(window.__COLLECTORS || []).map(c => `<option value="${c.id}" ${c.id == record.collectorId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 4px;">Assign Vehicle</label>
+                <select id="pe-vehicle-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+        `;
+
+        const vSel = container.querySelector('#pe-vehicle-select');
+        fetch('/api/vehicles').then(r => r.json()).then(data => {
+            vSel.innerHTML = '<option value="">-- Unassigned --</option>';
+            (data.vehicles || []).forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.id;
+                opt.textContent = `${v.plateNumber} (${v.type}) - ${v.status}`;
+                if (v.status !== 'available' && v.id != record.vehicleId) opt.disabled = true;
+                if (v.id == record.vehicleId) opt.selected = true;
+                vSel.appendChild(opt);
+            });
+        }).catch(err => {
+            vSel.innerHTML = '<option value="">Error loading vehicles</option>';
+        });
+
+        window.Modal.open({
+            title: 'Edit Assignment',
+            size: 'sm',
+            content: container,
+            actions: [
+                { label: 'Cancel', variant: 'plain', dismiss: true },
+                {
+                    label: 'Save Changes',
+                    variant: 'primary',
+                    dismiss: false,
+                    loadingLabel: 'Saving...',
+                    onClick: async ({ body, close, setLoading }) => {
+                        const collectorId = body.querySelector('#pe-collector-select').value;
+                        const vehicleId = body.querySelector('#pe-vehicle-select').value;
+                        const errorEl = body.querySelector('#pe-error-message');
+                        
+                        setLoading(true);
+                        errorEl.style.display = 'none';
+
+                        try {
+                            const res = await pickupApiRequest(`${PICKUP_API_BASE}/${pickupId}`, {
+                                method: 'PUT',
+                                body: { collectorId: collectorId || null, vehicleId: vehicleId || null }
+                            });
+                            syncPickupCache(res.pickup);
+                            updatePickupRow(res.pickup);
+                            close();
+                            if (window.toast) window.toast('Assignment updated successfully', 'success');
+                        } catch (e) {
+                            errorEl.textContent = e.message;
+                            errorEl.style.display = 'block';
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        });
+    }
+
+    function filterByTimeSlot() {
+        const slot = document.getElementById('timeSlotFilter').value;
+        const url = new URL(window.location.href);
+        if (slot === 'all') url.searchParams.delete('time_slot');
+        else url.searchParams.set('time_slot', slot);
         window.location.href = url.toString();
     }
 
-    function assignCollector(pickupId, collectorId) {
-        if (!collectorId) return;
-
-        // In a real application, you would make an AJAX request to your backend
-        console.log(`Assigning collector ${collectorId} to pickup ${pickupId}`);
-
-        // For demo purposes, show an alert and reload the page
-        alert(`Collector assigned to pickup ${pickupId}. In a real application, this would be saved to the database.`);
-
-        // You could make an AJAX request here:
-        /*
-        fetch('/api/assign-collector', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                pickupId: pickupId,
-                collectorId: collectorId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Failed to assign collector');
-            }
-        });
-        */
-    }
-
-    function viewDetails() {
-        // signature: viewDetails(el, pickupId) or legacy viewDetails(pickupId)
-        let el, pickupId;
-        if (arguments.length === 1) {
-            pickupId = arguments[0];
-            el = document.querySelector(`tr[data-id="${pickupId}"]`);
-        } else {
-            el = arguments[0];
-            pickupId = arguments[1];
-        }
-
-        // Lookup in-memory first
-        let record = null;
-        try {
-            if (window.__PICKUP_DATA && Array.isArray(window.__PICKUP_DATA)) {
-                record = window.__PICKUP_DATA.find(r => (r.id || '').toString().toLowerCase() === (pickupId || '').toString().toLowerCase()) || null;
-            }
-        } catch (e) {
-            console.warn('pickup lookup failed', e);
-            record = null;
-        }
-
-        // Fallback to reading table cells
-        if (!record && el) {
-            const cells = el.querySelectorAll('td');
-            record = {
-                id: pickupId,
-                customerName: (cells[1] && cells[1].textContent.trim()) || '',
-                address: (cells[2] && cells[2].textContent.trim()) || '',
-                wasteCategories: Array.from(el.querySelectorAll('.badge-group .tag')).map(t => t.textContent.trim()),
-                timeSlot: (cells[4] && cells[4].textContent.trim()) || '',
-                status: (cells[5] && cells[5].textContent.trim()) || '',
-                collectorName: (cells[6] && cells[6].textContent.trim()) || ''
-            };
-        }
-
-        const modal = document.getElementById('pickup-detail-modal');
-        if (!modal) return;
-
-        // Do not open if no record
-        if (!record) return;
-
-        const setText = (sel, txt) => {
-            const elm = modal.querySelector(sel);
-            if (!elm) return;
-            if (!txt || String(txt).trim() === '') {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = 'none';
-                elm.style.display = 'none';
-            } else {
-                const lbl = elm.previousElementSibling;
-                if (lbl) lbl.style.display = '';
-                elm.style.display = '';
-                elm.textContent = String(txt).trim();
-            }
-        };
-
-        setText('.pd-id', record.id || '');
-        setText('.pd-customer', record.customerName || '');
-        setText('.pd-address', record.address || '');
-        setText('.pd-waste', (record.wasteCategories && record.wasteCategories.join(', ')) || '');
-        setText('.pd-timeslot', record.timeSlot || '');
-        setText('.pd-status', record.status || '');
-        setText('.pd-collector', record.collectorName || '');
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const params = new URL(window.location.href).searchParams;
+        if (params.has('tab')) showTab(params.get('tab'), false);
+    });
 </script>

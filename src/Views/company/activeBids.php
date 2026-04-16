@@ -71,7 +71,7 @@ $formSuccess = $formSuccess ?? null;
                         data-category="<?= htmlspecialchars(strtolower((string) ($lot['category'] ?? ''))) ?>"
                         data-quantity="<?= htmlspecialchars((string) ($lot['quantity'] ?? 0)) ?>"
                         data-unit="<?= htmlspecialchars(($lot['unit'] ?? 'kg')) ?>">
-                        <?= htmlspecialchars((($lot['lotId'] ?? '') !== '' ? $lot['lotId'] : ($lot['id'] ?? 'Lot')) . ' • ' . ($lot['category'] ?? 'Unknown')) ?>
+                        <?= htmlspecialchars((($lot['lotId'] ?? '') !== '' ? $lot['lotId'] : ($lot['id'] ?? 'Lot'))) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -83,18 +83,21 @@ $formSuccess = $formSuccess ?? null;
             </div>
             <input type="hidden" name="waste_type" id="waste_type_hidden" value="">
 
-            <label>Bid for 1kg of waste</label>
-            <input type="number" id="bid_amount" name="bid_amount" step="100" placeholder="Enter bid amount" required>
-
             <label>Waste Amount (kg)</label>
-            <input type="number" id="waste_amount" name="waste_amount" step="any" required
-                placeholder="Enter waste amount" min="100" max="10000">
+            <input type="number" id="waste_amount" name="waste_amount" step="any" required placeholder="Waste amount"
+                min="100" max="10000" readonly
+                style="padding:10px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;font-weight:600;color:#6b7280;">
 
-            <label>Total Bid Amount</label>
-            <div class="input-readonly" id="bid_total_display"
+            <label>Starting Bid Amount</label>
+            <div class="input-readonly" id="starting_bid_display"
                 style="padding:10px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;font-weight:600;">
                 Rs. 0.00
             </div>
+            <input type="hidden" name="starting_bid" id="starting_bid_hidden" value="0">
+
+            <label>Total bid Amount</label>
+            <input type="number" id="total_bid_amount" name="total_bid_amount" step="500"
+                placeholder="Enter total bid amount" required min="0">
 
             <button class="btn btn-primary outline" style="width: 100%; margin-top: 15px;" type="submit">Place
                 Bid</button>
@@ -115,16 +118,22 @@ $formSuccess = $formSuccess ?? null;
                     <div class="lot-details">
                         <p data-role="lot-quantity"><strong>Quantity:</strong>
                             <?= htmlspecialchars(number_format($lot['quantity'] ?? 0) . ' ' . ($lot['unit'] ?? 'kg')) ?></p>
+                        <!-- Show end date/time if available -->
+                        <p data-role="lot-end-time"><strong>Ends:</strong>
+                            <?= htmlspecialchars(!empty($lot['endTime']) ? date('Y-m-d H:i', strtotime($lot['endTime'])) : 'TBD') ?>
+                        </p>
+
                         <?php
                         $lotCurrentBid = isset($lot['currentHighestBid']) ? (float) $lot['currentHighestBid'] : 0.0;
                         if ($lotCurrentBid <= 0) {
                             if (isset($lot['reservePrice']) && $lot['reservePrice'] > 0) {
                                 $lotCurrentBid = (float) $lot['reservePrice'];
-                            } elseif (isset($lot['startingBid'], $lot['quantity'])) {
-                                $lotCurrentBid = (float) $lot['startingBid'] * (float) $lot['quantity'];
+                            } elseif (isset($lot['startingBid']) && $lot['startingBid'] > 0) {
+                                $lotCurrentBid = (float) $lot['startingBid'];
                             }
                         }
                         ?>
+
                         <p data-role="lot-current-bid"><strong>Current Bid:</strong>
                             <?= htmlspecialchars(format_rs($lotCurrentBid)) ?>
                         </p>
@@ -169,7 +178,12 @@ $formSuccess = $formSuccess ?? null;
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <?php if (($bid['status'] ?? '') === 'Leading' || ($bid['status'] ?? '') === 'Active'): ?>
+                                <?php
+                                $status = $bid['status'] ?? '';
+                                $roundStatus = $bid['roundStatus'] ?? '';
+                                $allowActions = $status === 'Leading' || $status === 'Active' || ($status === 'Lost' && $roundStatus === 'active');
+                                ?>
+                                <?php if ($allowActions): ?>
                                     <button class="icon-button" title="Edit Bid" data-action="edit-bid"
                                         data-bid-id="<?= htmlspecialchars($bid['id']) ?>">
                                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
@@ -243,9 +257,9 @@ $formSuccess = $formSuccess ?? null;
                 return directNumber;
             }
             const starting = Number(lot.startingBid ?? lot.starting_bid);
-            const quantity = Number(lot.quantity);
-            if (Number.isFinite(starting) && Number.isFinite(quantity) && starting > 0 && quantity > 0) {
-                return starting * quantity;
+        
+            if (Number.isFinite(starting) && starting > 0) {
+                return starting;
             }
             return null;
         }
@@ -335,51 +349,56 @@ $formSuccess = $formSuccess ?? null;
                     }
                 }
             }
+            updateStartingBidDisplay();
+        }
+
+        function updateStartingBidDisplay() {
+            if (!lotSelect) return;
+
+            const option = lotSelect.options[lotSelect.selectedIndex];
+            if (!option || !option.value) {
+                document.getElementById('starting_bid_display').textContent = 'Rs. 0.00';
+                document.getElementById('starting_bid_hidden').value = '0';
+                document.getElementById('total_bid_amount').min = '0';
+                document.getElementById('total_bid_amount').placeholder = 'Select a lot first';
+                return;
+            }
+
+            // Find the lot data
+            const lotId = option.value;
+            const lots = (state.lots || []);
+            const lot = lots.find(l => String(l.id) === String(lotId));
+
+            if (!lot) return;
+
+            // Calculate starting bid (reserve price or startingBid × quantity)
+            let startingBid = 0;
+
+            if (lot.reservePrice && lot.reservePrice > 0) {
+                startingBid = parseFloat(lot.reservePrice);
+            } else if (lot.startingBid && lot.startingBid > 0) {
+                startingBid = parseFloat(lot.startingBid);
+            }
+
+            // Update display
+            document.getElementById('starting_bid_display').textContent = formatRs(startingBid);
+            document.getElementById('starting_bid_hidden').value = String(startingBid);
+            document.getElementById('total_bid_amount').min = String(startingBid);
+            document.getElementById('total_bid_amount').placeholder = 'Minimum: ' + formatRs(startingBid);
         }
 
         if (lotSelect) {
             lotSelect.addEventListener('change', () => {
                 syncWasteTypeFromLot();
-                updateTotalBid();
+                updateStartingBidDisplay();
             });
         }
 
         function updateTotalBid() {
-            if (!totalDisplay) {
-                return;
-            }
-            const bidVal = parseFloat(bidAmountInput ? bidAmountInput.value : '');
-            const wasteVal = parseFloat(wasteAmountInput ? wasteAmountInput.value : '');
-            if (Number.isFinite(bidVal) && bidVal > 0 && Number.isFinite(wasteVal) && wasteVal > 0) {
-                const total = bidVal * wasteVal;
-                totalDisplay.textContent = formatRs(total);
-            } else {
-                totalDisplay.textContent = 'Rs. 0.00';
-            }
+            // This function is now simplified - just validates the entered total
+            // No calculation needed since user enters total directly
         }
 
-        if (bidAmountInput) {
-            bidAmountInput.addEventListener('input', updateTotalBid);
-        }
-
-        if (wasteAmountInput) {
-            wasteAmountInput.addEventListener('input', () => {
-                // Clamp to max if provided
-                try {
-                    const max = parseFloat(wasteAmountInput.max || '');
-                    let val = parseFloat(wasteAmountInput.value || '0');
-                    if (Number.isFinite(max) && max > 0 && Number.isFinite(val)) {
-                        if (val > max) {
-                            val = max;
-                            wasteAmountInput.value = String(val);
-                        }
-                    }
-                } catch (e) {
-                    // ignore
-                }
-                updateTotalBid();
-            });
-        }
 
         document.querySelectorAll('[data-action="prefill-bid"]').forEach(button => {
             button.addEventListener('click', () => {
@@ -438,7 +457,8 @@ $formSuccess = $formSuccess ?? null;
         function renderBidRow(bid) {
             const status = bid.status || 'Pending';
             const statusClass = status.toLowerCase();
-            const allowActions = status === 'Leading' || status === 'Active';
+            const roundStatus = bid.roundStatus || '';
+            const allowActions = status === 'Leading' || status === 'Active' || (status === 'Lost' && roundStatus === 'active');
             const quantityNumber = Number(bid.quantity);
             const quantityLabel = Number.isFinite(quantityNumber)
                 ? quantityNumber.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + (bid.unit || 'kg')
@@ -541,8 +561,9 @@ $formSuccess = $formSuccess ?? null;
 
             const lotId = lotSelect ? lotSelect.value.trim() : '';
             const wasteType = (wasteTypeHidden ? wasteTypeHidden.value : '').trim().toLowerCase();
-            const bidPerUnit = parseFloat(bidAmountInput ? bidAmountInput.value : '');
+            const totalBidAmount = parseFloat(document.getElementById('total_bid_amount').value || '0');
             const wasteAmount = parseFloat(wasteAmountInput ? wasteAmountInput.value : '');
+            const startingBid = parseFloat(document.getElementById('starting_bid_hidden').value || '0');
 
             const errors = [];
             if (!lotId) {
@@ -551,18 +572,16 @@ $formSuccess = $formSuccess ?? null;
             if (!wasteType) {
                 errors.push('Waste type not determined. Please reselect the lot.');
             }
-            if (!(bidPerUnit > 0)) {
-                errors.push('Enter a valid bid amount per unit.');
+            if (!(totalBidAmount > 0)) {
+                errors.push('Enter a valid total bid amount.');
             }
             if (!(wasteAmount > 0)) {
                 errors.push('Enter a valid waste amount.');
             }
 
-            const minVal = wasteType && Object.prototype.hasOwnProperty.call(minBids, wasteType)
-                ? parseFloat(minBids[wasteType])
-                : null;
-            if (minVal !== null && bidPerUnit < minVal) {
-                errors.push('Bid must be at least ' + formatRs(minVal) + ' per unit for ' + wasteType + '.');
+            //Check if total bid is at least the starting bid
+            if (startingBid > 0 && totalBidAmount < startingBid) {
+                errors.push('Your total bid must be at least ' + formatRs(startingBid));
             }
 
             // Enforce waste amount cannot exceed lot quantity (client-side check)
@@ -586,7 +605,7 @@ $formSuccess = $formSuccess ?? null;
             const payload = {
                 roundId: lotId,
                 wasteType: wasteType,
-                bidPerUnit: bidPerUnit,
+                totalBidAmount: totalBidAmount, 
                 wasteAmount: wasteAmount
             };
 
@@ -659,7 +678,7 @@ $formSuccess = $formSuccess ?? null;
 
         // Initialize form state
         syncWasteTypeFromLot();
-        updateTotalBid();
+        updateStartingBidDisplay();
     })();
 </script>
 <!-- Edit Bid Modal -->
@@ -670,12 +689,13 @@ $formSuccess = $formSuccess ?? null;
         <form id="edit-bid-form">
             <input type="hidden" id="edit-bid-id" name="bid_id" />
             <div style="display:flex;gap:8px;align-items:center;">
-                <label style="width:120px;">Bid per unit</label>
-                <input type="number" id="edit-bid-per-unit" name="bidPerUnit" step="100" required />
+                <label style="width:120px;">Total Bid Amount</label>
+                <input type="number" id="edit-total-bid" name="totalBidAmount" step="500" required />
             </div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
                 <label style="width:120px;">Waste amount</label>
-                <input type="number" id="edit-waste-amount" name="wasteAmount" step="any" required />
+                <input type="number" id="edit-waste-amount" name="wasteAmount" step="any" readonly
+                    style="background-color: #f3f4f6; color: #6b7280; cursor: not-allowed;" />
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
                 <button type="button" class="btn" id="edit-bid-cancel">Cancel</button>
@@ -686,8 +706,16 @@ $formSuccess = $formSuccess ?? null;
 </div>
 
 <script>
+
     (function () {
         const modal = document.getElementById('edit-bid-modal');
+        const updaters = window.__COMPANY_BIDDING_UPDATERS || {};
+        const toast = updaters.toast || ((msg) => alert(msg));
+        const upsertBidHistoryRow = updaters.upsertBidHistoryRow || (() => { });
+        const upsertLotCard = updaters.upsertLotCard || (() => { });
+        const removeBidHistoryRow = updaters.removeBidHistoryRow || (() => { });
+        const cssEscape = updaters.cssEscape || ((v) => String(v));
+
         if (!modal) return;
 
         function openEditModal(bid) {
@@ -697,10 +725,8 @@ $formSuccess = $formSuccess ?? null;
             modal.classList.add('open');
             modal.setAttribute('aria-hidden', 'false');
             document.getElementById('edit-bid-id').value = bid.id || '';
-            // Try to split amount into per-unit and amount if possible using lot qty
-            const qty = Number(bid.quantity || 1);
-            const perUnit = qty > 0 ? (Number(bid.amount || 0) / qty) : Number(bid.amount || 0);
-            document.getElementById('edit-bid-per-unit').value = perUnit.toFixed(2);
+            
+            document.getElementById('edit-total-bid').value = Number(bid.amount || 0);
             document.getElementById('edit-waste-amount').value = Number(bid.quantity || 0);
         }
 
@@ -747,15 +773,14 @@ $formSuccess = $formSuccess ?? null;
                         if (!res.ok || !body || !body.success) {
                             throw new Error((body && body.message) ? body.message : 'Delete failed');
                         }
-                        const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
-                        if (typeof helpers.removeBidHistoryRow === 'function') {
-                            helpers.removeBidHistoryRow(bidId);
+                        if (typeof removeBidHistoryRow === 'function') {
+                            removeBidHistoryRow(bidId);
                         } else {
                             const row = document.querySelector(`tr[data-bid-id="${cssEscape(String(bidId))}"]`);
                             if (row) row.remove();
                         }
-                        if (body.lot && typeof helpers.upsertLotCard === 'function') {
-                            helpers.upsertLotCard(body.lot);
+                        if (body.lot && typeof upsertLotCard === 'function') {
+                            upsertLotCard(body.lot);
                         }
                         toast('Bid cancelled.', 'success');
                     })
@@ -771,14 +796,14 @@ $formSuccess = $formSuccess ?? null;
         document.getElementById('edit-bid-form').addEventListener('submit', function (e) {
             e.preventDefault();
             const bidId = document.getElementById('edit-bid-id').value;
-            const bidPerUnit = parseFloat(document.getElementById('edit-bid-per-unit').value || '0');
+            const totalBidAmount = parseFloat(document.getElementById('edit-total-bid').value || '0');
             const wasteAmount = parseFloat(document.getElementById('edit-waste-amount').value || '0');
-            if (!bidId || !(bidPerUnit > 0) || !(wasteAmount > 0)) {
+            if (!bidId || !(totalBidAmount > 0) || !(wasteAmount > 0)) {
                 toast('Enter valid values.', 'error');
                 return;
             }
 
-            const payload = { bidPerUnit: bidPerUnit, wasteAmount: wasteAmount };
+            const payload = { totalBidAmount: totalBidAmount, wasteAmount: wasteAmount };
             fetch('/api/company/bids/' + encodeURIComponent(bidId), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -811,11 +836,18 @@ $formSuccess = $formSuccess ?? null;
 </script>
 
 <script>
+
     (function () {
         const deleteModal = document.getElementById('delete-bid-modal');
         const deleteConfirmBtn = document.getElementById('delete-bid-confirm');
         const deleteCancelBtn = document.getElementById('delete-bid-cancel');
         const deleteCloseBtn = document.getElementById('delete-bid-close');
+        const updaters = window.__COMPANY_BIDDING_UPDATERS || {};
+        const toast = updaters.toast || ((msg) => alert(msg));
+        const removeBidHistoryRow = updaters.removeBidHistoryRow || (() => { });
+        const upsertLotCard = updaters.upsertLotCard || (() => { });
+        const cssEscape = updaters.cssEscape || ((v) => String(v));
+
         let pendingDeleteId = null;
 
         function escapeSelector(value) {
@@ -871,15 +903,14 @@ $formSuccess = $formSuccess ?? null;
                     if (!res.ok || !body || !body.success) {
                         throw new Error((body && body.message) ? body.message : 'Delete failed');
                     }
-                    const helpers = window.__COMPANY_BIDDING_UPDATERS || {};
-                    if (typeof helpers.removeBidHistoryRow === 'function') {
-                        helpers.removeBidHistoryRow(pendingDeleteId);
+                    if (typeof removeBidHistoryRow === 'function') {
+                        removeBidHistoryRow(pendingDeleteId);
                     } else {
                         const row = document.querySelector(`tr[data-bid-id="${escapeSelector(String(pendingDeleteId))}"]`);
                         if (row) row.remove();
                     }
-                    if (body.lot && typeof helpers.upsertLotCard === 'function') {
-                        helpers.upsertLotCard(body.lot);
+                    if (body.lot && typeof upsertLotCard === 'function') {
+                        upsertLotCard(body.lot);
                     }
                     closeDeleteModal();
                     toast('Bid cancelled.', 'success');

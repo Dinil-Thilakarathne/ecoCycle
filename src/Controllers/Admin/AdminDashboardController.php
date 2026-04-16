@@ -44,7 +44,7 @@ class AdminDashboardController extends DashboardController
         $activeCollectors = $userModel->countByType('collector', 'active');
         $activePickups = $pickupModel->countByStatuses(['pending', 'assigned']);
         $bidStats = $biddingModel->stats();
-        $monthlyRevenue = max(10000.00, $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m')));
+        $monthlyRevenue = $paymentModel->sumCompletedPaymentsForMonth((int) date('Y'), (int) date('m'));
 
         $stats = [
             [
@@ -86,11 +86,13 @@ class AdminDashboardController extends DashboardController
         ];
 
         $recentActivity = $this->buildRecentActivity($pickupModel, $paymentModel, $biddingModel);
+        $wasteCategories = (new \Models\WasteCategory())->listAll();
 
         $data = [
             'pageTitle' => 'Admin Dashboard',
             'stats' => $stats,
             'recentActivity' => $recentActivity,
+            'wasteCategories' => $wasteCategories,
         ];
 
         return $this->renderDashboard('dashboard', $data);
@@ -102,24 +104,42 @@ class AdminDashboardController extends DashboardController
     {
         $request = app('request');
         $selectedTimeSlot = $request->query('time_slot', 'all');
+        $today = date('Y-m-d');
 
         $pickupModel = new PickupRequest();
-        $allRequests = $pickupModel->listAll();
-        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
+        
+        // 1. Today's Schedule (all statuses for today)
+        $todayRequests = $pickupModel->listAll($selectedTimeSlot, $today);
+
+        // 2. Upcoming (future dates, not finished)
+        $upcomingRequests = $pickupModel->listAll($selectedTimeSlot, $today, null, '>');
+        $upcomingRequests = array_filter($upcomingRequests, fn($r) => !in_array($r['statusRaw'], ['completed', 'cancelled']));
+
+        // 3. In Progress (any date)
+        $inProgressRequests = $pickupModel->listAll('all', null, 'in_progress');
+
+        // 4. Completed (any date, for history)
+        $completedRequests = $pickupModel->listAll('all', null, 'completed');
+
+        // 5. Cancelled (any date, for history)
+        $cancelledRequests = $pickupModel->listAll('all', null, 'cancelled');
 
         $collectors = (new User())->listByType('collector', 200);
-
-        $filtered = ($selectedTimeSlot === 'all')
-            ? $allRequests
-            : array_values(array_filter($allRequests, fn($row) => ($row['timeSlot'] ?? null) === $selectedTimeSlot));
+        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
         $data = [
-            'pageTitle' => 'Pickup Requests',
-            'pickupRequests' => $allRequests,
-            'filteredPickupRequests' => $filtered,
+            'pageTitle' => 'Pickup Management',
+            'todayRequests' => $todayRequests,
+            'upcomingRequests' => $upcomingRequests,
+            'inProgressRequests' => $inProgressRequests,
+            'completedRequests' => $completedRequests,
+            'cancelledRequests' => $cancelledRequests,
+            
             'timeSlots' => $timeSlots,
             'selectedTimeSlot' => $selectedTimeSlot,
             'collectors' => $collectors,
+            // Backwards compatibility for some view lookups
+            'pickupRequests' => array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests),
         ];
 
         return $this->renderDashboard('pickupRequest', $data);
@@ -143,7 +163,9 @@ class AdminDashboardController extends DashboardController
             'collectors' => $collectors,
         ];
 
-        return $this->renderDashboard('users', $data);
+        return $this->renderDashboard('users', $data + [
+            'vehicles' => (new Vehicle())->listAll(),
+        ]);
     }
 
     /**
@@ -152,10 +174,24 @@ class AdminDashboardController extends DashboardController
     public function vehicles(): Response
     {
         $vehicles = (new Vehicle())->listAll();
+        $collectors = (new User())->listByType('collector');
+
+        // Fetch today's availability statuses
+        $statusModel = new \Models\CollectorDailyStatus();
+        $todayStatuses = $statusModel->getAllTodayStatuses();
+
+        // Create a map of collector ID to availability status
+        $availabilityMap = [];
+        foreach ($todayStatuses as $status) {
+            $availabilityMap[$status['collectorId']] = $status;
+        }
 
         $data = [
             'pageTitle' => 'Vehicle Management',
             'vehicles' => $vehicles,
+            'collectors' => $collectors,
+            'availabilityStatuses' => $todayStatuses,
+            'availabilityMap' => $availabilityMap,
         ];
 
         return $this->renderDashboard('vehicles', $data);
@@ -191,31 +227,71 @@ class AdminDashboardController extends DashboardController
         return $this->renderDashboard('settings', $data);
     }
 
-    /**
-     * Bidding management page
-     */
     public function bidding(): Response
     {
+        $request = app('request');
+        $searchQuery = $request->query('q', '');
+
         $biddingModel = new BiddingRound();
-        $rounds = $biddingModel->listAll();
+
+        // 1. Fetch Active Rounds (Always show all active)
+        $activeRounds = $biddingModel->activeLots();
+
+        // 2. Fetch History Rounds (Filtered / Paginated)
+        $historyResult = $biddingModel->searchHistory(['search' => $searchQuery], 50);
+
+        // 3. Stats
         $stats = $biddingModel->stats();
 
         $db = new Database();
         $categoryRows = $db->fetchAll('SELECT name FROM waste_categories ORDER BY name');
         $wasteCategories = array_map(static fn($row) => $row['name'] ?? '', $categoryRows ?: []);
 
-        $minimumBids = Config::get('data.minimum_bids', []);
-        $minimumBids = is_array($minimumBids) ? array_change_key_case($minimumBids, CASE_LOWER) : [];
+        // Fetch minimum bids from database instead of hardcoded config
+        $categoryPrices = $db->fetchAll('SELECT name, price_per_unit FROM waste_categories WHERE price_per_unit IS NOT NULL');
+        $minimumBids = [];
+        foreach ($categoryPrices as $cat) {
+            $minimumBids[strtolower($cat['name'])] = (float) $cat['price_per_unit'];
+        }
 
         $data = [
             'pageTitle' => 'Bidding Management',
-            'biddingRounds' => $rounds,
+            'activeRounds' => $activeRounds,
+            'historyRounds' => $historyResult,
+            'searchQuery' => $searchQuery,
+            'biddingRounds' => $activeRounds, // Backwards compat if view uses this variable name for active
             'bidStats' => $stats,
             'wasteCategories' => $wasteCategories,
             'minimumBids' => $minimumBids,
         ];
 
         return $this->renderDashboard('biddingManagement', $data);
+    }
+
+    /**
+     * Waste Categories & Pricing page
+     */
+    public function wasteCategories(): Response
+    {
+        $db = new Database();
+        // Fetch categories with the new price_per_unit column
+        // Note: Make sure the DB migration has been applied!
+        try {
+            $categories = $db->fetchAll("SELECT * FROM waste_categories ORDER BY name ASC");
+        } catch (\Throwable $e) {
+            // Fallback for when migration hasn't run yet
+            $categories = $db->fetchAll("SELECT id, name, unit, color FROM waste_categories ORDER BY name ASC");
+            foreach ($categories as &$cat) {
+                $cat['price_per_unit'] = 0.00;
+            }
+        }
+
+        $data = [
+            'pageTitle' => 'Waste Pricing',
+            'categories' => $categories,
+        ];
+
+        return $this->renderDashboard('waste_categories', $data);
     }
 
     /**
@@ -247,73 +323,49 @@ class AdminDashboardController extends DashboardController
      */
     public function analytics(): Response
     {
+        $request = app('request');
         $paymentModel = new Payment();
-        $summary = $paymentModel->getSummary();
+        $pickupModel = new PickupRequest();
+        $reportsModel = new \Models\ReportsModel();
 
+        // ── Financial Summary ───────────────────────────────────────────────
+        $summary = $paymentModel->getSummary();
         $totalRevenue = $summary['total_payments'] ?? 0.0;
         $customerPayouts = $summary['total_payouts'] ?? 0.0;
         $netProfit = $totalRevenue - $customerPayouts;
+        $date = date('Y-m-d H:i:s');
 
-        $db = new Database();
-        try {
-            $wasteRows = $db->fetchAll(
-                'SELECT wc.name, SUM(br.quantity) AS total_quantity
-                 FROM waste_categories wc
-                 LEFT JOIN bidding_rounds br ON br.waste_category_id = wc.id
-                 GROUP BY wc.id, wc.name
-                 ORDER BY wc.name'
-            );
-        } catch (\Throwable $e) {
-            $wasteRows = [];
-        }
+        // ── Waste Volume by Category ────────────────────────────────────────
+        $wasteData = $reportsModel->getWasteVolumeByCategory();
+        $totalWaste = array_sum(array_column($wasteData, 'volume'));
 
         $wasteCategories = [];
-        $totalWaste = 0.0;
-        foreach ($wasteRows as $row) {
-            $quantity = isset($row['total_quantity']) ? (float) $row['total_quantity'] : 0.0;
-            $totalWaste += $quantity;
+        foreach ($wasteData as $item) {
             $wasteCategories[] = [
-                'category' => $row['name'] ?? '',
-                'volume' => $quantity,
+                'category' => $item['category'],
+                'volume' => $item['volume'],
+                'percentage' => $totalWaste > 0
+                    ? round(($item['volume'] / $totalWaste) * 100, 1)
+                    : 0,
             ];
-        }
-
-        if ($totalWaste > 0) {
-            foreach ($wasteCategories as &$item) {
-                $item['percentage'] = $totalWaste > 0 ? round(($item['volume'] / $totalWaste) * 100, 1) : 0;
-            }
-            unset($item);
-        } else {
-            $fallback = Config::get('data.wasteCategories', []);
-            if (is_array($fallback) && !empty($fallback)) {
-                $wasteCategories = array_map(static function ($item) {
-                    return [
-                        'category' => $item['category'] ?? '',
-                        'volume' => isset($item['volume']) ? (float) $item['volume'] : 0,
-                        'percentage' => isset($item['percentage']) ? (float) $item['percentage'] : 0,
-                    ];
-                }, $fallback);
-                $totalWaste = array_sum(array_column($wasteCategories, 'volume'));
-            }
         }
 
         $avgCollectionPerDay = $totalWaste > 0 ? (int) round($totalWaste / 30) : 0;
 
+        // ── Pickup Counts ───────────────────────────────────────────────────
+        $totalPickups = $pickupModel->countByStatuses(['pending', 'assigned', 'confirmed', 'in_progress', 'completed', 'cancelled']);
+        $completedPickups = $pickupModel->countByStatuses(['completed']);
+
+        // ── Revenue & Payouts – 30-day chart ───────────────────────────────
         $chartDays = [];
         for ($i = 29; $i >= 0; $i--) {
             $chartDays[] = date('Y-m-d', strtotime("-{$i} days"));
         }
-
         $revenueMap = array_fill_keys($chartDays, 0.0);
         $payoutsMap = array_fill_keys($chartDays, 0.0);
 
         try {
-            $chartRows = $db->fetchAll(
-                "SELECT DATE(`date`) AS day, `type`, SUM(amount) AS total
-                 FROM payments
-                 WHERE `date` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                 GROUP BY day, type"
-            );
+            $chartRows = $reportsModel->getDailyFinancials(30);
             foreach ($chartRows as $row) {
                 $day = $row['day'] ?? null;
                 if (!$day || !isset($revenueMap[$day])) {
@@ -327,7 +379,36 @@ class AdminDashboardController extends DashboardController
                 }
             }
         } catch (\Throwable $e) {
-            // Leave maps at zero if query fails
+            // Charts will simply be empty on error
+        }
+
+        // ── Pickup Trends – 30-day chart ────────────────────────────────────
+        $pickupTrendMap = array_fill_keys($chartDays, 0);
+        try {
+            foreach ($reportsModel->getPickupTrendsByDay(30) as $row) {
+                $d = $row['day'] ?? null;
+                if ($d && isset($pickupTrendMap[$d])) {
+                    $pickupTrendMap[$d] = $row['total'];
+                }
+            }
+        } catch (\Throwable $e) {
+            // leave as zeros
+        }
+
+        // ── Pickup Status Breakdown ─────────────────────────────────────────
+        $pickupStatusBreakdown = [];
+        try {
+            $pickupStatusBreakdown = $reportsModel->getPickupStatusBreakdown();
+        } catch (\Throwable $e) {
+            // leave empty
+        }
+
+        // ── Top Collectors ──────────────────────────────────────────────────
+        $topCollectors = [];
+        try {
+            $topCollectors = $reportsModel->getTopCollectors(5);
+        } catch (\Throwable $e) {
+            // leave empty
         }
 
         $data = [
@@ -338,15 +419,101 @@ class AdminDashboardController extends DashboardController
                 'totalRevenue' => $totalRevenue,
                 'customerPayouts' => $customerPayouts,
                 'netProfit' => $netProfit,
+                'totalPickups' => $totalPickups,
+                'completedPickups' => $completedPickups,
             ],
             'wasteCategories' => $wasteCategories,
+            'pickupStatusBreakdown' => $pickupStatusBreakdown,
+            'topCollectors' => $topCollectors,
             'chartData' => [
                 'labels' => $chartDays,
                 'shortLabels' => array_map(static fn($d) => date('d', strtotime($d)), $chartDays),
                 'revenueSeries' => array_values($revenueMap),
                 'payoutSeries' => array_values($payoutsMap),
+                'pickupSeries' => array_values($pickupTrendMap),
             ],
         ];
+
+        // Handle CSV Export
+        if ($request->query('export') === '1' && $request->query('format') === 'csv') {
+            $csvData = [];
+            
+            // Build Summary Section
+            $csvData[] = ['Summary Metrics', 'Value'];
+            $csvData[] = ['Total Waste Collected (kg)', $totalWaste];
+            $csvData[] = ['Average Collection/Day (kg)', $avgCollectionPerDay];
+            $csvData[] = ['Total Revenue (Rs)', number_format($totalRevenue, 2, '.', '')];
+            $csvData[] = ['Customer Payouts (Rs)', number_format($customerPayouts, 2, '.', '')];
+            $csvData[] = ['Net Profit (Rs)', number_format($netProfit, 2, '.', '')];
+            $csvData[] = ['Total Pickups', $totalPickups];
+            $csvData[] = ['Completed Pickups', $completedPickups];
+            $csvData[] = [];
+            
+            // Build Waste Category Section
+            $csvData[] = ['Waste Category Breakdown', 'Volume (kg)', 'Percentage'];
+            foreach ($wasteCategories as $wc) {
+                $csvData[] = [$wc['category'], $wc['volume'], $wc['percentage'] . '%'];
+            }
+            $csvData[] = [];
+            
+            // Build Pickup Status Section
+            $csvData[] = ['Pickup Status Breakdown', 'Count'];
+            foreach ($pickupStatusBreakdown as $ps) {
+                $csvData[] = [ucfirst(str_replace('_', ' ', $ps['status'])), $ps['count']];
+            }
+            
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.csv';
+            return \Core\Http\Response::csv($filename, [], $csvData);
+        }
+
+        // Handle PDF Export
+        if ($request->query('export') === '1' && $request->query('format') === 'pdf') {
+            $formattedRevenue = number_format($totalRevenue, 2, '.', ',');
+            $formattedPayouts = number_format($customerPayouts, 2, '.', ',');
+            $formattedProfit = number_format($netProfit, 2, '.', ',');
+
+            $html = <<<HTML
+            <style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+            </style>
+            <h1>Analytics Report</h1>
+            <p>Generated on: <strong>{$date}</strong></p>
+            
+            <h3>Summary Metrics</h3>
+            <table>
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Total Waste Collected</td><td>{$totalWaste} kg</td></tr>
+                <tr><td>Avg Collection/Day</td><td>{$avgCollectionPerDay} kg</td></tr>
+                <tr><td>Total Revenue</td><td>Rs. {$formattedRevenue}</td></tr>
+                <tr><td>Customer Payouts</td><td>Rs. {$formattedPayouts}</td></tr>
+                <tr><td>Net Profit</td><td>Rs. {$formattedProfit}</td></tr>
+                <tr><td>Total Pickups</td><td>{$totalPickups}</td></tr>
+                <tr><td>Completed Pickups</td><td>{$completedPickups}</td></tr>
+            </table>
+
+            <h3>Waste Category Breakdown</h3>
+            <table>
+                <tr><th>Category</th><th>Volume (kg)</th><th>Percentage</th></tr>
+HTML;
+            foreach ($wasteCategories as $wc) {
+                $html .= "<tr><td>{$wc['category']}</td><td>{$wc['volume']}</td><td>{$wc['percentage']}%</td></tr>";
+            }
+            $html .= '</table><h3>Pickup Status Breakdown</h3><table><tr><th>Status</th><th>Count</th></tr>';
+            foreach ($pickupStatusBreakdown as $ps) {
+                $statusName = ucfirst(str_replace('_', ' ', $ps['status']));
+                $html .= "<tr><td>{$statusName}</td><td>{$ps['count']}</td></tr>";
+            }
+            $html .= '</table>';
+
+            $filename = 'admin_analytics_' . date('Ymd_His') . '.pdf';
+            return Response::pdf($filename, $html);
+        }
 
         return $this->renderDashboard('analytics', $data);
     }
@@ -356,13 +523,44 @@ class AdminDashboardController extends DashboardController
      */
     public function notifications(): Response
     {
+        $request = app('request');
+        $page = (int) $request->query('page', 1);
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        $filters = [
+            'type' => $request->query('type'),
+            'status' => $request->query('status'),
+            'date_from' => $request->query('date_from'),
+            'date_to' => $request->query('date_to'),
+            'search' => $request->query('q')
+        ];
+
+        // Remove empty filters
+        $filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '';
+        });
+
         $notificationModel = new Notification();
-        $recent = $notificationModel->recent();
+
+        // Get paginated results with filters
+        $result = $notificationModel->search($filters, $limit, $offset);
+
+        // Also get recent notifications for the top card (unfiltered, small limit)
+        $recent = $notificationModel->recent(5);
         $alerts = $notificationModel->systemAlerts();
 
         $data = [
             'pageTitle' => 'Notifications',
             'recentNotifications' => $recent,
+            'allNotifications' => $result['notifications'],
+            'pagination' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'per_page' => $result['per_page'],
+                'last_page' => $result['last_page']
+            ],
+            'filters' => $filters,
             'systemAlerts' => $alerts,
         ];
 
