@@ -46,18 +46,18 @@ function getStatusBadge($status)
 
 <div class="activity-card">
     <div class="activity-card__header">
-        <h3 class="activity-card__title"><i class="fa-solid fa-box" style="margin-right:8px;"></i>My Tasks</h3>
+        <h3 class="activity-card__title"><i class="fa-solid fa-box analytics-icon-gap"></i>My Tasks</h3>
         <p class="activity-card__description"><?= count($assignedRequests) ?> assigned pickups</p>
     </div>
     <div class="activity-card__content">
-        <div style="overflow-x:auto;">
-            <table class="data-table">
+        <div class="tasks-table-wrap">
+            <table class="data-table tasks-data-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Customer</th>
                         <th>Address</th>
                         <th>Waste</th>
+                        <th>Vehicle</th>
                         <th>Time Slot</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -67,10 +67,21 @@ function getStatusBadge($status)
                     <?php if (!empty($assignedRequests)): ?>
                         <?php foreach ($assignedRequests as $r): ?>
                             <tr data-id="<?= htmlspecialchars($r['id'] ?? '') ?>">
-                                <td><?= htmlspecialchars($r['id'] ?? '') ?></td>
                                 <td><?= htmlspecialchars($r['customerName'] ?? 'Unknown Customer') ?></td>
                                 <td><?= htmlspecialchars($r['address'] ?? 'Not provided') ?></td>
                                 <td><?= htmlspecialchars(implode(', ', $r['wasteCategories'] ?? [])) ?></td>
+                                <td>
+                                    <div class="vehicle-cell">
+                                        <span title="<?= htmlspecialchars($r['vehicleType'] ?? $r['vehicle'] ?? $r['vehicleModel'] ?? 'N/A') ?>">
+                                            <?= htmlspecialchars($r['vehicleType'] ?? $r['vehicle'] ?? $r['vehicleModel'] ?? '-') ?>
+                                        </span>
+                                        <?php if (!empty($r['vehiclePlate'] ?? null)): ?>
+                                            <small class="tasks-vehicle-plate">
+                                                <?= htmlspecialchars($r['vehiclePlate']) ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
                                 <td><?= htmlspecialchars($r['timeSlot'] ?? '') ?></td>
                                 <td><?= getStatusBadge($r['status'] ?? ($r['statusRaw'] ?? '')) ?></td>
                                 <td>
@@ -83,7 +94,7 @@ function getStatusBadge($status)
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" style="text-align:center;color:gray;">No tasks assigned.</td>
+                            <td colspan="7" class="tasks-empty">No tasks assigned.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -98,8 +109,8 @@ function getStatusBadge($status)
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div>
+            <!-- <div><strong>Request ID</strong></div>
+            <div class="pd-id"></div> -->
             <div><strong>Customer</strong></div>
             <div class="pd-customer"></div>
             <div><strong>Address</strong></div>
@@ -113,28 +124,27 @@ function getStatusBadge($status)
         </div>
 
 
-        <div id="weight-entry-row" style="display:none;margin-top:var(--space-6);">
-            <div style="margin-bottom:0.5rem;"><strong>Measured Weight (kg)</strong></div>
+        <div id="weight-entry-row" class="tasks-weight-entry-row">
+            <div class="tasks-weight-entry-label"><strong>Measured Weight (kg)</strong></div>
             <div>
                 <!-- Weight inputs will be injected here -->
             </div>
-            <div id="price-display-row"
-                style="margin-top:1rem; padding: 10px; background-color: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color: #475569;">Total Price:</strong>
-                    <span id="calculatedPriceDisplay" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">Rs.
+            <div id="price-display-row" class="tasks-price-display-row">
+                <div class="tasks-price-display-inner">
+                    <strong class="tasks-price-label">Total Price:</strong>
+                    <span id="calculatedPriceDisplay" class="tasks-price-value">Rs.
                         0.00</span>
                 </div>
             </div>
 
-            <div id="weightError" style="color:#dc2626;margin-top:0.5rem;display:none;font-size:0.95rem;">Please
+            <div id="weightError" class="tasks-weight-error">Please
                 enter a valid weight greater than 0.</div>
 
-            <!-- <div id="wasteBreakdown" style="margin-top:0.5rem; font-size:0.9rem; color:#555;"></div> -->
+            <!-- <div id="wasteBreakdown" class="tasks-waste-breakdown"></div> -->
         </div>
 
-        <div style="margin-top: var(--space-8); text-align: right;">
-            <button class="btn" onclick="closeDetailModal()">Close</button>
+        <div class="tasks-action-wrap">
+            <!-- <button class="btn" onclick="closeDetailModal()">Close</button> -->
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
     </div>
@@ -173,7 +183,7 @@ function getStatusBadge($status)
         const modal = document.getElementById('pickup-detail-modal');
         if (!record || !modal) return;
 
-        modal.querySelector('.pd-id').textContent = record.id;
+        // modal.querySelector('.pd-id').textContent = record.id;
         modal.querySelector('.pd-customer').textContent = record.customerName;
         modal.querySelector('.pd-address').textContent = record.address;
         modal.querySelector('.pd-waste').textContent = record.wasteCategories.join(', ');
@@ -244,7 +254,7 @@ function getStatusBadge($status)
                     inputContainer.appendChild(div);
                 });
             } else {
-                inputContainer.innerHTML += '<div style="color:gray;font-style:italic;">No waste categories found.</div>';
+                inputContainer.innerHTML += '<div class="tasks-no-categories">No waste categories found.</div>';
             }
 
             const errorDiv = document.getElementById('weightError');

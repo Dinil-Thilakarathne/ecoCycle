@@ -8,6 +8,7 @@ use Core\Http\Response;
 use Models\BiddingRound;
 use Models\WasteCategory;
 use Models\WasteInventory;
+use Models\Payment;
 
 class BiddingController extends BaseController
 {
@@ -22,6 +23,32 @@ class BiddingController extends BaseController
         $this->categories = new WasteCategory();
         $this->inventory = new WasteInventory();
         $this->notification = new \Models\Notification();
+    }
+
+    /**
+     * Explicitly expire a bidding round by ID (No time dependency).
+     * POST /api/bidding/{id}/expire
+     */
+    public function expire(Request $request): Response
+    {
+        $id = $this->resolveRouteId($request);
+        if ($id === null) {
+            return Response::errorJson('Bidding round id is required', 400);
+        }
+
+        try {
+            $updated = $this->rounds->expireRoundById($id);
+            if (!$updated) {
+                return Response::errorJson('Failed to expire round: possibly not found or not active.', 422);
+            }
+
+            return Response::json([
+                'success' => true,
+                'message' => 'Bidding round has been successfully closed.',
+            ]);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Internal server error during expiry', 500, ['detail' => $e->getMessage()]);
+        }
     }
 
     public function index(Request $request): Response
@@ -90,10 +117,39 @@ class BiddingController extends BaseController
 
         $bids = $this->rounds->getBids($id);
 
+        // Enrich with invoice data for awarded rounds
+        $invoice = null;
+        if (
+            in_array(strtolower((string) ($round['status'] ?? '')), ['awarded', 'completed'], true) &&
+            !empty($round['leadingCompanyId'])
+        ) {
+            try {
+                $paymentModel = new Payment();
+                $invoices = $paymentModel->listCompanyInvoices((int) $round['leadingCompanyId'], 5);
+                // Find the invoice whose notes reference this lot
+                $lotId = $round['lotId'] ?? $id;
+                foreach ($invoices as $inv) {
+                    $notes = strtolower((string) ($inv['notes'] ?? ''));
+                    if (str_contains($notes, strtolower((string) $lotId))) {
+                        $invoice = [
+                            'id' => $inv['id'],
+                            'status' => $inv['status'],
+                            'txnId' => $inv['txnId'] ?? null,
+                            'amount' => $inv['amount'] ?? null,
+                        ];
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Non-critical — just skip invoice data
+            }
+        }
+
         return Response::json([
             'success' => true,
             'round' => $round,
             'bids' => $bids,
+            'invoice' => $invoice,
         ]);
     }
 
@@ -213,16 +269,29 @@ class BiddingController extends BaseController
             return Response::errorJson('Bidding round not found', 404);
         }
 
-        if (strtolower((string) ($existing['status'] ?? '')) !== 'active') {
-            return Response::errorJson('Only active bidding rounds can be cancelled', 422);
-        }
-
         $roundId = (string) ($existing['id'] ?? '');
         $hasLeadingCompany = $this->rounds->hasLeadingCompanyById($roundId);
         $hasBids = $this->rounds->hasBids($roundId);
+        $status = strtolower((string) ($existing['status'] ?? ''));
 
-        if ($hasLeadingCompany || $hasBids) {
-            return Response::errorJson('Cannot cancel bidding round: companies have already placed bids or a leading company exists', 422);
+        // Allow deletion when:
+        //   (a) Round is 'active' and has no bids (normal cancel flow), OR
+        //   (b) Round is 'completed' or 'cancelled' and no bids were ever placed
+        //       (admin cleanup of expired no-bid lots)
+        $isNoBidFinished = in_array($status, ['completed', 'cancelled'], true)
+            && !$hasLeadingCompany
+            && !$hasBids;
+
+        if (!$isNoBidFinished) {
+            // Block non-active rounds that had bids (can't undo awarded/paid lots)
+            if ($status !== 'active') {
+                return Response::errorJson('Cannot delete a round that has received bids or has been awarded', 422);
+            }
+
+            // Block active rounds that already have bids
+            if ($hasLeadingCompany || $hasBids) {
+                return Response::errorJson('Cannot cancel bidding round: companies have already placed bids or a leading company exists', 422);
+            }
         }
 
         $this->mergeJsonBody($request);
@@ -270,7 +339,9 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->approveRound($id, $companyId);
-
+            
+            error_log("approveRound returned: " . var_export($round ? 'found' : 'null', true));
+            
             if ($round && !empty($round['leadingCompanyId']) && !empty($round['currentHighestBid'])) {
                 $amount = (float) $round['currentHighestBid'];
                 if ($amount > 0) {
@@ -313,6 +384,7 @@ class BiddingController extends BaseController
         }
 
         if (!$round) {
+            error_log("Bidding round not found for ID: " . var_export($id, true));
             return Response::errorJson('Bidding round not found', 404);
         }
 
@@ -764,4 +836,6 @@ class BiddingController extends BaseController
             return Response::errorJson('Failed to fetch bid history', 500, ['detail' => $e->getMessage()]);
         }
     }
+
+
 }

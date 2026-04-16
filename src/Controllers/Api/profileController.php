@@ -63,10 +63,10 @@ class profileController extends BaseController
             case 'company':
                 $payload['metadata'] = [
                     'companyName' => trim($request->input('companyName', '')),
-                    'type'         => trim($request->input('type', '')),
                     'reg_number'   => trim($request->input('reg_number', '')),
                     'description'  => trim($request->input('description', '')),
                     'website'     => trim($request->input('website', '')),
+                    'land_phone' => trim($request->input('land_phone', '')),
                     'waste_types' => $this->parseCommaList($request->input('waste_types')),
                 ];
                 break;

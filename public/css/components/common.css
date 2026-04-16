@@ -184,6 +184,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-3) 0;
+  flex: 1;
 
   & .status-item__label {
     font-size: var(--text-sm);
@@ -344,6 +345,10 @@
     align-items: center;
     justify-content: center;
     column-gap: var(--space-8);
+  }
+  &.btn-danger {
+    background-color: var(--danger-light);
+    color: var(--danger);
   }
 }
 

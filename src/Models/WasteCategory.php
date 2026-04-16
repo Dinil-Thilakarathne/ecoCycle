@@ -12,7 +12,15 @@ class WasteCategory extends BaseModel
      */
     public function listAll(): array
     {
-        $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} ORDER BY name ASC");
+        try {
+            $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} ORDER BY name ASC");
+        } catch (\Throwable $e) {
+            try {
+                $rows = $this->db->fetchAll("SELECT id, name, color, unit, price_per_unit FROM {$this->table} ORDER BY name ASC");
+            } catch (\Throwable $e2) {
+                $rows = $this->db->fetchAll("SELECT id, name, color, unit FROM {$this->table} ORDER BY name ASC");
+            }
+        }
         if (!$rows) {
             return [];
         }
@@ -31,10 +39,24 @@ class WasteCategory extends BaseModel
 
     public function findById(int $id): ?array
     {
-        $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE id = ? LIMIT 1",
-            [$id]
-        );
+        try {
+            $row = $this->db->fetch(
+                "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE id = ? LIMIT 1",
+                [$id]
+            );
+        } catch (\Throwable $e) {
+            try {
+                $row = $this->db->fetch(
+                    "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE id = ? LIMIT 1",
+                    [$id]
+                );
+            } catch (\Throwable $e2) {
+                $row = $this->db->fetch(
+                    "SELECT id, name, color, unit FROM {$this->table} WHERE id = ? LIMIT 1",
+                    [$id]
+                );
+            }
+        }
 
         if (!$row) {
             return null;
@@ -57,10 +79,24 @@ class WasteCategory extends BaseModel
             return null;
         }
 
-        $row = $this->db->fetch(
-            "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
-            [$trimmed]
-        );
+        try {
+            $row = $this->db->fetch(
+                "SELECT id, name, color, unit, price_per_unit, markup_percentage FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+                [$trimmed]
+            );
+        } catch (\Throwable $e) {
+            try {
+                $row = $this->db->fetch(
+                    "SELECT id, name, color, unit, price_per_unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+                    [$trimmed]
+                );
+            } catch (\Throwable $e2) {
+                $row = $this->db->fetch(
+                    "SELECT id, name, color, unit FROM {$this->table} WHERE LOWER(name) = LOWER(?) LIMIT 1",
+                    [$trimmed]
+                );
+            }
+        }
 
         if (!$row) {
             return null;
@@ -315,5 +351,16 @@ class WasteCategory extends BaseModel
             ],
             'pricing_info' => $this->getPricingTierById($categoryId),
         ];
+    }
+
+    /**
+     * Delete a waste category
+     * 
+     * @param int $id The category ID
+     * @return bool True if deletion was successful, false otherwise
+     */
+    public function delete(int $id): bool
+    {
+        return $this->db->query("DELETE FROM {$this->table} WHERE id = ?", [$id]);
     }
 }

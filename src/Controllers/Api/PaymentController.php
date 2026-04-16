@@ -5,6 +5,7 @@ namespace Controllers\Api;
 use Controllers\BaseController;
 use Core\Http\Request;
 use Core\Http\Response;
+use Models\Notification;
 use Models\Payment;
 use Services\Payment\PaymentService;
 
@@ -12,11 +13,13 @@ class PaymentController extends BaseController
 {
     private Payment $payments;
     private PaymentService $service;
+    private Notification $notification;
 
     public function __construct()
     {
         $this->payments = new Payment();
         $this->service = new PaymentService($this->payments);
+        $this->notification = new Notification();
     }
 
     public function index(Request $request): Response
@@ -146,6 +149,77 @@ class PaymentController extends BaseController
 
         return Response::json([
             'data' => $records,
+        ]);
+    }
+
+    /**
+     * Company submits payment reference for a pending invoice.
+     * POST /api/company/invoices/{id}/pay
+     */
+    public function submitPayment(Request $request): Response
+    {
+        $user = auth();
+        if (!$user) {
+            return Response::errorJson('Unauthenticated', 401);
+        }
+
+        $invoiceId = $this->resolveRouteId($request);
+        if ($invoiceId === null) {
+            return Response::errorJson('Invoice ID is required', 400);
+        }
+
+        $this->mergeJsonBody($request);
+        $data = $request->all();
+
+        $txnId = isset($data['txnId']) ? trim((string) $data['txnId']) : '';
+        $paymentMethod = isset($data['paymentMethod']) ? trim((string) $data['paymentMethod']) : 'Bank Transfer';
+
+        if ($txnId === '') {
+            return Response::errorJson('Transaction / reference ID is required', 422, [
+                'txnId' => 'Please provide your bank reference or transaction ID.'
+            ]);
+        }
+
+        // Load invoice and verify ownership
+        $invoice = $this->payments->findById($invoiceId);
+        if (!$invoice) {
+            return Response::errorJson('Invoice not found', 404);
+        }
+
+        $companyId = (int) $user['id'];
+        if ((int) ($invoice['recipientId'] ?? 0) !== $companyId) {
+            return Response::errorJson('Forbidden — this invoice does not belong to your account', 403);
+        }
+
+        if (!in_array(strtolower($invoice['status'] ?? ''), ['pending', 'processing'], true)) {
+            return Response::errorJson('This invoice has already been processed and cannot be updated', 422);
+        }
+
+        try {
+            $updated = $this->service->updatePayment($invoiceId, [
+                'status' => 'processing',
+                'txnId' => $txnId,
+                'gatewayResponse' => $paymentMethod,
+            ]);
+
+            // Notify admin
+            $this->notification->create([
+                'type' => 'info',
+                'title' => 'Payment Reference Submitted',
+                'message' => "Company #{$companyId} submitted payment reference '{$txnId}' for invoice {$invoiceId}. Please confirm receipt.",
+                'recipient_group' => 'admin',
+                'status' => 'pending',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return Response::errorJson($e->getMessage(), 422);
+        } catch (\Throwable $e) {
+            return Response::errorJson('Failed to submit payment reference', 500, ['detail' => $e->getMessage()]);
+        }
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Payment reference submitted successfully. We will confirm receipt shortly.',
+            'data' => $updated,
         ]);
     }
 

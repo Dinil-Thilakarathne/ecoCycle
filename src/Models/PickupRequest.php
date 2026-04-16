@@ -5,6 +5,7 @@ namespace Models;
 class PickupRequest extends BaseModel
 {
     protected string $table = 'pickup_requests';
+    private ?bool $vehicleIdColumnExists = null;
 
     public function listForCustomer(int $customerId, ?string $status = null): array
     {
@@ -40,10 +41,13 @@ class PickupRequest extends BaseModel
             return [];
         }
 
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id
+                LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}
                 WHERE pr.collector_id = ?";
         $params = [$collectorId];
 
@@ -70,19 +74,33 @@ class PickupRequest extends BaseModel
         return array_map(fn(array $row) => $this->formatRow($row, $wasteMap), $rows);
     }
 
-    public function listAll(?string $timeSlot = null): array
+    public function listAll(?string $timeSlot = null, ?string $date = null, ?string $status = null, string $dateOperator = '='): array
     {
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id
-                LEFT JOIN vehicles v ON v.id = pr.vehicle_id";
+            LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}";
         $params = [];
-        if ($timeSlot !== null && $timeSlot !== '') {
-            $sql .= " WHERE pr.time_slot = ?";
+        
+        if ($timeSlot !== null && $timeSlot !== '' && $timeSlot !== 'all') {
+            $sql .= " AND pr.time_slot = ?";
             $params[] = $timeSlot;
         }
-        $sql .= " ORDER BY pr.created_at DESC";
+
+        if ($date !== null && $date !== '') {
+            $sql .= " AND DATE(pr.scheduled_at) {$dateOperator} ?";
+            $params[] = $date;
+        }
+
+        if ($status !== null && $status !== '' && $status !== 'all') {
+            $sql .= " AND pr.status = ?";
+            $params[] = $status;
+        }
+
+        $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
         $rows = $this->db->fetchAll($sql, $params);
         if (!$rows) {
             return [];
@@ -101,12 +119,15 @@ class PickupRequest extends BaseModel
             return null;
         }
 
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
         $row = $this->db->fetch(
-            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
+            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
              FROM {$this->table} pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN users col ON col.id = pr.collector_id
-             LEFT JOIN vehicles v ON v.id = pr.vehicle_id
+             {$vehicleJoin}
              WHERE pr.id = ?
              LIMIT 1",
             [$id]
@@ -287,11 +308,7 @@ class PickupRequest extends BaseModel
             );
 
             if ($updated && $status === 'completed') {
-                $this->db->query(
-                    "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                     WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                    [$id]
-                );
+                $this->releaseVehicleIfLinked($id);
             }
 
             return $updated;
@@ -315,10 +332,10 @@ class PickupRequest extends BaseModel
                         continue;
 
                     // Fetch price per unit for this category
-                    $catRow = $this->db->fetch("SELECT default_minimum_bid FROM waste_categories WHERE id = ?", [$catId]);
+                    $catRow = $this->db->fetch("SELECT price_per_unit FROM waste_categories WHERE id = ?", [$catId]);
                     $pricePerUnit = 0.0;
                     if ($catRow) {
-                        $pricePerUnit = (float) ($catRow['default_minimum_bid'] ?? 0);
+                        $pricePerUnit = (float) ($catRow['price_per_unit'] ?? 0);
                     }
 
                     $amount = $weight * $pricePerUnit;
@@ -353,11 +370,7 @@ class PickupRequest extends BaseModel
 
                 // 3. Release vehicle if completed
                 if ($status === 'completed') {
-                    $this->db->query(
-                        "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                         WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                        [$id]
-                    );
+                    $this->releaseVehicleIfLinked($id);
                 }
 
                 $pdo->commit();
@@ -379,11 +392,7 @@ class PickupRequest extends BaseModel
         );
 
         if ($legacyResult && $status === 'completed') {
-            $this->db->query(
-                "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                 WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                [$id]
-            );
+            $this->releaseVehicleIfLinked($id);
         }
 
         return $legacyResult;
@@ -462,7 +471,7 @@ class PickupRequest extends BaseModel
         }
 
         $placeholders = implode(',', array_fill(0, count($pickupIds), '?'));
-        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.default_minimum_bid
+        $sql = "SELECT prw.pickup_id, prw.waste_category_id, prw.weight, prw.unit, wc.name, wc.price_per_unit
                 FROM pickup_request_wastes prw
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE prw.pickup_id IN ({$placeholders})
@@ -493,7 +502,7 @@ class PickupRequest extends BaseModel
                     'name' => $name,
                     'weight' => $row['weight'] !== null ? (float) $row['weight'] : null,
                     'unit' => $row['unit'] ?? null,
-                    'price_per_unit' => isset($row['default_minimum_bid']) ? (float) $row['default_minimum_bid'] : 0.0,
+                    'price_per_unit' => isset($row['price_per_unit']) ? (float) $row['price_per_unit'] : 0.0,
                 ];
             }
         }
@@ -604,6 +613,57 @@ class PickupRequest extends BaseModel
     {
         $status = strtolower($status);
         return in_array($status, ['pending', 'assigned', 'confirmed'], true);
+    }
+
+    private function hasVehicleIdColumn(): bool
+    {
+        if ($this->vehicleIdColumnExists !== null) {
+            return $this->vehicleIdColumnExists;
+        }
+
+        try {
+            if ($this->db->isPgsql()) {
+                $row = $this->db->fetch(
+                    "SELECT 1
+                     FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            } else {
+                $row = $this->db->fetch(
+                    "SELECT 1
+                     FROM information_schema.columns
+                     WHERE table_schema = DATABASE()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            }
+
+            $this->vehicleIdColumnExists = (bool) $row;
+        } catch (\Throwable $e) {
+            // Fail safe: assume missing column if schema metadata lookup fails.
+            $this->vehicleIdColumnExists = false;
+        }
+
+        return $this->vehicleIdColumnExists;
+    }
+
+    private function releaseVehicleIfLinked(string $pickupId): void
+    {
+        if (!$this->hasVehicleIdColumn()) {
+            return;
+        }
+
+        $this->db->query(
+            "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP
+             WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+            [$pickupId]
+        );
     }
 
     /**
@@ -762,5 +822,40 @@ class PickupRequest extends BaseModel
         return $pickupIds;
     }
 
+    public function hasOverlappingAssignment(int $collectorId, string $date, string $timeSlot, ?string $excludePickupId = null): bool
+    {
+        $sql = "SELECT 1 FROM {$this->table} 
+                WHERE collector_id = ? 
+                AND time_slot = ? 
+                AND DATE(scheduled_at) = DATE(?) 
+                AND status NOT IN ('completed', 'cancelled')";
+        $params = [$collectorId, $timeSlot, $date];
+
+        if ($excludePickupId !== null) {
+            $sql .= " AND id != ?";
+            $params[] = $excludePickupId;
+        }
+
+        $stmt = $this->db->fetch($sql, $params);
+        return (bool) $stmt;
+    }
+
+    public function hasOverlappingVehicleAssignment(int $vehicleId, string $date, string $timeSlot, ?string $excludePickupId = null): bool
+    {
+        $sql = "SELECT 1 FROM {$this->table} 
+                WHERE vehicle_id = ? 
+                AND time_slot = ? 
+                AND DATE(scheduled_at) = DATE(?) 
+                AND status NOT IN ('completed', 'cancelled')";
+        $params = [$vehicleId, $timeSlot, $date];
+
+        if ($excludePickupId !== null) {
+            $sql .= " AND id != ?";
+            $params[] = $excludePickupId;
+        }
+
+        $stmt = $this->db->fetch($sql, $params);
+        return (bool) $stmt;
+    }
 
 }

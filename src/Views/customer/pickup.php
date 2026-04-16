@@ -107,14 +107,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
 </style>
 
 <div class="dashboard-page">
-    <div class="page-header" style="margin-bottom:2rem;">
-        <div class="header-content">
-            <h1><strong>Manage pickup requests</strong></h1>
+    <header class="page-header" style="margin-bottom:2rem;">
+        <div class="page-header__content">
+            <h2 class="page-header__title">Pickup Requests</h2>
+            <p class="page-header__description">Schedule, track, and manage your waste pickup requests</p>
         </div>
         <div class="header-actions">
             <button class="btn btn-primary" onclick="showNewRequestForm()">+ New Request</button>
         </div>
-    </div>
+    </header>
 
     <?php $pickupStats = [
         [
@@ -169,7 +170,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
             'all' => 'All Requests',
             'pending' => 'Pending',
             'assigned' => 'Assigned',
-            'confirmed' => 'Confirmed',
             'completed' => 'Completed',
             // 'cancelled' intentionally omitted: cancelled requests are not shown anywhere
         ];
@@ -216,6 +216,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                         $isPending = $normalizedStatus === 'pending';
                         $isAssigned = in_array($normalizedStatus, ['assigned', 'confirmed'], true);
                         $isCompleted = $normalizedStatus === 'completed';
+                        $isRated = !empty($request['hasRating']);
                         ?>
                         <tr data-request-id="<?= e((string) $request['id']) ?>">
                             <td><?= ($idx + 1) ?></td>
@@ -254,8 +255,12 @@ if (!function_exists('customer_pickup_format_datetime')) {
                                         </button>
                                     <?php endif; ?>
 
-                                    <?php if ($isCompleted): ?>
+                                    <?php if ($isCompleted && !$isRated): ?>
                                         <button class="icon-button" data-action="rate" data-id="<?= e((string) $request['id']) ?>" data-collector="<?= e($collector) ?>" title="Rate Collector">
+                                            <i class="fa-solid fa-star"></i>
+                                        </button>
+                                    <?php elseif ($isCompleted && $isRated): ?>
+                                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Already rated">
                                             <i class="fa-solid fa-star"></i>
                                         </button>
                                     <?php endif; ?>
@@ -278,7 +283,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         </table>
     </div>
     <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary btn-rate" onclick="showRateCollectorForm()">Rate a collector</button>
+        <button class="btn btn-primary btn-rate" onclick="showAlert('Please click the star icon in a completed pickup row to submit rating.');">Rate a collector</button>
     </div>
 </div>
 
@@ -338,6 +343,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         </div>
         <form id="rateCollectorForm" class="request-form">
             <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
+            <input type="hidden" id="rate_request_id" name="pickup_request_id" value="">
             <?php $customerName = trim((string) ($profileData['name'] ?? ($userData['name'] ?? ''))); ?>
             <div class="form-group">
                 <label for="rate_customer_name">Customer name</label>
@@ -648,6 +654,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 const isPending = normalizedStatus === 'pending';
                 const isAssigned = ['assigned', 'confirmed'].includes(normalizedStatus);
                 const isCompleted = normalizedStatus === 'completed';
+                const hasRating = Boolean(request.hasRating);
 
                 let actionButtons = '<div class="action-buttons">';
                 
@@ -665,9 +672,15 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     `;
                 }
 
-                if (isCompleted) {
+                if (isCompleted && !hasRating) {
                     actionButtons += `
                         <button class="icon-button" data-action="rate" data-id="${request.id}" data-collector="${escapeHtml(request.collectorName || '')}" title="Rate Collector">
+                            <i class="fa-solid fa-star"></i>
+                        </button>
+                    `;
+                } else if (isCompleted && hasRating) {
+                    actionButtons += `
+                        <button class="icon-button" disabled style="opacity:0.5;cursor:not-allowed;" title="Already rated">
                             <i class="fa-solid fa-star"></i>
                         </button>
                     `;
@@ -762,19 +775,10 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const custNameInput = document.getElementById('rate_customer_name');
             const addr = document.getElementById('rate_address');
             const dateInput = document.getElementById('rate_date');
+            const pickupInput = document.getElementById('rate_pickup_request_id');
 
             if (typeof requestId === 'undefined' || requestId === null || requestId === '') {
-                // Global rate button - allow editing collector name
-                if (collectorInput) {
-                    collectorInput.value = '';
-                    collectorInput.readOnly = false;
-                }
-                if (addr) addr.value = defaultAddress || '';
-                if (dateInput) {
-                    const today = new Date();
-                    dateInput.value = today.toISOString().split('T')[0];
-                }
-                rateModal.classList.add('modal-open');
+                showAlert('Please choose a completed pickup request and click its star icon to rate the assigned collector.', 'error');
                 return;
             }
 
@@ -787,9 +791,18 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 return;
             }
 
+            if (request.hasRating) {
+                showAlert('You already rated this pickup request.', 'error');
+                return;
+            }
+
             if (collectorInput) {
                 collectorInput.value = request.collectorName || '';
                 collectorInput.readOnly = !!(request.collectorName && String(request.collectorName).trim() !== '');
+            }
+            const requestInput = document.getElementById('rate_request_id');
+            if (requestInput) {
+                requestInput.value = String(request.id ?? '');
             }
             if (custNameInput) {
                 custNameInput.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
@@ -814,8 +827,12 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (custName) custName.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
             const addr = document.getElementById('rate_address');
             if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
+            const requestInput = document.getElementById('rate_request_id');
+            if (requestInput) requestInput.value = '';
             const collectorInput = document.getElementById('rate_collector');
             if (collectorInput) collectorInput.readOnly = false;
+            const pickupInput = document.getElementById('rate_pickup_request_id');
+            if (pickupInput) pickupInput.value = '';
             
             // Reset stars
             const stars = document.querySelectorAll('#star_rating_container .star');
@@ -1036,10 +1053,16 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 customerName: form.customerName.value.trim(),
                 address: form.address.value.trim(),
                 date: form.date.value,
+                pickup_request_id: form.pickup_request_id.value,
                 collectorName: form.collectorName.value.trim(),
                 rating: parseInt(form.rating.value, 10),
                 description: form.description.value.trim()
             };
+
+            if (!payload.pickupRequestId) {
+                showAlert('Pickup request id is missing for this rating.', 'error');
+                return;
+            }
 
             try {
                 const response = await fetch('/api/customer/collector-ratings', {
@@ -1059,8 +1082,14 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     throw new Error((result.message || 'Failed to submit rating') + detail);
                 }
 
+                const requestIndex = state.requests.findIndex((r) => String(r.id) === String(payload.pickupRequestId));
+                if (requestIndex >= 0) {
+                    state.requests[requestIndex].hasRating = true;
+                }
+
                 hideRateCollectorForm();
                 showAlert('Thank you — your rating has been submitted.');
+                renderTable();
             } catch (error) {
                 console.error(error);
                 showAlert(error.message || 'Failed to submit rating.', 'error');

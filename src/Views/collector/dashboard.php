@@ -17,7 +17,10 @@ $collectorName = htmlspecialchars((string) $collectorName, ENT_QUOTES, 'UTF-8');
 // SAME image logic as profile page
 $profileImage = $collectorProfile['profile_pic']
   ?? ($collectorProfile['profileImage']
-  ?? ($collectorProfile['profileImagePath'] ?? null));
+  ?? ($collectorProfile['profileImagePath']
+  ?? (auth()['profileImagePath']
+  ?? (auth()['profile_image_path']
+  ?? (session('profileImagePath') ?? null)))));
 
 if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = $profileImage;
@@ -25,6 +28,23 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = '/' . ltrim($profileImage, '/');
 } else {
   $profileImageSrc = '/assets/avatar.png';
+}
+
+$pendingPickupLocations = [];
+foreach (($pendingPickups ?? []) as $pickupLocationItem) {
+  $address = trim((string) ($pickupLocationItem['address'] ?? ''));
+  $latitude = $pickupLocationItem['latitude'] ?? null;
+  $longitude = $pickupLocationItem['longitude'] ?? null;
+  $hasCoordinates = is_numeric($latitude) && is_numeric($longitude);
+
+  $pendingPickupLocations[] = [
+    'id' => (string) ($pickupLocationItem['id'] ?? ''),
+    'customerName' => (string) ($pickupLocationItem['customerName'] ?? 'Pickup Location'),
+    'address' => $address,
+    'status' => (string) ($pickupLocationItem['status'] ?? ''),
+    'latitude' => $hasCoordinates ? (float) $latitude : null,
+    'longitude' => $hasCoordinates ? (float) $longitude : null,
+  ];
 }
 ?>
 
@@ -63,14 +83,13 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 </div>
 
 <!-- Availability Widget -->
-<!-- <div style="margin-bottom: 2rem;">
-  <?php include __DIR__ . '/availability-widget.php'; ?>
-</div> -->
+
+  <!-- <?php include __DIR__ . '/availability-widget.php'; ?> -->
 
 <div class="feature-cards">
   <div class="feature-card">
     <div class="feature-card__header">
-      <div class="feature-card__title">Today's Tasks</div>
+      <div class="feature-card__title">Assigned Tasks</div>
       <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-today-tasks"><?= $todayPickups ?? 0 ?></span></div>
@@ -149,125 +168,188 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
         </div>
       <?php endforeach; ?>
     <?php else: ?>
-      <p style="text-align: center; color: #999; padding: 20px;">No pending tasks</p>
+      <p class="collector-empty-state">No pending tasks</p>
     <?php endif; ?>
   </activity-card>
 
-  <activity-card title="Material Collection Summary" description="Breakdown of This Week's Collected Materials">
-    <!-- Material Chart -->
-    <div class="" style="padding: 0;">
-      <canvas id="materialCollectionChart" style="width: 100%; max-height: 360px;"></canvas>
+  <activity-card title="Pending Pickup Locations" description="Map view of pending pickup request locations">
+    <div class="pending-map-frame" id="pending-pickups-map-frame">
+      <svg viewBox="0 0 1000 1200" preserveAspectRatio="xMidYMid meet" aria-label="Sri Lanka map close-up with pending pickup markers" role="img">
+        <defs>
+          <linearGradient id="seaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#dff4ff" />
+            <stop offset="100%" stop-color="#eaf8ff" />
+          </linearGradient>
+          <linearGradient id="landGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f8fafc" />
+            <stop offset="100%" stop-color="#cbd5e1" />
+          </linearGradient>
+        </defs>
+        <rect width="1000" height="1200" fill="url(#seaGradient)" />
+        <circle cx="170" cy="170" r="110" fill="rgba(255,255,255,0.55)" />
+        <circle cx="850" cy="240" r="150" fill="rgba(255,255,255,0.45)" />
+        <path d="M520 70 C565 88 610 132 626 196 C638 247 627 290 610 348 C598 389 590 430 585 476 C580 530 594 581 608 639 C620 687 624 739 612 795 C598 864 565 941 531 1014 C506 1068 484 1107 455 1139 C430 1117 409 1073 401 1021 C391 960 405 898 416 845 C426 799 434 751 431 701 C428 648 410 597 398 548 C385 492 384 436 394 377 C403 322 426 260 454 207 C475 167 495 127 520 70 Z" fill="url(#landGradient)" stroke="#94a3b8" stroke-width="10" stroke-linejoin="round" />
+        <path d="M453 210 C470 238 486 269 493 301 C500 334 495 367 485 400 C477 429 471 461 470 495 C469 537 478 579 488 616 C497 651 503 688 500 726 C496 773 485 818 472 862 C461 899 450 934 436 972" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="4" stroke-linecap="round" />
+        <text x="500" y="1110" text-anchor="middle" fill="#64748b" font-size="34" font-weight="700" font-family="Arial, sans-serif">Sri Lanka</text>
+      </svg>
+      <div class="pending-map-spots" id="pending-pickups-map-spots"></div>
     </div>
+    <div id="pending-pickups-map-message" class="pending-map-caption"></div>
   </activity-card>
 
-
-<!-- Scripts -->
 <script>
-  // Global chart instance
-  let materialCollectionChart = null;
+  const PENDING_PICKUP_LOCATIONS = <?= json_encode(array_values($pendingPickupLocations), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
-  // Fetch and render material collection chart in real-time
-  async function fetchAndRenderMaterialCollection() {
-    try {
-      const res = await fetch('/api/collector/material-collection', { credentials: 'same-origin' });
-      if (!res.ok) return;
-      const json = await res.json();
-      if (!json || json.status !== 'success' || !Array.isArray(json.data)) return;
-
-      const materials = json.data;
-
-      // If no data, show empty state
-      if (materials.length === 0) {
-        const el = document.getElementById('materialCollectionChart');
-        if (el) {
-          const parent = el.parentElement;
-          parent.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No materials collected this week</p>';
-        }
-        return;
-      }
-
-      // Extract data for chart
-      const materialLabels = materials.map(m => m.name);
-      const materialWeights = materials.map(m => m.weight);
-      const materialColors = materials.map(m => m.color);
-
-      // Render or update Chart.js doughnut chart
-      const el = document.getElementById('materialCollectionChart');
-      if (!el) return;
-
-      // Destroy existing chart if it exists
-      if (materialCollectionChart) {
-        materialCollectionChart.destroy();
-      }
-
-      const ctx = el.getContext('2d');
-      materialCollectionChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: materialLabels,
-          datasets: [{
-            label: 'Weight (kg)',
-            data: materialWeights,
-            backgroundColor: materialColors,
-            borderWidth: 2,
-            borderColor: '#ffffff',
-            hoverOffset: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: {
-                padding: 15,
-                font: {
-                  size: 13
-                },
-                generateLabels: function (chart) {
-                  const data = chart.data;
-                  return data.labels.map((label, i) => {
-                    const material = materials[i];
-                    const value = data.datasets[0].data[i];
-                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                    const percentage = ((value / total) * 100).toFixed(0);
-                    const price = material.price ? ` Rs.${material.price.toFixed(2)}` : '';
-                    return {
-                      text: `${label}: ${value}kg (${percentage}%)${price}`,
-                      fillStyle: data.datasets[0].backgroundColor[i],
-                      hidden: false,
-                      index: i
-                    };
-                  })
-                }
-              }
-            },
-            tooltip: {
-              callbacks: {
-                label: function (context) {
-                  const material = materials[context.dataIndex];
-                  const label = context.label || '';
-                  const value = context.parsed || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = ((value / total) * 100).toFixed(1);
-                  const price = material.price ? ` - Rs.${material.price.toFixed(2)}` : '';
-                  return `${label}: ${value}kg (${percentage}%)${price}`;
-                }
-              }
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.error('Failed to fetch material collection:', e);
-    }
+  function updatePendingMapMessage(message) {
+    const messageEl = document.getElementById('pending-pickups-map-message');
+    if (!messageEl) return;
+    messageEl.textContent = message || '';
   }
 
-  // Initial fetch and update every 10 seconds
-  fetchAndRenderMaterialCollection();
-  setInterval(fetchAndRenderMaterialCollection, 10000);
-</script>
+  function setPendingMapEmptyState(message) {
+    const frameEl = document.getElementById('pending-pickups-map-frame');
+    const spotsEl = document.getElementById('pending-pickups-map-spots');
+    if (spotsEl) {
+      spotsEl.innerHTML = '';
+    }
+    if (frameEl) {
+      frameEl.innerHTML = `<p class="pending-map-empty">${message}</p>`;
+    }
+    updatePendingMapMessage('');
+  }
+
+  function parseCoordinates(locationItem) {
+    const lat = Number(locationItem?.latitude);
+    const lng = Number(locationItem?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return null;
+    }
+
+    return { lat, lng };
+  }
+
+  const SRI_LANKA_BOUNDS = {
+    south: 5.85,
+    north: 9.95,
+    west: 79.45,
+    east: 82.15
+  };
+
+  function projectToMapPosition(lat, lng) {
+    const xRatio = (lng - SRI_LANKA_BOUNDS.west) / (SRI_LANKA_BOUNDS.east - SRI_LANKA_BOUNDS.west);
+    const yRatio = 1 - ((lat - SRI_LANKA_BOUNDS.south) / (SRI_LANKA_BOUNDS.north - SRI_LANKA_BOUNDS.south));
+
+    const x = Math.min(96, Math.max(4, xRatio * 100));
+    const y = Math.min(94, Math.max(6, yRatio * 100));
+
+    return { x, y };
+  }
+
+  function isWithinSriLanka(lat, lng) {
+    return (
+      lat >= SRI_LANKA_BOUNDS.south &&
+      lat <= SRI_LANKA_BOUNDS.north &&
+      lng >= SRI_LANKA_BOUNDS.west &&
+      lng <= SRI_LANKA_BOUNDS.east
+    );
+  }
+
+  const FALLBACK_LANDMARK_POINTS = [
+    { x: 51, y: 14 },
+    { x: 56, y: 20 },
+    { x: 59, y: 27 },
+    { x: 58, y: 35 },
+    { x: 57, y: 43 },
+    { x: 56, y: 51 },
+    { x: 55, y: 59 },
+    { x: 54, y: 67 },
+    { x: 53, y: 75 },
+    { x: 51, y: 83 },
+    { x: 49, y: 90 },
+    { x: 47, y: 96 },
+    { x: 45, y: 86 },
+    { x: 46, y: 78 },
+    { x: 47, y: 70 },
+    { x: 48, y: 62 },
+    { x: 49, y: 54 },
+    { x: 50, y: 46 },
+    { x: 50, y: 38 },
+    { x: 50, y: 30 },
+    { x: 50, y: 22 },
+  ];
+
+  function getFallbackLandmark(index) {
+    const base = FALLBACK_LANDMARK_POINTS[index % FALLBACK_LANDMARK_POINTS.length];
+    const band = Math.floor(index / FALLBACK_LANDMARK_POINTS.length);
+
+    const xOffset = ((band % 3) - 1) * 1.6;
+    const yOffset = (Math.floor(band / 3) % 3) * 1.4;
+
+    return {
+      x: Math.min(62, Math.max(38, base.x + xOffset)),
+      y: Math.min(98, Math.max(12, base.y + yOffset)),
+    };
+  }
+
+  function resolveMapPosition(locationItem, index) {
+    const directCoordinates = parseCoordinates(locationItem);
+    if (directCoordinates && isWithinSriLanka(directCoordinates.lat, directCoordinates.lng)) {
+      return projectToMapPosition(directCoordinates.lat, directCoordinates.lng);
+    }
+
+    return getFallbackLandmark(index);
+  }
+
+  function renderPendingPickupImage() {
+    const spotsLayer = document.getElementById('pending-pickups-map-spots');
+    if (!spotsLayer) return;
+
+    if (!Array.isArray(PENDING_PICKUP_LOCATIONS) || PENDING_PICKUP_LOCATIONS.length === 0) {
+      setPendingMapEmptyState('No pending pickup locations available');
+      return;
+    }
+
+    spotsLayer.innerHTML = '';
+    let markerCount = 0;
+
+    const renderMarker = (locationItem, position) => {
+      const spot = document.createElement('div');
+      spot.className = 'pending-map-spot';
+      spot.style.left = `${position.x}%`;
+      spot.style.top = `${position.y}%`;
+
+      const pin = document.createElement('div');
+      pin.className = 'pending-map-pin';
+
+      const label = document.createElement('div');
+      label.className = 'pending-map-spot-label';
+      label.textContent = locationItem.customerName || 'Pending Pickup';
+
+      spot.appendChild(pin);
+      spot.appendChild(label);
+      spotsLayer.appendChild(spot);
+    };
+
+    PENDING_PICKUP_LOCATIONS.forEach((locationItem, index) => {
+      const position = resolveMapPosition(locationItem, index);
+      renderMarker(locationItem, position);
+      markerCount += 1;
+    });
+
+    updatePendingMapMessage(`${markerCount} pending pickup request(s) shown as red landmarks on Sri Lanka map`);
+  }
+
+  (function initializePendingPickupMap() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderPendingPickupImage);
+    } else {
+      renderPendingPickupImage();
+    }
+  })();
 
 <script>
   // Poll collector stats endpoint and update cards in real time
@@ -285,7 +367,10 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
 
     async function fetchStats() {
       try {
-        const res = await fetch(endpoint, { credentials: 'same-origin' });
+        const res = await fetch(endpoint, {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
         if (!res.ok) return;
         const json = await res.json();
         if (!json || json.status !== 'success') return;
@@ -330,6 +415,18 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
       return colorMap[lowerName] || '#6b7280';
     }
 
+    function getDotClassForMaterial(name) {
+      const lowerName = (name || '').toLowerCase();
+      const classMap = {
+        'plastic': 'dot-plastic',
+        'glass': 'dot-glass',
+        'metal': 'dot-metal',
+        'paper': 'dot-paper',
+        'organic': 'dot-organic'
+      };
+      return classMap[lowerName] || 'dot-default';
+    }
+
     async function fetchMaterialPrices() {
       try {
         const res = await fetch(endpoint, { credentials: 'same-origin' });
@@ -344,11 +441,11 @@ if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
           div.className = 'goal';
           div.innerHTML = `
             <div class="goal-header">
-              <span style="display: flex; align-items: center; gap: var(--space-2);">
-                <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${getColorForMaterial(material.name)};"></div>
+              <span class="dashboard-goal-material-chip">
+                <div class="dashboard-goal-material-dot ${getDotClassForMaterial(material.name)}"></div>
                 <span class="font-medium">${material.name}</span>
               </span>
-              <span class="goal-status" style="font-weight: var(--font-weight-bold); color: var(--neutral-900);">
+              <span class="goal-status dashboard-goal-status-strong">
                 ${formatPrice(material.price_per_unit)}
               </span>
             </div>

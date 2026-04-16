@@ -13,6 +13,8 @@ $pendingCount = 0;
 $scheduledCount = 0;
 $completedCount = 0;
 $totalCount = 0;
+$totalIncome = 0.0;
+$totalWeight = 0.0;
 
 foreach ($pickupRequests as $request) {
     $status = strtolower((string) ($request['status'] ?? ''));
@@ -24,6 +26,8 @@ foreach ($pickupRequests as $request) {
     }
     if ($status === 'completed') {
         $completedCount++;
+        $totalIncome += (float) ($request['price'] ?? 0);
+        $totalWeight += (float) ($request['weight'] ?? 0);
     }
     $totalCount++;
 }
@@ -104,13 +108,13 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
 
         <!-- Stats Feature Cards (Using old style) -->
-        <div class="stats-grid" style="margin-bottom: 2.5rem;">
+        <div class="stats-grid" style="margin-bottom: 1.25rem;">
             <div class="feature-card" data-stat="pickups">
                 <div class="feature-card__header">
                     <h3 class="feature-card__title">Total Pickups</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-truck"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;"><?= (int) $totalCount ?></p>
                 <div class="feature-card__footer"><span class="tag success">All time</span></div>
             </div>
             <div class="feature-card" data-stat="income">
@@ -118,7 +122,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <h3 class="feature-card__title">Total Income</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-wallet"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs 0.00</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">Rs <?= number_format($totalIncome, 2) ?></p>
                 <div class="feature-card__footer"><span class="tag success">Earnings</span></div>
             </div>
             <div class="feature-card" data-stat="weight">
@@ -126,21 +130,21 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     <h3 class="feature-card__title">Total Weight</h3>
                     <div class="feature-card__icon"><i class="fa-solid fa-weight"></i></div>
                 </div>
-                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;">0 kg</p>
+                <p class="feature-card__body" style="margin: 0; font-size: 2rem; font-weight: 700; color: #111827;"><?= number_format($totalWeight, 2) ?> kg</p>
                 <div class="feature-card__footer"><span class="tag success">Waste collected</span></div>
             </div>
         </div>
 
         <!-- Main Content Grid: Chart + Price per unit -->
-        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div class="customer-dashboard-grid" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; margin-top: 0.75rem; align-items: stretch;">
             
             <!-- Left: Request Status Chart -->
-            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+            <div class="customer-dashboard-card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; height: 100%; display: flex; flex-direction: column;">
                 <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
                     <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">Request Status Overview</h2>
                     <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Distribution of your pickup requests</p>
                 </div>
-                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 2rem; display:flex; align-items:center; gap:1.25rem;">
+                <div class="customer-dashboard-chart-wrap" style="height: 320px; margin-bottom: 0; display:flex; align-items:center; gap:1.25rem;">
                         <div style="flex:1; height:220px; position: relative;">
                             <canvas id="statusChart"></canvas>
                         </div>
@@ -165,7 +169,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </div>
 
             <!-- Right: Price per unit -->
-            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+            <div class="customer-dashboard-card customer-price-unit" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; height: 100%; display: flex; flex-direction: column;">
                 <div class="customer-dashboard-card__header" style="margin-bottom: 1.5rem;">
                     <h2 class="section-title" style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: #111827; font-weight: 700;">
                         <i class="fa-solid fa-leaf" style="margin-right: 0.75rem; color: #1ce36a;"></i>
@@ -173,28 +177,22 @@ if (!function_exists('customer_pickup_format_datetime')) {
                     </h2>
                     <p class="section-subtitle" style="margin: 0; color: #6b7280; font-size: 0.875rem;">Current rates per kg — earn based on these</p>
                 </div>
-                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <!-- Dummy price data -->
-                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(245, 158, 11, 0.08); border-radius: 0.75rem; border-left: 4px solid #f59e0b;">
-                        <span style="color: #4b5563; font-weight: 600;">Plastic</span>
-                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 15.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
-                    </div>
-                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(16, 185, 129, 0.08); border-radius: 0.75rem; border-left: 4px solid #10b981;">
-                        <span style="color: #4b5563; font-weight: 600;">Paper</span>
-                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 8.50 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
-                    </div>
-                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(59, 130, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #3b82f6;">
-                        <span style="color: #4b5563; font-weight: 600;">Glass</span>
-                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 12.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
-                    </div>
-                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(139, 92, 246, 0.08); border-radius: 0.75rem; border-left: 4px solid #8b5cf6;">
-                        <span style="color: #4b5563; font-weight: 600;">Metal</span>
-                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 25.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
-                    </div>
-                    <div class="customer-price-unit__item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0.75rem; background: rgba(249, 115, 22, 0.08); border-radius: 0.75rem; border-left: 4px solid #f97316;">
-                        <span style="color: #4b5563; font-weight: 600;">Organic</span>
-                        <span style="color: #111827; font-weight: 700; font-size: 1.05rem;">Rs 5.00 <span style="font-size: 0.75rem; color: #6b7280;">/ kg</span></span>
-                    </div>
+                <div id="material-prices-container" class="customer-price-unit__list" style="display: flex; flex-direction: column; gap: 0.75rem; flex: 1;">
+                    <?php if (!empty($wasteCategories) && is_array($wasteCategories)): ?>
+                        <?php
+                        foreach ($wasteCategories as $material):
+                            $materialName = (string) ($material['name'] ?? 'Material');
+                            $materialUnit = (string) ($material['unit'] ?? 'kg');
+                            $materialPrice = (float) ($material['pricePerUnit'] ?? ($material['price_per_unit'] ?? 0));
+                        ?>
+                            <div class="customer-price-unit__item" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">
+                                <span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:#64748b"></span><?= e($materialName) ?></span>
+                                <span style="font-weight:700;">Rs <?= number_format($materialPrice, 2) ?> <small style="font-weight:400; color:#6b7280;">/ <?= e($materialUnit) ?></small></span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="customer-price-unit__empty"><i class="fa-solid fa-info-circle"></i><p>No material prices available right now.</p></div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -220,6 +218,19 @@ function loadDashboardData() {
             }
         })
         .catch(() => console.error('Error loading dashboard stats'));
+}
+
+function getInitialChartStats() {
+    const readLegendCount = (id) => {
+        const el = document.getElementById(id);
+        return parseInt(el ? el.textContent : '0', 10) || 0;
+    };
+
+    return {
+        pendingCount: readLegendCount('legend-pending'),
+        scheduledCount: readLegendCount('legend-scheduled'),
+        completedCount: readLegendCount('legend-completed')
+    };
 }
 
 function updateFeatureCards(stats) {
@@ -297,23 +308,28 @@ function updateChart(stats) {
 }
 
 
-document.addEventListener('DOMContentLoaded', loadDashboardData);
+document.addEventListener('DOMContentLoaded', () => {
+    updateChart(getInitialChartStats());
+    loadDashboardData();
+});
 </script>
 
 <script>
 // --- Price panel: fetch live material prices with fallback ---
 (function() {
-    const endpoint = '/api/collector/material-prices';
+    const endpoint = '/api/customer/dashboard/material-prices';
     const container = document.getElementById('material-prices-container');
     if (!container) return;
 
-    const fallback = [
-        { name: 'Plastic', price_per_unit: 15.00 },
-        { name: 'Paper', price_per_unit: 8.50 },
-        { name: 'Glass', price_per_unit: 12.00 },
-        { name: 'Metal', price_per_unit: 25.00 },
-        { name: 'Organic', price_per_unit: 5.00 }
-    ];
+    const fallback = <?= json_encode(array_values(array_map(static function (array $material): array {
+        return [
+            'id' => (int) ($material['id'] ?? 0),
+            'name' => (string) ($material['name'] ?? 'Material'),
+            'unit' => (string) ($material['unit'] ?? 'kg'),
+            'color' => $material['color'] ?? null,
+            'price_per_unit' => (float) ($material['pricePerUnit'] ?? ($material['price_per_unit'] ?? 0)),
+        ];
+    }, (is_array($wasteCategories ?? null) ? $wasteCategories : []))), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
 
     const formatPrice = v => (v === null || v === undefined) ? 'Rs 0.00' : ('Rs ' + (parseFloat(v) || 0).toFixed(2));
     const getColor = name => ({ plastic: '#f59e0b', glass: '#3b82f6', metal: '#8b5cf6', paper: '#10b981', organic: '#f97316' }[(name||'').toLowerCase()] || '#64748b');
@@ -326,11 +342,12 @@ document.addEventListener('DOMContentLoaded', loadDashboardData);
         }
         container.innerHTML = list.map(m => {
             const name = m.name || 'Material';
+            const unit = m.unit || 'kg';
             const price = (m.price_per_unit != null) ? m.price_per_unit : (m.price != null ? m.price : 0);
-            const color = getColor(name);
+            const color = m.color || getColor(name);
             return `<div class="customer-price-unit__row" style="display:flex; justify-content:space-between; align-items:center; padding:0.9rem 0.75rem; border-radius:0.6rem; background:rgba(15,23,42,0.02);">
                 <span style="display:flex;align-items:center;gap:0.6rem;"><span style="width:10px;height:10px;border-radius:50%;background:${color}"></span>${escapeHtml(name)}</span>
-                <span style="font-weight:700;">${formatPrice(price)} <small style="font-weight:400; color:#6b7280;">/ kg</small></span>
+                <span style="font-weight:700;">${formatPrice(price)} <small style="font-weight:400; color:#6b7280;">/ ${escapeHtml(unit)}</small></span>
             </div>`;
         }).join('');
     }

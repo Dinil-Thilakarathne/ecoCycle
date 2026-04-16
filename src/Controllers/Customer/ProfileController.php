@@ -51,7 +51,7 @@ class ProfileController extends BaseController
         } elseif ($request->has('updatePassword')) {
             $this->processPasswordChange($request, $userModel, $currentUser, $userId);
         } elseif ($request->has('deleteAccount')) {
-            $this->processAccountDeletion($request, $userModel, $currentUser, $userId);
+            $this->processAccountDeletion($userModel, $userId);
             return Response::redirect('/login'); // Redirect after deletion
         } else {
             $session->flash('status', 'No changes were detected.');
@@ -218,12 +218,8 @@ class ProfileController extends BaseController
 
         $errors = [];
 
-        if ($currentPassword === '') {
-            $errors[] = 'Current password is required.';
-        }
-        
-        if ($newPassword === '' || $confirmPassword === '') {
-            $errors[] = 'New password fields are required.';
+        if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+            $errors[] = 'All password fields are required.';
         }
 
         if ($newPassword !== '' && strlen($newPassword) < 8) {
@@ -234,19 +230,8 @@ class ProfileController extends BaseController
             $errors[] = 'New password confirmation does not match.';
         }
 
-        $storedHash = $currentUser['password_hash'] ?? '';
-        $currentValid = false;
-
-        if ($storedHash !== '') {
-            if (preg_match('/^\$2y\$/', $storedHash)) {
-                $currentValid = password_verify($currentPassword, $storedHash);
-            } else {
-                $currentValid = hash_equals($storedHash, $currentPassword);
-            }
-        }
-
-        if (!$currentValid) {
-            $errors[] = 'Current password is incorrect.';
+        if ($currentPassword !== '' && !$userModel->verifyPassword($currentUser, $currentPassword)) {
+            $errors[] = 'Invalid password. Please retry with your current password.';
         }
 
         if (!empty($errors)) {
@@ -255,10 +240,8 @@ class ProfileController extends BaseController
             return;
         }
 
-        $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
-
         try {
-            $userModel->updateUser($userId, ['password_hash' => $newHash]);
+            $userModel->updatePassword($userId, $newPassword);
             $session->flash('status', 'Password updated successfully.');
         } catch (\Throwable $e) {
             $session->flash('errors', ['Unable to update password. Please try again.']);
@@ -266,18 +249,13 @@ class ProfileController extends BaseController
         }
     }
 
-    private function processAccountDeletion(Request $request, User $userModel, array $currentUser, int $userId): void
+    private function processAccountDeletion(User $userModel, int $userId): void
     {
-        // Hard delete as per standard, or soft delete if preferred. User didn't specify, we use standard delete from model.
         $userModel->deleteUser($userId);
-        
-        // Logout
+
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_destroy();
         }
-        // If there's a simpler auth logout:
-        // auth()->logout(); 
-        // But since we don't have the auth helper source, valid PHP session destroy is safest fallback or we can assume manual session handling.
     }
 }
 

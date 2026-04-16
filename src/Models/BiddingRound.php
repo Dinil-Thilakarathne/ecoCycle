@@ -8,6 +8,9 @@ class BiddingRound extends BaseModel
 
     public function findById(string $id): ?array
     {
+        // Ensure any rounds that have passed their end time are marked completed
+        // before we read back the record (avoids stale 'active' status).
+        $this->expireEndedRounds();
         $row = $this->fetchDetailedRow($id);
         return $row ? $this->normalizeRound($row) : null;
     }
@@ -202,6 +205,7 @@ class BiddingRound extends BaseModel
         try {
             $round = $this->db->fetch("SELECT * FROM {$this->table} WHERE id = ? FOR UPDATE", [$id]);
             if (!$round) {
+                error_log("approveRound: could not fetch record with ID: " . $id);
                 $pdo->rollBack();
                 return null;
             }
@@ -256,12 +260,37 @@ class BiddingRound extends BaseModel
             }
 
             $pdo->commit();
+            error_log("approveRound: commit successful for ID: " . $id);
+
+            // Side effects (non-blocking, after commit)
+            if ($selectedCompanyId !== null && $winningBidAmount !== null && $winningBidAmount > 0) {
+                $categoryName = 'Waste';
+                if (!empty($round['waste_category_id'])) {
+                    $cat = $this->db->fetch("SELECT name FROM waste_categories WHERE id = ?", [$round['waste_category_id']]);
+                    if ($cat) {
+                        $categoryName = $cat['name'] ?? 'Waste';
+                    }
+                }
+
+                $this->triggerPaymentAndNotify(
+                    $id,
+                    $selectedCompanyId,
+                    (float) $winningBidAmount,
+                    $round['lot_id'] ?? $id,
+                    $categoryName
+                );
+            }
         } catch (\Throwable $e) {
+            error_log("approveRound: caught exception: " . $e->getMessage());
             $pdo->rollBack();
             throw $e;
         }
 
-        return $this->findById($id);
+        $result = $this->findById($id);
+        if (!$result) {
+            error_log("approveRound: findById returned null for ID: " . $id);
+        }
+        return $result;
     }
 
     public function rejectRound(string $id, ?string $reason = null): ?array
@@ -281,6 +310,29 @@ class BiddingRound extends BaseModel
         $this->db->query("UPDATE bids SET is_winner = false WHERE bidding_round_id = ?", [$id]);
 
         return $this->findById($id);
+    }
+
+    /**
+     * Mark a bidding round as paid / ready for pickup.
+     * This is called after the winning company completes payment.
+     */
+    public function markAsPaid(string $id): bool
+    {
+        $round = $this->findById($id);
+        if (!$round) {
+            return false;
+        }
+
+        // Only update if it's currently awarded or completed (meaning it was won)
+        $currentStatus = strtolower((string) ($round['status'] ?? ''));
+        if (!in_array($currentStatus, ['awarded', 'completed'], true)) {
+            return false;
+        }
+
+        return $this->updateAttributes($id, [
+            'status' => 'completed',
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
     }
 
     public function cancelRound(string $id, ?string $reason = null): ?array
@@ -413,9 +465,10 @@ class BiddingRound extends BaseModel
     {
         $this->expireEndedRounds();
         $rows = $this->db->fetchAll(
-            "SELECT br.*, wc.name AS waste_category_name
+            "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name
              FROM {$this->table} br
              LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+             LEFT JOIN users u ON u.id = br.leading_company_id
              WHERE br.status = 'active'
              ORDER BY br.end_time ASC, br.created_at DESC"
         );
@@ -434,7 +487,7 @@ class BiddingRound extends BaseModel
                 $currentHighestBid = 0.0;
             }
 
-            $reservePrice = ($startingBid > 0 ? $startingBid: null);
+            $reservePrice = ($startingBid > 0 ? $startingBid : null);
 
             return [
                 'id' => $row['id'],
@@ -443,6 +496,8 @@ class BiddingRound extends BaseModel
                 'quantity' => $quantity,
                 'unit' => $row['unit'] ?? 'kg',
                 'currentHighestBid' => $currentHighestBid,
+                'biddingCompany' => $row['company_name'] ?? '',
+                'leadingCompanyId' => $leadingCompanyId !== null ? (int) $leadingCompanyId : null,
                 'status' => $row['status'] ?? 'active',
                 'endTime' => $row['end_time'] ?? null,
                 'startingBid' => $startingBid,
@@ -487,7 +542,7 @@ class BiddingRound extends BaseModel
             $currentHighestBid = isset($row['current_highest_bid']) ? (float) $row['current_highest_bid'] : 0.0;
 
 
-            $reservePrice = ($startingBid > 0 ? $startingBid: null);
+            $reservePrice = ($startingBid > 0 ? $startingBid : null);
 
             return [
                 'id' => $row['id'],
@@ -658,6 +713,17 @@ class BiddingRound extends BaseModel
 
         $reservePrice = ($startingBid > 0 ? $startingBid : null);
 
+        $rawStatus = $row['status'] ?? 'active';
+
+        // Safety-net: if DB still says 'active' but end_time has passed, treat as completed.
+        // expireEndedRounds() should have fixed it, but this guards any edge case.
+        if ($rawStatus === 'active' && !empty($row['end_time'])) {
+            $endTs = strtotime((string) $row['end_time']);
+            if ($endTs !== false && $endTs <= time()) {
+                $rawStatus = 'completed';
+            }
+        }
+
         return [
             'id' => $row['id'],
             'lotId' => $row['lot_id'] ?? $row['id'],
@@ -669,7 +735,7 @@ class BiddingRound extends BaseModel
             'currentHighestBid' => $currentHighestBid,
             'biddingCompany' => $row['company_name'] ?? '',
             'leadingCompanyId' => $leadingCompanyId !== null ? (int) $leadingCompanyId : null,
-            'status' => $row['status'] ?? 'active',
+            'status' => $rawStatus,
             'endTime' => $row['end_time'] ?? null,
             'notes' => $row['notes'] ?? null,
             'awardedCompany' => $row['company_name'] ?? '',
@@ -677,10 +743,10 @@ class BiddingRound extends BaseModel
         ];
     }
 
-    private function updateAttributes(string $id, array $attributes): void
+    public function updateAttributes(string $id, array $attributes): bool
     {
         if (empty($attributes)) {
-            return;
+            return false;
         }
 
         $columns = [];
@@ -694,7 +760,7 @@ class BiddingRound extends BaseModel
         $params[] = $id;
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $columns) . " WHERE id = ?";
-        $this->db->query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     private function generateId(): string
@@ -729,17 +795,132 @@ class BiddingRound extends BaseModel
     }
 
     /**
-     * Lazily expire rounds that have past their end time but remain active.
+     * Expire all active bidding rounds whose end_time has passed.
+     *
+     * - Rounds WITH bids (leading_company_id is set)  → status = 'completed'
+     * - Rounds WITHOUT bids (no leading_company_id)   → status = 'cancelled'
+     *   Cancelled rounds are excluded from total_committed in the waste_inventory
+     *   view, so their waste quantity is automatically returned to the available pool.
+     *
+     * This method is idempotent and safe to call on every request or from a cron job.
+     *
+     * @return array{completed: int, cancelled: int}
      */
-    private function expireEndedRounds(): void
+    /**
+     * Explicitly expire a bidding round by its ID.
+     * Differentiates between 'completed' (with winner) and 'cancelled' (no bids).
+     *
+     * @param string $id Lot ID
+     * @return bool True if record was updated
+     */
+    public function expireRoundById(string $id): bool
     {
-        // Update status for any round that is 'active' and end_time is in the past
-        $this->db->query(
-            "UPDATE {$this->table}
-             SET status = 'completed', updated_at = NOW()
-             WHERE status = 'active' AND end_time <= NOW()"
-        );
+        $pdo = $this->db->pdo();
+
+        // Use a transaction to safely check and update
+        $pdo->beginTransaction();
+        try {
+            // Fetch necessary details for side effects, but LOCK only the bidding_rounds table
+            // Postgres does not allow FOR UPDATE on the nullable side of an outer join.
+            $round = $this->db->fetch(
+                "SELECT status, leading_company_id, lot_id, current_highest_bid, waste_category_id
+                 FROM {$this->table}
+                 WHERE id = ? FOR UPDATE",
+                [$id]
+            );
+
+            if (!$round || strtolower($round['status'] ?? '') !== 'active') {
+                $pdo->rollBack();
+                return false;
+            }
+
+            $newStatus = !empty($round['leading_company_id']) ? 'completed' : 'cancelled';
+
+            $stmt = $pdo->prepare(
+                "UPDATE {$this->table} SET status = ?, updated_at = NOW() WHERE id = ?"
+            );
+            $result = $stmt->execute([$newStatus, $id]);
+
+            // If completed, explicitly mark the lead bid as the winner
+            if ($newStatus === 'completed' && !empty($round['leading_company_id'])) {
+                // Fetch the specific bid ID to update, for cross-DB compatibility (Postgres doesn't support ORDER/LIMIT in UPDATE)
+                $bid = $this->db->fetch(
+                    "SELECT id FROM bids 
+                     WHERE bidding_round_id = ? AND company_id = ? 
+                     ORDER BY amount DESC, created_at DESC LIMIT 1",
+                    [$id, $round['leading_company_id']]
+                );
+
+                if ($bid) {
+                    $pdo->prepare("UPDATE bids SET is_winner = true WHERE id = ?")
+                        ->execute([$bid['id']]);
+                }
+            }
+
+            $pdo->commit();
+
+            // Side effects (non-blocking, after commit)
+            if ($newStatus === 'completed' && !empty($round['leading_company_id'])) {
+                // Fetch category name separately for notification
+                $categoryName = 'Waste';
+                if (!empty($round['waste_category_id'])) {
+                    $cat = $this->db->fetch("SELECT name FROM waste_categories WHERE id = ?", [$round['waste_category_id']]);
+                    $categoryName = $cat['name'] ?? 'Waste';
+                }
+
+                $this->triggerPaymentAndNotify(
+                    $id,
+                    (int) $round['leading_company_id'],
+                    (float) $round['current_highest_bid'],
+                    $round['lot_id'] ?? $id,
+                    $categoryName
+                );
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction())
+                $pdo->rollBack();
+            throw $e;
+        }
     }
+
+    /**
+     * Keep as utility for background sync, but ideally use expireRoundById for precision.
+     */
+    public function expireEndedRounds(): array
+    {
+        $pdo = $this->db->pdo();
+
+        // 1. Fetch rounds that are expiring with winners (need precise processing)
+        $winners = $this->db->fetchAll(
+            "SELECT id FROM {$this->table} 
+             WHERE status = 'active' 
+               AND end_time <= NOW() 
+               AND leading_company_id IS NOT NULL"
+        );
+
+        $processedCount = 0;
+        foreach ($winners as $w) {
+            if ($this->expireRoundById($w['id'])) {
+                $processedCount++;
+            }
+        }
+
+        // 2. Expired rounds with NO bids → cancelled (Stay bulk as no side effects)
+        $stmt2 = $pdo->prepare(
+            "UPDATE {$this->table}
+             SET status = 'cancelled', updated_at = NOW(), notes = 'No bids received'
+             WHERE status = 'active'
+               AND end_time <= NOW()
+               AND leading_company_id IS NULL"
+        );
+        $stmt2->execute();
+        $cancelled = $stmt2->rowCount();
+
+        return ['completed' => $processedCount, 'cancelled' => (int) $cancelled];
+    }
+
     /**
      * Get all unique company IDs that have placed bids on this round.
      */
@@ -894,5 +1075,36 @@ class BiddingRound extends BaseModel
                 'name' => $row['waste_category'] . ' - ' . $row['quantity'] . ' ' . $row['unit'],
             ];
         }, $rows);
+    }
+    private function triggerPaymentAndNotify(string $roundId, int $companyId, float $amount, string $lotId, string $wasteCategory): void
+    {
+        if ($amount <= 0)
+            return;
+
+        try {
+            // 1. Generate Invoice (Payment record)
+            $paymentService = new \Services\Payment\PaymentService();
+            $paymentService->createManualPayment([
+                'type' => 'payment',
+                'recipientId' => $companyId,
+                'amount' => $amount,
+                'status' => 'pending',
+                'notes' => "Invoice for Winning Bid on Lot $lotId",
+                'biddingRoundId' => $roundId,
+                'txnId' => "INV-$lotId-" . time()
+            ]);
+
+            // 2. Notify Winning Company
+            $notification = new \Models\Notification();
+            $notification->create([
+                'type' => 'bid_won',
+                'title' => 'Bid Won!',
+                'message' => "Congratulations! You have won the bid for $wasteCategory (Lot $lotId). Please check your invoices.",
+                'recipients' => ['company:' . $companyId],
+                'status' => 'pending'
+            ]);
+        } catch (\Throwable $e) {
+            // Fail silently to ensure the core round expiry isn't blocked by external services/notifications
+        }
     }
 }

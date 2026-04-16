@@ -305,11 +305,10 @@ class Bid extends BaseModel
         $status = 'Pending';
         if ($roundStatus === 'active') {
             $status = ((int) $leadingCompanyId === $companyId) ? 'Leading' : 'Lost';
-        } elseif ($roundStatus === 'completed') {
-            $status = $isWinner ? 'Won' : 'Lost';
-        }
-
-        if ($isWinner && $roundStatus !== 'completed') {
+        } elseif (in_array($roundStatus, ['completed', 'awarded'])) {
+            // Check explicit winner flag OR if they were the leader when it closed
+            $status = ($isWinner || (int) $leadingCompanyId === $companyId) ? 'Won' : 'Lost';
+        } elseif ($isWinner) {
             $status = 'Won';
         }
 

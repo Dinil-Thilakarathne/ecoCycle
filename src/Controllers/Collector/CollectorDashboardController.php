@@ -3,6 +3,7 @@
 namespace Controllers\Collector;
 
 use Controllers\DashboardController;
+use Core\Database;
 use Core\Http\Request;
 use EcoCycle\Core\Navigation\NavigationConfig;
 use Models\PickupRequest;
@@ -10,7 +11,7 @@ use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
 use Models\CollectorFeedback;
-use Models\CollectorRating;
+use Models\CollectorRating; 
 
 use Models\Notification;
 
@@ -38,6 +39,7 @@ class CollectorDashboardController extends DashboardController
     {
         $data = [
             'pageTitle' => 'Collector Dashboard',
+            'collectorProfile' => $this->getCollectorProfile(),
             'todayPickups' => $this->getTodayPickups(),
             'completedPickups' => $this->getCompletedPickupsToday(),
             'pendingPickups' => $this->getPendingPickups(),
@@ -86,6 +88,19 @@ class CollectorDashboardController extends DashboardController
      */
     public function analytics(): \Core\Http\Response
     {
+        $request = request();
+        $collectorId = (int) ($this->user['id'] ?? 0);
+
+        if ((string) $request->query('export', '0') === '1' && $collectorId > 0) {
+            $format = strtolower((string) $request->query('format', ''));
+            if ($format === 'waste') {
+                return $this->exportWasteCollectionReport($collectorId);
+            }
+            if ($format === 'salary') {
+                return $this->exportSalaryTransactionReport($collectorId);
+            }
+        }
+
         $data = [
             'pageTitle' => 'Collection Analytics',
             'collectionStats' => $this->getCollectionStats(),
@@ -158,22 +173,11 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $allPickups = $pickupRequest->listForCollector($collectorId);
-
-            // Count only today's pickups (assigned, in progress, or completed)
-            $today = date('Y-m-d');
-            $count = 0;
-            foreach ($allPickups as $pickup) {
-                $createdDate = isset($pickup['rating_date']) ? substr($pickup['rating_date'], 0, 10) : '';
-                $scheduledDate = isset($pickup['scheduled_at']) ? substr($pickup['scheduled_at'], 0, 10) : '';
-
-                if (
-                    ($createdDate === $today || $scheduledDate === $today) &&
-                    in_array($pickup['status'] ?? '', ['assigned', 'in_progress', 'completed'])
-                ) {
-                    $count++;
-                }
-            }
-            return $count;
+            return count(array_filter(
+                $allPickups,
+                fn(array $pickup) => $this->isPickupForToday($pickup)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
+            ));
         } catch (\Throwable $e) {
             return 0;
         }
@@ -189,17 +193,10 @@ class CollectorDashboardController extends DashboardController
         try {
             $pickupRequest = new PickupRequest();
             $completedPickups = $pickupRequest->listForCollector($collectorId, 'completed');
-
-            // Count only today's completed pickups
-            $today = date('Y-m-d');
-            $count = 0;
-            foreach ($completedPickups as $pickup) {
-                $updatedDate = isset($pickup['updated_at']) ? substr($pickup['updated_at'], 0, 10) : '';
-                if ($updatedDate === $today) {
-                    $count++;
-                }
-            }
-            return $count;
+            return count(array_filter(
+                $completedPickups,
+                fn(array $pickup) => $this->isPickupForToday($pickup)
+            ));
         } catch (\Throwable $e) {
             return 0;
         }
@@ -214,11 +211,13 @@ class CollectorDashboardController extends DashboardController
 
         try {
             $pickupRequest = new PickupRequest();
-            // Get assigned and in-progress pickups (not completed)
-            $assigned = $pickupRequest->listForCollector($collectorId, 'assigned');
-            $inProgress = $pickupRequest->listForCollector($collectorId, 'in_progress');
+            $allPickups = $pickupRequest->listForCollector($collectorId);
 
-            return array_merge($assigned, $inProgress);
+            return array_values(array_filter(
+                $allPickups,
+                fn(array $pickup): bool => $this->isPickupForToday($pickup)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
+            ));
         } catch (\Throwable $e) {
             return [];
         }
@@ -245,7 +244,10 @@ class CollectorDashboardController extends DashboardController
             $pickupRequest = new PickupRequest();
             $records = $pickupRequest->listForCollector($collectorId, $status, $timeSlot);
             if (!empty($records)) {
-                return $records;
+                return array_values(array_filter(
+                    $records,
+                    fn(array $pickup): bool => $this->isPickupForToday($pickup)
+                ));
             }
         } catch (\Throwable $e) {
             error_log('Collector tasks load failed: ' . $e->getMessage());
@@ -306,6 +308,18 @@ class CollectorDashboardController extends DashboardController
 
         return $status;
     }
+
+    private function isPickupForToday(array $pickup): bool
+    {
+        $today = date('Y-m-d');
+
+        $scheduledAt = (string) ($pickup['scheduledAt'] ?? $pickup['scheduled_at'] ?? '');
+        if ($scheduledAt === '') {
+            return false;
+        }
+
+        return substr($scheduledAt, 0, 10) === $today;
+    }
     private function getRouteHistory(): array
     {
         return [];
@@ -342,6 +356,425 @@ class CollectorDashboardController extends DashboardController
     {
         return [];
     }
+
+
+    private function exportWasteCollectionReport(int $collectorId): \Core\Http\Response
+    {
+        $db = new Database();
+        $rows = $db->fetchAll(
+            "SELECT
+                pr.customer_id,
+                COALESCE(c.name, 'Unknown Customer') AS customer_name,
+                COALESCE(pr.address, 'Not provided') AS address,
+                COALESCE(wc.name, 'General') AS material_name,
+                COALESCE(prw.weight, 0) AS material_weight,
+                pr.created_at
+             FROM pickup_requests pr
+             LEFT JOIN users c ON c.id = pr.customer_id
+             LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+             LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
+             WHERE pr.collector_id = ?
+               AND pr.status = 'completed'
+             ORDER BY pr.created_at DESC, pr.customer_id ASC, material_name ASC",
+            [$collectorId]
+        ) ?: [];
+
+        $tableRows = [];
+        foreach ($rows as $row) {
+            $tableRows[] = [
+                'customer_id' => (string) ($row['customer_id'] ?? '-'),
+                'customer_name' => (string) ($row['customer_name'] ?? 'Unknown Customer'),
+                'address' => (string) ($row['address'] ?? 'Not provided'),
+                'material_collected' => (string) ($row['material_name'] ?? 'General'),
+                'weight' => (float) ($row['material_weight'] ?? 0),
+            ];
+        }
+
+        $html = $this->generateWasteCollectionReportHtml($tableRows);
+
+        return $this->htmlReportResponse(
+            'waste_collection_details_' . date('Ymd_His') . '.html',
+            $html
+        );
+    }
+
+    private function generateWasteCollectionReportHtml(array $tableRows): string
+    {
+        $date = date('Y-m-d H:i:s');
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Waste Collection Report</h1><p>Generated on: {$date}</p>";
+
+        if (empty($tableRows)) {
+            $html .= '<p>No waste collection data available for this period.</p>';
+        } else {
+            $html .= '<h3>Collection Details</h3>';
+            $html .= '<table><thead><tr>'
+                . '<th>Customer ID</th>'
+                . '<th>Customer Name</th>'
+                . '<th>Address</th>'
+                . '<th>Material</th>'
+                . '<th>Weight (kg)</th>'
+                . '</tr></thead><tbody>';
+
+            foreach ($tableRows as $row) {
+                $customerId = htmlspecialchars((string) ($row['customer_id'] ?? '-'));
+                $customerName = htmlspecialchars((string) ($row['customer_name'] ?? 'Unknown Customer'));
+                $address = htmlspecialchars((string) ($row['address'] ?? 'Not provided'));
+                $material = htmlspecialchars((string) ($row['material_collected'] ?? 'General'));
+                $weight = number_format((float) ($row['weight'] ?? 0), 2);
+
+                $html .= "<tr>"
+                    . "<td>{$customerId}</td>"
+                    . "<td>{$customerName}</td>"
+                    . "<td>{$address}</td>"
+                    . "<td>{$material}</td>"
+                    . "<td>{$weight}</td>"
+                    . "</tr>";
+            }
+
+            $html .= '</tbody></table>';
+        }
+
+        $html .= '<p>This is an automatically generated report. Please ensure accuracy of data.</p></body></html>';
+
+        return $html;
+    }
+
+    private function exportSalaryTransactionReport(int $collectorId): \Core\Http\Response
+    {
+        $db = new Database();
+
+        $queryWithWeight = "SELECT
+                pr.id AS pickup_id,
+                COALESCE(pr.updated_at, pr.created_at) AS collected_at,
+                COALESCE(wc.name, 'General') AS material_name,
+                                COALESCE(prw.weight, 0) AS collected_weight,
+                                COALESCE(wc.price_per_unit, 0) AS unit_amount,
+                                COALESCE(prw.weight, 0) * COALESCE(wc.price_per_unit, 0) AS line_amount
+            FROM pickup_requests pr
+            INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+            INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
+            WHERE pr.collector_id = ?
+              AND pr.status = 'completed'
+            ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC, material_name ASC";
+
+                $rows = $db->fetchAll($queryWithWeight, [$collectorId]) ?: [];
+
+        $grouped = [];
+        $monthlyTotals = [];
+
+        foreach ($rows as $row) {
+            $collectedAt = (string) ($row['collected_at'] ?? '');
+            $timestamp = strtotime($collectedAt);
+            if (!$timestamp) {
+                continue;
+            }
+
+            $monthKey = date('Y-m', $timestamp);
+            $monthLabel = date('F Y', $timestamp);
+            $materialName = (string) ($row['material_name'] ?? 'General');
+            $materialKey = strtolower(trim($materialName));
+            $weight = (float) ($row['collected_weight'] ?? 0.0);
+            $unitAmount = (float) ($row['unit_amount'] ?? 0.0);
+            $lineAmount = (float) ($row['line_amount'] ?? ($weight * $unitAmount));
+            $pickupId = (string) ($row['pickup_id'] ?? '');
+
+            if (!isset($grouped[$monthKey])) {
+                $grouped[$monthKey] = [
+                    'label' => $monthLabel,
+                    'materials' => [],
+                    'total' => 0.0,
+                    'pickupIds' => [],
+                ];
+                $monthlyTotals[$monthKey] = 0.0;
+            }
+
+            if (!isset($grouped[$monthKey]['materials'][$materialKey])) {
+                $grouped[$monthKey]['materials'][$materialKey] = [
+                    'material' => $materialName,
+                    'weight' => 0.0,
+                    'unitAmount' => $unitAmount,
+                    'amount' => 0.0,
+                ];
+            }
+
+            $grouped[$monthKey]['materials'][$materialKey]['weight'] += $weight;
+            $grouped[$monthKey]['materials'][$materialKey]['amount'] += $lineAmount;
+            $grouped[$monthKey]['materials'][$materialKey]['unitAmount'] = $unitAmount;
+            $grouped[$monthKey]['total'] += $lineAmount;
+            $monthlyTotals[$monthKey] += $lineAmount;
+
+            if ($pickupId !== '') {
+                $grouped[$monthKey]['pickupIds'][$pickupId] = true;
+            }
+        }
+
+        foreach ($grouped as $monthKey => $monthData) {
+            $materials = array_values($monthData['materials']);
+            usort($materials, static function (array $a, array $b): int {
+                return strcasecmp((string) ($a['material'] ?? ''), (string) ($b['material'] ?? ''));
+            });
+
+            $grouped[$monthKey]['materials'] = $materials;
+            $grouped[$monthKey]['pickupCount'] = count($monthData['pickupIds']);
+            unset($grouped[$monthKey]['pickupIds']);
+        }
+
+        krsort($grouped);
+
+        $html = $this->generateSalaryTransactionReportHtml($grouped, $monthlyTotals);
+
+        return $this->htmlReportResponse(
+            'salary_transactions_' . date('Ymd_His') . '.html',
+            $html
+        );
+    }
+
+    private function generateSalaryTransactionReportHtml(array $grouped, array $monthlyTotals): string
+    {
+        $date = date('Y-m-d H:i:s');
+        $overallTotal = array_sum($monthlyTotals);
+
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Salary Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
+
+        if (empty($grouped)) {
+            $html .= '<div class="no-data"><p>No completed material collections found for this period.</p></div>';
+        } else {
+            foreach ($grouped as $month => $data) {
+                $monthLabel = htmlspecialchars($data['label']);
+                $monthTotal = number_format($data['total'], 2);
+                $pickupCount = (int) ($data['pickupCount'] ?? 0);
+
+                $html .= <<<HTML
+    <h3>{$monthLabel} ({$pickupCount} completed pickups)</h3>
+    <p><strong>Monthly Total:</strong> Rs. {$monthTotal}</p>
+
+    <table>
+            <thead>
+                <tr>
+                    <th>Material</th>
+                    <th>Total Weight</th>
+                    <th>Unit Amount (Rs)</th>
+                    <th>Monthly Amount (Rs)</th>
+                </tr>
+            </thead>
+            <tbody>
+HTML;
+
+                foreach (($data['materials'] ?? []) as $materialRow) {
+                    $material = htmlspecialchars((string) ($materialRow['material'] ?? 'General'));
+                    $weight = number_format((float) ($materialRow['weight'] ?? 0), 2);
+                    $unitAmount = number_format((float) ($materialRow['unitAmount'] ?? 0), 2);
+                    $amount = number_format((float) ($materialRow['amount'] ?? 0), 2);
+
+                    $html .= <<<HTML
+                <tr>
+                    <td><strong>{$material}</strong></td>
+                    <td>{$weight} kg</td>
+                    <td>{$unitAmount}</td>
+                    <td><strong>{$amount}</strong></td>
+                </tr>
+HTML;
+                }
+
+                $html .= <<<HTML
+                <tr class="monthly-total-row">
+                    <td colspan="3"><strong>Monthly Total</strong></td>
+                    <td><strong>{$monthTotal}</strong></td>
+                </tr>
+HTML;
+
+                $html .= <<<HTML
+            </tbody>
+        </table>
+    </div>
+
+HTML;
+            }
+        }
+
+        $html .= '<p>This is an automatically generated report based on completed pickup material records.</p></body></html>';
+
+        return $html;
+    }
+
+    private function formatAmount(float $amount): string
+    {
+        return number_format($amount, 2);
+    }
+
+    private function collectorReportStyle(): string
+    {
+        return '<style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                .monthly-total-row td { background-color: #ecfdf5; font-weight: 700; }
+            </style>';
+    }
+
+    private function htmlReportResponse(string $filename, string $html): \Core\Http\Response
+    {
+        return new \Core\Http\Response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    private function buildWasteReportLines(array $tableRows): array
+    {
+        $lines = [
+            'Waste Collection Report',
+            'Generated on: ' . date('Y-m-d H:i:s'),
+            str_repeat('=', 95),
+            str_pad('Customer ID', 12)
+                . str_pad('Customer Name', 24)
+                . str_pad('Address', 28)
+                . str_pad('Material', 19)
+                . 'Weight',
+            str_repeat('-', 95),
+        ];
+
+        if (empty($tableRows)) {
+            $lines[] = 'No waste collection data available.';
+            return $lines;
+        }
+
+        foreach ($tableRows as $row) {
+            $lines[] = str_pad(substr((string) ($row['customer_id'] ?? '-'), 0, 11), 12)
+                . str_pad(substr((string) ($row['customer_name'] ?? 'Unknown Customer'), 0, 23), 24)
+                . str_pad(substr((string) ($row['address'] ?? 'Not provided'), 0, 27), 28)
+                . str_pad(substr((string) ($row['material_collected'] ?? 'General'), 0, 18), 19)
+                . number_format((float) ($row['weight'] ?? 0), 2) . ' kg';
+        }
+
+        return $lines;
+    }
+
+    private function buildSalaryReportLines(array $grouped, array $monthlyTotals): array
+    {
+        $lines = [
+            'Salary Transaction Report',
+            'Generated on: ' . date('Y-m-d H:i:s'),
+            'Overall Total: Rs. ' . number_format((float) array_sum($monthlyTotals), 2),
+            str_repeat('=', 95),
+        ];
+
+        if (empty($grouped)) {
+            $lines[] = 'No salary transactions found.';
+            return $lines;
+        }
+
+        foreach ($grouped as $monthData) {
+            $monthLabel = (string) ($monthData['label'] ?? 'Unknown Month');
+            $monthTotal = number_format((float) ($monthData['total'] ?? 0), 2);
+            $count = count((array) ($monthData['transactions'] ?? []));
+
+            $lines[] = '';
+            $lines[] = sprintf('%s (%d transactions) - Total Rs. %s', $monthLabel, $count, $monthTotal);
+            $lines[] = str_pad('Txn ID', 24)
+                . str_pad('Date', 22)
+                . str_pad('Status', 14)
+                . str_pad('Amount', 14)
+                . 'Notes';
+            $lines[] = str_repeat('-', 95);
+
+            foreach (($monthData['transactions'] ?? []) as $txn) {
+                $lines[] = str_pad(substr((string) ($txn['id'] ?? '-'), 0, 23), 24)
+                    . str_pad(substr((string) ($txn['date'] ?? '-'), 0, 21), 22)
+                    . str_pad(substr((string) ($txn['status'] ?? 'pending'), 0, 13), 14)
+                    . str_pad(number_format((float) ($txn['amount'] ?? 0), 2), 14)
+                    . substr((string) ($txn['notes'] ?? ''), 0, 20);
+            }
+        }
+
+        return $lines;
+    }
+
+    private function pdfResponse(string $filename, array $lines): \Core\Http\Response
+    {
+        $pdfContent = $this->buildPlainPdf($lines);
+
+        return new \Core\Http\Response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    private function buildPlainPdf(array $lines): string
+    {
+        $maxLinesPerPage = 48;
+        $pages = array_chunk($lines, $maxLinesPerPage);
+        if (empty($pages)) {
+            $pages = [['Empty report']];
+        }
+
+        $objects = [];
+        $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+
+        $kids = [];
+        $fontObjectId = 3;
+        $objects[$fontObjectId] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+
+        $nextId = 4;
+        foreach ($pages as $pageLines) {
+            $pageObjId = $nextId++;
+            $contentObjId = $nextId++;
+
+            $stream = "BT\n/F1 10 Tf\n";
+            $y = 800;
+            foreach ($pageLines as $line) {
+                $safe = str_replace(['\\\\', '(', ')'], ['\\\\\\\\', '\\(', '\\)'], (string) $line);
+                $stream .= sprintf("1 0 0 1 40 %d Tm (%s) Tj\n", $y, $safe);
+                $y -= 16;
+            }
+            $stream .= "ET\n";
+
+            $objects[$contentObjId] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream";
+            $objects[$pageObjId] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents " . $contentObjId . " 0 R >>";
+            $kids[] = $pageObjId . ' 0 R';
+        }
+
+        $objects[2] = '<< /Type /Pages /Count ' . count($kids) . ' /Kids [' . implode(' ', $kids) . '] >>';
+
+        ksort($objects);
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [0 => 0];
+
+        foreach ($objects as $id => $objectContent) {
+            $offsets[$id] = strlen($pdf);
+            $pdf .= $id . " 0 obj\n" . $objectContent . "\nendobj\n";
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= "xref\n";
+        $pdf .= '0 ' . (max(array_keys($objects)) + 1) . "\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        for ($i = 1; $i <= max(array_keys($objects)); $i++) {
+            $offset = $offsets[$i] ?? 0;
+            $pdf .= sprintf('%010d 00000 n ', $offset) . "\n";
+        }
+
+        $pdf .= "trailer\n";
+        $pdf .= '<< /Size ' . (max(array_keys($objects)) + 1) . ' /Root 1 0 R >>' . "\n";
+        $pdf .= "startxref\n" . $xrefOffset . "\n%%EOF";
+
+        return $pdf;
+    }
+
     private function getCollectorProfile(): array
     {
         $record = $this->loadCollectorRecord();
@@ -815,19 +1248,38 @@ class CollectorDashboardController extends DashboardController
         try {
             $data = $request->json();
 
-            $collectorId = (int) ($data['collector_id'] ?? 0);
             $customerId = (int) ($data['customer_id'] ?? 0);
+            $pickupRequestId = trim((string) ($data['pickup_request_id'] ?? $data['pickupRequestId'] ?? ''));
             $rating = (int) ($data['rating'] ?? 0);
             $description = trim($data['description'] ?? '');
 
-            if ($collectorId <= 0 || $rating < 1 || $rating > 5 || $description === '') {
+            if ($customerId <= 0 || $pickupRequestId === '' || $rating < 1 || $rating > 5 || $description === '') {
                 throw new \Exception('Invalid input');
+            }
+
+            $pickupModel = new PickupRequest();
+            $pickup = $pickupModel->find($pickupRequestId);
+
+            if (!$pickup) {
+                throw new \Exception('Pickup request not found');
+            }
+
+            $pickupCustomerId = (int) ($pickup['customerId'] ?? $pickup['customer_id'] ?? 0);
+            $collectorId = (int) ($pickup['collectorId'] ?? $pickup['collector_id'] ?? 0);
+
+            if ($pickupCustomerId !== $customerId) {
+                throw new \Exception('Pickup request does not match customer_id');
+            }
+
+            if ($collectorId <= 0) {
+                throw new \Exception('collector_id is missing in pickup request');
             }
 
             $model = new CollectorFeedback();
             $model->create([
                 'collector_id' => $collectorId,
                 'customer_id' => $customerId ?: null,
+                'pickup_request_id' => $pickupRequestId,
                 'rating' => $rating,
                 'description' => $description
             ]);
@@ -867,6 +1319,7 @@ class CollectorDashboardController extends DashboardController
                 return [
                     'customer_id' => $r['customer_id'] ?? 'N/A',
                     'customer_name' => $r['customer_name'] ?? 'Unknown',
+                    'location' => $r['location'] ?? 'Not provided',
                     'category' => $r['category'] ?? 'General',
                     'weight' => (float) ($r['weight'] ?? 0),
                     'amount' => (float) ($r['amount'] ?? 0),
@@ -901,27 +1354,27 @@ class CollectorDashboardController extends DashboardController
 
 
 
-    public function notifications(): \Core\Http\Response
-    {
-        $userId = (int) ($this->user['id'] ?? 0);
-        $role = $this->user['role'] ?? 'collector'; // adjust if needed
+    // public function notifications(): \Core\Http\Response
+    // {
+    //     $userId = (int) ($this->user['id'] ?? 0);
+    //     $role = $this->user['role'] ?? 'collector'; // adjust if needed
 
-        $notificationModel = new Notification();
+    //     $notificationModel = new Notification();
 
-        // Fetch latest 100 notifications for this user
-        $notifications = $notificationModel->forUser(
-            $userId,
-            $role,
-            date('Y-m-d 00:00:00'),
-            100
-        );
+    //     // Fetch latest 100 notifications for this user
+    //     $notifications = $notificationModel->forUser(
+    //         $userId,
+    //         $role,
+    //         date('Y-m-d 00:00:00'),
+    //         100
+    //     );
 
-        $data = [
-            'pageTitle' => 'Notifications',
-            'notifications' => $notifications, // Pass to the view
-            'authUser' => $this->user
-        ];
+    //     $data = [
+    //         'pageTitle' => 'Notifications',
+    //         'notifications' => $notifications, // Pass to the view
+    //         'authUser' => $this->user
+    //     ];
 
-        return $this->renderDashboard('notification', $data);
-    }
+    //     return $this->renderDashboard('notification', $data);
+    // }
 }

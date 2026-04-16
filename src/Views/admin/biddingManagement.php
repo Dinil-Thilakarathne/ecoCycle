@@ -15,9 +15,17 @@ $minimumBids = $minimumBids ?? [];
 <?php
 
 // Helper functions
-function getStatusBadge($status)
+function getStatusBadge($status, $endTime = null)
 {
     $status = strtolower((string) $status);
+
+    // Safety-net: if status is still 'active' but end_time already passed, show Completed
+    if ($status === 'active' && $endTime) {
+        $ts = is_numeric($endTime) ? (int) $endTime : strtotime((string) $endTime);
+        if ($ts && $ts <= time()) {
+            $status = 'completed';
+        }
+    }
 
     switch ($status) {
         case 'active':
@@ -26,6 +34,10 @@ function getStatusBadge($status)
             return '<div class="tag assigned">Completed</div>';
         case 'awarded':
             return '<div class="tag assigned">Awarded</div>';
+
+        case 'collected':
+        case 'handed_over':
+            return '<div class="tag assigned" style="background-color: var(--success-100); color: var(--success-700);">Collected</div>';
         case 'cancelled':
             return '<div class="tag warning">Cancelled</div>';
         default:
@@ -107,7 +119,7 @@ $bidStatCards = [
         'value' => 'Rs ' . number_format($totalBidValue, 2),
         'icon' => 'fa-solid fa-dollar-sign',
         'change' => '',
-        'period' => 'Aggregate of highest bids',
+        'period' => 'Aggregate of current highest bids',
         'negative' => false,
     ],
     [
@@ -125,12 +137,6 @@ $bidStatCards = [
     <div class="page-header__content">
         <h2 class="page-header__title">Bidding Management</h2>
         <p class="page-header__description">Manage waste auctions, monitor active bids, and review history</p>
-    </div>
-    <div class="page-header__actions">
-        <button type="button" onclick="createNewLot()" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i>
-            <span>New Auction Lot</span>
-        </button>
     </div>
 </div>
 
@@ -177,7 +183,8 @@ $bidStatCards = [
                 <tbody>
                     <?php if (!empty($activeRounds)): ?>
                         <?php foreach ($activeRounds as $round): ?>
-                            <tr data-id="<?= htmlspecialchars($round['id']) ?>">
+                            <tr data-id="<?= htmlspecialchars($round['id']) ?>"
+                                data-end-time="<?= htmlspecialchars($round['endTime']) ?>">
                                 <td class="font-medium"><?= htmlspecialchars($round['lotId']) ?></td>
                                 <td><?= htmlspecialchars($round['category']) ?></td>
                                 <td><?= htmlspecialchars($round['quantity'] . ' ' . $round['unit']) ?></td>
@@ -202,7 +209,7 @@ $bidStatCards = [
                                         <?= htmlspecialchars(formatTimeRemaining($round['endTime'])) ?>
                                     </div>
                                 </td>
-                                <td><?= getStatusBadge($round['status']) ?></td>
+                                <td><?= getStatusBadge($round['status'], $round['endTime'] ?? null) ?></td>
                                 <td>
                                     <div class="action-buttons">
                                         <button class="icon-button"
@@ -302,11 +309,14 @@ $bidStatCards = [
                                 </td>
                                 <td><?= getStatusBadge($round['status']) ?></td>
                                 <td>
-                                    <button class="icon-button"
-                                        onclick="viewBiddingDetails(this, '<?= htmlspecialchars($round['id']) ?>')"
-                                        title="View Details">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
+                                    <div class="action-buttons">
+                                        <button class="icon-button"
+                                            onclick="viewBiddingDetails(this, '<?= htmlspecialchars($round['id']) ?>')"
+                                            title="View Details">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -358,7 +368,75 @@ $bidStatCards = [
         if (typeof window.loadBidHistory === 'function') {
             window.loadBidHistory();
         }
+
+        // Live timer ticker: Update the 'Time Remaining' column every 10 seconds
+        function tickTimers() {
+            document.querySelectorAll('table.data-table tbody tr[data-id][data-end-time]').forEach(function (row) {
+                var endTime = row.getAttribute('data-end-time');
+                if (!endTime) return;
+
+                var cells = row.querySelectorAll('td');
+                if (cells.length < 8) return;
+                var timeCell = cells[6];
+
+                if (typeof window.formatTimeRemainingText === 'function') {
+                    var newText = window.formatTimeRemainingText(endTime);
+                    // Update content if it's different
+                    var currentText = timeCell.textContent.trim();
+                    if (newText !== currentText && !currentText.includes('Ended')) {
+                        timeCell.innerHTML = `<div class="cell-with-icon"><i class="fa-solid fa-clock"></i> ${newText}</div>`;
+                    }
+                }
+            });
+        }
+
+        // Live status fix: scan active rows frequently and force DB sync for ended rounds
+        function refreshExpiredBadges() {
+            document.querySelectorAll('table.data-table tbody tr[data-id]').forEach(async function (row) {
+                var cells = row.querySelectorAll('td');
+                if (cells.length < 8) return;
+                var timeCell = cells[6]; // "Time Remaining"
+                var statusCell = cells[7]; // "Status"
+                if (!timeCell || !statusCell) return;
+
+                var id = row.getAttribute('data-id');
+                var timeText = timeCell.textContent.trim().toLowerCase();
+                var badgeText = statusCell.textContent.trim().toLowerCase();
+
+                // If UI says 'ended' but status is still 'active', force a DB update for this ID
+                if (timeText.indexOf('ended') !== -1 && badgeText === 'active') {
+                    statusCell.innerHTML = '<div class="tag assigned"><i class="fa fa-spinner fa-spin"></i> Syncing...</div>';
+
+                    try {
+                        const res = await fetch(`/api/bidding/${id}/expire`, { method: 'POST' });
+                        const body = await res.json();
+
+                        if (body.success) {
+                            statusCell.innerHTML = '<div class="tag assigned">Completed</div>';
+                            console.info(`[ecoCycle] Lot ${id} successfully expired.`);
+                        } else {
+                            statusCell.innerHTML = '<div class="tag online">Active</div>';
+                        }
+                    } catch (e) {
+                        statusCell.innerHTML = '<div class="tag online">Active</div>';
+                    }
+                }
+            });
+        }
+
+        // Run immediately on load
+        tickTimers();
+        refreshExpiredBadges();
+
+        // Ticker for time text (every 10 seconds for UX)
+        setInterval(tickTimers, 10000);
+
+        // Sweeper for DB status (every 30 seconds)
+        setInterval(refreshExpiredBadges, 30000);
+
     });
+
+
 </script>
 
 <!-- Note: Bidding Details Modal is now handled generically by ModalManager in bidding.js -->

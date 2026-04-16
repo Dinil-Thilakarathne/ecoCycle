@@ -152,10 +152,18 @@ $router->post('/api/bidding/approve', 'Controllers\Api\BiddingController@approve
     'Middleware\Roles\AdminOnly',
 ]);
 
-$router->post('/api/bidding/reject', 'Controllers\Api\BiddingController@reject', [
+$router->post('/api/bidding/reject', 'Controllers\\Api\\BiddingController@reject', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\AdminOnly',
+]);
+
+// Explicit ID-based expiry — stops relying on DB NOW() comparison
+$router->post('/api/bidding/{id}/expire', 'Controllers\Api\BiddingController@expire', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+
 
 // ---------------------------------------------
 // Waste Inventory Management API Routes
@@ -227,6 +235,11 @@ $router->delete('/api/customer/pickup-requests/{id}', 'Controllers\Api\Customer\
 
 // Customer dashboard API
 $router->get('/api/customer/dashboard/stats', 'Controllers\Api\Customer\DashboardController@stats', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CustomerOnly',
+]);
+
+$router->get('/api/customer/dashboard/material-prices', 'Controllers\Api\Customer\DashboardController@materialPrices', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CustomerOnly',
 ]);
@@ -307,15 +320,38 @@ $router->get('/api/customer/payments', 'Controllers\Api\PaymentController@custom
     'Middleware\Roles\CustomerOnly',
 ]);
 
-$router->get('/api/company/invoices', 'Controllers\Api\PaymentController@companyInvoices', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\CompanyOnly',
+$router->get('/api/company/invoices', 'Controllers\\Api\\PaymentController@companyInvoices', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\CompanyOnly',
+]);
+
+$router->post('/api/company/invoices/{id}/pay', 'Controllers\\Api\\PaymentController@submitPayment', [
+    'Middleware\\AuthMiddleware',
+    'Middleware\\Roles\\CompanyOnly',
 ]);
 
 $router->get('/api/collector/payments', 'Controllers\Api\PaymentController@collectorPayments', [
     'Middleware\AuthMiddleware',
     'Middleware\Roles\CollectorOnly',
 ]);
+
+// ---------------------------------------------
+// PayHere Payment Gateway Routes
+// ---------------------------------------------
+
+// Company initiates a PayHere checkout for a pending invoice
+// Returns signed form payload; frontend auto-submits it to PayHere
+$router->post('/api/payhere/checkout/{id}', 'Controllers\Api\PayHereController@initiateCheckout', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\CompanyOnly',
+]);
+
+// PayHere server-to-server payment notification (webhook)
+// NOTE: NO auth middleware — this is called directly by PayHere servers
+// Verifies md5sig checksum before processing any data
+$router->post('/api/payhere/notify', 'Controllers\Api\PayHereController@notify');
+
+
 
 // Root redirect to navigation page for development
 $router->get('/', 'Controllers\NavigationController@index');
@@ -405,7 +441,7 @@ $router->post('/collector/profile', 'Controllers\Collector\ProfileController@upd
 ]);
 
 
-$router->post('/company/profile/photo', 'Controllers\Company\ProfilePhotoController@update', [
+$router->post('/company/profile/photo', 'Controllers\Company\ProfileController@update', [
     'Middleware\AuthMiddleware',
     'Middleware\CsrfMiddleware',
     'Middleware\Roles\CompanyOnly'
@@ -447,9 +483,53 @@ $router->get('/test', function () {
             'routes_list' => '/routes/list',
             'routes_validate' => '/routes/validate',
             'diagnostic' => '/diagnostic',
-            'api_debug_routes' => '/api/debug/routes'
+            'api_debug_routes' => '/debug/api-routes',
+            'api_debug_json' => '/api/debug/api-routes'
         ]
     ]);
+});
+
+// Premium UI route for API Explorer
+$router->get('/debug/api-routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+        $allRoutes = $router->getRoutes();
+    } else {
+        $allRoutes = [];
+    }
+
+    $apiRoutes = [];
+    foreach ($allRoutes as $route) {
+        if (strpos($route['path'], '/api') === 0) {
+            $requiresAuth = in_array('Middleware\AuthMiddleware', $route['middleware'] ?? []);
+            $roles = [];
+            foreach ($route['middleware'] ?? [] as $mw) {
+                if (strpos($mw, 'Middleware\Roles\\') === 0) {
+                    $roles[] = str_replace('Middleware\Roles\\', '', $mw);
+                }
+            }
+
+            $description = 'API endpoint for ' . $route['path'];
+            if (is_string($route['action'])) {
+                $parts = explode('@', $route['action']);
+                if (count($parts) === 2) {
+                    $controllerName = basename(str_replace('\\', '/', $parts[0]));
+                    $methodName = $parts[1];
+                    $description = "{$methodName} operation in {$controllerName}";
+                }
+            }
+
+            $apiRoutes[] = [
+                'method' => $route['method'],
+                'path' => $route['path'],
+                'requires_auth' => $requiresAuth,
+                'roles_allowed' => empty($roles) && $requiresAuth ? ['All Authenticated Users'] : (empty($roles) ? ['Public'] : $roles),
+                'description' => $description,
+                'action' => is_string($route['action']) ? $route['action'] : 'Closure'
+            ];
+        }
+    }
+
+    return view('debug/api_routes', ['routes' => $apiRoutes]);
 });
 
 // Toast Test Page
@@ -464,6 +544,54 @@ $router->get('/api/debug/routes', function () use ($router) {
     }
 
     return view('debug/routes', ['routes' => $routes]);
+});
+
+// Debug route to list all API routes with details as JSON
+$router->get('/api/debug/api-routes', function () use ($router) {
+    if (class_exists('Core\Router') && method_exists($router, 'getRoutes')) {
+        $allRoutes = $router->getRoutes();
+    } else {
+        $allRoutes = [];
+    }
+
+    $apiRoutes = [];
+    foreach ($allRoutes as $route) {
+        // Only include API routes
+        if (strpos($route['path'], '/api') === 0) {
+            $requiresAuth = in_array('Middleware\AuthMiddleware', $route['middleware'] ?? []);
+            $roles = [];
+            foreach ($route['middleware'] ?? [] as $mw) {
+                if (strpos($mw, 'Middleware\Roles\\') === 0) {
+                    $roles[] = str_replace('Middleware\Roles\\', '', $mw);
+                }
+            }
+
+            $description = 'API endpoint for ' . $route['path'];
+            if (is_string($route['action'])) {
+                $parts = explode('@', $route['action']);
+                if (count($parts) === 2) {
+                    $controllerName = basename(str_replace('\\', '/', $parts[0]));
+                    $methodName = $parts[1];
+                    $description = "{$methodName} operation in {$controllerName}";
+                }
+            }
+
+            $apiRoutes[] = [
+                'method' => $route['method'],
+                'path' => $route['path'],
+                'requires_auth' => $requiresAuth,
+                'roles_allowed' => empty($roles) && $requiresAuth ? ['All Authenticated Users'] : (empty($roles) ? ['Public'] : $roles),
+                'description' => $description,
+                'action' => is_string($route['action']) ? $route['action'] : 'Closure'
+            ];
+        }
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'count' => count($apiRoutes),
+        'routes' => $apiRoutes
+    ]);
 });
 
 // Route diagnostic page
@@ -758,6 +886,22 @@ $router->post('/api/waste-categories', 'Controllers\Api\WasteManagementControlle
     'Middleware\AuthMiddleware',
     'Middleware\Roles\AdminOnly',
 ]);
+
+$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
+$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
+    'Middleware\AuthMiddleware',
+    'Middleware\Roles\AdminOnly',
+]);
+
 // notification routes 
 
 // example
@@ -843,21 +987,6 @@ $router->get('/api/notifications/unread-count', 'Controllers\Api\NotificationCon
 
 $router->delete('/api/notifications/{id}', 'Controllers\Api\NotificationController@destroy', [
     'Middleware\AuthMiddleware',
-]);
-
-$router->put('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@update', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
-]);
-
-$router->delete('/api/waste-categories/{id}', 'Controllers\Api\WasteManagementController@destroy', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
-]);
-
-$router->get('/api/waste-categories/pricing', 'Controllers\Api\WasteManagementController@pricing', [
-    'Middleware\AuthMiddleware',
-    'Middleware\Roles\AdminOnly',
 ]);
 
 

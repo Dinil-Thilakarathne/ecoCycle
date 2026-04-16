@@ -75,6 +75,14 @@ class Database
         ];
         try {
             $this->pdo = new \PDO($dsn, $this->user, $this->pass, $options);
+
+            // Set timezone for the current session to match application config
+            $tz = Config::get('app.timezone', 'UTC');
+            if ($this->driver === 'pgsql') {
+                $this->pdo->exec("SET timezone TO '$tz'");
+            } elseif ($this->driver === 'mysql') {
+                $this->pdo->exec("SET time_zone = '$tz'");
+            }
         } catch (\PDOException $e) {
             throw new \PDOException('DB connection failed: ' . $e->getMessage(), (int) $e->getCode());
         }
