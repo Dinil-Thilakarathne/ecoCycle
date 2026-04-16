@@ -199,12 +199,12 @@ class NotificationController extends BaseController
             return $this->json(['success' => false, 'message' => 'Invalid notification ID'], 400);
         }
 
-        $allowed = $this->model->canUserAccessNotification($id, (int) $user['id'], (string) ($user['role'] ?? ''));
-        if (!$allowed) {
+        $notification = $this->model->findById($id);
+        if (!$notification) {
             return $this->json(['success' => false, 'message' => 'Notification not found'], 404);
         }
 
-        $deleted = $this->model->deleteById($id);
+        $deleted = $this->model->delete($id);
         if (!$deleted) {
             return $this->json(['success' => false, 'message' => 'Failed to delete notification'], 500);
         }

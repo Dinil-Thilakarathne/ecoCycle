@@ -26,66 +26,16 @@ $unreadCount = count(array_filter($normalized, fn($x) => $x['status'] === 'unrea
 $readCount = $totalCount - $unreadCount;
 ?>
 
-<style>
-    /* Pill Style Navigation */
-    .tab-nav-wrapper {
-        background-color: #f1f3f5;
-        padding: 5px;
-        border-radius: 12px;
-        display: inline-flex;
-        width: max-content;
-        max-width: 100%;
-        overflow-x: auto;
-        gap: 4px;
-        margin-bottom: 1.5rem;
-        white-space: nowrap;
-    }
-
-    .tab-trigger {
-        padding: 8px 18px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-weight: 500;
-        color: #666;
-        border-radius: 9px;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-
-    .tab-trigger.active {
-        background-color: #ffffff;
-        color: #000000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .notification-actions-header,
-    .notification-actions-cell {
-        text-align: center;
-        vertical-align: middle;
-    }
-
-    .notification-action-wrap {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-    }
-
-    .unread-dot { height: 8px; width: 8px; background-color: #ff4d4f; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .notification-row.unread { background-color: #f8fbff; }
-</style>
-
 <main class="content">
     <header class="page-header">
         <div class="page-header__content">
-            <h2 class="page-header__title"><i class="fa-solid fa-bell"></i> Notifications</h2>
+            <h2 class="page-header__title"></i> Notifications</h2>
             <p class="page-header__description">Stay on top of your platform updates</p>
         </div>
     </header>
 
     <div class="dashboard-page">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+        <div class="notification-tabs-row">
             <div class="tab-nav-wrapper">
                 <button onclick="filterTable('all', this)" class="tab-trigger active">
                     Total (<span id="count-all"><?= $totalCount ?></span>)
@@ -98,18 +48,18 @@ $readCount = $totalCount - $unreadCount;
                 </button>
             </div>
 </div>
-            <!-- <div class="action-buttons">
+            <div class="action-buttons">
                 <button onclick="markAllAsRead()" class="btn btn-primary">Mark All as Read</button>
-            </div> -->
+            </div>
 
-        <div class="table-container" style="overflow-x:auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <table class="notifications-table data-table" style="width:100%;">
+        <div class="table-container notification-table-shell">
+            <table class="notifications-table data-table notification-table-full">
                 <thead>
                     <tr>
-                        <th style="width:45%;">Notification</th>
-                        <th style="width:15%;">Type</th>
-                        <th style="width:20%;">Date</th>
-                        <th class="notification-actions-header" style="width:20%;">Actions</th>
+                        <th class="notification-th-title">Notification</th>
+                        <th class="notification-th-center">Type</th>
+                        <th class="notification-th-center">Date</th>
+                        <th class="notification-th-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="notifications-tbody">
@@ -122,7 +72,7 @@ $readCount = $totalCount - $unreadCount;
 <div id="notification-detail-modal" class="user-modal" role="dialog" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" onclick="closeNotificationModal()">&times;</button>
-        <h2 style="margin-bottom: 10px; color: var(--primary-color);">Notification Details</h2>
+        <h2 class="notification-modal-title">Notification Details</h2>
         <div class="user-modal__grid">
             <div><strong>Title</strong></div><div class="nd-title"></div>
             <div><strong>Message</strong></div><div class="nd-message"></div>
@@ -130,8 +80,18 @@ $readCount = $totalCount - $unreadCount;
             <div><strong>Date</strong></div><div class="nd-date"></div>
             <div><strong>Status</strong></div><div class="nd-status"></div>
         </div>
-        <div style="margin-top: 2rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
-            <button class="btn btn-primary" id="markNotificationReadBtn" onclick="markNotificationAsRead()">Mark as Read</button>
+    </div>
+</div>
+
+<div id="notification-delete-confirm-modal" class="user-modal" role="dialog" aria-hidden="true">
+    <div class="user-modal__dialog notification-delete-dialog">
+        <h2 class="notification-modal-title">Delete Notification</h2>
+        <p class="notification-delete-text">    
+            Are you sure you want to delete this notification?
+        </p>
+        <div class="notification-delete-actions">
+            <button type="button" class="btn btn-outline" onclick="closeDeleteConfirmModal(false)">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="closeDeleteConfirmModal(true)">OK</button>
         </div>
     </div>
 </div>
@@ -139,19 +99,47 @@ $readCount = $totalCount - $unreadCount;
 <script>
 let notificationsState = <?= json_encode($normalized) ?>;
 let activeFilter = 'all';
+let deleteConfirmResolver = null;
 
 (function () {
     const endpoint = '/api/collector/notifications';
     const tbody = document.getElementById('notifications-tbody');
 
-    function timeAgo(timestamp) {
-        if (!timestamp) return '';
-        const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
-        if (seconds < 60) return 'Just now';
-        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
-        if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
-        return new Date(timestamp).toLocaleDateString();
+    function normalizeNotification(raw) {
+        const timestamp = raw?.timestamp ?? raw?.sent_at ?? raw?.created_at ?? null;
+        const explicitReadFlag = raw?.is_read ?? raw?.isRead;
+        const statusRaw = String(raw?.status ?? '').toLowerCase();
+        const isRead = explicitReadFlag === true || explicitReadFlag === 1 || explicitReadFlag === '1' || explicitReadFlag === 'true' || statusRaw === 'read';
+
+        return {
+            id: String(raw?.id ?? ''),
+            title: String(raw?.title ?? ''),
+            message: String(raw?.message ?? ''),
+            timestamp,
+            status: isRead ? 'read' : 'unread',
+            type: String(raw?.type ?? 'general')
+        };
     }
+
+    function normalizeNotifications(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(normalizeNotification);
+    }
+
+    function isUnreadNotification(notification) {
+        return String(notification?.status || '').toLowerCase() !== 'read';
+    }
+
+function timeAgo(timestamp) {
+  const date = new Date(timestamp);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month} ${day}, ${year} ${hours}:${minutes}`;
+}
 
     // Tab Switching Logic
     window.filterTable = function(filter, btn) {
@@ -163,20 +151,20 @@ let activeFilter = 'all';
 
     function renderNotifications(data) {
         if (!tbody) return;
-        notificationsState = data;
+        notificationsState = normalizeNotifications(data);
         tbody.innerHTML = '';
 
         // Filter based on active pill
-        const filtered = data.filter(n => {
-            if (activeFilter === 'unread') return n.status === 'unread';
-            if (activeFilter === 'read') return n.status === 'read';
+        const filtered = notificationsState.filter(n => {
+            if (activeFilter === 'unread') return isUnreadNotification(n);
+            if (activeFilter === 'read') return !isUnreadNotification(n);
             return true;
         });
 
         // Calculate counts
-        const totalCount = data.length;
-        const unreadCount = data.filter(n => n.status === 'unread').length;
-        const readCount = data.filter(n => n.status === 'read').length;
+        const totalCount = notificationsState.length;
+        const unreadCount = notificationsState.filter(isUnreadNotification).length;
+        const readCount = totalCount - unreadCount;
         
         console.log('Rendering notifications - Total:', totalCount, 'Unread:', unreadCount, 'Read:', readCount, 'Active filter:', activeFilter);
 
@@ -186,28 +174,28 @@ let activeFilter = 'all';
         document.getElementById('count-read').textContent = readCount;
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem;">No ${activeFilter} notifications found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="notification-empty">No ${activeFilter} notifications found.</td></tr>`;
             return;
         }
 
         filtered.forEach(notif => {
-            const isUnread = notif.status !== 'read';
+            const isUnread = isUnreadNotification(notif);
             const tr = document.createElement('tr');
             tr.className = 'notification-row' + (isUnread ? ' unread' : '');
+            
             tr.innerHTML = `
-                <td>
+                <td class="notification-left-cell">
                     <div class="notification-details">
-                        ${isUnread ? '<span class="unread-dot"></span>' : ''}
-                        <div class="notification-title" style="font-size: 14px;">${notif.title}</div>
-                        <div style="font-size: 12px; color: #666;">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
+                        <div class="notification-title notification-title-sm"><b>${notif.title}</b></div>
+                        <div class="notification-message-preview">${notif.message.substring(0, 60)}${notif.message.length > 60 ? '...' : ''}</div>
                     </div>
                 </td>
-                <td><span class="type-badge ${notif.type}">${notif.type}</span></td>
-                <td>${timeAgo(notif.timestamp)}</td>
-                <td class="actions-cell notification-actions-cell">
-                    <div class="notification-action-wrap">
-                        // ${isUnread ? `<button class="icon-button" onclick="markAsReadDirect('${notif.id}')" title="Mark Read"><i class="fa-solid fa-circle-check"></i></button>` : ''}
+                <td class="notification-center-cell"><span class="type-badge ${notif.type}">${notif.type}</span></td>
+                <td class="notification-center-cell">${timeAgo(notif.timestamp)}</td>
+                <td class="actions-cell notification-center-cell">
+                    <div class="notification-action-row">
                         <button class="icon-button" onclick="viewNotification('${notif.id}')" title="View"><i class="fa-solid fa-eye"></i></button>
+                        <button class="icon-button" onclick="deleteNotification('${notif.id}')" title="Delete" aria-label="Delete notification"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -216,43 +204,124 @@ let activeFilter = 'all';
     }
 
     window.markAllAsRead = async function() {
+        const unreadNotifications = notificationsState.filter(isUnreadNotification);
+
+        if (unreadNotifications.length === 0) {
+            return;
+        }
+
         try {
-            const res = await fetch('/api/notifications/read-all', { 
-                method: 'PUT',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const result = await res.json();
-            if (result.success) {
-                fetchNotifications(); 
+            const requests = unreadNotifications.map((notif) =>
+                fetch(`/api/collector/notifications/${encodeURIComponent(notif.id)}/read`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+            );
+
+            const responses = await Promise.allSettled(requests);
+            const successCount = responses.filter(
+                (result) => result.status === 'fulfilled' && result.value.ok
+            ).length;
+
+            if (successCount > 0) {
+                // Optimistic local update so unread notifications immediately move to read.
+                notificationsState = notificationsState.map((notif) => ({
+                    ...notif,
+                    status: isUnreadNotification(notif) ? 'read' : notif.status
+                }));
+                renderNotifications(notificationsState);
             }
-        } catch (e) { console.error("Update failed", e); }
+
+            setTimeout(() => fetchNotifications(), 300);
+        } catch (e) {
+            console.error('Mark all as read failed', e);
+            alert('Failed to mark all notifications as read. Please try again.');
+        }
     };
 
-    window.viewNotification = function(id) {
+    window.viewNotification = async function(id) {
         const notif = notificationsState.find(n => n.id == id);
         const modal = document.getElementById('notification-detail-modal');
         if (!notif || !modal) return;
+
+        // Match company behavior: viewing an unread notification marks it as read.
+        if (isUnreadNotification(notif)) {
+            await processMarkRead(notif.id);
+            notif.status = 'read';
+        }
+
         modal.querySelector('.nd-title').textContent = notif.title;
         modal.querySelector('.nd-message').textContent = notif.message;
         modal.querySelector('.nd-type').textContent = notif.type;
         modal.querySelector('.nd-date').textContent = new Date(notif.timestamp).toLocaleString();
         modal.querySelector('.nd-status').textContent = notif.status.toUpperCase();
         modal.setAttribute('data-current-id', notif.id);
-        document.getElementById('markNotificationReadBtn').style.display = (notif.status === 'read') ? 'none' : 'block';
         modal.classList.add('open');
     };
 
     window.closeNotificationModal = () => document.getElementById('notification-detail-modal').classList.remove('open');
 
-    window.markNotificationAsRead = async function() {
-        const id = document.getElementById('notification-detail-modal').getAttribute('data-current-id');
-        if (id) {
-            await processMarkRead(id);
-            closeNotificationModal();
+    window.openDeleteConfirmModal = function() {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (!modal) return Promise.resolve(false);
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+
+        return new Promise((resolve) => {
+            deleteConfirmResolver = resolve;
+        });
+    };
+
+    window.closeDeleteConfirmModal = function(confirmed) {
+        const modal = document.getElementById('notification-delete-confirm-modal');
+        if (modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        if (typeof deleteConfirmResolver === 'function') {
+            const resolver = deleteConfirmResolver;
+            deleteConfirmResolver = null;
+            resolver(Boolean(confirmed));
         }
     };
 
-    window.markAsReadDirect = async (id) => await processMarkRead(id);
+    window.deleteNotification = async function(id) {
+        if (!id) return;
+        const confirmed = await openDeleteConfirmModal();
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload?.message || 'Failed to delete notification');
+            }
+
+            // Optimistically update list, then sync with backend.
+            notificationsState = notificationsState.filter(n => String(n.id) !== String(id));
+            renderNotifications(notificationsState);
+
+            const modal = document.getElementById('notification-detail-modal');
+            if (modal && modal.getAttribute('data-current-id') === String(id)) {
+                closeNotificationModal();
+            }
+
+            setTimeout(() => fetchNotifications(), 250);
+        } catch (e) {
+            console.error('Delete failed', e);
+            alert('Failed to delete notification. Please try again.');
+        }
+    };
 
     async function processMarkRead(id) {
         console.log('Marking notification as read, ID:', id);
@@ -297,7 +366,7 @@ let activeFilter = 'all';
             console.log('Fetched notifications:', json);
             if (json.status === 'success' && Array.isArray(json.data)) {
                 console.log('Rendering', json.data.length, 'notifications');
-                renderNotifications(json.data);
+                renderNotifications(normalizeNotifications(json.data));
             }
         } catch (e) {
             console.error("Failed to fetch notifications:", e);

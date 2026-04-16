@@ -5,6 +5,7 @@ namespace Models;
 class PickupRequest extends BaseModel
 {
     protected string $table = 'pickup_requests';
+    private ?bool $vehicleIdColumnExists = null;
 
     public function listForCustomer(int $customerId, ?string $status = null): array
     {
@@ -40,10 +41,13 @@ class PickupRequest extends BaseModel
             return [];
         }
 
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id
+                LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}
                 WHERE pr.collector_id = ?";
         $params = [$collectorId];
 
@@ -72,12 +76,13 @@ class PickupRequest extends BaseModel
 
     public function listAll(?string $timeSlot = null, ?string $date = null, ?string $status = null, string $dateOperator = '='): array
     {
-        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
+        $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id
-                LEFT JOIN vehicles v ON v.id = pr.vehicle_id
-                WHERE 1=1";
+            LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}";
         $params = [];
         
         if ($timeSlot !== null && $timeSlot !== '' && $timeSlot !== 'all') {
@@ -114,12 +119,15 @@ class PickupRequest extends BaseModel
             return null;
         }
 
+        $vehicleSelect = $this->hasVehicleIdColumn() ? ', v.plate_number AS vehicle_plate, v.type AS vehicle_type' : ', NULL AS vehicle_plate, NULL AS vehicle_type';
+        $vehicleJoin = $this->hasVehicleIdColumn() ? ' LEFT JOIN vehicles v ON v.id = pr.vehicle_id' : '';
+
         $row = $this->db->fetch(
-            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name, v.plate_number AS vehicle_plate, v.type AS vehicle_type
+            "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
              FROM {$this->table} pr
              LEFT JOIN users c ON c.id = pr.customer_id
              LEFT JOIN users col ON col.id = pr.collector_id
-             LEFT JOIN vehicles v ON v.id = pr.vehicle_id
+             {$vehicleJoin}
              WHERE pr.id = ?
              LIMIT 1",
             [$id]
@@ -300,11 +308,7 @@ class PickupRequest extends BaseModel
             );
 
             if ($updated && $status === 'completed') {
-                $this->db->query(
-                    "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                     WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                    [$id]
-                );
+                $this->releaseVehicleIfLinked($id);
             }
 
             return $updated;
@@ -366,11 +370,7 @@ class PickupRequest extends BaseModel
 
                 // 3. Release vehicle if completed
                 if ($status === 'completed') {
-                    $this->db->query(
-                        "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                         WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                        [$id]
-                    );
+                    $this->releaseVehicleIfLinked($id);
                 }
 
                 $pdo->commit();
@@ -392,11 +392,7 @@ class PickupRequest extends BaseModel
         );
 
         if ($legacyResult && $status === 'completed') {
-            $this->db->query(
-                "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP 
-                 WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
-                [$id]
-            );
+            $this->releaseVehicleIfLinked($id);
         }
 
         return $legacyResult;
@@ -617,6 +613,57 @@ class PickupRequest extends BaseModel
     {
         $status = strtolower($status);
         return in_array($status, ['pending', 'assigned', 'confirmed'], true);
+    }
+
+    private function hasVehicleIdColumn(): bool
+    {
+        if ($this->vehicleIdColumnExists !== null) {
+            return $this->vehicleIdColumnExists;
+        }
+
+        try {
+            if ($this->db->isPgsql()) {
+                $row = $this->db->fetch(
+                    "SELECT 1
+                     FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            } else {
+                $row = $this->db->fetch(
+                    "SELECT 1
+                     FROM information_schema.columns
+                     WHERE table_schema = DATABASE()
+                       AND table_name = ?
+                       AND column_name = 'vehicle_id'
+                     LIMIT 1",
+                    [$this->table]
+                );
+            }
+
+            $this->vehicleIdColumnExists = (bool) $row;
+        } catch (\Throwable $e) {
+            // Fail safe: assume missing column if schema metadata lookup fails.
+            $this->vehicleIdColumnExists = false;
+        }
+
+        return $this->vehicleIdColumnExists;
+    }
+
+    private function releaseVehicleIfLinked(string $pickupId): void
+    {
+        if (!$this->hasVehicleIdColumn()) {
+            return;
+        }
+
+        $this->db->query(
+            "UPDATE vehicles SET status = 'available', updated_at = CURRENT_TIMESTAMP
+             WHERE id = (SELECT vehicle_id FROM {$this->table} WHERE id = ?)",
+            [$pickupId]
+        );
     }
 
     /**

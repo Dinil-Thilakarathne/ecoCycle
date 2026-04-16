@@ -3,6 +3,7 @@
 namespace Controllers\Api\Customer;
 
 use Controllers\BaseController;
+use Core\Database;
 use Core\Http\Request;
 use Core\Http\Response;
 use Models\CollectorRating;
@@ -37,11 +38,23 @@ class CollectorRatingController extends BaseController
         }
 
         try {
-            $record = $this->collectorRating->createForCustomer((int) $user['id'], $payload['data']);
-        } catch (\InvalidArgumentException $e) {
-            return Response::errorJson('Validation failed', 422, ['detail' => $e->getMessage()]);
-        } catch (\RuntimeException $e) {
-            return $this->runtimeErrorResponse($e);
+            $data = $payload['data'];
+            $pickupRequestId = trim((string) ($data['pickupRequestId'] ?? ''));
+
+            $pickupDetails = $this->resolvePickupRequestDetails($pickupRequestId, (int) $user['id']);
+            $collectorId = (int) ($pickupDetails['collector_id'] ?? 0);
+            $resolvedCustomerId = (int) ($pickupDetails['customer_id'] ?? 0);
+
+            if ($collectorId <= 0 || $resolvedCustomerId <= 0) {
+                return Response::errorJson('Validation failed', 422, [
+                    'pickup_request_id' => 'Could not resolve id, customer_id, collector_id from pickup_requests.'
+                ]);
+            }
+
+            $data['collectorId'] = $collectorId;
+            $data['pickupRequestId'] = (string) ($pickupDetails['id'] ?? $pickupRequestId);
+
+            $record = $this->collectorRating->createForCustomer($resolvedCustomerId, $data);
         } catch (\Throwable $e) {
             return Response::errorJson('Failed to save rating', 500, ['detail' => $e->getMessage()]);
         }
@@ -61,6 +74,7 @@ class CollectorRatingController extends BaseController
         $customerName = trim((string) ($source['customerName'] ?? ''));
         $address = trim((string) ($source['address'] ?? ''));
         $date = $source['date'] ?? null;
+        $pickupRequestId = trim((string) ($source['pickup_request_id'] ?? $source['pickupRequestId'] ?? ''));
         $collectorName = trim((string) ($source['collectorName'] ?? ''));
         $rating = $source['rating'] ?? null;
         $description = trim((string) ($source['description'] ?? ''));
@@ -70,8 +84,8 @@ class CollectorRatingController extends BaseController
             $errors['pickupRequestId'] = 'Pickup request id is required.';
         }
 
-        if ($collectorName === '') {
-            $errors['collectorName'] = 'Collector name is required.';
+        if ($pickupRequestId === '') {
+            $errors['pickup_request_id'] = 'Pickup request ID is required.';
         }
 
         if ($rating === null || $rating === '') {
@@ -97,6 +111,10 @@ class CollectorRatingController extends BaseController
         $this->setIfNotEmpty($data, 'customerName', $customerName);
         $this->setIfNotEmpty($data, 'address', $address);
 
+        if ($pickupRequestId !== '') {
+            $data['pickupRequestId'] = $pickupRequestId;
+        }
+
         $data['collectorName'] = $collectorName;
         $data['pickupRequestId'] = $pickupRequestId;
         $data['rating'] = (int) $rating;
@@ -121,19 +139,22 @@ class CollectorRatingController extends BaseController
         }
     }
 
-    private function runtimeErrorResponse(\RuntimeException $e): Response
+    private function resolvePickupRequestDetails(string $pickupRequestId, int $expectedCustomerId): array
     {
-        if (stripos($e->getMessage(), 'already rated') !== false) {
-            return Response::errorJson('Rating already exists', 409, ['detail' => $e->getMessage()]);
+        if ($pickupRequestId === '') {
+            return [];
         }
 
-        return Response::errorJson('Failed to save rating', 500, ['detail' => $e->getMessage()]);
-    }
+        $db = new Database();
+        $row = $db->fetch(
+            "SELECT id, customer_id, collector_id
+             FROM pickup_requests
+             WHERE id = ?
+               AND customer_id = ?
+             LIMIT 1",
+            [$pickupRequestId, $expectedCustomerId]
+        );
 
-    private function setIfNotEmpty(array &$target, string $key, string $value): void
-    {
-        if ($value !== '') {
-            $target[$key] = $value;
-        }
+        return is_array($row) ? $row : [];
     }
 }
