@@ -339,7 +339,9 @@ class BiddingController extends BaseController
 
         try {
             $round = $this->rounds->approveRound($id, $companyId);
-
+            
+            error_log("approveRound returned: " . var_export($round ? 'found' : 'null', true));
+            
             if ($round && !empty($round['leadingCompanyId']) && !empty($round['currentHighestBid'])) {
                 $amount = (float) $round['currentHighestBid'];
                 if ($amount > 0) {
@@ -382,6 +384,7 @@ class BiddingController extends BaseController
         }
 
         if (!$round) {
+            error_log("Bidding round not found for ID: " . var_export($id, true));
             return Response::errorJson('Bidding round not found', 404);
         }
 

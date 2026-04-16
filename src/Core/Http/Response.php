@@ -235,4 +235,79 @@ class Response
             'errors' => $errors
         ], $statusCode);
     }
+
+    /**
+     * Create CSV response
+     * 
+     * @param string $filename
+     * @param array $headers The column headers for the CSV
+     * @param array $data The multi-dimensional array of row data
+     * @param int $statusCode
+     * @return static
+     */
+    public static function csv(string $filename, array $columns, array $data, int $statusCode = 200): self
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
+        ];
+
+        $output = fopen('php://temp', 'w');
+        
+        // Add BOM for Excel UTF-8 compatibility
+        fputs($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        if (!empty($columns)) {
+            fputcsv($output, $columns);
+        }
+
+        foreach ($data as $row) {
+            fputcsv($output, $row);
+        }
+
+        rewind($output);
+        $content = stream_get_contents($output);
+        fclose($output);
+
+        return new static($content, $statusCode, $headers);
+    }
+
+    /**
+     * Create PDF response using Dompdf
+     * 
+     * @param string $filename
+     * @param string $htmlContent HTML content for the PDF
+     * @param int $statusCode
+     * @return static
+     */
+    public static function pdf(string $filename, string $htmlContent, int $statusCode = 200): self
+    {
+        if (!class_exists('\Dompdf\Dompdf')) {
+            throw new \Exception('Dompdf is not installed. Run composer require dompdf/dompdf');
+        }
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->loadHtml($htmlContent);
+        
+        // Define paper size and orientation if needed
+        $dompdf->setPaper('A4', 'portrait');
+
+        // Render the HTML as PDF
+        $dompdf->render();
+        
+        $content = $dompdf->output();
+
+        $headers = [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
+        ];
+
+        return new static($content, $statusCode, $headers);
+    }
 }

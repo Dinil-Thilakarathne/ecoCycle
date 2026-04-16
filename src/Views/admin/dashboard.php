@@ -1,7 +1,7 @@
 <?php
 $stats = $stats ?? [];
 $recentActivity = $recentActivity ?? [];
-consoleLog($wasteCategories)
+consoleLog($stats)
     ?>
 
 <div>

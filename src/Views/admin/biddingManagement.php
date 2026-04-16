@@ -119,7 +119,7 @@ $bidStatCards = [
         'value' => 'Rs ' . number_format($totalBidValue, 2),
         'icon' => 'fa-solid fa-dollar-sign',
         'change' => '',
-        'period' => 'Aggregate of highest bids',
+        'period' => 'Aggregate of current highest bids',
         'negative' => false,
     ],
     [

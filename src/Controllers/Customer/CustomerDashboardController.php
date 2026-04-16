@@ -9,6 +9,7 @@ use Models\User;
 use Models\PickupRequest;
 use Models\WasteCategory;
 use Models\Payment;
+use Models\CollectorRating;
 
 /**
  * Customer Dashboard Controller
@@ -122,14 +123,197 @@ class CustomerDashboardController extends DashboardController
      */
     public function analytics(): Response
     {
+        $analyticsData = $this->getCustomerAnalyticsData();
+
         $data = [
             'pageTitle' => 'Analytics',
             'articles' => $this->getEducationalArticles(),
             'tips' => $this->getRecyclingTips(),
-            'videos' => $this->getEducationalVideos()
+            'videos' => $this->getEducationalVideos(),
+            'analyticsData' => $analyticsData,
         ];
 
         return $this->renderDashboard('analytics', $data);
+    }
+
+    private function getCustomerAnalyticsData(): array
+    {
+        $customerId = (int) ($this->user['id'] ?? 0);
+        if ($customerId <= 0) {
+            return [
+                'totalWeight' => 0.0,
+                'totalIncomeThisMonth' => 0.0,
+                'monthlyWasteData' => [],
+                'monthlyIncomeData' => [],
+            ];
+        }
+
+        $db = app('db');
+        $isPgsql = method_exists($db, 'isPgsql') && $db->isPgsql();
+        $scheduledDateExpr = 'pr.scheduled_at';
+
+        $totalWeight = 0.0;
+        $totalIncomeThisMonth = 0.0;
+        $monthlyWasteData = [];
+        $monthlyIncomeData = [];
+
+        try {
+            $weightRow = $db->fetchOne(
+                "SELECT COALESCE(SUM(COALESCE(prw.weight, prw.quantity, 0)), 0) AS total_weight
+                 FROM pickup_requests pr
+                 INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                 WHERE pr.customer_id = ? AND pr.status = 'completed'",
+                [$customerId]
+            );
+            $totalWeight = (float) ($weightRow['total_weight'] ?? 0);
+        } catch (\Throwable $e) {
+            $totalWeight = 0.0;
+        }
+
+        try {
+            $monthStart = date('Y-m-01 00:00:00');
+            $nextMonthStart = date('Y-m-01 00:00:00', strtotime('+1 month', strtotime($monthStart)));
+
+            $incomeRow = $db->fetchOne(
+                "SELECT COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                 FROM pickup_requests pr
+                 WHERE pr.customer_id = ?
+                   AND pr.status IN ('confirmed', 'completed')
+                   AND COALESCE(pr.price, 0) > 0
+                                     AND {$scheduledDateExpr} >= ?
+                                     AND {$scheduledDateExpr} < ?",
+                [$customerId, $monthStart, $nextMonthStart]
+            );
+
+            $totalIncomeThisMonth = (float) ($incomeRow['total_income'] ?? 0);
+        } catch (\Throwable $e) {
+            $totalIncomeThisMonth = 0.0;
+        }
+
+        try {
+            $categoryRows = $db->fetchAll(
+                "SELECT name
+                 FROM waste_categories
+                 ORDER BY name ASC"
+            );
+
+            $categoryNames = [];
+            foreach ($categoryRows as $categoryRow) {
+                $name = trim((string) ($categoryRow['name'] ?? ''));
+                if ($name !== '') {
+                    $categoryNames[] = $name;
+                }
+            }
+
+            $wasteRows = $db->fetchAll(
+                "SELECT pr.scheduled_at,
+                        wc.name AS category_name,
+                        COALESCE(prw.weight, prw.quantity, 0) AS waste_weight
+                 FROM pickup_requests pr
+                 INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
+                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
+                 WHERE pr.customer_id = ?
+                                     AND pr.status = 'completed'
+                                     AND pr.scheduled_at IS NOT NULL",
+                [$customerId]
+            );
+
+            $monthMap = [];
+            foreach ($wasteRows as $row) {
+                $dateValue = (string) ($row['scheduled_at'] ?? '');
+                $timestamp = strtotime($dateValue);
+                if ($timestamp === false) {
+                    continue;
+                }
+
+                $monthKey = date('Y-m', $timestamp);
+                $monthLabel = date('M Y', strtotime($monthKey . '-01'));
+                $categoryName = trim((string) ($row['category_name'] ?? ''));
+                $weightValue = (float) ($row['waste_weight'] ?? 0);
+
+                if (!isset($monthMap[$monthKey])) {
+                    $monthMap[$monthKey] = [
+                        'month' => $monthKey,
+                        'label' => $monthLabel,
+                    ];
+
+                    foreach ($categoryNames as $name) {
+                        $monthMap[$monthKey][$name] = 0.0;
+                    }
+                }
+
+                if ($categoryName !== '') {
+                    if (!array_key_exists($categoryName, $monthMap[$monthKey])) {
+                        $monthMap[$monthKey][$categoryName] = 0.0;
+                    }
+                    $monthMap[$monthKey][$categoryName] += $weightValue;
+                }
+            }
+
+            if (empty($monthMap)) {
+                $currentMonth = date('Y-m');
+                $monthMap[$currentMonth] = [
+                    'month' => $currentMonth,
+                    'label' => date('M Y', strtotime($currentMonth . '-01')),
+                ];
+                foreach ($categoryNames as $name) {
+                    $monthMap[$currentMonth][$name] = 0.0;
+                }
+            }
+
+            ksort($monthMap);
+            $monthlyWasteData = array_values($monthMap);
+        } catch (\Throwable $e) {
+            $monthlyWasteData = [];
+        }
+
+        try {
+            if ($isPgsql) {
+                $incomeRows = $db->fetchAll(
+                                                                                "SELECT TO_CHAR({$scheduledDateExpr}, 'YYYY-MM') AS month_key,
+                            COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                     FROM pickup_requests pr
+                     WHERE pr.customer_id = ?
+                       AND pr.status IN ('confirmed', 'completed')
+                       AND COALESCE(pr.price, 0) > 0
+                                             AND {$scheduledDateExpr} IS NOT NULL
+                     GROUP BY month_key
+                     ORDER BY month_key ASC",
+                    [$customerId]
+                );
+            } else {
+                $incomeRows = $db->fetchAll(
+                                                                                "SELECT DATE_FORMAT({$scheduledDateExpr}, '%Y-%m') AS month_key,
+                            COALESCE(SUM(COALESCE(pr.price, 0)), 0) AS total_income
+                     FROM pickup_requests pr
+                     WHERE pr.customer_id = ?
+                       AND pr.status IN ('confirmed', 'completed')
+                       AND COALESCE(pr.price, 0) > 0
+                                             AND {$scheduledDateExpr} IS NOT NULL
+                     GROUP BY month_key
+                     ORDER BY month_key ASC",
+                    [$customerId]
+                );
+            }
+
+            foreach ($incomeRows as $row) {
+                $monthKey = (string) ($row['month_key'] ?? '');
+                if ($monthKey === '') {
+                    continue;
+                }
+
+                $monthlyIncomeData[$monthKey] = (float) ($row['total_income'] ?? 0);
+            }
+        } catch (\Throwable $e) {
+            $monthlyIncomeData = [];
+        }
+
+        return [
+            'totalWeight' => round($totalWeight, 2),
+            'totalIncomeThisMonth' => round($totalIncomeThisMonth, 2),
+            'monthlyWasteData' => $monthlyWasteData,
+            'monthlyIncomeData' => $monthlyIncomeData,
+        ];
     }
 
     protected function getNavigationItems(): array
@@ -182,6 +366,7 @@ class CustomerDashboardController extends DashboardController
     {
         $pickupModel = new PickupRequest();
         $wasteCategoryModel = new WasteCategory();
+        $collectorRatingModel = new CollectorRating();
         $customerId = (int) ($this->user['id'] ?? 0);
 
         try {
@@ -201,6 +386,21 @@ class CustomerDashboardController extends DashboardController
         }
 
         try {
+            $ratedPickupIds = $collectorRatingModel->getRatedPickupRequestIds($customerId);
+        } catch (\Throwable $e) {
+            $ratedPickupIds = [];
+        }
+
+        if (!empty($pickupRequests)) {
+            $ratedLookup = array_fill_keys($ratedPickupIds, true);
+            $pickupRequests = array_map(static function (array $request) use ($ratedLookup): array {
+                $id = (string) ($request['id'] ?? '');
+                $request['hasRating'] = isset($ratedLookup[$id]);
+                return $request;
+            }, $pickupRequests);
+        }
+
+        try {
             $wasteCategories = $wasteCategoryModel->listAll();
         } catch (\Throwable $e) {
             $wasteCategories = [];
@@ -211,6 +411,7 @@ class CustomerDashboardController extends DashboardController
                 ['id' => 1, 'name' => 'Plastic'],
                 ['id' => 2, 'name' => 'Glass'],
                 ['id' => 3, 'name' => 'Paper'],
+                ['id' => 4, 'name' => 'Metal'],
                 ['id' => 6, 'name' => 'Organic']
             ];
         }

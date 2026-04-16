@@ -34,6 +34,10 @@ $statusColors = json_encode(['#16a34a', '#2563eb', '#f59e0b', '#dc2626', '#8b5cf
                 <i class="fa-solid fa-download"></i>
                 Export CSV
             </a>
+            <a class="btn btn-outline" href="?format=pdf&export=1">
+                <i class="fa-solid fa-download"></i>
+                Export PDF
+            </a>
         </div>
     </page-header>
 

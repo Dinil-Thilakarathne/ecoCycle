@@ -205,6 +205,7 @@ class BiddingRound extends BaseModel
         try {
             $round = $this->db->fetch("SELECT * FROM {$this->table} WHERE id = ? FOR UPDATE", [$id]);
             if (!$round) {
+                error_log("approveRound: could not fetch record with ID: " . $id);
                 $pdo->rollBack();
                 return null;
             }
@@ -259,6 +260,7 @@ class BiddingRound extends BaseModel
             }
 
             $pdo->commit();
+            error_log("approveRound: commit successful for ID: " . $id);
 
             // Side effects (non-blocking, after commit)
             if ($selectedCompanyId !== null && $winningBidAmount !== null && $winningBidAmount > 0) {
@@ -279,11 +281,16 @@ class BiddingRound extends BaseModel
                 );
             }
         } catch (\Throwable $e) {
+            error_log("approveRound: caught exception: " . $e->getMessage());
             $pdo->rollBack();
             throw $e;
         }
 
-        return $this->findById($id);
+        $result = $this->findById($id);
+        if (!$result) {
+            error_log("approveRound: findById returned null for ID: " . $id);
+        }
+        return $result;
     }
 
     public function rejectRound(string $id, ?string $reason = null): ?array
