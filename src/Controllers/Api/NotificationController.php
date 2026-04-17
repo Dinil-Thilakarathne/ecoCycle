@@ -22,32 +22,35 @@ class NotificationController extends BaseController
      */
     public function index(Request $request): Response
     {
+        return $this->notifications($request);
+    }
+
+    /**
+     * Collector-friendly list endpoint.
+     * Returns the shape expected by collector notification views.
+     */
+    public function notifications(Request $request): Response
+    {
         $user = auth();
         if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
+            return $this->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $limit = (int) $request->input('limit', 20);
+        $limit = max(1, (int) $request->input('limit', 100));
+        $role = strtolower((string) ($user['role'] ?? ''));
 
-        if ($user['role'] === 'admin') {
+        if ($role === 'admin') {
             $notifications = $this->model->getAll($limit);
-            // Admin stats might be different, but for now reuse user logic or implement admin specific
-            // Since admin sees all, we might want system-wide stats.
-            // For simplicity, let's just return 0s or implement admin stats later if needed.
-            // Or better, let's just count all for admin.
-            $stats = ['total' => 0, 'unread' => 0, 'today' => 0]; // Placeholder or implement for admin
-        } elseif ($user['role'] === 'company') {
-            $notifications = $this->model->forCompany($user['id'], '', $limit);
-             // TODO: implement forCompanyStats
-            $stats = ['total' => 0, 'unread' => 0, 'today' => 0];
+        } elseif ($role === 'company') {
+            $notifications = $this->model->forCompany((int) $user['id'], '', $limit);
         } else {
-            $notifications = $this->model->forUser($user['id'], $user['role'], '', $limit);
-            $stats = $this->model->getStats($user['id'], $user['role']);
+            $notifications = $this->model->forUser((int) $user['id'], $role, '', $limit);
         }
-        
+
         return $this->json([
-            'notifications' => $notifications,
-            'stats' => $stats
+            'status' => 'success',
+            'data' => $notifications ?: [],
+            'timestamp' => date('Y-m-d H:i:s'),
         ]);
     }
 
@@ -137,6 +140,14 @@ class NotificationController extends BaseController
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Alias for auto-routed collector endpoints that call /read.
+     */
+    public function read(Request $request): Response
+    {
+        return $this->markAsRead($request);
     }
 
 

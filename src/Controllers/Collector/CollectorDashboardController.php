@@ -146,7 +146,8 @@ class CollectorDashboardController extends DashboardController
             'pageTitle' => 'Notifications',
             'collectionStats' => $this->getCollectionStats(),
             'weightReports' => $this->getWeightReports(),
-            'materialBreakdown' => $this->getMaterialBreakdown()
+            'materialBreakdown' => $this->getMaterialBreakdown(),
+            'notifications' => $this->getNotifications(),
         ];
 
         return $this->renderDashboard('notification', $data);
@@ -384,6 +385,25 @@ class CollectorDashboardController extends DashboardController
     private function getMaterialBreakdown(): array
     {
         return [];
+    }
+
+    private function getNotifications(): array
+    {
+        $collectorId = (int) ($this->user['id'] ?? 0);
+        if ($collectorId <= 0) {
+            return [];
+        }
+
+        try {
+            $record = $this->loadCollectorRecord();
+            $createdAt = (string) ($record['created_at'] ?? ($this->user['created_at'] ?? ''));
+            $notificationModel = new Notification();
+
+            return $notificationModel->forUser($collectorId, 'collector', $createdAt, 100);
+        } catch (\Throwable $e) {
+            error_log('Collector notifications load failed: ' . $e->getMessage());
+            return [];
+        }
     }
 
 
