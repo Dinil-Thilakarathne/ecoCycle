@@ -102,7 +102,7 @@ let activeFilter = 'all';
 let deleteConfirmResolver = null;
 
 (function () {
-    const endpoint = '/api/collector/notifications';
+    const endpoint = '/api/notifications';
     const tbody = document.getElementById('notifications-tbody');
 
     function normalizeNotification(raw) {
@@ -131,7 +131,13 @@ let deleteConfirmResolver = null;
     }
 
 function timeAgo(timestamp) {
+    if (!timestamp) {
+        return 'N/A';
+    }
   const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) {
+        return 'N/A';
+    }
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const month = months[date.getMonth()];
   const day = date.getDate();
@@ -212,7 +218,7 @@ function timeAgo(timestamp) {
 
         try {
             const requests = unreadNotifications.map((notif) =>
-                fetch(`/api/collector/notifications/${encodeURIComponent(notif.id)}/read`, {
+                fetch(`/api/notifications/${encodeURIComponent(notif.id)}/read`, {
                     method: 'PUT',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -326,7 +332,7 @@ function timeAgo(timestamp) {
     async function processMarkRead(id) {
         console.log('Marking notification as read, ID:', id);
         try {
-            const res = await fetch(`/api/notifications/${id}/read`, { 
+            const res = await fetch(`/api/notifications/${encodeURIComponent(id)}/read`, {
                 method: 'PUT', 
                 headers: { 
                     'X-Requested-With': 'XMLHttpRequest',
@@ -373,6 +379,7 @@ function timeAgo(timestamp) {
         }
     }
 
+    renderNotifications(notificationsState);
     fetchNotifications();
     setInterval(fetchNotifications, 15000);
 })();
