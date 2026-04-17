@@ -60,26 +60,22 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
   </div>
 </div> -->
 
-<table>
-      <tr>
-        <td>
-          <img
-            src="<?= htmlspecialchars($profileImageSrc) ?>"
-            alt="Profile Picture"
-            width="100"
-          >
-        </td>
+<div class="collector-header-row">
+  <img
+    src="<?= htmlspecialchars($profileImageSrc) ?>"
+    alt="Profile Picture"
+    width="100"
+  >
 
-        <td>
-          <h2 class="page-header__title">
-            Welcome back, <?= $collectorName ?>!
-          </h2>
-          <p class="page-header__description">
-            Here is your latest update on your Dashboard
-          </p>
-        </td>
-      </tr>
-    </table>
+  <div>
+    <h2 class="page-header__title">
+      Welcome back, <?= $collectorName ?>!
+    </h2>
+    <p class="page-header__description">
+      Here is your latest update on your Dashboard
+    </p>
+  </div>
+</div>
 
   </div>
 </div>
@@ -174,7 +170,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
     <?php endif; ?>
   </activity-card>
 
-  <activity-card title="Collector Performance" description="Your current level and completion progress">
+  <activity-card class="collector-performance-card" title="Collector Performance" description="Your current level and completion progress">
     <div class="collector-performance-panel">
       <div class="collector-performance-ring" style="--collector-progress: <?= (int) $performanceScore ?>%;">
         <div class="collector-performance-ring__inner">

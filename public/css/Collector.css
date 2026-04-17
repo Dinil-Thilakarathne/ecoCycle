@@ -230,7 +230,7 @@
 .bottom-container {
   display: grid;
   /*grid-template-columns: 1fr 1fr;*/
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   max-width: 1700px;
   margin: 2px;
@@ -592,6 +592,17 @@ form select {
   text-align: center;
   color: #999;
   padding: 20px;
+}
+
+.collector-header-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.collector-header-row .page-header__title,
+.collector-header-row .page-header__description {
+  margin: 0;
 }
 
 /* dashboard */
