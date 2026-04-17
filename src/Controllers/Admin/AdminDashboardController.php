@@ -107,7 +107,7 @@ class AdminDashboardController extends DashboardController
         $today = date('Y-m-d');
 
         $pickupModel = new PickupRequest();
-        
+
         // 1. Today's Schedule (all statuses for today)
         $todayRequests = $pickupModel->listAll($selectedTimeSlot, $today);
 
@@ -124,6 +124,9 @@ class AdminDashboardController extends DashboardController
         // 5. Cancelled (any date, for history)
         $cancelledRequests = $pickupModel->listAll('all', null, 'cancelled');
 
+        // 6. Failed (any date, for history)
+        $failedRequests = $pickupModel->listAll('all', null, 'failed');
+
         $collectors = (new User())->listByType('collector', 200);
         $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
@@ -134,12 +137,13 @@ class AdminDashboardController extends DashboardController
             'inProgressRequests' => $inProgressRequests,
             'completedRequests' => $completedRequests,
             'cancelledRequests' => $cancelledRequests,
-            
+            'failedRequests' => $failedRequests,
+
             'timeSlots' => $timeSlots,
             'selectedTimeSlot' => $selectedTimeSlot,
             'collectors' => $collectors,
             // Backwards compatibility for some view lookups
-            'pickupRequests' => array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests),
+            'pickupRequests' => array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests, $failedRequests),
         ];
 
         return $this->renderDashboard('pickupRequest', $data);
@@ -237,6 +241,8 @@ class AdminDashboardController extends DashboardController
         // 1. Fetch Active Rounds (Always show all active)
         $activeRounds = $biddingModel->activeLots();
 
+        $allRounds = $biddingModel->listAll();
+
         // 2. Fetch History Rounds (Filtered / Paginated)
         $historyResult = $biddingModel->searchHistory(['search' => $searchQuery], 50);
 
@@ -259,7 +265,7 @@ class AdminDashboardController extends DashboardController
             'activeRounds' => $activeRounds,
             'historyRounds' => $historyResult,
             'searchQuery' => $searchQuery,
-            'biddingRounds' => $activeRounds, // Backwards compat if view uses this variable name for active
+            'biddingRounds' => $allRounds, // Backwards compat if view uses this variable name for active
             'bidStats' => $stats,
             'wasteCategories' => $wasteCategories,
             'minimumBids' => $minimumBids,
@@ -437,7 +443,7 @@ class AdminDashboardController extends DashboardController
         // Handle CSV Export
         if ($request->query('export') === '1' && $request->query('format') === 'csv') {
             $csvData = [];
-            
+
             // Build Summary Section
             $csvData[] = ['Summary Metrics', 'Value'];
             $csvData[] = ['Total Waste Collected (kg)', $totalWaste];
@@ -448,22 +454,22 @@ class AdminDashboardController extends DashboardController
             $csvData[] = ['Total Pickups', $totalPickups];
             $csvData[] = ['Completed Pickups', $completedPickups];
             $csvData[] = [];
-            
+
             // Build Waste Category Section
             $csvData[] = ['Waste Category Breakdown', 'Volume (kg)', 'Percentage'];
             foreach ($wasteCategories as $wc) {
                 $csvData[] = [$wc['category'], $wc['volume'], $wc['percentage'] . '%'];
             }
             $csvData[] = [];
-            
+
             // Build Pickup Status Section
             $csvData[] = ['Pickup Status Breakdown', 'Count'];
             foreach ($pickupStatusBreakdown as $ps) {
                 $csvData[] = [ucfirst(str_replace('_', ' ', $ps['status'])), $ps['count']];
             }
-            
+
             $filename = 'admin_analytics_' . date('Ymd_His') . '.csv';
-            return \Core\Http\Response::csv($filename, [], $csvData);
+            return Response::csv($filename, [], $csvData);
         }
 
         // Handle PDF Export
