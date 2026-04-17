@@ -291,13 +291,13 @@ class Response
 
         $dompdf = new \Dompdf\Dompdf();
         $dompdf->loadHtml($htmlContent);
-        
+
         // Define paper size and orientation if needed
         $dompdf->setPaper('A4', 'portrait');
 
         // Render the HTML as PDF
         $dompdf->render();
-        
+
         $content = $dompdf->output();
 
         $headers = [

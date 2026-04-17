@@ -123,7 +123,138 @@ class CustomerDashboardController extends DashboardController
      */
     public function analytics(): Response
     {
+        $request = app('request');
         $analyticsData = $this->getCustomerAnalyticsData();
+
+        $totalWaste = (float) ($analyticsData['totalWeight'] ?? 0);
+        $totalIncomeThisMonth = (float) ($analyticsData['totalIncomeThisMonth'] ?? 0);
+        $monthlyWasteData = array_values(is_array($analyticsData['monthlyWasteData'] ?? null) ? $analyticsData['monthlyWasteData'] : []);
+
+        $wasteTotals = [];
+        foreach ($monthlyWasteData as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            foreach ($row as $key => $value) {
+                if ($key === 'month' || $key === 'label') {
+                    continue;
+                }
+                $wasteTotals[$key] = ($wasteTotals[$key] ?? 0.0) + (float) $value;
+            }
+        }
+
+        $totalWasteByCategory = array_sum($wasteTotals);
+        $wasteCategories = [];
+        foreach ($wasteTotals as $category => $volume) {
+            $wasteCategories[] = [
+                'category' => (string) $category,
+                'volume' => round((float) $volume, 2),
+                'percentage' => $totalWasteByCategory > 0
+                    ? round(((float) $volume / $totalWasteByCategory) * 100, 1)
+                    : 0,
+            ];
+        }
+
+        usort($wasteCategories, static function (array $a, array $b): int {
+            return ($b['volume'] <=> $a['volume']);
+        });
+
+        $pickupModel = new PickupRequest();
+        $pickupRequests = [];
+        try {
+            $pickupRequests = $pickupModel->listForCustomer((int) ($this->user['id'] ?? 0));
+        } catch (\Throwable $e) {
+            $pickupRequests = [];
+        }
+
+        $totalPickups = count($pickupRequests);
+        $completedPickups = 0;
+        $pickupStatusMap = [];
+        foreach ($pickupRequests as $pickupRequest) {
+            $status = (string) ($pickupRequest['status'] ?? 'unknown');
+            if ($status === '') {
+                $status = 'unknown';
+            }
+            $pickupStatusMap[$status] = ($pickupStatusMap[$status] ?? 0) + 1;
+
+            if ($status === 'completed') {
+                $completedPickups++;
+            }
+        }
+
+        $pickupStatusBreakdown = [];
+        foreach ($pickupStatusMap as $status => $count) {
+            $pickupStatusBreakdown[] = [
+                'status' => $status,
+                'count' => $count,
+            ];
+        }
+
+        usort($pickupStatusBreakdown, static function (array $a, array $b): int {
+            return ($b['count'] <=> $a['count']);
+        });
+
+        // Handle PDF Export
+        if ($request->query('export') === '1' && $request->query('format') === 'pdf') {
+            $formattedIncome = number_format($totalIncomeThisMonth, 2, '.', ',');
+            $date = date('Y-m-d H:i:s');
+
+            $html = <<<HTML
+            <style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                h3 { margin-top: 30px; color: #374151; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+            </style>
+            <h1>Customer Analytics Report</h1>
+            <p>Generated on: <strong>{$date}</strong></p>
+
+            <h3>Summary Metrics</h3>
+            <table>
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Total Waste Collected</td><td>{$totalWaste} kg</td></tr>
+                <tr><td>Total Income (This Month)</td><td>Rs. {$formattedIncome}</td></tr>
+                <tr><td>Total Pickups</td><td>{$totalPickups}</td></tr>
+                <tr><td>Completed Pickups</td><td>{$completedPickups}</td></tr>
+            </table>
+
+            <h3>Waste Category Breakdown</h3>
+            <table>
+                <tr><th>Category</th><th>Volume (kg)</th><th>Percentage</th></tr>
+HTML;
+
+            foreach ($wasteCategories as $wc) {
+                $category = htmlspecialchars((string) ($wc['category'] ?? ''), ENT_QUOTES, 'UTF-8');
+                $volume = (float) ($wc['volume'] ?? 0);
+                $percentage = (float) ($wc['percentage'] ?? 0);
+                $html .= "<tr><td>{$category}</td><td>{$volume}</td><td>{$percentage}%</td></tr>";
+            }
+
+            if (empty($wasteCategories)) {
+                $html .= '<tr><td colspan="3">No category data available</td></tr>';
+            }
+
+            $html .= '</table><h3>Pickup Status Breakdown</h3><table><tr><th>Status</th><th>Count</th></tr>';
+            foreach ($pickupStatusBreakdown as $ps) {
+                $statusName = ucfirst(str_replace('_', ' ', (string) ($ps['status'] ?? 'unknown')));
+                $statusName = htmlspecialchars($statusName, ENT_QUOTES, 'UTF-8');
+                $count = (int) ($ps['count'] ?? 0);
+                $html .= "<tr><td>{$statusName}</td><td>{$count}</td></tr>";
+            }
+
+            if (empty($pickupStatusBreakdown)) {
+                $html .= '<tr><td colspan="2">No pickup data available</td></tr>';
+            }
+
+            $html .= '</table>';
+
+            $filename = 'customer_analytics_' . date('Ymd_His') . '.pdf';
+            return Response::pdf($filename, $html);
+        }
 
         $data = [
             'pageTitle' => 'Analytics',
@@ -369,11 +500,7 @@ class CustomerDashboardController extends DashboardController
         $collectorRatingModel = new CollectorRating();
         $customerId = (int) ($this->user['id'] ?? 0);
 
-        try {
-            $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to get the value from the db 
-        } catch (\Throwable $e) {
-            $timeSlots = [];
-        }
+        $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
         if (empty($timeSlots)) {
             $timeSlots = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];

@@ -2,7 +2,7 @@
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock* ./
-RUN composer install --no-dev --prefer-dist --no-scripts --no-interaction || true
+RUN composer install --no-dev --prefer-dist --no-scripts --no-interaction
 
 FROM php:8.2-apache
 

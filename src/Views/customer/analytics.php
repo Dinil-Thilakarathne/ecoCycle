@@ -32,14 +32,17 @@ foreach ($wasteTotals as $name => $value) {
     $colorIndex++;
 }
 ?>
-
-
-
 <div class="dashboard-page">
     <header class="page-header">
         <div class="page-header__content">
             <h2 class="page-header__title">Analytics</h2>
             <p class="page-header__description">Track your recycling performance and environmental impact</p>
+        </div>
+        <div class="page-header__actions" style="display:flex;gap:8px;align-items:center;">
+            <a class="btn btn-outline" href="?format=pdf&export=1">
+                <i class="fa-solid fa-download"></i>
+                Export PDF
+            </a>
         </div>
     </header>
 
