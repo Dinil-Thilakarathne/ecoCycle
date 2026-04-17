@@ -166,6 +166,11 @@ class profileController extends BaseController
         $role = strtolower(trim($user['role']));
 
         // Get input fields
+        $currentPassword = trim(
+            $request->input('currentPassword') ??
+            $request->input('current_password') ??
+            ''
+        );
         $password = trim($request->input('password') ?? '');
         $passwordConfirm = trim(
             $request->input('confirm_password') ??
@@ -175,6 +180,10 @@ class profileController extends BaseController
         );
 
         // Validation
+        if ($currentPassword !== '') {
+            return Response::errorJson('Old password is not required for password changes.', 422);
+        }
+
         if ($password === '' || $passwordConfirm === '') {
             return Response::errorJson('Both password fields are required', 422);
         }
