@@ -33,17 +33,9 @@ if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
             </div>
             <div class="feature-card__body" id="totalFeedbackValue">-</div>
         </div>
-
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__title">Satisfaction Rate (%)</div>
-                <div class="feature-card__icon"><i class="fa-solid fa-face-smile"></i></div>
-            </div>
-            <div class="feature-card__body" id="satisfactionRateValue">-</div>
-        </div>
     </div>
 
-    <!-- Monthly Collection Summary -->
+    <!-- Waste Collection Table -->
     <div class="activity-card">
         <div class="activity-card__header">
             <h3 class="activity-card__title">
@@ -170,10 +162,6 @@ if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
 
 <script>
 const CURRENT_COLLECTOR_ID = <?= (int)($user['id'] ?? 0) ?>;
-const avgRatingValueEl = document.getElementById('avgRatingValue');
-const pendingReportsValueEl = document.getElementById('pendingReportsValue');
-const totalFeedbackValueEl = document.getElementById('totalFeedbackValue');
-const satisfactionRateValueEl = document.getElementById('satisfactionRateValue');
 
 // Immediate validation on page load
 console.log('=== Collector Analytics Debug ===');
@@ -625,15 +613,10 @@ function updateMetricsCards(metrics) {
     const avgRating = metrics.averageRating || 0;
     const pendingReports = metrics.lowRatings || 0;
     const totalFeedback = metrics.totalFeedback || 0;
-    const satisfiedFeedback = Math.max(0, totalFeedback - pendingReports);
-    const satisfactionRate = totalFeedback > 0
-        ? (satisfiedFeedback / totalFeedback) * 100
-        : 0;
     
-    if (avgRatingValueEl) avgRatingValueEl.textContent = avgRating.toFixed(1);
-    if (pendingReportsValueEl) pendingReportsValueEl.textContent = pendingReports;
-    if (totalFeedbackValueEl) totalFeedbackValueEl.textContent = totalFeedback;
-    if (satisfactionRateValueEl) satisfactionRateValueEl.textContent = `${satisfactionRate.toFixed(1)}%`;
+    document.getElementById('avgRatingValue').textContent = avgRating.toFixed(1);
+    document.getElementById('pendingReportsValue').textContent = pendingReports;
+    document.getElementById('totalFeedbackValue').textContent = totalFeedback;
     
     console.log('Metrics updated:', { avgRating, pendingReports, totalFeedback });
 }
@@ -664,7 +647,6 @@ function updateFeedbackTable(data, error = null) {
  */
 function updateWasteTable(data, error = null) {
     const tableBody = document.getElementById('wasteCollectionTableBody');
-    if (!tableBody) return;
     if (error) {
         tableBody.innerHTML = `<tr><td colspan="5" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
@@ -762,18 +744,17 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Collector ID available:', CURRENT_COLLECTOR_ID);
     
     // Immediate visual feedback
-    if (avgRatingValueEl) avgRatingValueEl.textContent = '...';
-    if (pendingReportsValueEl) pendingReportsValueEl.textContent = '...';
-    if (totalFeedbackValueEl) totalFeedbackValueEl.textContent = '...';
-    if (satisfactionRateValueEl) satisfactionRateValueEl.textContent = '...';
+    document.getElementById('avgRatingValue').textContent = '...';
+    document.getElementById('pendingReportsValue').textContent = '...';
+    document.getElementById('totalFeedbackValue').textContent = '...';
     
     // Visual confirmation that JS is running
     if (!CURRENT_COLLECTOR_ID) {
-        if (avgRatingValueEl) avgRatingValueEl.textContent = '⚠️';
-        if (pendingReportsValueEl) pendingReportsValueEl.textContent = '⚠️';
-        if (totalFeedbackValueEl) totalFeedbackValueEl.textContent = '⚠️';
-        if (satisfactionRateValueEl) satisfactionRateValueEl.textContent = '⚠️';
+        document.getElementById('avgRatingValue').textContent = '⚠️';
+        document.getElementById('pendingReportsValue').textContent = '⚠️';
+        document.getElementById('totalFeedbackValue').textContent = '⚠️';
         updateFeedbackTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
+        updateWasteTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
         return;
     }
 
@@ -799,8 +780,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     refreshDashboard(); // Initial run
     setInterval(refreshDashboard, 30000); // Poll every 30 seconds for smoother performance
-    setInterval(fetchAndRenderMonthlyCollection, 30000);
     console.log('Dashboard refresh scheduled every 30 seconds');
 });
 
+// Optional: Add Feedback handler
+function addFeedback() {
+    alert('Add feedback functionality coming soon!');
+}
 </script>

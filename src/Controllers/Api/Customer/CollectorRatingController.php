@@ -78,6 +78,11 @@ class CollectorRatingController extends BaseController
         $collectorName = trim((string) ($source['collectorName'] ?? ''));
         $rating = $source['rating'] ?? null;
         $description = trim((string) ($source['description'] ?? ''));
+        $pickupRequestId = trim((string) ($source['pickupRequestId'] ?? ''));
+
+        if ($pickupRequestId === '') {
+            $errors['pickupRequestId'] = 'Pickup request id is required.';
+        }
 
         if ($pickupRequestId === '') {
             $errors['pickup_request_id'] = 'Pickup request ID is required.';
@@ -85,14 +90,12 @@ class CollectorRatingController extends BaseController
 
         if ($rating === null || $rating === '') {
             $errors['rating'] = 'Rating is required.';
+        } elseif (!is_numeric($rating)) {
+            $errors['rating'] = 'Rating must be a number.';
         } else {
-            if (!is_numeric($rating)) {
-                $errors['rating'] = 'Rating must be a number.';
-            } else {
-                $rating = (int) $rating;
-                if ($rating < 1 || $rating > 5) {
-                    $errors['rating'] = 'Rating must be between 1 and 5.';
-                }
+            $rating = (int) $rating;
+            if ($rating < 1 || $rating > 5) {
+                $errors['rating'] = 'Rating must be between 1 and 5.';
             }
         }
 
@@ -105,19 +108,15 @@ class CollectorRatingController extends BaseController
             }
         }
 
-        if ($customerName !== '') {
-            $data['customerName'] = $customerName;
-        }
-
-        if ($address !== '') {
-            $data['address'] = $address;
-        }
+        $this->setIfNotEmpty($data, 'customerName', $customerName);
+        $this->setIfNotEmpty($data, 'address', $address);
 
         if ($pickupRequestId !== '') {
             $data['pickupRequestId'] = $pickupRequestId;
         }
 
         $data['collectorName'] = $collectorName;
+        $data['pickupRequestId'] = $pickupRequestId;
         $data['rating'] = (int) $rating;
         $data['description'] = $description !== '' ? $description : null;
 

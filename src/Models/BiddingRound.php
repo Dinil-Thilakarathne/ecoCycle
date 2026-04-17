@@ -205,6 +205,7 @@ class BiddingRound extends BaseModel
         try {
             $round = $this->db->fetch("SELECT * FROM {$this->table} WHERE id = ? FOR UPDATE", [$id]);
             if (!$round) {
+                error_log("approveRound: could not fetch record with ID: " . $id);
                 $pdo->rollBack();
                 return null;
             }
@@ -259,6 +260,7 @@ class BiddingRound extends BaseModel
             }
 
             $pdo->commit();
+            error_log("approveRound: commit successful for ID: " . $id);
 
             // Side effects (non-blocking, after commit)
             if ($selectedCompanyId !== null && $winningBidAmount !== null && $winningBidAmount > 0) {
@@ -279,11 +281,16 @@ class BiddingRound extends BaseModel
                 );
             }
         } catch (\Throwable $e) {
+            error_log("approveRound: caught exception: " . $e->getMessage());
             $pdo->rollBack();
             throw $e;
         }
 
-        return $this->findById($id);
+        $result = $this->findById($id);
+        if (!$result) {
+            error_log("approveRound: findById returned null for ID: " . $id);
+        }
+        return $result;
     }
 
     public function rejectRound(string $id, ?string $reason = null): ?array
@@ -323,7 +330,7 @@ class BiddingRound extends BaseModel
         }
 
         return $this->updateAttributes($id, [
-            'status' => 'ready_for_pickup',
+            'status' => 'completed',
             'updated_at' => date('Y-m-d H:i:s')
         ]);
     }
@@ -458,9 +465,10 @@ class BiddingRound extends BaseModel
     {
         $this->expireEndedRounds();
         $rows = $this->db->fetchAll(
-            "SELECT br.*, wc.name AS waste_category_name
+            "SELECT br.*, wc.name AS waste_category_name, u.name AS company_name
              FROM {$this->table} br
              LEFT JOIN waste_categories wc ON wc.id = br.waste_category_id
+             LEFT JOIN users u ON u.id = br.leading_company_id
              WHERE br.status = 'active'
              ORDER BY br.end_time ASC, br.created_at DESC"
         );
@@ -488,6 +496,8 @@ class BiddingRound extends BaseModel
                 'quantity' => $quantity,
                 'unit' => $row['unit'] ?? 'kg',
                 'currentHighestBid' => $currentHighestBid,
+                'biddingCompany' => $row['company_name'] ?? '',
+                'leadingCompanyId' => $leadingCompanyId !== null ? (int) $leadingCompanyId : null,
                 'status' => $row['status'] ?? 'active',
                 'endTime' => $row['end_time'] ?? null,
                 'startingBid' => $startingBid,

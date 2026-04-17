@@ -302,4 +302,21 @@ class Payment extends BaseModel
     {
         return 'PAY-' . strtoupper(bin2hex(random_bytes(5)));
     }
+
+    public function purchasesByCategory(int $companyId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT wc.name AS category, SUM(br.quantity) AS total_quantity, br.unit
+         FROM payments p
+         JOIN bidding_rounds br ON br.id = p.txn_id
+         JOIN waste_categories wc ON wc.id = br.waste_category_id
+         WHERE p.recipient_id = ?
+           AND p.type = 'payment'
+           AND p.status = 'completed'
+         GROUP BY wc.name, br.unit",
+            [$companyId]
+        );
+
+        return $rows ?: [];
+    }
 }

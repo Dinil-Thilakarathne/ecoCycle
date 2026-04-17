@@ -61,15 +61,15 @@ return [
             'option' => 'Company — Operations & analytics',
             'summary' => 'Built for company managers supervising recycling performance and KPIs.',
             'overrides' => [
-                'name_label' => 'Account owner name',
-                'name_placeholder' => 'Main contact full name',
+                'name_label' => 'Company name',
+                'name_placeholder' => 'e.g. EcoCycle Industries',
             ],
             'fields' => [
                 [
-                    'name' => 'companyName',
-                    'label' => 'Company name',
+                    'name' => 'contactPerson',
+                    'label' => 'Main contact person',
                     'type' => 'text',
-                    'placeholder' => 'EcoCycle Industries',
+                    'placeholder' => 'John Doe',
                     'rules' => ['required', 'max:150'],
                     'store' => 'metadata',
                 ],

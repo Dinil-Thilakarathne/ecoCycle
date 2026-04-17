@@ -115,17 +115,28 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            $period = strtolower((string) $request->query('period', 'weekly'));
-            $months = (int) $request->query('months', 6);
-            $month = (string) $request->query('month', '');
+            // Get the start of the week (7 days ago) and end of today
+            $weekStart = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
+            $weekEnd = date('Y-m-d') . ' 23:59:59';
 
-            if ($period === 'monthly') {
-                return $this->json($this->buildMonthlyMaterialCollectionResponse((int) $collectorId, $months));
-            }
-
-            if ($period === 'monthly-by-material') {
-                return $this->json($this->buildMonthlyMaterialByCategoryResponse((int) $collectorId, $month));
-            }
+            $sql = "
+                SELECT 
+                    wc.id,
+                    wc.name,
+                    wc.price_per_unit,
+                    wc.color,
+                    COALESCE(SUM(prw.quantity), 0) AS total_weight,
+                    COALESCE(SUM(prw.quantity * wc.price_per_unit), 0) AS total_price
+                FROM waste_categories wc
+                LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
+                LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
+                WHERE pr.collector_id = ?
+                    AND pr.created_at >= ? AND pr.created_at <= ?
+                    AND pr.status = 'completed'
+                GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
+                HAVING total_weight > 0
+                ORDER BY total_weight DESC
+            ";
 
             if ($period === 'yearly-by-material') {
                 $year = (string) $request->query('year', '');
@@ -186,8 +197,6 @@ class CollectorStatsController extends BaseController
             return $this->json([
                 'status' => 'success',
                 'data' => $formattedMaterials,
-                'week_start' => $weekStartDate->format('Y-m-d'),
-                'week_end' => $weekEndDate->format('Y-m-d'),
                 'timestamp' => date('Y-m-d H:i:s')
             ]);
         } catch (\Throwable $e) {

@@ -1,42 +1,47 @@
 <?php
 // ---------- PHP Variables ----------
-$totalWasteThisMonth = 96;
-$totalWasteLastMonth = 78;
-$wasteIncrease = round((($totalWasteThisMonth - $totalWasteLastMonth) / $totalWasteLastMonth) * 100, 1);
+$analytics = is_array($analyticsData ?? null) ? $analyticsData : [];
 
-$recyclingRate = 89;
-$co2SavedThisMonth = 78;
-$energySavedThisMonth = 195;
+$totalWasteThisMonth = (float) ($analytics['totalWeight'] ?? 0);
+$totalIncomeThisMonth = (float) ($analytics['totalIncomeThisMonth'] ?? 0);
+$monthlyData = array_values(is_array($analytics['monthlyWasteData'] ?? null) ? $analytics['monthlyWasteData'] : []);
+$monthlyIncomeData = is_array($analytics['monthlyIncomeData'] ?? null) ? $analytics['monthlyIncomeData'] : [];
 
-// Monthly data for line chart (month in YYYY-MM, label is user-visible)
-$monthlyData = [
-    ["month" => "2026-01", "label" => "Jan 2026", "plastic" => 15, "paper" => 8, "glass" => 5, "metal" => 12, "organic" => 18],
-    ["month" => "2026-02", "label" => "Feb 2026", "plastic" => 18, "paper" => 10, "glass" => 7, "metal" => 14, "organic" => 22],
-    ["month" => "2026-03", "label" => "Mar 2026", "plastic" => 12, "paper" => 7, "glass" => 6, "metal" => 16, "organic" => 20],
-    ["month" => "2026-04", "label" => "Apr 2026", "plastic" => 22, "paper" => 14, "glass" => 9, "metal" => 19, "organic" => 25],
-    ["month" => "2026-05", "label" => "May 2026", "plastic" => 16, "paper" => 11, "glass" => 7, "metal" => 17, "organic" => 21],
-    ["month" => "2026-06", "label" => "Jun 2026", "plastic" => 20, "paper" => 13, "glass" => 10, "metal" => 20, "organic" => 28]
-];
+$wastePalette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f472b6', '#a3a3a3'];
+$wasteTotals = [];
+foreach ($monthlyData as $row) {
+    if (!is_array($row)) {
+        continue;
+    }
+    foreach ($row as $key => $value) {
+        if ($key === 'month' || $key === 'label') {
+            continue;
+        }
+        $wasteTotals[$key] = ($wasteTotals[$key] ?? 0.0) + (float) $value;
+    }
+}
 
-// Waste type data for pie chart
-$wasteTypeData = [
-    ["name" => "Plastic", "value" => 103, "color" => "#3b82f6"],
-    ["name" => "Paper", "value" => 63, "color" => "#10b981"],
-    ["name" => "Glass", "value" => 44, "color" => "#f59e0b"],
-    ["name" => "Metal", "value" => 98, "color" => "#ef4444"],
-    ["name" => "Organic", "value" => 134, "color" => "#8b5cf6"],
-];
+$wasteTypeData = [];
+$colorIndex = 0;
+foreach ($wasteTotals as $name => $value) {
+    $wasteTypeData[] = [
+        'name' => (string) $name,
+        'value' => round((float) $value, 2),
+        'color' => $wastePalette[$colorIndex % count($wastePalette)],
+    ];
+    $colorIndex++;
+}
 ?>
 
 
 
 <div class="dashboard-page">
-    <div class="page-header">
-        <div class="header-content">
-
-            <h1><b>Track your recycling performance and environmental impact</b></h1>
+    <header class="page-header">
+        <div class="page-header__content">
+            <h2 class="page-header__title">Analytics</h2>
+            <p class="page-header__description">Track your recycling performance and environmental impact</p>
         </div>
-    </div>
+    </header>
 
     <div class="stats-grid analytics-grid" style="margin-bottom:2.5rem;">
         <div class="feature-card">
@@ -45,7 +50,7 @@ $wasteTypeData = [
                 <div class="feature-card__icon"><i class="fa-solid fa-dumpster"></i></div>
             </div>
             <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                <?= $totalWasteThisMonth ?> kg
+                <?= number_format($totalWasteThisMonth, 2) ?> kg
             </p>
             <div class="feature-card__footer">
                 <span class="tag success">Total waste you have given</span>
@@ -56,8 +61,7 @@ $wasteTypeData = [
                 <h3 class="feature-card__title">Income</h3>
             </div>
             <p class="feature-card__body" style="font-size:2rem;font-weight:700;color:#1e293b;">
-                <!-- Example income, replace with real value if available -->
-                Rs10000.00
+                Rs <?= number_format($totalIncomeThisMonth, 2) ?>
             </p>
             <div class="feature-card__footer">
                 <span class="tag success">Total income this month</span>
@@ -387,19 +391,11 @@ $wasteTypeData = [
         function computeIncomeForYear(year){
             const labels = [];
             const data = [];
-            // Example rate: Rs per kg (adjust later if you prefer a real formula)
-            const rate = 100;
             for (let m=1; m<=12; m++){
                 const mm = String(m).padStart(2,'0');
                 const ym = `${year}-${mm}`;
                 labels.push(new Date(year, m-1).toLocaleString(undefined, { month: 'short' }));
-                const monthObj = monthlyData.find(x => x.month === ym);
-                if (monthObj){
-                    const totalWeight = Object.keys(monthObj).filter(k => k !== 'month' && k !== 'label').reduce((s,k) => s + Number(monthObj[k] || 0), 0);
-                    data.push(Math.round(totalWeight * rate));
-                } else {
-                    data.push(0);
-                }
+                data.push(Number(monthlyIncomeData[ym] || 0));
             }
             return { labels, data };
         }
@@ -506,8 +502,9 @@ $wasteTypeData = [
 
 <script>
     // PHP to JS data transfer
-    const monthlyData = <?= json_encode($monthlyData) ?>;
-    const wasteTypeData = <?= json_encode($wasteTypeData) ?>;
+    const monthlyData = <?= json_encode($monthlyData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    const monthlyIncomeData = <?= json_encode($monthlyIncomeData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    const wasteTypeData = <?= json_encode($wasteTypeData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
 
     // Line Chart for Waste Trends
     const trendEl = document.getElementById('wasteTrendChart');

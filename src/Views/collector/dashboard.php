@@ -50,6 +50,16 @@ $nextLevelRemaining = $collectorLevel >= 10 ? 0 : max(0, $nextLevelTarget - $com
 $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTaskCount % 3) / 3) * 100);
 ?>
 
+<!-- <img
+      src="<?= htmlspecialchars($profileImageSrc) ?>"
+      alt="Profile Picture"
+      class="header-user__avatar" width="100"
+    >
+<h2 class="page-header__title">Welcome back, <?= $collectorName ?>!</h2>
+<p class="page-header__description">Here is your latest update on your Dashboard</p>
+  </div>
+</div> -->
+
 <table>
       <tr>
         <td>
