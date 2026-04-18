@@ -82,32 +82,25 @@ class PickupRequest extends BaseModel
         $sql = "SELECT pr.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address, col.name AS collector_name{$vehicleSelect}
                 FROM {$this->table} pr
                 LEFT JOIN users c ON c.id = pr.customer_id
-                LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}";
-
-        $conditions = [];
+            LEFT JOIN users col ON col.id = pr.collector_id{$vehicleJoin}";
         $params = [];
-
+        
         if ($timeSlot !== null && $timeSlot !== '' && $timeSlot !== 'all') {
-            $conditions[] = 'pr.time_slot = ?';
+            $sql .= " AND pr.time_slot = ?";
             $params[] = $timeSlot;
         }
 
         if ($date !== null && $date !== '') {
-            $conditions[] = "DATE(pr.scheduled_at) {$dateOperator} ?";
+            $sql .= " AND DATE(pr.scheduled_at) {$dateOperator} ?";
             $params[] = $date;
         }
 
         if ($status !== null && $status !== '' && $status !== 'all') {
-            $conditions[] = 'pr.status = ?';
+            $sql .= " AND pr.status = ?";
             $params[] = $status;
         }
 
-        if (!empty($conditions)) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        }
-
-        $sql .= ' ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC';
-
+        $sql .= " ORDER BY pr.scheduled_at IS NULL ASC, pr.scheduled_at ASC, pr.created_at DESC";
         $rows = $this->db->fetchAll($sql, $params);
         if (!$rows) {
             return [];
@@ -604,7 +597,6 @@ class PickupRequest extends BaseModel
             case 'completed':
             case 'cancelled':
             case 'confirmed':
-            case 'failed':
                 return $normalized;
             default:
                 return $normalized;

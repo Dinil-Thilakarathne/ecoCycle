@@ -1095,10 +1095,6 @@ $router->get('/collector/tasks', 'Controllers\Collector\CollectorDashboardContro
     'Middleware\Roles\CollectorOnly',
 ]);
 
-// Collector route preview iframe page
-$router->get('/collector/route-preview', 'Controllers\Collector\CollectorDashboardController@routePreview', [
-]);
-
 // Collector analytics / reporting
 $router->get('/collector/analytics', 'Controllers\Collector\CollectorDashboardController@analytics', [
     'Middleware\AuthMiddleware',

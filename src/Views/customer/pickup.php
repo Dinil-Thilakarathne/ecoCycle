@@ -282,6 +282,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
             </tbody>
         </table>
     </div>
+    <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary btn-rate" onclick="showAlert('Please click the star icon in a completed pickup row to submit rating.');">Rate a collector</button>
+    </div>
 </div>
 
 <div id="newRequestModal" class="modal">
@@ -340,7 +343,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
         </div>
         <form id="rateCollectorForm" class="request-form">
             <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
-            <input type="hidden" id="rate_pickup_request_id" name="pickupRequestId" value="">
+            <input type="hidden" id="rate_request_id" name="pickup_request_id" value="">
             <?php $customerName = trim((string) ($profileData['name'] ?? ($userData['name'] ?? ''))); ?>
             <div class="form-group">
                 <label for="rate_customer_name">Customer name</label>
@@ -775,20 +778,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const pickupInput = document.getElementById('rate_pickup_request_id');
 
             if (typeof requestId === 'undefined' || requestId === null || requestId === '') {
-                // Global rate button - allow editing collector name
-                if (collectorInput) {
-                    collectorInput.value = '';
-                    collectorInput.readOnly = false;
-                }
-                if (pickupInput) {
-                    pickupInput.value = '';
-                }
-                if (addr) addr.value = defaultAddress || '';
-                if (dateInput) {
-                    const today = new Date();
-                    dateInput.value = today.toISOString().split('T')[0];
-                }
-                rateModal.classList.add('modal-open');
+                showAlert('Please choose a completed pickup request and click its star icon to rate the assigned collector.', 'error');
                 return;
             }
 
@@ -810,8 +800,9 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 collectorInput.value = request.collectorName || '';
                 collectorInput.readOnly = !!(request.collectorName && String(request.collectorName).trim() !== '');
             }
-            if (pickupInput) {
-                pickupInput.value = String(request.id || '');
+            const requestInput = document.getElementById('rate_request_id');
+            if (requestInput) {
+                requestInput.value = String(request.id ?? '');
             }
             if (custNameInput) {
                 custNameInput.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
@@ -836,6 +827,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
             if (custName) custName.value = <?= json_encode($customerName, JSON_UNESCAPED_UNICODE) ?>;
             const addr = document.getElementById('rate_address');
             if (addr) addr.value = <?= json_encode($defaultAddress, JSON_UNESCAPED_UNICODE) ?>;
+            const requestInput = document.getElementById('rate_request_id');
+            if (requestInput) requestInput.value = '';
             const collectorInput = document.getElementById('rate_collector');
             if (collectorInput) collectorInput.readOnly = false;
             const pickupInput = document.getElementById('rate_pickup_request_id');
@@ -1060,7 +1053,7 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 customerName: form.customerName.value.trim(),
                 address: form.address.value.trim(),
                 date: form.date.value,
-                pickupRequestId: form.pickupRequestId.value,
+                pickup_request_id: form.pickup_request_id.value,
                 collectorName: form.collectorName.value.trim(),
                 rating: parseInt(form.rating.value, 10),
                 description: form.description.value.trim()

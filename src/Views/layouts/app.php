@@ -63,7 +63,7 @@
 
     <!-- Dashboard JS if this is a dashboard page -->
     <?php if (isset($userType)): ?>
-        <script src="/js/dashboard.js"></script>
+        <script src="<?= asset('js/dashboard.js') ?>"></script>
     <?php endif; ?>
 
     <!-- Live Reload for Development (only loads on localhost/development)
