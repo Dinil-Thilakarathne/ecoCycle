@@ -15,19 +15,46 @@ consoleLog('Collector Name (resolved): ' . $collectorName);
 $collectorName = htmlspecialchars((string) $collectorName, ENT_QUOTES, 'UTF-8');
 
 // SAME image logic as profile page
-$profileImage = $collectorProfile['profile_pic']
-  ?? ($collectorProfile['profileImage']
-  ?? ($collectorProfile['profileImagePath']
-  ?? (auth()['profileImagePath']
-  ?? (auth()['profile_image_path']
-  ?? (session('profileImagePath') ?? null)))));
+$profileImage = null;
+$sessionImage = session('profileImagePath');
+if (is_string($sessionImage) && trim($sessionImage) !== '') {
+  $profileImage = trim($sessionImage);
+}
+
+$collectorProfileData = is_array($collectorProfile) ? $collectorProfile : [];
+if ($profileImage === null) {
+foreach (['profileImagePath', 'profileImage', 'profile_image_path', 'profile_pic'] as $imageKey) {
+  $candidate = $collectorProfileData[$imageKey] ?? null;
+  if (is_string($candidate) && trim($candidate) !== '') {
+    $profileImage = trim($candidate);
+    break;
+  }
+}
+}
+
+if ($profileImage === null) {
+  foreach (['profileImagePath', 'profile_image_path'] as $authKey) {
+    $candidate = auth()[$authKey] ?? null;
+    if (is_string($candidate) && trim($candidate) !== '') {
+      $profileImage = trim($candidate);
+      break;
+    }
+  }
+}
 
 if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = $profileImage;
+  $hasCustomProfileImage = true;
 } elseif (is_string($profileImage) && $profileImage !== '') {
-  $profileImageSrc = '/' . ltrim($profileImage, '/');
+  $profileImageSrc = asset(ltrim($profileImage, '/'));
+  $hasCustomProfileImage = true;
 } else {
-  $profileImageSrc = '/assets/avatar.png';
+  $profileImageSrc = asset('assets/avatar.png');
+  $hasCustomProfileImage = false;
+}
+
+if ($hasCustomProfileImage) {
+  $profileImageSrc .= (str_contains($profileImageSrc, '?') ? '&' : '?') . 'v=' . time();
 }
 
 $assignedTaskCount = max(0, (int) ($todayPickups ?? 0));

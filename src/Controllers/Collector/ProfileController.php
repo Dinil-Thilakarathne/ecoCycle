@@ -30,6 +30,7 @@ class ProfileController extends BaseController
         }
 
         $userModel = new User();
+        $session = session();
 
         try {
             $collectorProfile = $userModel->findById($userId);
@@ -48,9 +49,9 @@ class ProfileController extends BaseController
                 'collectorProfile' => $collectorProfile,
                 'vehicleInfo' => $vehicleInfo,
                 'user' => $authUser,
-                'validationErrors' => session()->get('errors') ?? [],
-                'statusMessage' => session()->get('status') ?? '',
-                'oldInput' => session()->get('old') ?? [],
+                'validationErrors' => $session->getFlash('errors', $session->get('errors', [])) ?? [],
+                'statusMessage' => $session->getFlash('status', $session->get('status', '')) ?? '',
+                'oldInput' => $session->getFlash('old', $session->get('old', [])) ?? [],
             ]);
         } catch (\Throwable $e) {
             return $this->view('collector/profile', [
@@ -91,7 +92,7 @@ class ProfileController extends BaseController
             return Response::redirect('/collector/profile');
         }
 
-        if ($request->has('uploadPhoto')) {
+        if ($request->hasFile('photo') || $request->has('uploadPhoto')) {
             $this->processPhotoUpload($request, $userModel, $currentUser, $userId);
         } elseif ($request->has('removePhoto')) {
             $this->processPhotoRemoval($userModel, $currentUser, $userId);
@@ -100,7 +101,7 @@ class ProfileController extends BaseController
         } elseif ($request->has('updatePassword')) {
             $this->processPasswordChange($request, $userModel, $currentUser, $userId);
         } else {
-            $session->flash('status', 'No changes were detected.');
+            $session->flash('errors', ['No recognized profile action was submitted.']);
         }
 
         return Response::redirect('/collector/profile');
@@ -130,8 +131,28 @@ class ProfileController extends BaseController
         }
 
         try {
-            $userModel->updateProfileImagePath($userId, $relativePath);
+            $updated = $userModel->updateProfileImagePath($userId, $relativePath);
+            if (!$updated) {
+                $this->imageManager->delete($relativePath);
+                $session->flash('errors', ['Failed to update profile photo in database.']);
+                return;
+            }
+
+            $reloadedUser = $userModel->findById($userId);
+            $savedPath = is_array($reloadedUser) ? ($reloadedUser['profile_image_path'] ?? ($reloadedUser['profileImagePath'] ?? null)) : null;
+            if (!is_string($savedPath) || trim($savedPath) !== $relativePath) {
+                $this->imageManager->delete($relativePath);
+                $session->flash('errors', ['Profile image path was not saved to users.profile_image_path.']);
+                return;
+            }
+
+            $metadata = is_array($currentUser['metadata'] ?? null) ? $currentUser['metadata'] : [];
+            $metadata['profile_pic'] = $relativePath;
+            $metadata['profileImage'] = $relativePath;
+            $userModel->updateUser($userId, ['metadata' => $metadata]);
+
             $this->imageManager->delete($currentUser['profile_image_path'] ?? null);
+            $session->set('profileImagePath', $relativePath);
             $session->flash('status', 'Profile photo updated successfully.');
         } catch (\Throwable $e) {
             $this->imageManager->delete($relativePath);
@@ -144,8 +165,19 @@ class ProfileController extends BaseController
         $session = session();
 
         try {
-            $userModel->updateProfileImagePath($userId, null);
+            $updated = $userModel->updateProfileImagePath($userId, null);
+            if (!$updated) {
+                $session->flash('errors', ['Unable to remove profile photo.']);
+                return;
+            }
+
+            $metadata = is_array($currentUser['metadata'] ?? null) ? $currentUser['metadata'] : [];
+            $metadata['profile_pic'] = null;
+            $metadata['profileImage'] = null;
+            $userModel->updateUser($userId, ['metadata' => $metadata]);
+
             $this->imageManager->delete($currentUser['profile_image_path'] ?? null);
+            $session->set('profileImagePath', null);
             $session->flash('status', 'Profile photo removed.');
         } catch (\Throwable $e) {
             $session->flash('errors', ['Unable to remove profile photo.']);

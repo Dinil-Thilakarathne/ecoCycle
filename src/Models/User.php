@@ -8,6 +8,7 @@ class User
 {
     protected Database $db;
     protected string $table = 'users';
+    private ?array $usersTableColumns = null;
 
     public function __construct(?Database $db = null)
     {
@@ -32,6 +33,7 @@ class User
                 bank_name VARCHAR(150) DEFAULT NULL,
                 bank_branch VARCHAR(150) DEFAULT NULL,
                 profile_image_path VARCHAR(255) DEFAULT NULL,
+                profile_image VARCHAR(255) DEFAULT NULL,
                 password_hash VARCHAR(255) DEFAULT NULL,
                 role_id INTEGER DEFAULT NULL,
                 vehicle_id INTEGER DEFAULT NULL,
@@ -83,6 +85,7 @@ class User
             `bank_name` VARCHAR(150) DEFAULT NULL,
             `bank_branch` VARCHAR(150) DEFAULT NULL,
             `profile_image_path` VARCHAR(255) DEFAULT NULL,
+            `profile_image` VARCHAR(255) DEFAULT NULL,
             `password_hash` VARCHAR(255) DEFAULT NULL,
             `role_id` INT DEFAULT NULL,
             `vehicle_id` INT DEFAULT NULL,
@@ -195,7 +198,102 @@ class User
 
     public function updateProfileImagePath(int $id, ?string $path): bool
     {
-        return $this->updateUser($id, ['profile_image_path' => $path]);
+        $hasLegacyColumn = $this->hasUsersColumn('profile_image');
+
+        $setParts = ['profile_image_path = ?'];
+        $params = [$path];
+
+        if ($hasLegacyColumn) {
+            $setParts[] = 'profile_image = ?';
+            $params[] = $path;
+        }
+
+        $params[] = $id;
+        $sql = 'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = ?';
+
+        $ok = $this->db->query($sql, $params);
+        if (!$ok) {
+            return false;
+        }
+
+        $verifySql = $hasLegacyColumn
+            ? 'SELECT profile_image_path, profile_image FROM users WHERE id = ? LIMIT 1'
+            : 'SELECT profile_image_path FROM users WHERE id = ? LIMIT 1';
+
+        $row = $this->db->fetch($verifySql, [$id]);
+        if (!$row) {
+            return false;
+        }
+
+        $savedPath = array_key_exists('profile_image_path', $row) ? $row['profile_image_path'] : null;
+        if ($this->normalizeImagePathValue($savedPath) !== $this->normalizeImagePathValue($path)) {
+            return false;
+        }
+
+        if ($hasLegacyColumn) {
+            $savedLegacyPath = array_key_exists('profile_image', $row) ? $row['profile_image'] : null;
+            if ($this->normalizeImagePathValue($savedLegacyPath) !== $this->normalizeImagePathValue($path)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function normalizeImagePathValue($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+        return $normalized === '' ? null : $normalized;
+    }
+
+    private function hasUsersColumn(string $column): bool
+    {
+        $columns = $this->getUsersTableColumns();
+        return isset($columns[strtolower($column)]);
+    }
+
+    private function getUsersTableColumns(): array
+    {
+        if ($this->usersTableColumns !== null) {
+            return $this->usersTableColumns;
+        }
+
+        $columns = [];
+
+        try {
+            if ($this->db->isPgsql()) {
+                $rows = $this->db->fetchAll(
+                    'SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?',
+                    ['users']
+                );
+
+                foreach ($rows as $row) {
+                    $name = strtolower((string) ($row['column_name'] ?? ''));
+                    if ($name !== '') {
+                        $columns[$name] = true;
+                    }
+                }
+            } else {
+                $rows = $this->db->fetchAll('SHOW COLUMNS FROM users');
+
+                foreach ($rows as $row) {
+                    $name = strtolower((string) ($row['Field'] ?? ''));
+                    if ($name !== '') {
+                        $columns[$name] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Safe default for environments where schema introspection fails.
+            $columns['profile_image_path'] = true;
+        }
+
+        $this->usersTableColumns = $columns;
+        return $this->usersTableColumns;
     }
 
     public function emailExists(string $email, ?int $excludeId = null): bool
@@ -370,6 +468,10 @@ class User
         // Normalize some commonly-used names
         if (array_key_exists('profile_image_path', $row)) {
             $row['profileImagePath'] = $row['profile_image_path'];
+        }
+        if ((!isset($row['profileImagePath']) || $row['profileImagePath'] === null || $row['profileImagePath'] === '') && array_key_exists('profile_image', $row)) {
+            $row['profileImagePath'] = $row['profile_image'];
+            $row['profile_image_path'] = $row['profile_image'];
         }
 
         if (array_key_exists('bank_account_name', $row)) {

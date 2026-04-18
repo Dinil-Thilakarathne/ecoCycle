@@ -61,13 +61,35 @@ $editBankAccount = $oldInput['bank_account_number'] ?? $bankDetails['account_num
 $editBankHolder = $oldInput['bank_account_name'] ?? $bankDetails['user'] ?? '';
 $editBankBranch = $oldInput['bank_branch'] ?? $bankDetails['branch'] ?? '';
 
-$profileImage = $collector['profile_pic'] ?? ($collector['profileImage'] ?? ($collector['profileImagePath'] ?? null));
+$profileImage = null;
+$sessionProfileImage = session('profileImagePath');
+if (is_string($sessionProfileImage) && trim($sessionProfileImage) !== '') {
+  $profileImage = trim($sessionProfileImage);
+}
+
+if ($profileImage === null) {
+foreach (['profileImagePath', 'profileImage', 'profile_image_path', 'profile_pic'] as $imageKey) {
+  $candidate = $collector[$imageKey] ?? null;
+  if (is_string($candidate) && trim($candidate) !== '') {
+    $profileImage = trim($candidate);
+    break;
+  }
+}
+}
+
+$hasCustomProfileImage = false;
 if (is_string($profileImage) && preg_match('#^https?://#i', $profileImage)) {
   $profileImageSrc = $profileImage;
+  $hasCustomProfileImage = true;
 } elseif (is_string($profileImage) && $profileImage !== '') {
-  $profileImageSrc = '/' . ltrim($profileImage, '/');
+  $profileImageSrc = asset(ltrim($profileImage, '/'));
+  $hasCustomProfileImage = true;
 } else {
-  $profileImageSrc = '/assets/avatar.png';
+  $profileImageSrc = asset('assets/avatar.png');
+}
+
+if ($hasCustomProfileImage) {
+  $profileImageSrc .= (str_contains($profileImageSrc, '?') ? '&' : '?') . 'v=' . time();
 }
 
 $vehicleDisplay = [];
@@ -255,7 +277,7 @@ $csrfToken = csrf_token();
         <button type="submit" name="uploadPhoto" class="btn btn-primary collector-flex-1">
           ✓ Upload Photo
         </button>
-        <?php if ($profileImage && $profileImageSrc !== '/assets/avatar.png'): ?>
+        <?php if ($hasCustomProfileImage): ?>
           <button type="submit" name="removePhoto" class="btn btn-outline collector-remove-photo-btn"
                   onclick="return confirm('Are you sure you want to remove your profile photo?');">
             🗑️ Remove Photo

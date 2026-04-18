@@ -983,7 +983,22 @@ HTML;
         }
 
         $profileImagePath = $record['profileImagePath'] ?? ($record['profile_image_path'] ?? null);
-        $profilePic = $metadata['profile_pic'] ?? ($metadata['profileImage'] ?? $profileImagePath);
+        if (!is_string($profileImagePath) || trim($profileImagePath) === '') {
+            $profileImagePath = null;
+        } else {
+            $profileImagePath = trim($profileImagePath);
+        }
+
+        $profilePic = $profileImagePath;
+        if ($profilePic === null) {
+            foreach (['profile_pic', 'profileImage'] as $metadataKey) {
+                $candidate = $metadata[$metadataKey] ?? null;
+                if (is_string($candidate) && trim($candidate) !== '') {
+                    $profilePic = trim($candidate);
+                    break;
+                }
+            }
+        }
 
         $profile = [
             'id' => $record['id'] ?? null,

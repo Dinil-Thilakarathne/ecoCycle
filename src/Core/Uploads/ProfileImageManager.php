@@ -8,7 +8,7 @@ namespace Core\Uploads;
 class ProfileImageManager
 {
     public const UPLOAD_DIRECTORY = 'uploads/profile-images';
-    private const MAX_UPLOAD_SIZE = 2097152; // 2 MiB
+    private const MAX_UPLOAD_SIZE = 5242880; // 5 MiB
     private const ALLOWED_MIME_TYPES = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -38,7 +38,7 @@ class ProfileImageManager
             return [
                 'ok' => false,
                 'path' => null,
-                'error' => 'Profile images must be 2 MB or smaller.',
+                'error' => 'Profile images must be 5 MB or smaller.',
             ];
         }
 
