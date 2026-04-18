@@ -32,17 +32,6 @@ foreach ($pickupRequests as $request) {
     $totalCount++;
 }
 
-// Get only the top 5 most recent pickups for the dashboard widget
-$recentPickupsWidget = array_slice(
-    array_values(array_filter($pickupRequests, static function ($r) {
-        $status = strtolower((string) ($r['status'] ?? ''));
-        return $status !== 'cancelled';
-    })),
-    0,
-    5
-);
-
-consoleLog($userProfile);
 
 if (!function_exists('customer_pickup_status_class')) {
     function customer_pickup_status_class(string $status): string
@@ -205,8 +194,6 @@ if (!function_exists('customer_pickup_format_datetime')) {
 <script>
 // --- Dashboard data & chart logic ---
 let chartInstance = null;
-
-function navigateTo(url) { window.location.href = url; }
 
 function loadDashboardData() {
     fetch('/api/customer/dashboard/stats', { credentials: 'include' })

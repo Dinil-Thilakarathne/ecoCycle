@@ -80,10 +80,6 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     <div id="modalCategory" style="font-size: 0.95rem; color: #111827;"></div>
                 </div>
                 <div>
-                    <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TYPE</div>
-                    <div id="modalCategory" style="font-size: 0.95rem; color: #111827;"></div>
-                </div>
-                <div>
                     <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #6b7280; letter-spacing: 0.05em; margin-bottom: 4px;">TIME</div>
                     <div id="modalTime" style="font-size: 0.95rem; color: #111827;"></div>
                 </div>
@@ -188,12 +184,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                 return msg.length <= len ? msg : msg.substring(0, len) + '...';
             }
 
-            // Dummy notifications used when API returns none or fails
-            const dummyNotifications = [
-                { id: 'n-1', title: 'Pickup scheduled', message: 'Your pickup is scheduled for tomorrow 9:00 AM.', category: 'pickup', timestamp: new Date().toISOString(), read: false, priority: 'normal' },
-                { id: 'n-2', title: 'Payment received', message: 'You have received Rs 1,200 for your last recycling sale.', category: 'payment', timestamp: new Date(Date.now() - 3600 * 1000).toISOString(), read: false, priority: 'high' },
-                { id: 'n-3', title: 'System update', message: 'We updated our terms of service.', category: 'system', timestamp: new Date(Date.now() - 86400 * 1000).toISOString(), read: true, priority: 'low' }
-            ];
+
 
             async function fetchNotifications() {
                 try {
@@ -224,10 +215,9 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
 
                 } catch (err) {
                     console.error(err);
-                    const notifications = dummyNotifications.slice();
-                    notificationsState = notifications;
-                    renderNotifications(notifications);
-                    renderStats(notifications);
+                    notificationsState = [];
+                    renderNotifications([]);
+                    renderStats([]);
                 }
             }
 

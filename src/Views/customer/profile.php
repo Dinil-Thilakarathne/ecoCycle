@@ -407,7 +407,6 @@ function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'O
 }
 
 function openModal(id) {
-  console.log("Opening modal:", id); // DEBUG
   const modal = document.getElementById(id);
   if (modal) {
     modal.style.display = "block";
@@ -438,7 +437,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-
-<?php if (!empty($errors) && !empty($activeModal)): ?>
-<?php endif; ?>
+
