@@ -330,6 +330,60 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                 return ('' + s).replace(/[&"'<>]/g, function (c) { return { '&': '&amp;', '"': '&quot;', '\'': '&#39;', '<': '&lt;', '>': '&gt;' }[c]; });
             }
 
+            // Simple confirm modal that returns a Promise<boolean>
+            function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+                return new Promise((resolve) => {
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'simple-modal-backdrop';
+                    backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
+
+                    const dialog = document.createElement('div');
+                    dialog.style.cssText = 'background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:480px;max-width:100%;padding:1.25rem;';
+
+                    const header = document.createElement('div');
+                    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;';
+                    const titleEl = document.createElement('h3');
+                    titleEl.textContent = title;
+                    titleEl.style.cssText = 'margin:0;font-size:1.05rem;font-weight:700;color:#111827;';
+
+                    const body = document.createElement('div');
+                    body.innerHTML = `<p style="margin:0 0 1rem 0;color:#374151;">${escapeHtml(message)}</p>`;
+
+                    const footer = document.createElement('div');
+                    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.5rem;';
+
+                    const btnCancel = document.createElement('button');
+                    btnCancel.type = 'button';
+                    btnCancel.textContent = cancelLabel;
+                    btnCancel.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#6b7280;color:#fff;cursor:pointer;';
+
+                    const btnConfirm = document.createElement('button');
+                    btnConfirm.type = 'button';
+                    btnConfirm.textContent = confirmLabel;
+                    btnConfirm.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#dc2626;color:#fff;cursor:pointer;';
+
+                    btnCancel.addEventListener('click', () => {
+                        backdrop.remove();
+                        resolve(false);
+                    });
+
+                    btnConfirm.addEventListener('click', () => {
+                        backdrop.remove();
+                        resolve(true);
+                    });
+
+                    footer.appendChild(btnCancel);
+                    footer.appendChild(btnConfirm);
+
+                    header.appendChild(titleEl);
+                    dialog.appendChild(header);
+                    dialog.appendChild(body);
+                    dialog.appendChild(footer);
+                    backdrop.appendChild(dialog);
+                    document.body.appendChild(backdrop);
+                });
+            }
+
             async function markAsRead(id) {
                 try {
                     const res = await fetch('/api/notifications/' + encodeURIComponent(id) + '/read', {
@@ -486,7 +540,7 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
             }
 
             // Event delegation for action buttons using data-action attributes
-            document.addEventListener('click', function (e) {
+            document.addEventListener('click', async function (e) {
                 const target = e.target;
                 const actionEl = target.closest && target.closest('[data-action]');
                 if (actionEl) {
@@ -495,7 +549,13 @@ $csrfToken = function_exists('csrf_token') ? csrf_token() : ''; // expose CSRF t
                     const id = actionEl.getAttribute('data-id');
                     if (action === 'view' && id) { return openNotificationById(id); }
                     if (action === 'delete' && id) {
-                        if (confirm('Delete this notification?')) {
+                        const confirmed = await createConfirmModal({
+                            title: 'Delete Notification',
+                            message: 'Are you sure you want to delete this notification?',
+                            confirmLabel: 'Delete',
+                            cancelLabel: 'Cancel'
+                        });
+                        if (confirmed) {
                             return deleteNotification(id);
                         }
                         return;

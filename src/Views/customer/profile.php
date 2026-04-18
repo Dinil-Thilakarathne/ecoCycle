@@ -123,9 +123,9 @@ $csrfToken = csrf_token();
        Change Password
       </button>
 
-      <form method="POST" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
+      <form method="POST" id="deleteAccountForm" onsubmit="handleDeleteAccountSubmit(event)">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
-        <button type="submit" name="deleteAccount" class="btn p-btn-delete">Delete Account</button>
+        <button type="submit" name="deleteAccount" id="deleteAccountBtn" class="btn p-btn-delete">Delete Account</button>
       </form>
     </div>
 
@@ -313,6 +313,97 @@ function validatePasswordForm() {
         return false;
     }
     return true;
+}
+
+let isDeleteConfirmed = false;
+async function handleDeleteAccountSubmit(event) {
+    if (isDeleteConfirmed) return; // Allow normal submission if already confirmed
+    event.preventDefault();
+
+    const confirmed = await createConfirmModal({
+        title: 'Delete Account',
+        message: 'Are you sure you want to delete your account? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+    });
+
+    if (confirmed) {
+        isDeleteConfirmed = true;
+        // Submit the form programmatically while preserving the submitter button's payload
+        const form = event.target;
+        const btn = document.getElementById('deleteAccountBtn');
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit(btn);
+        } else {
+            // Fallback for very old browsers, append hidden input manually
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'deleteAccount';
+            hidden.value = '';
+            form.appendChild(hidden);
+            form.submit();
+        }
+    }
+}
+
+// Simple HTML escape to avoid injection
+function escapeHtml(s) {
+    if (!s) return '';
+    return ('' + s).replace(/[&"'<>]/g, function (c) { return { '&': '&amp;', '"': '&quot;', '\'': '&#39;', '<': '&lt;', '>': '&gt;' }[c]; });
+}
+
+// Simple confirm modal that returns a Promise<boolean>
+function createConfirmModal({ title = 'Confirm', message = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+    return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'simple-modal-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:2000;padding:1rem;';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'background:#fff;border-radius:12px;box-shadow:0 20px 45px rgba(15,23,42,0.16);width:480px;max-width:100%;padding:1.25rem;';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;';
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        titleEl.style.cssText = 'margin:0;font-size:1.05rem;font-weight:700;color:#111827;';
+
+        const body = document.createElement('div');
+        body.innerHTML = `<p style="margin:0 0 1rem 0;color:#374151;">${escapeHtml(message)}</p>`;
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:0.5rem;';
+
+        const btnCancel = document.createElement('button');
+        btnCancel.type = 'button';
+        btnCancel.textContent = cancelLabel;
+        btnCancel.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#6b7280;color:#fff;cursor:pointer;';
+
+        const btnConfirm = document.createElement('button');
+        btnConfirm.type = 'button';
+        btnConfirm.textContent = confirmLabel;
+        btnConfirm.style.cssText = 'padding:0.5rem 0.85rem;border-radius:8px;border:none;background:#dc2626;color:#fff;cursor:pointer;';
+
+        btnCancel.addEventListener('click', () => {
+            backdrop.remove();
+            resolve(false);
+        });
+
+        btnConfirm.addEventListener('click', () => {
+            backdrop.remove();
+            resolve(true);
+        });
+
+        footer.appendChild(btnCancel);
+        footer.appendChild(btnConfirm);
+
+        header.appendChild(titleEl);
+        dialog.appendChild(header);
+        dialog.appendChild(body);
+        dialog.appendChild(footer);
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+    });
 }
 
 function openModal(id) {

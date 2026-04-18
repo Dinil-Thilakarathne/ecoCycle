@@ -210,10 +210,10 @@ if (!function_exists('customer_pickup_format_datetime')) {
                 <?php else: ?>
                     <?php foreach ($filteredRequests as $idx => $request):
                         $status = (string) ($request['status'] ?? 'pending');
-                        $collector = $request['collectorName'] ?? '';
-                        $categoryList = $request['wasteCategories'] ?? [];
                         $normalizedStatus = strtolower($status);
                         $isPending = $normalizedStatus === 'pending';
+                        $collector = $isPending ? '-' : ($request['collectorName'] ?? '');
+                        $categoryList = $request['wasteCategories'] ?? [];
                         $isAssigned = in_array($normalizedStatus, ['assigned', 'confirmed'], true);
                         $isCompleted = $normalizedStatus === 'completed';
                         $isRated = !empty($request['hasRating']);
@@ -647,8 +647,8 @@ if (!function_exists('customer_pickup_format_datetime')) {
             const rows = filtered.map((request, idx) => {
                 const status = (request.status || 'pending');
                 const normalizedStatus = status.toLowerCase();
-                const collector = request.collectorName ? request.collectorName : '-';
                 const isPending = normalizedStatus === 'pending';
+                const collector = isPending ? '-' : (request.collectorName ? request.collectorName : '-');
                 const isAssigned = ['assigned', 'confirmed'].includes(normalizedStatus);
                 const isCompleted = normalizedStatus === 'completed';
                 const hasRating = Boolean(request.hasRating);
