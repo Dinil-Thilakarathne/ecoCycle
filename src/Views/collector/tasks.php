@@ -191,17 +191,43 @@ function getStatusBadge($status)
         modal.setAttribute('aria-hidden', 'true');
     }
 
+    function showWeightWarning(message) {
+        const errorDiv = document.getElementById('weightError');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+    }
+    
     function calculateTotal() {
         const inputs = document.querySelectorAll('.weight-input');
         let total = 0;
+        let hasError = false;
+        
         inputs.forEach(input => {
             const weight = parseFloat(input.value) || 0;
+            // Validate weight is within limits
+            if (weight > 100) {
+                hasError = true;
+            }
             const price = parseFloat(input.getAttribute('data-price')) || 0;
             total += weight * price;
         });
+        
         const display = document.getElementById('calculatedPriceDisplay');
         if (display) {
             display.textContent = 'Rs. ' + total.toFixed(2);
+        }
+        
+        const errorDiv = document.getElementById('weightError');
+        if (hasError && errorDiv) {
+            errorDiv.textContent = 'Weight cannot exceed 100 kg per category';
+            errorDiv.style.display = 'block';
+        } else if (errorDiv) {
+            errorDiv.style.display = 'none';
         }
     }
 
@@ -227,6 +253,7 @@ function getStatusBadge($status)
                 input.type = 'number';
                 input.step = '0.01';
                 input.min = '0';
+                input.max = '100';
                 input.className = 'weight-input';
                 input.style.width = '100%';
                 input.style.padding = '0.5rem';
@@ -235,7 +262,39 @@ function getStatusBadge($status)
                 input.setAttribute('data-cat-id', cat.id);
                 input.setAttribute('data-price', cat.price_per_unit || 0);
                 input.placeholder = '0.00';
-                input.addEventListener('input', calculateTotal);
+                
+                // Validate decimal places (max 2 decimals) and weight limit (max 100kg)
+                function validateWeightInput(e) {
+                    let value = e.target.value;
+                    if (value === '') return;
+                    
+                    const val = parseFloat(value);
+                    
+                    // Check weight limit
+                    if (val > 100) {
+                        e.target.value = '100';
+                        showWeightWarning('Weight cannot exceed 100 kg');
+                        return;
+                    }
+                    
+                    // Check decimal places
+                    if (value.includes('.')) {
+                        const parts = value.split('.');
+                        if (parts[1] && parts[1].length > 2) {
+                            e.target.value = val.toFixed(2);
+                            showWeightWarning('Only 2 decimal places allowed');
+                        }
+                    }
+                    
+                    calculateTotal();
+                }
+                
+                input.addEventListener('change', validateWeightInput);
+                input.addEventListener('blur', validateWeightInput);
+                input.addEventListener('input', function() {
+                    // Allow real-time calculation without strict validation on input
+                    calculateTotal();
+                });
 
                 div.appendChild(label);
                 div.appendChild(input);
@@ -394,6 +453,11 @@ function getStatusBadge($status)
                     const val = parseFloat(input.value);
                     if (isNaN(val) || val <= 0) {
                         allValid = false;
+                    }
+                    // Check weight limit
+                    if (val > 100) {
+                        allValid = false;
+                        showWeightWarning(`Weight for ${input.previousElementSibling.textContent} cannot exceed 100 kg`);
                     }
                     weights.push({
                         category_id: parseInt(input.getAttribute('data-cat-id')),

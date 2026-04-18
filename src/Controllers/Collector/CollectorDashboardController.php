@@ -118,15 +118,13 @@ class CollectorDashboardController extends DashboardController
 
         if ((string) $request->query('export', '0') === '1' && $collectorId > 0) {
             $format = strtolower((string) $request->query('format', ''));
-            $period = strtolower((string) $request->query('period', 'monthly'));
-            if (!in_array($period, ['daily', 'weekly', 'monthly', 'yearly'], true)) {
-                $period = 'monthly';
-            }
+            $fromDate = (string) $request->query('from_date', '');
+            $toDate = (string) $request->query('to_date', '');
             if ($format === 'waste') {
-                return $this->exportWasteCollectionReport($collectorId, $period);
+                return $this->exportWasteCollectionReport($collectorId, $fromDate, $toDate);
             }
             if ($format === 'salary') {
-                return $this->exportSalaryTransactionReport($collectorId, $period);
+                return $this->exportSalaryTransactionReport($collectorId, $fromDate, $toDate);
             }
         }
 
@@ -407,10 +405,10 @@ class CollectorDashboardController extends DashboardController
     }
 
 
-    private function exportWasteCollectionReport(int $collectorId, string $period = 'monthly'): \Core\Http\Response
+    private function exportWasteCollectionReport(int $collectorId, ?string $fromDate = null, ?string $toDate = null): \Core\Http\Response
     {
         $db = new Database();
-        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportPeriodWindow($period);
+        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportDateRange($fromDate, $toDate);
         $rows = $db->fetchAll(
             "SELECT
                 pr.customer_id,
@@ -453,58 +451,16 @@ class CollectorDashboardController extends DashboardController
 
         $html = $this->generateWasteCollectionReportHtml($tableRows, $periodLabel);
 
-        return $this->htmlReportResponse(
-            'waste_collection_' . $periodKey . '_' . date('Ymd_His') . '.html',
+        return \Core\Http\Response::pdf(
+            'waste_collection_' . $periodKey . '_' . date('Ymd_His') . '.pdf',
             $html
         );
     }
 
-    private function generateWasteCollectionReportHtml(array $tableRows, string $periodLabel): string
-    {
-        $date = date('Y-m-d H:i:s');
-        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
-            . "<h1>Waste Collection Report</h1><p>Generated on: {$date}</p><p>Period: {$periodLabel}</p>";
-
-        if (empty($tableRows)) {
-            $html .= '<p>No waste collection data available for this period.</p>';
-        } else {
-            $html .= '<h3>Collection Details</h3>';
-            $html .= '<table><thead><tr>'
-                . '<th>Customer ID</th>'
-                . '<th>Customer Name</th>'
-                . '<th>Address</th>'
-                . '<th>Material</th>'
-                . '<th>Weight (kg)</th>'
-                . '</tr></thead><tbody>';
-
-            foreach ($tableRows as $row) {
-                $customerId = htmlspecialchars((string) ($row['customer_id'] ?? '-'));
-                $customerName = htmlspecialchars((string) ($row['customer_name'] ?? 'Unknown Customer'));
-                $address = htmlspecialchars((string) ($row['address'] ?? 'Not provided'));
-                $material = htmlspecialchars((string) ($row['material_collected'] ?? 'General'));
-                $weight = number_format((float) ($row['weight'] ?? 0), 2);
-
-                $html .= "<tr>"
-                    . "<td>{$customerId}</td>"
-                    . "<td>{$customerName}</td>"
-                    . "<td>{$address}</td>"
-                    . "<td>{$material}</td>"
-                    . "<td>{$weight}</td>"
-                    . "</tr>";
-            }
-
-            $html .= '</tbody></table>';
-        }
-
-        $html .= '<p>This is an automatically generated report. Please ensure accuracy of data.</p></body></html>';
-
-        return $html;
-    }
-
-    private function exportSalaryTransactionReport(int $collectorId, string $period = 'monthly'): \Core\Http\Response
+    private function exportSalaryTransactionReport(int $collectorId, ?string $fromDate = null, ?string $toDate = null): \Core\Http\Response
     {
         $db = new Database();
-        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportPeriodWindow($period);
+        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportDateRange($fromDate, $toDate);
         $completedAtExpr = 'COALESCE(pr.updated_at, pr.created_at)';
 
         $queryWithWeight = "SELECT
@@ -597,85 +553,20 @@ class CollectorDashboardController extends DashboardController
 
         $html = $this->generateSalaryTransactionReportHtml($grouped, $sectionTotals, $periodLabel, $periodKey);
 
-        return $this->htmlReportResponse(
-            'salary_transactions_' . $periodKey . '_' . date('Ymd_His') . '.html',
+        return \Core\Http\Response::pdf(
+            'salary_transactions_' . $periodKey . '_' . date('Ymd_His') . '.pdf',
             $html
         );
-    }
-
-    private function generateSalaryTransactionReportHtml(array $grouped, array $sectionTotals, string $periodLabel, string $periodKey): string
-    {
-        $date = date('Y-m-d H:i:s');
-        $overallTotal = array_sum($sectionTotals);
-        $sectionTotalLabel = $this->salaryReportSectionTotalLabel($periodKey);
-
-        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
-            . "<h1>Salary Report</h1><p>Generated on: {$date}</p><p>Period: {$periodLabel}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
-
-        if (empty($grouped)) {
-            $html .= '<div class="no-data"><p>No completed material collections found for this period.</p></div>';
-        } else {
-            foreach ($grouped as $bucket => $data) {
-                $bucketLabel = htmlspecialchars($data['label']);
-                $bucketTotal = number_format($data['total'], 2);
-                $pickupCount = (int) ($data['pickupCount'] ?? 0);
-
-                $html .= <<<HTML
-    <h3>{$bucketLabel} ({$pickupCount} completed pickups)</h3>
-    <p><strong>{$sectionTotalLabel}:</strong> Rs. {$bucketTotal}</p>
-
-    <table>
-            <thead>
-                <tr>
-                    <th>Material</th>
-                    <th>Total Weight</th>
-                    <th>Unit Amount (Rs)</th>
-                    <th>{$sectionTotalLabel} (Rs)</th>
-                </tr>
-            </thead>
-            <tbody>
-HTML;
-
-                foreach (($data['materials'] ?? []) as $materialRow) {
-                    $material = htmlspecialchars((string) ($materialRow['material'] ?? 'General'));
-                    $weight = number_format((float) ($materialRow['weight'] ?? 0), 2);
-                    $unitAmount = number_format((float) ($materialRow['unitAmount'] ?? 0), 2);
-                    $amount = number_format((float) ($materialRow['amount'] ?? 0), 2);
-
-                    $html .= <<<HTML
-                <tr>
-                    <td><strong>{$material}</strong></td>
-                    <td>{$weight} kg</td>
-                    <td>{$unitAmount}</td>
-                    <td><strong>{$amount}</strong></td>
-                </tr>
-HTML;
-                }
-
-                $html .= <<<HTML
-                <tr class="monthly-total-row">
-                    <td colspan="3"><strong>{$sectionTotalLabel}</strong></td>
-                    <td><strong>{$bucketTotal}</strong></td>
-                </tr>
-HTML;
-
-                $html .= <<<HTML
-            </tbody>
-        </table>
-    </div>
-
-HTML;
-            }
-        }
-
-        $html .= '<p>This is an automatically generated report based on completed pickup material records.</p></body></html>';
-
-        return $html;
     }
 
     private function resolveSalaryReportBucket(int $timestamp, string $periodKey): array
     {
         switch ($periodKey) {
+            case 'custom':
+                return [
+                    date('Y-m-d', $timestamp),
+                    date('Y-m-d', $timestamp),
+                ];
             case 'daily':
                 return [
                     date('Y-m-d', $timestamp),
@@ -706,6 +597,9 @@ HTML;
     {
         if ($periodKey === 'yearly') {
             return 'Year Total';
+        }
+        if ($periodKey === 'custom') {
+            return 'Date Total';
         }
         return 'Monthly Total';
     }
@@ -756,16 +650,142 @@ HTML;
         ];
     }
 
+    private function resolveReportDateRange(?string $fromDate, ?string $toDate): array
+    {
+        $now = new \DateTimeImmutable('now');
+        $defaultStart = (new \DateTimeImmutable('first day of this month'))->setTime(0, 0, 0);
+        $defaultEnd = $now->setTime(23, 59, 59);
+
+        $start = $this->createDateFromInput($fromDate, $defaultStart);
+        $end = $this->createDateFromInput($toDate, $defaultEnd);
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $label = 'From ' . $start->format('Y-m-d') . ' to ' . $end->format('Y-m-d');
+        $key = 'custom';
+
+        return [
+            $start->format('Y-m-d H:i:s'),
+            $end->format('Y-m-d H:i:s'),
+            $label,
+            $key,
+        ];
+    }
+
+    private function createDateFromInput(?string $value, \DateTimeImmutable $fallback): \DateTimeImmutable
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return $fallback;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
+        if ($date instanceof \DateTimeImmutable) {
+            return $date->setTime((int) $fallback->format('H'), (int) $fallback->format('i'), (int) $fallback->format('s'));
+        }
+
+        return $fallback;
+    }
+
+    private function generateWasteCollectionReportHtml(array $tableRows, string $periodLabel): string
+    {
+        $date = date('Y-m-d H:i:s');
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Waste Collection Report</h1><p class=\"report-meta\">Generated on: {$date}</p><p class=\"report-meta\">Period: {$periodLabel}</p>";
+
+        if (empty($tableRows)) {
+            $html .= '<div class="report-empty">No waste collection data available for this period.</div>';
+        } else {
+            $html .= '<table><thead><tr>'
+                . '<th>Customer ID</th>'
+                . '<th>Customer Name</th>'
+                . '<th>Address</th>'
+                . '<th>Material</th>'
+                . '<th>Weight (kg)</th>'
+                . '</tr></thead><tbody>';
+
+            foreach ($tableRows as $row) {
+                $html .= '<tr>'
+                    . '<td>' . htmlspecialchars((string) ($row['customer_id'] ?? '-')) . '</td>'
+                    . '<td>' . htmlspecialchars((string) ($row['customer_name'] ?? 'Unknown Customer')) . '</td>'
+                    . '<td>' . htmlspecialchars((string) ($row['address'] ?? 'Not provided')) . '</td>'
+                    . '<td>' . htmlspecialchars((string) ($row['material_collected'] ?? 'General')) . '</td>'
+                    . '<td>' . number_format((float) ($row['weight'] ?? 0), 2) . '</td>'
+                    . '</tr>';
+            }
+
+            $html .= '</tbody></table>';
+        }
+
+        $html .= '<p class="report-footer">This is an automatically generated report. Please ensure accuracy of data.</p></body></html>';
+
+        return $html;
+    }
+
+    private function generateSalaryTransactionReportHtml(array $grouped, array $sectionTotals, string $periodLabel, string $periodKey): string
+    {
+        $date = date('Y-m-d H:i:s');
+        $overallTotal = array_sum($sectionTotals);
+        $sectionTotalLabel = $this->salaryReportSectionTotalLabel($periodKey);
+
+        $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
+            . "<h1>Salary Report</h1><p class=\"report-meta\">Generated on: {$date}</p><p class=\"report-meta\">Period: {$periodLabel}</p><p class=\"report-meta\"><strong>Overall Summary:</strong> Rs. {$this->formatAmount($overallTotal)}</p>";
+
+        if (empty($grouped)) {
+            $html .= '<div class="report-empty">No completed material collections found for this period.</div>';
+        } else {
+            foreach ($grouped as $bucket => $data) {
+                $bucketLabel = htmlspecialchars((string) ($data['label'] ?? 'Unknown Period'));
+                $bucketTotal = number_format((float) ($data['total'] ?? 0), 2);
+                $pickupCount = (int) ($data['pickupCount'] ?? 0);
+
+                $html .= '<div class="report-section">'
+                    . '<h3>' . $bucketLabel . ' (' . $pickupCount . ' completed pickups)</h3>'
+                    . '<p class="report-submeta"><strong>' . htmlspecialchars($sectionTotalLabel) . ':</strong> Rs. ' . $bucketTotal . '</p>'
+                    . '<table><thead><tr>'
+                    . '<th>Material</th>'
+                    . '<th>Total Weight</th>'
+                    . '<th>Unit Amount (Rs)</th>'
+                    . '<th>' . htmlspecialchars($sectionTotalLabel) . ' (Rs)</th>'
+                    . '</tr></thead><tbody>';
+
+                foreach (($data['materials'] ?? []) as $materialRow) {
+                    $html .= '<tr>'
+                        . '<td><strong>' . htmlspecialchars((string) ($materialRow['material'] ?? 'General')) . '</strong></td>'
+                        . '<td>' . number_format((float) ($materialRow['weight'] ?? 0), 2) . ' kg</td>'
+                        . '<td>' . number_format((float) ($materialRow['unitAmount'] ?? 0), 2) . '</td>'
+                        . '<td><strong>' . number_format((float) ($materialRow['amount'] ?? 0), 2) . '</strong></td>'
+                        . '</tr>';
+                }
+
+                $html .= '<tr class="monthly-total-row"><td colspan="3"><strong>' . htmlspecialchars($sectionTotalLabel) . '</strong></td><td><strong>' . $bucketTotal . '</strong></td></tr>';
+                $html .= '</tbody></table></div>';
+            }
+        }
+
+        $html .= '<p class="report-footer">This is an automatically generated report based on completed pickup material records.</p></body></html>';
+
+        return $html;
+    }
+
     private function collectorReportStyle(): string
     {
         return '<style>
-                body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
-                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
-                h3 { margin-top: 30px; color: #374151; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
-                th { background-color: #f3f4f6; font-weight: bold; }
-                tr:nth-child(even) { background-color: #f9fafb; }
+                @page { margin: 28px 24px; }
+                body { font-family: Helvetica, Arial, sans-serif; color: #1f2937; margin: 0; font-size: 12px; line-height: 1.45; }
+                h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; margin: 0 0 12px 0; font-size: 22px; }
+                h3 { margin: 24px 0 10px; color: #374151; font-size: 15px; }
+                .report-meta { margin: 0 0 6px; color: #4b5563; }
+                .report-submeta { margin: 0 0 10px; color: #374151; }
+                .report-footer { margin-top: 16px; color: #6b7280; font-style: italic; }
+                .report-empty { padding: 14px; background: #f9fafb; border: 1px solid #d1d5db; border-radius: 8px; }
+                .report-section { margin-bottom: 18px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; vertical-align: top; }
+                th { background-color: #f3f4f6; font-weight: 700; }
+                tr:nth-child(even) td { background-color: #f9fafb; }
                 .monthly-total-row td { background-color: #ecfdf5; font-weight: 700; }
             </style>';
     }
@@ -781,11 +801,12 @@ HTML;
         ]);
     }
 
-    private function buildWasteReportLines(array $tableRows): array
+    private function buildWasteReportLines(array $tableRows, string $periodLabel): array
     {
         $lines = [
             'Waste Collection Report',
             'Generated on: ' . date('Y-m-d H:i:s'),
+            'Period: ' . $periodLabel,
             str_repeat('=', 95),
             str_pad('Customer ID', 12)
             . str_pad('Customer Name', 24)
@@ -811,11 +832,12 @@ HTML;
         return $lines;
     }
 
-    private function buildSalaryReportLines(array $grouped, array $monthlyTotals): array
+    private function buildSalaryReportPdfLines(array $grouped, array $monthlyTotals, string $periodLabel, string $periodKey): array
     {
         $lines = [
             'Salary Transaction Report',
             'Generated on: ' . date('Y-m-d H:i:s'),
+            'Period: ' . $periodLabel,
             'Overall Total: Rs. ' . number_format((float) array_sum($monthlyTotals), 2),
             str_repeat('=', 95),
         ];
@@ -828,24 +850,30 @@ HTML;
         foreach ($grouped as $monthData) {
             $monthLabel = (string) ($monthData['label'] ?? 'Unknown Month');
             $monthTotal = number_format((float) ($monthData['total'] ?? 0), 2);
-            $count = count((array) ($monthData['transactions'] ?? []));
+            $count = (int) ($monthData['pickupCount'] ?? 0);
 
             $lines[] = '';
-            $lines[] = sprintf('%s (%d transactions) - Total Rs. %s', $monthLabel, $count, $monthTotal);
-            $lines[] = str_pad('Txn ID', 24)
-                . str_pad('Date', 22)
-                . str_pad('Status', 14)
-                . str_pad('Amount', 14)
-                . 'Notes';
+            $lines[] = sprintf('%s (%d completed pickups) - Total Rs. %s', $monthLabel, $count, $monthTotal);
+            $lines[] = str_pad('Material', 28)
+                . str_pad('Weight', 16)
+                . str_pad('Unit', 16)
+                . 'Amount';
             $lines[] = str_repeat('-', 95);
 
-            foreach (($monthData['transactions'] ?? []) as $txn) {
-                $lines[] = str_pad(substr((string) ($txn['id'] ?? '-'), 0, 23), 24)
-                    . str_pad(substr((string) ($txn['date'] ?? '-'), 0, 21), 22)
-                    . str_pad(substr((string) ($txn['status'] ?? 'pending'), 0, 13), 14)
-                    . str_pad(number_format((float) ($txn['amount'] ?? 0), 2), 14)
-                    . substr((string) ($txn['notes'] ?? ''), 0, 20);
+            foreach (($monthData['materials'] ?? []) as $materialRow) {
+                $material = substr((string) ($materialRow['material'] ?? 'General'), 0, 27);
+                $weight = number_format((float) ($materialRow['weight'] ?? 0), 2) . ' kg';
+                $unitAmount = 'Rs. ' . number_format((float) ($materialRow['unitAmount'] ?? 0), 2);
+                $amount = 'Rs. ' . number_format((float) ($materialRow['amount'] ?? 0), 2);
+
+                $lines[] = str_pad($material, 28)
+                    . str_pad($weight, 16)
+                    . str_pad($unitAmount, 16)
+                    . $amount;
             }
+
+            $lines[] = str_repeat('-', 95);
+            $lines[] = 'Date Total: Rs. ' . $monthTotal;
         }
 
         return $lines;
@@ -1164,6 +1192,23 @@ HTML;
                 echo "<div class='alert error'>Invalid pickup ID or weight</div>";
                 exit;
             }
+            
+            // Validate weight limit (max 100kg)
+            if ($weight > 100) {
+                http_response_code(400);
+                echo "<div class='alert error'>Weight cannot exceed 100 kg. You entered: {$weight} kg</div>";
+                exit;
+            }
+            
+            // Validate decimal places (max 2)
+            if (strpos($weight, '.') !== false) {
+                $parts = explode('.', $weight);
+                if (strlen($parts[1]) > 2) {
+                    http_response_code(400);
+                    echo "<div class='alert error'>Weight can only have up to 2 decimal places</div>";
+                    exit;
+                }
+            }
 
             // Save weight & calculate amount
             $incomeWaste = new IncomeWaste();
@@ -1228,6 +1273,33 @@ HTML;
 
             // Extract weights array if status is completed
             $weights = isset($data['weights']) && is_array($data['weights']) ? $data['weights'] : null;
+
+            // Validate weights if present
+            if ($weights) {
+                foreach ($weights as $weightEntry) {
+                    $weight = floatval($weightEntry['weight'] ?? 0);
+                    
+                    // Check weight limit (max 100kg)
+                    if ($weight > 100) {
+                        http_response_code(400);
+                        echo json_encode([
+                            'success' => false,
+                            'message' => "Weight cannot exceed 100 kg. Entered: {$weight} kg"
+                        ]);
+                        exit;
+                    }
+                    
+                    // Check if weight is positive
+                    if ($weight <= 0) {
+                        http_response_code(400);
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'All weights must be greater than 0'
+                        ]);
+                        exit;
+                    }
+                }
+            }
 
             // Log the request for debugging
             error_log("Updating pickup {$pickupId} for collector {$collectorId} to status {$status}");

@@ -3,11 +3,8 @@
 
 // Feedback data will be fetched via JavaScript API call
 $collectorFeedback = []; // Will be populated by JavaScript
-$selectedExportPeriod = strtolower((string) ($_GET['period'] ?? 'monthly'));
-$allowedExportPeriods = ['daily', 'weekly', 'monthly', 'yearly'];
-if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
-    $selectedExportPeriod = 'monthly';
-}
+$selectedExportFromDate = (string) ($_GET['from_date'] ?? date('Y-m-01'));
+$selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
 ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,13 +22,6 @@ if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
                 <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
             </div>
             <div class="feature-card__body" id="avgRatingValue">-</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-card__header">
-                <div class="feature-card__title">Pending Reports</div>
-                <div class="feature-card__icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            </div>
-            <div class="feature-card__body" id="pendingReportsValue">-</div>
         </div>
         <div class="feature-card">
             <div class="feature-card__header">
@@ -137,19 +127,17 @@ if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-file-export analytics-icon-gap"></i> Report Exporting
             </h3>
-            <p class="activity-card__description">Export Salary Transactions and Waste Details reports by selected period</p>
+            <p class="activity-card__description">Export Salary Transactions and Waste Details reports for a selected date range</p>
         </div>
         <div class="activity-card__content">
             <form method="GET" action="" class="analytics-export-row" id="analyticsExportForm">
                 <input type="hidden" name="export" value="1">
 
-                <label for="exportPeriodFilter" class="analytics-filter-label">Period</label>
-                <select id="exportPeriodFilter" name="period" class="analytics-filter-select">
-                    <option value="daily" <?= $selectedExportPeriod === 'daily' ? 'selected' : '' ?>>Daily</option>
-                    <option value="weekly" <?= $selectedExportPeriod === 'weekly' ? 'selected' : '' ?>>Weekly</option>
-                    <option value="monthly" <?= $selectedExportPeriod === 'monthly' ? 'selected' : '' ?>>Monthly</option>
-                    <option value="yearly" <?= $selectedExportPeriod === 'yearly' ? 'selected' : '' ?>>Yearly</option>
-                </select>
+                <label for="exportFromDate" class="analytics-filter-label">From Date</label>
+                <input type="date" id="exportFromDate" name="from_date" class="analytics-filter-select" value="<?= htmlspecialchars($selectedExportFromDate) ?>" required>
+
+                <label for="exportToDate" class="analytics-filter-label analytics-filter-label-spaced">To Date</label>
+                <input type="date" id="exportToDate" name="to_date" class="analytics-filter-select" value="<?= htmlspecialchars($selectedExportToDate) ?>" required>
 
                 <div class="analytics-export-actions">
                     <button type="submit" name="format" value="salary" id="exportSalaryBtn" class="btn btn-outline">
@@ -186,7 +174,8 @@ const monthlySummaryModeBtn = document.getElementById('summary-mode-monthly');
 const yearlySummaryModeBtn = document.getElementById('summary-mode-yearly');
 const collectionSummaryDescriptionEl = document.getElementById('collection-summary-description');
 const monthlyCollectionChartContainer = document.getElementById('monthlyCollectionChart')?.parentElement || null;
-const exportPeriodFilterEl = document.getElementById('exportPeriodFilter');
+const exportFromDateEl = document.getElementById('exportFromDate');
+const exportToDateEl = document.getElementById('exportToDate');
 const analyticsExportHintEl = document.getElementById('analyticsExportHint');
 const FIXED_MATERIAL_CATEGORIES = [
     { key: 'plastic', label: 'Plastic', color: '#3B82F6' },
@@ -214,18 +203,10 @@ function buildRecentMonthOptions(limit = 12) {
 }
 
 function updateExportLinks() {
-    if (!exportPeriodFilterEl) return;
-
-    const period = exportPeriodFilterEl.value || 'monthly';
-
     if (analyticsExportHintEl) {
-        const labels = {
-            daily: 'Exports only today\'s records.',
-            weekly: 'Exports records from this week.',
-            monthly: 'Exports records from this month.',
-            yearly: 'Exports records from this year.'
-        };
-        analyticsExportHintEl.textContent = labels[period] || '';
+        const fromDate = exportFromDateEl?.value || '--';
+        const toDate = exportToDateEl?.value || '--';
+        analyticsExportHintEl.textContent = `Exports records from ${fromDate} to ${toDate}.`;
     }
 }
 
@@ -548,7 +529,6 @@ async function refreshDashboard() {
                 console.error('Metrics data invalid:', mData);
                 const errMsg = mData.error || 'Invalid data';
                 if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
-                if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
                 if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
                 if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
             }
@@ -566,7 +546,6 @@ async function refreshDashboard() {
             }
             
             if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
-            if (pendingReportsValueEl) pendingReportsValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
             if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
             if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
         }
@@ -618,14 +597,12 @@ function updateMetricsCards(metrics) {
     if (!metrics) return;
     
     const avgRating = metrics.averageRating || 0;
-    const pendingReports = metrics.lowRatings || 0;
     const totalFeedback = metrics.totalFeedback || 0;
     
     document.getElementById('avgRatingValue').textContent = avgRating.toFixed(1);
-    document.getElementById('pendingReportsValue').textContent = pendingReports;
     document.getElementById('totalFeedbackValue').textContent = totalFeedback;
     
-    console.log('Metrics updated:', { avgRating, pendingReports, totalFeedback });
+    console.log('Metrics updated:', { avgRating, totalFeedback });
 }
 
 /**
@@ -752,20 +729,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Immediate visual feedback
     document.getElementById('avgRatingValue').textContent = '...';
-    document.getElementById('pendingReportsValue').textContent = '...';
     document.getElementById('totalFeedbackValue').textContent = '...';
     
     // Visual confirmation that JS is running
     if (!CURRENT_COLLECTOR_ID) {
         document.getElementById('avgRatingValue').textContent = '⚠️';
-        document.getElementById('pendingReportsValue').textContent = '⚠️';
         document.getElementById('totalFeedbackValue').textContent = '⚠️';
         updateFeedbackTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
         updateWasteTable([], 'ERROR: No collector ID found. User data may not be loaded properly.');
         return;
     }
 
-    exportPeriodFilterEl?.addEventListener('change', updateExportLinks);
+    exportFromDateEl?.addEventListener('change', updateExportLinks);
+    exportToDateEl?.addEventListener('change', updateExportLinks);
     updateExportLinks();
 
     initializeMonthlyCollectionMonthSelect();
