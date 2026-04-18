@@ -159,7 +159,7 @@ class CustomerDashboardController extends DashboardController
 
         try {
             $weightRow = $db->fetchOne(
-                "SELECT COALESCE(SUM(COALESCE(prw.weight, prw.quantity, 0)), 0) AS total_weight
+                    "SELECT COALESCE(SUM(COALESCE(prw.weight, 0)), 0) AS total_weight
                  FROM pickup_requests pr
                  INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
                  WHERE pr.customer_id = ? AND pr.status = 'completed'",
@@ -206,9 +206,9 @@ class CustomerDashboardController extends DashboardController
             }
 
             $wasteRows = $db->fetchAll(
-                "SELECT pr.scheduled_at,
-                        wc.name AS category_name,
-                        COALESCE(prw.weight, prw.quantity, 0) AS waste_weight
+                    "SELECT pr.scheduled_at,
+                            wc.name AS category_name,
+                            COALESCE(prw.weight, 0) AS waste_weight
                  FROM pickup_requests pr
                  INNER JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
                  INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id

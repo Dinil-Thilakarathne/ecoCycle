@@ -28,6 +28,13 @@ if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
         </div>
         <div class="feature-card">
             <div class="feature-card__header">
+                <div class="feature-card__title">Pending Reports</div>
+                <div class="feature-card__icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="feature-card__body" id="pendingReportsValue">-</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card__header">
                 <div class="feature-card__title">Total Feedbacks</div>
                 <div class="feature-card__icon"><i class="fa-solid fa-comment"></i></div>
             </div>

@@ -1,6 +1,7 @@
 # Digital Waste Management System
 
 
+
 ## Overview
 
 This project is a comprehensive web-based digital platform that streamlines the collection, management, and resale of recyclable waste from residential households. The platform acts as a bridge between citizens and third-party recycling companies, allowing for scheduled waste pickups, transparent bidding on collected materials, and equitable compensation to households contributing recyclable waste.
