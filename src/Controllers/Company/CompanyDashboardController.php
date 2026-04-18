@@ -513,7 +513,10 @@ HTML;
     private function getNotifications(): array
     {
         $notifications = new Notification();
-        $createdAt = $this->user['created_at'] ?? '2000-01-01 00:00:00';
+        // Fetch the company's creation date to filter notifications
+        $userModel = new User();
+        $company = $userModel->findById($this->companyId);
+        $createdAt = $company['created_at'] ?? '2000-01-01 00:00:00';
         return $notifications->forCompany($this->companyId, $createdAt, 20);
     }
 

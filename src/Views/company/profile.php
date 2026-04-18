@@ -149,7 +149,7 @@ $csrf = app('session')->token();
 <!-- Edit Modal -->
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <a href="#" class="close" style="position: absolute; top: 30px; right: 20px; font-size: 28px; text-decoration: none;">&times;</a>
     <h2 style="font-size: 20px; font-weight: bold;">Edit Profile</h2>
     <div id="profileMessage"></div>
 
@@ -158,12 +158,15 @@ $csrf = app('session')->token();
 
       <div class="form-group"><label>Company Name</label>
         <input type="text" name="name" value="<?= htmlspecialchars($company['name'] ?? '') ?>">
+        <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Registration Number<span class="required-star">*</span></label>
         <input type="text" name="reg_number" value="<?= htmlspecialchars($metadata['reg_number'] ?? '') ?>" required
           minlength="7" maxlength="10">
         <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Website</label>
         <input type="text" name="website" value="<?= htmlspecialchars($metadata['website'] ?? '') ?>">
         <span class="field-error"></span>
@@ -171,22 +174,31 @@ $csrf = app('session')->token();
 
       <div class="form-group"><label>Contact Person</label>
         <input type="text" name="contactPerson" value="<?= htmlspecialchars($metadata['contactPerson'] ?? '') ?>">
+        <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Email Address<span class="required-star">*</span></label>
         <input type="email" name="email" value="<?= htmlspecialchars($company['email'] ?? '') ?>" required>
         <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Phone Number<span class="required-star">*</span></label>
         <input type="tel" pattern="[0-9]{10}" maxlength="10" name="phone"
           value="<?= htmlspecialchars($company['phone'] ?? '') ?>" required>
+          <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Landline</label>
         <input type="tel" pattern="[0-9]{10}" maxlength="10" name="land_phone"
           value="<?= htmlspecialchars($metadata['land_phone'] ?? '') ?>">
+          <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Address<span class="required-star">*</span></label>
         <textarea name="address" required><?= htmlspecialchars($company['address'] ?? '') ?></textarea>
+        <span class="field-error"></span>
       </div>
+
       <div class="form-group"><label>Waste Types<span class="required-star">*</span></label>
         <input type="text" name="waste_types" value="<?= htmlspecialchars(implode(', ', $wasteTypes)) ?>"
           placeholder="Plastic, Organic, Metal, Glass, Paper" required>
