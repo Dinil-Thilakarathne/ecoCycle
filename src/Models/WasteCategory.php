@@ -333,10 +333,10 @@ class WasteCategory extends BaseModel
 
         // Get collection statistics
         $stats = $this->db->fetch(
-                "SELECT 
-                    COUNT(DISTINCT prw.pickup_request_id) as total_collections,
-                    COALESCE(SUM(COALESCE(prw.weight, 0)), 0) as total_collected_kg,
-                    COALESCE(AVG(COALESCE(prw.weight, 0)), 0) as avg_per_collection
+            "SELECT 
+                COUNT(DISTINCT prw.pickup_request_id) as total_collections,
+                COALESCE(SUM(prw.quantity), 0) as total_collected_kg,
+                COALESCE(AVG(prw.quantity), 0) as avg_per_collection
              FROM pickup_request_wastes prw
              WHERE prw.waste_category_id = ?",
             [$categoryId]

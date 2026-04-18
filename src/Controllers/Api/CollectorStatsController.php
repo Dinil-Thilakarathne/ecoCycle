@@ -115,54 +115,30 @@ class CollectorStatsController extends BaseController
                 return $this->json(['status' => 'error', 'message' => 'Collector not authenticated'], 401);
             }
 
-            $period = strtolower((string) $request->query('period', 'weekly-by-material'));
-
-            if ($period === 'monthly-by-material') {
-                $month = (string) $request->query('month', '');
-                return $this->json($this->buildMonthlyMaterialByCategoryResponse((int) $collectorId, $month));
-            }
-
-            if ($period === 'yearly-by-material') {
-                $year = (string) $request->query('year', '');
-                return $this->json($this->buildYearlyMaterialByCategoryResponse((int) $collectorId, $year));
-            }
-
             // Get the start of the week (7 days ago) and end of today
             $weekStart = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
             $weekEnd = date('Y-m-d') . ' 23:59:59';
 
-            // Current week window: Monday 00:00:00 to Sunday 23:59:59
-            $now = new \DateTimeImmutable('now');
-            $weekStartDate = $now->modify('monday this week')->setTime(0, 0, 0);
-            $weekEndDate = $weekStartDate->modify('+6 days')->setTime(23, 59, 59);
+            $sql = "
+                SELECT 
+                    wc.id,
+                    wc.name,
+                    wc.price_per_unit,
+                    wc.color,
+                    COALESCE(SUM(prw.quantity), 0) AS total_weight,
+                    COALESCE(SUM(prw.quantity * wc.price_per_unit), 0) AS total_price
+                FROM waste_categories wc
+                LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
+                LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
+                WHERE pr.collector_id = ?
+                    AND pr.created_at >= ? AND pr.created_at <= ?
+                    AND pr.status = 'completed'
+                GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
+                HAVING total_weight > 0
+                ORDER BY total_weight DESC
+            ";
 
-            $weekStart = $weekStartDate->format('Y-m-d H:i:s');
-            $weekEnd = $weekEndDate->format('Y-m-d H:i:s');
-
-            $buildSql = static function (string $weightExpr): string {
-                return "
-                    SELECT 
-                        wc.id,
-                        wc.name,
-                        wc.price_per_unit,
-                        wc.color,
-                        COALESCE(SUM({$weightExpr}), 0) AS total_weight,
-                        COALESCE(SUM({$weightExpr} * COALESCE(wc.price_per_unit, 0)), 0) AS total_price
-                    FROM waste_categories wc
-                    LEFT JOIN pickup_request_wastes prw ON wc.id = prw.waste_category_id
-                    LEFT JOIN pickup_requests pr ON prw.pickup_id = pr.id
-                    WHERE pr.collector_id = ?
-                        AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) >= ?
-                        AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) <= ?
-                        AND pr.status = 'completed'
-                    GROUP BY wc.id, wc.name, wc.price_per_unit, wc.color
-                    HAVING COALESCE(SUM({$weightExpr}), 0) > 0
-                    ORDER BY total_weight DESC
-                ";
-            };
-
-            $sqlWithWeight = $buildSql('COALESCE(prw.weight, 0)');
-            $materials = $this->db->fetchAll($sqlWithWeight, [$collectorId, $weekStart, $weekEnd]);
+            $materials = $this->db->fetchAll($sql, [$collectorId, $weekStart, $weekEnd]);
 
             $formattedMaterials = array_map(function($m) {
                 return [
@@ -208,7 +184,7 @@ class CollectorStatsController extends BaseController
         $buildSql = static function (string $wasteTable, string $weightExpr): string {
             return "
                 SELECT
-                    COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) AS collected_at,
+                    COALESCE(pr.updated_at, pr.created_at) AS collected_at,
                     COALESCE(prw.weight, 0) AS collected_weight,
                     COALESCE(wc.price_per_unit, 0) AS unit_amount,
                     COALESCE(prw.weight, 0) * COALESCE(wc.price_per_unit, 0) AS line_amount
@@ -217,8 +193,8 @@ class CollectorStatsController extends BaseController
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE pr.collector_id = ?
                     AND pr.status = 'completed'
-                    AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) >= ?
-                    AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) <= ?
+                    AND COALESCE(pr.updated_at, pr.created_at) >= ?
+                    AND COALESCE(pr.updated_at, pr.created_at) <= ?
             ";
         };
 
@@ -285,8 +261,8 @@ class CollectorStatsController extends BaseController
                 INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
                 WHERE pr.collector_id = ?
                     AND pr.status = 'completed'
-                    AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) >= ?
-                    AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) <= ?
+                    AND COALESCE(pr.updated_at, pr.created_at) >= ?
+                    AND COALESCE(pr.updated_at, pr.created_at) <= ?
                 GROUP BY wc.id, wc.name, wc.color, wc.unit
                 HAVING COALESCE(SUM(prw.weight), 0) > 0
                 ORDER BY total_weight DESC, wc.name ASC
@@ -318,60 +294,6 @@ class CollectorStatsController extends BaseController
             'selected_month_label' => $monthStart->format('M Y'),
             'month_start' => $monthStart->format('Y-m-d'),
             'month_end' => $monthEnd->format('Y-m-d'),
-            'data' => $formattedData,
-            'timestamp' => date('Y-m-d H:i:s'),
-        ];
-    }
-
-    private function buildYearlyMaterialByCategoryResponse(int $collectorId, string $year): array
-    {
-        $isValidYear = preg_match('/^\d{4}$/', $year) === 1;
-        $yearValue = $isValidYear ? (int) $year : (int) date('Y');
-
-        $yearStart = (new \DateTimeImmutable(sprintf('%04d-01-01 00:00:00', $yearValue)))->setTime(0, 0, 0);
-        $yearEnd = $yearStart->modify('last day of december this year')->setTime(23, 59, 59);
-
-        $sql = "
-            SELECT
-                wc.id,
-                wc.name,
-                wc.color,
-                wc.unit,
-                COALESCE(SUM(prw.weight), 0) AS total_weight
-            FROM pickup_request_wastes prw
-            INNER JOIN pickup_requests pr ON prw.pickup_id = pr.id
-            INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
-            WHERE pr.collector_id = ?
-                AND pr.status = 'completed'
-                AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) >= ?
-                AND COALESCE(pr.scheduled_at, pr.updated_at, pr.created_at) <= ?
-            GROUP BY wc.id, wc.name, wc.color, wc.unit
-            HAVING COALESCE(SUM(prw.weight), 0) > 0
-            ORDER BY total_weight DESC, wc.name ASC
-        ";
-
-        $materials = $this->db->fetchAll($sql, [
-            $collectorId,
-            $yearStart->format('Y-m-d H:i:s'),
-            $yearEnd->format('Y-m-d H:i:s')
-        ]);
-
-        $formattedData = array_map(function (array $material): array {
-            return [
-                'id' => (int) ($material['id'] ?? 0),
-                'name' => (string) ($material['name'] ?? 'Unknown'),
-                'weight' => round((float) ($material['total_weight'] ?? 0), 2),
-                'unit' => (string) ($material['unit'] ?? 'kg'),
-                'color' => (string) (($material['color'] ?? '') ?: $this->getColorForMaterial((string) ($material['name'] ?? ''))),
-            ];
-        }, $materials ?: []);
-
-        return [
-            'status' => 'success',
-            'period' => 'yearly-by-material',
-            'selected_year' => (string) $yearValue,
-            'year_start' => $yearStart->format('Y-m-d'),
-            'year_end' => $yearEnd->format('Y-m-d'),
             'data' => $formattedData,
             'timestamp' => date('Y-m-d H:i:s'),
         ];

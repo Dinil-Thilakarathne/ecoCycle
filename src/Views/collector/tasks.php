@@ -150,43 +150,16 @@ function getStatusBadge($status)
     </div>
 </div>
 
-<!-- Route Map Modal -->
-<div id="route-map-modal" class="user-modal tasks-route-modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="user-modal__dialog tasks-route-modal__dialog">
-        <button class="close" aria-label="Close" onclick="closeRouteModal()">&times;</button>
-        <h3>Route to Pickup Destination</h3>
-        <p id="routeMapSummary" class="tasks-route-summary">Finding the fastest route to customer destination...</p>
-        <iframe id="routeMapFrame" class="tasks-route-map" title="Pickup route map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <div id="routeMapError" class="tasks-route-error"></div>
-        <div class="tasks-route-actions">
-            <a id="openExternalRouteBtn" class="btn" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
-            <button class="btn btn-primary" id="routeStartTaskBtn" onclick="confirmStartTaskFromRoute()">Start Task Now</button>
-        </div>
-    </div>
-</div>
-
 <script>
     // Grab modal elements
     const weightInput = document.getElementById('weightInput');
     const calculatedPriceEl = document.getElementById('calculatedPrice');
     const weightError = document.getElementById('weightError');
     const enterBtn = document.getElementById('enterWeightBtn');
-    let routePendingPickupId = null;
-    let routePendingMode = 'start';
 
     // Close modal
     function closeDetailModal() {
         const modal = document.getElementById('pickup-detail-modal');
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-    }
-
-    function closeRouteModal() {
-        const modal = document.getElementById('route-map-modal');
-        const iframe = document.getElementById('routeMapFrame');
-        if (iframe) {
-            iframe.src = 'about:blank';
-        }
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
     }
@@ -205,77 +178,6 @@ function getStatusBadge($status)
         }
     }
 
-    function renderWeightInputs(record) {
-        const weightRow = document.getElementById('weight-entry-row');
-        const inputContainer = weightRow.querySelector('div:nth-child(2)');
-
-        inputContainer.innerHTML = '';
-
-        if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
-            record.wasteCategoryDetails.forEach(cat => {
-                const div = document.createElement('div');
-                div.style.marginBottom = '0.75rem';
-
-                const label = document.createElement('label');
-                const priceHint = cat.price_per_unit ? ` (Rs. ${parseFloat(cat.price_per_unit).toFixed(2)}/kg)` : '';
-                label.textContent = `${cat.name}${priceHint}`;
-                label.style.display = 'block';
-                label.style.fontSize = '0.9rem';
-                label.style.marginBottom = '0.25rem';
-
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.step = '0.01';
-                input.min = '0';
-                input.className = 'weight-input';
-                input.style.width = '100%';
-                input.style.padding = '0.5rem';
-                input.style.border = '1px solid #e5e7eb';
-                input.style.borderRadius = '4px';
-                input.setAttribute('data-cat-id', cat.id);
-                input.setAttribute('data-price', cat.price_per_unit || 0);
-                input.placeholder = '0.00';
-                input.addEventListener('input', calculateTotal);
-
-                div.appendChild(label);
-                div.appendChild(input);
-                inputContainer.appendChild(div);
-            });
-        } else {
-            inputContainer.innerHTML = '<div class="tasks-no-categories">No waste categories found.</div>';
-        }
-
-        const display = document.getElementById('calculatedPriceDisplay');
-        if (display) {
-            display.textContent = 'Rs. 0.00';
-        }
-
-        const errorDiv = document.getElementById('weightError');
-        if (errorDiv) {
-            errorDiv.style.display = 'none';
-        }
-    }
-
-    function showWeightEntry(record) {
-        const modal = document.getElementById('pickup-detail-modal');
-        const weightRow = document.getElementById('weight-entry-row');
-        const btn = document.getElementById('taskActionBtn');
-
-        renderWeightInputs(record);
-        weightRow.style.display = 'block';
-        modal.dataset.weightEntryVisible = '1';
-        btn.style.display = '';
-        btn.disabled = false;
-        btn.textContent = 'Mark as Completed';
-    }
-
-    function hideWeightEntry() {
-        const modal = document.getElementById('pickup-detail-modal');
-        const weightRow = document.getElementById('weight-entry-row');
-        weightRow.style.display = 'none';
-        modal.dataset.weightEntryVisible = '0';
-    }
-
     function viewDetails(el, pickupId) {
         const record = (window.__PICKUP_DATA || []).find(r => (r.id || '') == pickupId);
         const modal = document.getElementById('pickup-detail-modal');
@@ -292,21 +194,71 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
-        btn.textContent = 'Open Map'; // Default
+        btn.textContent = 'Start Task'; // Default
 
         const weightRow = document.getElementById('weight-entry-row');
-        const weightVisible = modal.dataset.weightEntryVisible === '1';
-        hideWeightEntry();
+        weightRow.style.display = 'none';
+
+        // Find container for inputs - it's the second div inside weight-entry-row
+        // We'll give it a clean class or ID to make selecting easier, 
+        // but since I can't edit HTML structure easily without replacing huge block, 
+        // I will select it by structure or just clear innerHTML of the container div used previously.
+        // Actually, let's create a specific container in the replacement above, but for now I'll use the div following the label
+        const inputContainer = weightRow.querySelector('div:nth-child(2)');
+        inputContainer.innerHTML = '';
 
         if (statusValue === 'assigned') {
-            btn.textContent = 'Open Map';
+            btn.textContent = 'Start Task';
         } else if (statusValue === 'in progress') {
-            btn.textContent = weightVisible ? 'Mark as Completed' : 'Open Map';
+            btn.textContent = 'Mark as Completed';
 
-            if (weightVisible) {
-                renderWeightInputs(record);
-                weightRow.style.display = 'block';
+            // Show weight input for each category
+            weightRow.style.display = 'block';
+
+            // Re-initialize total price
+            const display = document.getElementById('calculatedPriceDisplay');
+            if (display) display.textContent = 'Rs. 0.00';
+
+            if (record.wasteCategoryDetails && record.wasteCategoryDetails.length > 0) {
+                record.wasteCategoryDetails.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '0.75rem';
+
+                    const label = document.createElement('label');
+                    // Show price hint in label
+                    const priceHint = cat.price_per_unit ? ` (Rs. ${parseFloat(cat.price_per_unit).toFixed(2)}/kg)` : '';
+                    label.textContent = `${cat.name}${priceHint}`;
+                    label.style.display = 'block';
+                    label.style.fontSize = '0.9rem';
+                    label.style.marginBottom = '0.25rem';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = '0.01';
+                    input.min = '0';
+                    input.className = 'weight-input';
+                    input.style.width = '100%';
+                    input.style.padding = '0.5rem';
+                    input.style.border = '1px solid #e5e7eb';
+                    input.style.borderRadius = '4px';
+                    input.setAttribute('data-cat-id', cat.id);
+                    // Store price in data attribute
+                    input.setAttribute('data-price', cat.price_per_unit || 0);
+                    input.placeholder = '0.00';
+
+                    // Attach listener
+                    input.addEventListener('input', calculateTotal);
+
+                    div.appendChild(label);
+                    div.appendChild(input);
+                    inputContainer.appendChild(div);
+                });
+            } else {
+                inputContainer.innerHTML += '<div class="tasks-no-categories">No waste categories found.</div>';
             }
+
+            const errorDiv = document.getElementById('weightError');
+            if (errorDiv) errorDiv.style.display = 'none';
 
         } else {
             btn.style.display = 'none';
@@ -324,54 +276,14 @@ function getStatusBadge($status)
         if (idx === -1) return;
 
         const current = normalizeStatusValue(window.__PICKUP_DATA[idx].status);
-        if (current === 'assigned') {
-            await openRoutePrompt(window.__PICKUP_DATA[idx]);
-            return;
-        }
-
-        if (current === 'in progress' && modal.dataset.weightEntryVisible !== '1') {
-            await openRoutePrompt(window.__PICKUP_DATA[idx], 'arrived');
-            return;
-        }
-
         let nextTarget = '';
-        if (current === 'in progress' || current === 'in_progress') {
-            nextTarget = 'completed';
-        }
+        if (current === 'assigned') nextTarget = 'in_progress';
+        else if (current === 'in progress') nextTarget = 'completed';
+        else if (current === 'in_progress') nextTarget = 'completed';
 
         if (!nextTarget) return;
 
         const btn = document.getElementById('taskActionBtn');
-        await submitStatusUpdate(pickupId, nextTarget, btn);
-    }
-
-    async function confirmStartTaskFromRoute() {
-        if (!routePendingPickupId) {
-            return;
-        }
-
-        const routeBtn = document.getElementById('routeStartTaskBtn');
-        const pickup = (window.__PICKUP_DATA || []).find(r => r.id == routePendingPickupId);
-        if (routePendingMode === 'arrived') {
-            closeRouteModal();
-            if (pickup) {
-                showWeightEntry(pickup);
-                const detailModal = document.getElementById('pickup-detail-modal');
-                detailModal.classList.add('open');
-                detailModal.setAttribute('aria-hidden', 'false');
-                detailModal.querySelector('.pd-status').textContent = 'in progress';
-            }
-            return;
-        }
-
-        await submitStatusUpdate(routePendingPickupId, 'in_progress', routeBtn);
-    }
-
-    async function submitStatusUpdate(pickupId, nextTarget, btn) {
-        const modal = document.getElementById('pickup-detail-modal');
-        const idx = (window.__PICKUP_DATA || []).findIndex(r => r.id == pickupId);
-        if (idx === -1) return;
-
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Updating...';
@@ -462,10 +374,6 @@ function getStatusBadge($status)
                 showToast('Status updated successfully', 'success', 10000);
             }
 
-            if (nextTarget === 'in_progress') {
-                closeRouteModal();
-            }
-
             viewDetails(null, pickupId);
 
         } catch (error) {
@@ -473,227 +381,6 @@ function getStatusBadge($status)
             btn.disabled = false;
             alert(error.message || 'Unable to update task status.');
         }
-    }
-
-    async function openRoutePrompt(record, mode = 'start') {
-        const modal = document.getElementById('route-map-modal');
-        const summary = document.getElementById('routeMapSummary');
-        const errorEl = document.getElementById('routeMapError');
-        const startBtn = document.getElementById('routeStartTaskBtn');
-        const iframe = document.getElementById('routeMapFrame');
-
-        routePendingPickupId = record.id;
-        routePendingMode = mode === 'arrived' ? 'arrived' : 'start';
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-        summary.textContent = 'Preparing map and destination...';
-        errorEl.style.display = 'none';
-        errorEl.textContent = '';
-        startBtn.disabled = true;
-        startBtn.textContent = routePendingMode === 'arrived' ? 'Loading Route...' : 'Loading Route...';
-        if (iframe) {
-            iframe.src = 'about:blank';
-        }
-
-        try {
-            const destination = await resolveDestinationLocation(record);
-            summary.textContent = destination.approximate
-                ? `Showing the closest route found for ${destination.label || record.address || 'Pickup destination'}.`
-                : 'Getting your current location and route...';
-
-            let origin = null;
-            try {
-                origin = await getCollectorCurrentLocation();
-            } catch (locationError) {
-                origin = null;
-                errorEl.style.display = 'block';
-                errorEl.textContent = locationError.message || 'Using destination map because current location is unavailable.';
-            }
-
-            updateExternalDirectionsLink(origin, destination, record.address || destination.label || 'Pickup destination');
-            if (iframe) {
-                iframe.src = buildRouteIframeUrl(origin, destination, record.address || destination.label || 'Pickup destination');
-            }
-
-            startBtn.disabled = false;
-            startBtn.textContent = routePendingMode === 'arrived' ? 'Reached Destination' : 'Start Task Now';
-        } catch (error) {
-            summary.textContent = 'Map is shown. Using the nearest available location instead of the exact destination.';
-            errorEl.style.display = 'block';
-            errorEl.textContent = error.message || 'Failed to load route map.';
-            updateExternalDirectionsLink(null, null, record.address || 'Pickup destination');
-            if (iframe) {
-                iframe.src = buildRouteIframeUrl(null, null, record.address || 'Pickup destination');
-            }
-
-            startBtn.disabled = false;
-            startBtn.textContent = routePendingMode === 'arrived' ? 'Reached Destination' : 'Start Task Anyway';
-        }
-    }
-
-    function updateExternalDirectionsLink(origin, destination, destinationAddress) {
-        const externalLink = document.getElementById('openExternalRouteBtn');
-        if (!externalLink) {
-            return;
-        }
-
-        let url = '';
-        if (destination && Number.isFinite(destination.lat) && Number.isFinite(destination.lng)) {
-            const originParam = origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)
-                ? `&origin=${encodeURIComponent(origin.lat + ',' + origin.lng)}`
-                : '';
-            url = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${encodeURIComponent(destination.lat + ',' + destination.lng)}&travelmode=driving`;
-        } else {
-            url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationAddress || '')}&travelmode=driving`;
-        }
-
-        externalLink.href = url;
-    }
-
-    async function resolveDestinationLocation(record) {
-        const lat = parseFloat(record.latitude);
-        const lng = parseFloat(record.longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            return {
-                lat,
-                lng,
-                label: record.address || 'Pickup destination'
-            };
-        }
-
-        const address = (record.address || '').trim();
-        if (address === '') {
-            throw new Error('Destination location is missing coordinates and address.');
-        }
-
-        return geocodeAddressBestEffort(address);
-    }
-
-    function buildDestinationSearchCandidates(address) {
-        const normalized = String(address || '').replace(/\s+/g, ' ').trim();
-        if (normalized === '') {
-            return [];
-        }
-
-        const parts = normalized
-            .split(',')
-            .map(part => part.trim())
-            .filter(Boolean);
-
-        const candidates = [normalized];
-
-        if (parts.length > 1) {
-            for (let i = 1; i < parts.length; i++) {
-                const tail = parts.slice(i).join(', ');
-                if (tail && !candidates.includes(tail)) {
-                    candidates.push(tail);
-                }
-            }
-        }
-
-        const cleanedTokens = normalized
-            .replace(/\b(no\.?|number|#|flat|apt|unit)\s*\d+[a-zA-Z-]?\b/gi, ' ')
-            .replace(/\b\d{4,6}\b/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (cleanedTokens && !candidates.includes(cleanedTokens)) {
-            candidates.push(cleanedTokens);
-        }
-
-        const laneMatch = normalized.match(/\b([a-z0-9'\- ]*\b(?:lane|ln|road|rd|street|st|avenue|ave|way|drive|dr|village|city|town|district)\b[a-z0-9'\- ]*)/i);
-        if (laneMatch && laneMatch[1]) {
-            const laneCandidate = laneMatch[1].replace(/\s+/g, ' ').trim();
-            if (laneCandidate && !candidates.includes(laneCandidate)) {
-                candidates.push(laneCandidate);
-            }
-        }
-
-        return candidates;
-    }
-
-    async function geocodeAddressBestEffort(address) {
-        const candidates = buildDestinationSearchCandidates(address);
-        let lastError = null;
-
-        for (const candidate of candidates) {
-            try {
-                const result = await geocodeAddressCandidate(candidate);
-                if (result) {
-                    if (candidate !== address) {
-                        result.label = `${candidate} (approx. from ${address})`;
-                        result.approximate = true;
-                    }
-                    return result;
-                }
-            } catch (error) {
-                lastError = error;
-            }
-        }
-
-        throw lastError || new Error('No map result found for destination address.');
-    }
-
-    async function geocodeAddressCandidate(candidate) {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(candidate)}`);
-        if (!response.ok) {
-            throw new Error('Could not resolve destination address.');
-        }
-
-        const rows = await response.json();
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return null;
-        }
-
-        return {
-            lat: parseFloat(rows[0].lat),
-            lng: parseFloat(rows[0].lon),
-            label: candidate
-        };
-    }
-
-    function getCollectorCurrentLocation() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('Your browser does not support location services.'));
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    resolve({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        label: 'Your location'
-                    });
-                },
-                () => reject(new Error('Allow location access to preview the route map.')),
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 60000
-                }
-            );
-        });
-    }
-
-    function buildRouteIframeUrl(origin, destination, destinationAddress) {
-        const params = new URLSearchParams();
-
-        if (origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
-            params.set('origin_lat', String(origin.lat));
-            params.set('origin_lng', String(origin.lng));
-        }
-
-        if (destination && Number.isFinite(destination.lat) && Number.isFinite(destination.lng)) {
-            params.set('destination_lat', String(destination.lat));
-            params.set('destination_lng', String(destination.lng));
-            params.set('destination_label', destination.label || destinationAddress || 'Pickup destination');
-        } else {
-            params.set('destination_label', destinationAddress || 'Pickup destination');
-        }
-
-        return `/collector/route-preview?${params.toString()}`;
     }
 
     function filterByTimeSlot() {

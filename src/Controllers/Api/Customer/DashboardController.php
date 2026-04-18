@@ -75,7 +75,7 @@ class DashboardController extends BaseController
         try {
             $db = app('db');
             $query = "
-                    SELECT COALESCE(SUM(COALESCE(prw.weight, 0)), 0) as total_weight
+                SELECT COALESCE(SUM(COALESCE(prw.weight, prw.quantity, 0)), 0) as total_weight
                 FROM pickup_request_wastes prw
                 INNER JOIN pickup_requests pr ON pr.id = prw.pickup_id
                 WHERE pr.customer_id = ? AND pr.status = 'completed'

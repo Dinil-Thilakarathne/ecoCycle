@@ -11,7 +11,7 @@ use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
 use Models\CollectorFeedback;
-use Models\CollectorRating;
+use Models\CollectorRating; 
 
 use Models\Notification;
 
@@ -72,31 +72,6 @@ class CollectorDashboardController extends DashboardController
     }
 
     /**
-     * Embeddable route preview for pickup navigation
-     */
-    public function routePreview(): \Core\Http\Response
-    {
-        $request = request();
-
-        $data = [
-            'pageTitle' => 'Route Preview',
-            'originLat' => (string) $request->query('origin_lat', ''),
-            'originLng' => (string) $request->query('origin_lng', ''),
-            'destinationLat' => (string) $request->query('destination_lat', ''),
-            'destinationLng' => (string) $request->query('destination_lng', ''),
-            'destinationLabel' => (string) $request->query('destination_label', 'Pickup destination'),
-        ];
-
-        $content = $this->renderView('route_preview', $data);
-
-        return response($content, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'X-Frame-Options' => 'SAMEORIGIN',
-            'Content-Security-Policy' => "frame-ancestors 'self'",
-        ]);
-    }
-
-    /**
      * Earnings and payments
      */
     public function earnings(): \Core\Http\Response
@@ -118,15 +93,11 @@ class CollectorDashboardController extends DashboardController
 
         if ((string) $request->query('export', '0') === '1' && $collectorId > 0) {
             $format = strtolower((string) $request->query('format', ''));
-            $period = strtolower((string) $request->query('period', 'monthly'));
-            if (!in_array($period, ['daily', 'weekly', 'monthly', 'yearly'], true)) {
-                $period = 'monthly';
-            }
             if ($format === 'waste') {
-                return $this->exportWasteCollectionReport($collectorId, $period);
+                return $this->exportWasteCollectionReport($collectorId);
             }
             if ($format === 'salary') {
-                return $this->exportSalaryTransactionReport($collectorId, $period);
+                return $this->exportSalaryTransactionReport($collectorId);
             }
         }
 
@@ -146,8 +117,7 @@ class CollectorDashboardController extends DashboardController
             'pageTitle' => 'Notifications',
             'collectionStats' => $this->getCollectionStats(),
             'weightReports' => $this->getWeightReports(),
-            'materialBreakdown' => $this->getMaterialBreakdown(),
-            'notifications' => $this->getNotifications(),
+            'materialBreakdown' => $this->getMaterialBreakdown()
         ];
 
         return $this->renderDashboard('notification', $data);
@@ -206,7 +176,7 @@ class CollectorDashboardController extends DashboardController
             return count(array_filter(
                 $allPickups,
                 fn(array $pickup) => $this->isPickupForToday($pickup)
-                && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
             ));
         } catch (\Throwable $e) {
             return 0;
@@ -246,7 +216,7 @@ class CollectorDashboardController extends DashboardController
             return array_values(array_filter(
                 $allPickups,
                 fn(array $pickup): bool => $this->isPickupForToday($pickup)
-                && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
+                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
             ));
         } catch (\Throwable $e) {
             return [];
@@ -387,30 +357,10 @@ class CollectorDashboardController extends DashboardController
         return [];
     }
 
-    private function getNotifications(): array
-    {
-        $collectorId = (int) ($this->user['id'] ?? 0);
-        if ($collectorId <= 0) {
-            return [];
-        }
 
-        try {
-            $record = $this->loadCollectorRecord();
-            $createdAt = (string) ($record['created_at'] ?? ($this->user['created_at'] ?? ''));
-            $notificationModel = new Notification();
-
-            return $notificationModel->forUser($collectorId, 'collector', $createdAt, 100);
-        } catch (\Throwable $e) {
-            error_log('Collector notifications load failed: ' . $e->getMessage());
-            return [];
-        }
-    }
-
-
-    private function exportWasteCollectionReport(int $collectorId, string $period = 'monthly'): \Core\Http\Response
+    private function exportWasteCollectionReport(int $collectorId): \Core\Http\Response
     {
         $db = new Database();
-        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportPeriodWindow($period);
         $rows = $db->fetchAll(
             "SELECT
                 pr.customer_id,
@@ -424,21 +374,10 @@ class CollectorDashboardController extends DashboardController
              LEFT JOIN pickup_request_wastes prw ON prw.pickup_id = pr.id
              LEFT JOIN waste_categories wc ON wc.id = prw.waste_category_id
              WHERE pr.collector_id = ?
-                             AND pr.status = 'completed'
-                         ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC, pr.customer_id ASC, material_name ASC",
+               AND pr.status = 'completed'
+             ORDER BY pr.created_at DESC, pr.customer_id ASC, material_name ASC",
             [$collectorId]
         ) ?: [];
-
-        $rows = array_values(array_filter($rows, static function (array $row) use ($periodStart, $periodEnd): bool {
-            $timestamp = strtotime((string) ($row['created_at'] ?? ''));
-            if (!$timestamp) {
-                return false;
-            }
-
-            $start = strtotime($periodStart);
-            $end = strtotime($periodEnd);
-            return $timestamp >= $start && $timestamp <= $end;
-        }));
 
         $tableRows = [];
         foreach ($rows as $row) {
@@ -451,19 +390,19 @@ class CollectorDashboardController extends DashboardController
             ];
         }
 
-        $html = $this->generateWasteCollectionReportHtml($tableRows, $periodLabel);
+        $html = $this->generateWasteCollectionReportHtml($tableRows);
 
         return $this->htmlReportResponse(
-            'waste_collection_' . $periodKey . '_' . date('Ymd_His') . '.html',
+            'waste_collection_details_' . date('Ymd_His') . '.html',
             $html
         );
     }
 
-    private function generateWasteCollectionReportHtml(array $tableRows, string $periodLabel): string
+    private function generateWasteCollectionReportHtml(array $tableRows): string
     {
         $date = date('Y-m-d H:i:s');
         $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
-            . "<h1>Waste Collection Report</h1><p>Generated on: {$date}</p><p>Period: {$periodLabel}</p>";
+            . "<h1>Waste Collection Report</h1><p>Generated on: {$date}</p>";
 
         if (empty($tableRows)) {
             $html .= '<p>No waste collection data available for this period.</p>';
@@ -501,15 +440,13 @@ class CollectorDashboardController extends DashboardController
         return $html;
     }
 
-    private function exportSalaryTransactionReport(int $collectorId, string $period = 'monthly'): \Core\Http\Response
+    private function exportSalaryTransactionReport(int $collectorId): \Core\Http\Response
     {
         $db = new Database();
-        [$periodStart, $periodEnd, $periodLabel, $periodKey] = $this->resolveReportPeriodWindow($period);
-        $completedAtExpr = 'COALESCE(pr.updated_at, pr.created_at)';
 
         $queryWithWeight = "SELECT
                 pr.id AS pickup_id,
-                {$completedAtExpr} AS collected_at,
+                COALESCE(pr.updated_at, pr.created_at) AS collected_at,
                 COALESCE(wc.name, 'General') AS material_name,
                                 COALESCE(prw.weight, 0) AS collected_weight,
                                 COALESCE(wc.price_per_unit, 0) AS unit_amount,
@@ -519,23 +456,12 @@ class CollectorDashboardController extends DashboardController
             INNER JOIN waste_categories wc ON wc.id = prw.waste_category_id
             WHERE pr.collector_id = ?
               AND pr.status = 'completed'
-            ORDER BY {$completedAtExpr} DESC, material_name ASC";
+            ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC, material_name ASC";
 
-        $rows = $db->fetchAll($queryWithWeight, [$collectorId]) ?: [];
-
-        $rows = array_values(array_filter($rows, static function (array $row) use ($periodStart, $periodEnd): bool {
-            $timestamp = strtotime((string) ($row['collected_at'] ?? ''));
-            if (!$timestamp) {
-                return false;
-            }
-
-            $start = strtotime($periodStart);
-            $end = strtotime($periodEnd);
-            return $timestamp >= $start && $timestamp <= $end;
-        }));
+                $rows = $db->fetchAll($queryWithWeight, [$collectorId]) ?: [];
 
         $grouped = [];
-        $sectionTotals = [];
+        $monthlyTotals = [];
 
         foreach ($rows as $row) {
             $collectedAt = (string) ($row['collected_at'] ?? '');
@@ -544,7 +470,8 @@ class CollectorDashboardController extends DashboardController
                 continue;
             }
 
-            [$bucketKey, $bucketLabel] = $this->resolveSalaryReportBucket($timestamp, $periodKey);
+            $monthKey = date('Y-m', $timestamp);
+            $monthLabel = date('F Y', $timestamp);
             $materialName = (string) ($row['material_name'] ?? 'General');
             $materialKey = strtolower(trim($materialName));
             $weight = (float) ($row['collected_weight'] ?? 0.0);
@@ -552,18 +479,18 @@ class CollectorDashboardController extends DashboardController
             $lineAmount = (float) ($row['line_amount'] ?? ($weight * $unitAmount));
             $pickupId = (string) ($row['pickup_id'] ?? '');
 
-            if (!isset($grouped[$bucketKey])) {
-                $grouped[$bucketKey] = [
-                    'label' => $bucketLabel,
+            if (!isset($grouped[$monthKey])) {
+                $grouped[$monthKey] = [
+                    'label' => $monthLabel,
                     'materials' => [],
                     'total' => 0.0,
                     'pickupIds' => [],
                 ];
-                $sectionTotals[$bucketKey] = 0.0;
+                $monthlyTotals[$monthKey] = 0.0;
             }
 
-            if (!isset($grouped[$bucketKey]['materials'][$materialKey])) {
-                $grouped[$bucketKey]['materials'][$materialKey] = [
+            if (!isset($grouped[$monthKey]['materials'][$materialKey])) {
+                $grouped[$monthKey]['materials'][$materialKey] = [
                     'material' => $materialName,
                     'weight' => 0.0,
                     'unitAmount' => $unitAmount,
@@ -571,14 +498,14 @@ class CollectorDashboardController extends DashboardController
                 ];
             }
 
-            $grouped[$bucketKey]['materials'][$materialKey]['weight'] += $weight;
-            $grouped[$bucketKey]['materials'][$materialKey]['amount'] += $lineAmount;
-            $grouped[$bucketKey]['materials'][$materialKey]['unitAmount'] = $unitAmount;
-            $grouped[$bucketKey]['total'] += $lineAmount;
-            $sectionTotals[$bucketKey] += $lineAmount;
+            $grouped[$monthKey]['materials'][$materialKey]['weight'] += $weight;
+            $grouped[$monthKey]['materials'][$materialKey]['amount'] += $lineAmount;
+            $grouped[$monthKey]['materials'][$materialKey]['unitAmount'] = $unitAmount;
+            $grouped[$monthKey]['total'] += $lineAmount;
+            $monthlyTotals[$monthKey] += $lineAmount;
 
             if ($pickupId !== '') {
-                $grouped[$bucketKey]['pickupIds'][$pickupId] = true;
+                $grouped[$monthKey]['pickupIds'][$pickupId] = true;
             }
         }
 
@@ -595,34 +522,33 @@ class CollectorDashboardController extends DashboardController
 
         krsort($grouped);
 
-        $html = $this->generateSalaryTransactionReportHtml($grouped, $sectionTotals, $periodLabel, $periodKey);
+        $html = $this->generateSalaryTransactionReportHtml($grouped, $monthlyTotals);
 
         return $this->htmlReportResponse(
-            'salary_transactions_' . $periodKey . '_' . date('Ymd_His') . '.html',
+            'salary_transactions_' . date('Ymd_His') . '.html',
             $html
         );
     }
 
-    private function generateSalaryTransactionReportHtml(array $grouped, array $sectionTotals, string $periodLabel, string $periodKey): string
+    private function generateSalaryTransactionReportHtml(array $grouped, array $monthlyTotals): string
     {
         $date = date('Y-m-d H:i:s');
-        $overallTotal = array_sum($sectionTotals);
-        $sectionTotalLabel = $this->salaryReportSectionTotalLabel($periodKey);
+        $overallTotal = array_sum($monthlyTotals);
 
         $html = "<html><head>" . $this->collectorReportStyle() . "</head><body>"
-            . "<h1>Salary Report</h1><p>Generated on: {$date}</p><p>Period: {$periodLabel}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
+            . "<h1>Salary Report</h1><p>Generated on: {$date}</p><p>Overall Summary: Rs. {$this->formatAmount($overallTotal)}</p>";
 
         if (empty($grouped)) {
             $html .= '<div class="no-data"><p>No completed material collections found for this period.</p></div>';
         } else {
-            foreach ($grouped as $bucket => $data) {
-                $bucketLabel = htmlspecialchars($data['label']);
-                $bucketTotal = number_format($data['total'], 2);
+            foreach ($grouped as $month => $data) {
+                $monthLabel = htmlspecialchars($data['label']);
+                $monthTotal = number_format($data['total'], 2);
                 $pickupCount = (int) ($data['pickupCount'] ?? 0);
 
                 $html .= <<<HTML
-    <h3>{$bucketLabel} ({$pickupCount} completed pickups)</h3>
-    <p><strong>{$sectionTotalLabel}:</strong> Rs. {$bucketTotal}</p>
+    <h3>{$monthLabel} ({$pickupCount} completed pickups)</h3>
+    <p><strong>Monthly Total:</strong> Rs. {$monthTotal}</p>
 
     <table>
             <thead>
@@ -630,7 +556,7 @@ class CollectorDashboardController extends DashboardController
                     <th>Material</th>
                     <th>Total Weight</th>
                     <th>Unit Amount (Rs)</th>
-                    <th>{$sectionTotalLabel} (Rs)</th>
+                    <th>Monthly Amount (Rs)</th>
                 </tr>
             </thead>
             <tbody>
@@ -654,8 +580,8 @@ HTML;
 
                 $html .= <<<HTML
                 <tr class="monthly-total-row">
-                    <td colspan="3"><strong>{$sectionTotalLabel}</strong></td>
-                    <td><strong>{$bucketTotal}</strong></td>
+                    <td colspan="3"><strong>Monthly Total</strong></td>
+                    <td><strong>{$monthTotal}</strong></td>
                 </tr>
 HTML;
 
@@ -673,87 +599,9 @@ HTML;
         return $html;
     }
 
-    private function resolveSalaryReportBucket(int $timestamp, string $periodKey): array
-    {
-        switch ($periodKey) {
-            case 'daily':
-                return [
-                    date('Y-m-d', $timestamp),
-                    date('Y-m-d', $timestamp),
-                ];
-            case 'weekly':
-                $start = (new \DateTimeImmutable('@' . $timestamp))->setTimezone(new \DateTimeZone(date_default_timezone_get()))->modify('monday this week')->setTime(0, 0, 0);
-                $end = $start->modify('+6 days')->setTime(23, 59, 59);
-                return [
-                    $start->format('o-\WW'),
-                    'Week of ' . $start->format('Y-m-d') . ' to ' . $end->format('Y-m-d'),
-                ];
-            case 'yearly':
-                return [
-                    date('Y-m', $timestamp),
-                    date('F Y', $timestamp),
-                ];
-            case 'monthly':
-            default:
-                return [
-                    date('Y-m', $timestamp),
-                    date('F Y', $timestamp),
-                ];
-        }
-    }
-
-    private function salaryReportSectionTotalLabel(string $periodKey): string
-    {
-        if ($periodKey === 'yearly') {
-            return 'Year Total';
-        }
-        return 'Monthly Total';
-    }
-
     private function formatAmount(float $amount): string
     {
         return number_format($amount, 2);
-    }
-
-    private function resolveReportPeriodWindow(string $period): array
-    {
-        $period = strtolower(trim($period));
-        $now = new \DateTimeImmutable('now');
-
-        switch ($period) {
-            case 'daily':
-                $start = $now->setTime(0, 0, 0);
-                $end = $now->setTime(23, 59, 59);
-                $label = 'Daily (' . $start->format('Y-m-d') . ')';
-                $key = 'daily';
-                break;
-            case 'weekly':
-                $start = $now->modify('monday this week')->setTime(0, 0, 0);
-                $end = $start->modify('+6 days')->setTime(23, 59, 59);
-                $label = 'Weekly (' . $start->format('Y-m-d') . ' to ' . $end->format('Y-m-d') . ')';
-                $key = 'weekly';
-                break;
-            case 'yearly':
-                $start = (new \DateTimeImmutable($now->format('Y-01-01 00:00:00')))->setTime(0, 0, 0);
-                $end = $start->modify('last day of december this year')->setTime(23, 59, 59);
-                $label = 'Yearly (' . $start->format('Y') . ')';
-                $key = 'yearly';
-                break;
-            case 'monthly':
-            default:
-                $start = (new \DateTimeImmutable('first day of this month'))->setTime(0, 0, 0);
-                $end = $start->modify('last day of this month')->setTime(23, 59, 59);
-                $label = 'Monthly (' . $start->format('F Y') . ')';
-                $key = 'monthly';
-                break;
-        }
-
-        return [
-            $start->format('Y-m-d H:i:s'),
-            $end->format('Y-m-d H:i:s'),
-            $label,
-            $key,
-        ];
     }
 
     private function collectorReportStyle(): string
@@ -788,10 +636,10 @@ HTML;
             'Generated on: ' . date('Y-m-d H:i:s'),
             str_repeat('=', 95),
             str_pad('Customer ID', 12)
-            . str_pad('Customer Name', 24)
-            . str_pad('Address', 28)
-            . str_pad('Material', 19)
-            . 'Weight',
+                . str_pad('Customer Name', 24)
+                . str_pad('Address', 28)
+                . str_pad('Material', 19)
+                . 'Weight',
             str_repeat('-', 95),
         ];
 
@@ -1494,8 +1342,14 @@ HTML;
 
     public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
     {
-        $model = new CollectorFeedback();
-        return count($model->getLowRatings($collectorId, $maxRating));
+        $sql = "
+        SELECT COUNT(*) AS count
+        FROM {$this->table}
+        WHERE collector_id = ? AND rating <= ?
+    ";
+
+        $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
+        return (int) ($row['count'] ?? 0);
     }
 
 

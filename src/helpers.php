@@ -358,13 +358,6 @@ if (!function_exists('url')) {
     function url(string $path = ''): string
     {
         $baseUrl = env('APP_URL', 'http://localhost');
-        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-
-        if ($currentHost !== '' && preg_match('#^https?://localhost/?$#i', $baseUrl)) {
-            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $baseUrl = $scheme . '://' . $currentHost;
-        }
-
         return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
     }
 }
