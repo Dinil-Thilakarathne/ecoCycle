@@ -115,6 +115,7 @@ if ($toastMessage === '' && !empty($errors)) {
 }
 $toastType = $toastType ?? (empty($errors) ? 'success' : 'error');
 $showToast = $showToast ?? ($toastMessage !== '');
+$activeModal = is_string($activeModal ?? null) ? $activeModal : ($active_modal ?? '');
 
 $csrfToken = csrf_token();
 ?>
@@ -375,6 +376,15 @@ $csrfToken = csrf_token();
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
     <h2 class="collector-modal-title">Change Password</h2>
+    <?php if (!empty($errors)): ?>
+      <div class="error-box">
+        <ul>
+          <?php foreach ($errors as $error): ?>
+            <li><?= htmlspecialchars($error) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
     <form method="POST" action="/api/profile/password">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="form-group"><label>New Password</label>
@@ -409,7 +419,9 @@ $csrfToken = csrf_token();
   <?php endif; ?>
 
   <?php if (!empty($errors)): ?>
-    <script>window.location.hash = '#editModal';</script>
+    <script>
+      window.location.hash = <?= json_encode($activeModal !== '' ? $activeModal : '#editModal') ?>;
+    </script>
   <?php endif; ?>
 
 <script>

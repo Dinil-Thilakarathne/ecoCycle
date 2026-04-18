@@ -15,4 +15,9 @@
   Header set X-Frame-Options DENY
   Header set X-Content-Type-Options nosniff
   Header set Referrer-Policy strict-origin-when-cross-origin
+
+  <If "%{REQUEST_URI} == '/collector/route-preview'">
+    Header set X-Frame-Options SAMEORIGIN
+    Header set Content-Security-Policy "frame-ancestors 'self'"
+  </If>
 </IfModule>

@@ -1,9 +1,17 @@
 :80 {
     encode gzip zstd
-    header X-Frame-Options "DENY"
     header X-Content-Type-Options "nosniff"
     header Referrer-Policy "strict-origin-when-cross-origin"
     header Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    @routePreview path /collector/route-preview*
+    handle @routePreview {
+        header X-Frame-Options "SAMEORIGIN"
+        header Content-Security-Policy "frame-ancestors 'self'"
+        reverse_proxy app:80
+    }
+
+    header X-Frame-Options "DENY"
 
     @static {
         path "/css/*" "/js/*" "/images/*" "/assets/*"

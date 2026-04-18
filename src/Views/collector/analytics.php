@@ -3,26 +3,20 @@
 
 // Feedback data will be fetched via JavaScript API call
 $collectorFeedback = []; // Will be populated by JavaScript
+$selectedExportPeriod = strtolower((string) ($_GET['period'] ?? 'monthly'));
+$allowedExportPeriods = ['daily', 'weekly', 'monthly', 'yearly'];
+if (!in_array($selectedExportPeriod, $allowedExportPeriods, true)) {
+    $selectedExportPeriod = 'monthly';
+}
 ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div>
     <!-- Page Header -->
-    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors">
-             <a class="btn btn-outline" href="?format=salary&export=1">
-                <i class="fa-solid fa-download"></i>
-                Salary Transactions Report
-            </a>
-             <a class="btn btn-outline" href="?format=waste&export=1">
-                <i class="fa-solid fa-download"></i>
-                Waste Collection Report
-            </a>
+    <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors"></page-header>
 
 
-    </page-header>
-
-   
     <!-- Metrics Cards -->
     <div class="feature-cards">
         <div class="feature-card">
@@ -31,6 +25,13 @@ $collectorFeedback = []; // Will be populated by JavaScript
                 <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
             </div>
             <div class="feature-card__body" id="avgRatingValue">-</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card__header">
+                <div class="feature-card__title">Pending Reports</div>
+                <div class="feature-card__icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="feature-card__body" id="pendingReportsValue">-</div>
         </div>
         <div class="feature-card">
             <div class="feature-card__header">
@@ -47,16 +48,20 @@ $collectorFeedback = []; // Will be populated by JavaScript
             <h3 class="activity-card__title">
                 <i class="fa-solid fa-chart-column analytics-icon-gap"></i> Monthly Collection Summary
             </h3>
-            <p class="activity-card__description">Track waste pickups by customer and category</p>
+            <p class="activity-card__description" id="collection-summary-description">Material collection by selected month</p>
         </div>
         <div class="activity-card__content">
+            <div class="analytics-summary-toggle-row">
+                <button type="button" id="summary-mode-monthly" class="btn btn-outline analytics-summary-toggle-btn analytics-summary-toggle-btn-active">Monthly Summary</button>
+                <button type="button" id="summary-mode-yearly" class="btn btn-outline analytics-summary-toggle-btn">Yearly Summary</button>
+            </div>
             <div class="analytics-filter-row">
-                <label for="monthly-collection-month" class="analytics-filter-label">Month</label>
+                <label id="monthly-collection-month-label" for="monthly-collection-month" class="analytics-filter-label">Month</label>
                 <select id="monthly-collection-month" class="analytics-filter-select"></select>
                 
-                <label for="monthly-collection-year" class="analytics-filter-label analytics-filter-label-spaced">Year</label>
+                <label id="monthly-collection-year-label" for="monthly-collection-year" class="analytics-filter-label analytics-filter-label-spaced">Year</label>
                 <select id="monthly-collection-year" class="analytics-filter-select"></select>
-                <!-- <span id="monthly-collection-range" class="analytics-range-label">Month: --</span> -->
+                <span id="monthly-collection-range" class="analytics-range-label">Month: --</span>
             </div>
             <div class="analytics-chart-shell">
                 <canvas id="monthlyCollectionChart" class="analytics-chart-canvas"></canvas>
@@ -126,6 +131,40 @@ $collectorFeedback = []; // Will be populated by JavaScript
             </div>
         </div>
     </div>
+
+    <div class="activity-card">
+        <div class="activity-card__header">
+            <h3 class="activity-card__title">
+                <i class="fa-solid fa-file-export analytics-icon-gap"></i> Report Exporting
+            </h3>
+            <p class="activity-card__description">Export Salary Transactions and Waste Details reports by selected period</p>
+        </div>
+        <div class="activity-card__content">
+            <form method="GET" action="" class="analytics-export-row" id="analyticsExportForm">
+                <input type="hidden" name="export" value="1">
+
+                <label for="exportPeriodFilter" class="analytics-filter-label">Period</label>
+                <select id="exportPeriodFilter" name="period" class="analytics-filter-select">
+                    <option value="daily" <?= $selectedExportPeriod === 'daily' ? 'selected' : '' ?>>Daily</option>
+                    <option value="weekly" <?= $selectedExportPeriod === 'weekly' ? 'selected' : '' ?>>Weekly</option>
+                    <option value="monthly" <?= $selectedExportPeriod === 'monthly' ? 'selected' : '' ?>>Monthly</option>
+                    <option value="yearly" <?= $selectedExportPeriod === 'yearly' ? 'selected' : '' ?>>Yearly</option>
+                </select>
+
+                <div class="analytics-export-actions">
+                    <button type="submit" name="format" value="salary" id="exportSalaryBtn" class="btn btn-outline">
+                        <i class="fa-solid fa-download"></i>
+                        Salary Transactions Report
+                    </button>
+                    <button type="submit" name="format" value="waste" id="exportWasteBtn" class="btn btn-outline">
+                        <i class="fa-solid fa-download"></i>
+                        Waste Details Report
+                    </button>
+                </div>
+            </form>
+            <p id="analyticsExportHint" class="analytics-export-hint"></p>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -137,10 +176,18 @@ console.log('Collector ID:', CURRENT_COLLECTOR_ID);
 console.log('User Data:', <?= json_encode($user ?? []) ?>);
 
 let monthlyCollectionChart = null;
+let collectionSummaryMode = 'monthly';
 const monthlyCollectionRangeEl = document.getElementById('monthly-collection-range');
 const monthlyCollectionMonthEl = document.getElementById('monthly-collection-month');
 const monthlyCollectionYearEl = document.getElementById('monthly-collection-year');
+const monthlyCollectionMonthLabelEl = document.getElementById('monthly-collection-month-label');
+const monthlyCollectionYearLabelEl = document.getElementById('monthly-collection-year-label');
+const monthlySummaryModeBtn = document.getElementById('summary-mode-monthly');
+const yearlySummaryModeBtn = document.getElementById('summary-mode-yearly');
+const collectionSummaryDescriptionEl = document.getElementById('collection-summary-description');
 const monthlyCollectionChartContainer = document.getElementById('monthlyCollectionChart')?.parentElement || null;
+const exportPeriodFilterEl = document.getElementById('exportPeriodFilter');
+const analyticsExportHintEl = document.getElementById('analyticsExportHint');
 const FIXED_MATERIAL_CATEGORIES = [
     { key: 'plastic', label: 'Plastic', color: '#3B82F6' },
     { key: 'paper', label: 'Paper', color: '#10B981' },
@@ -166,11 +213,21 @@ function buildRecentMonthOptions(limit = 12) {
     return options;
 }
 
-function exportReport(format) {
-        // Placeholder for export functionality
-        console.log('Exporting report in ' + format + ' format');
-        alert('Export functionality would be implemented here for ' + format + ' format');
+function updateExportLinks() {
+    if (!exportPeriodFilterEl) return;
+
+    const period = exportPeriodFilterEl.value || 'monthly';
+
+    if (analyticsExportHintEl) {
+        const labels = {
+            daily: 'Exports only today\'s records.',
+            weekly: 'Exports records from this week.',
+            monthly: 'Exports records from this month.',
+            yearly: 'Exports records from this year.'
+        };
+        analyticsExportHintEl.textContent = labels[period] || '';
     }
+}
 
 function buildMonthOptions() {
     const months = [
@@ -249,6 +306,37 @@ function updateMonthlyCollectionRange(monthLabel) {
     monthlyCollectionRangeEl.textContent = monthLabel ? `Month: ${monthLabel}` : 'Month: --';
 }
 
+function updateCollectionSummaryYearRange(yearLabel) {
+    if (!monthlyCollectionRangeEl) return;
+    monthlyCollectionRangeEl.textContent = yearLabel ? `Year: ${yearLabel}` : 'Year: --';
+}
+
+function setCollectionSummaryMode(mode) {
+    const normalizedMode = mode === 'yearly' ? 'yearly' : 'monthly';
+    collectionSummaryMode = normalizedMode;
+
+    const isMonthly = normalizedMode === 'monthly';
+
+    monthlySummaryModeBtn?.classList.toggle('analytics-summary-toggle-btn-active', isMonthly);
+    yearlySummaryModeBtn?.classList.toggle('analytics-summary-toggle-btn-active', !isMonthly);
+
+    if (monthlyCollectionMonthEl) {
+        monthlyCollectionMonthEl.disabled = !isMonthly;
+        monthlyCollectionMonthEl.classList.toggle('analytics-filter-hidden', !isMonthly);
+    }
+    if (monthlyCollectionMonthLabelEl) {
+        monthlyCollectionMonthLabelEl.classList.toggle('analytics-filter-hidden', !isMonthly);
+    }
+
+    if (collectionSummaryDescriptionEl) {
+        collectionSummaryDescriptionEl.textContent = isMonthly
+            ? 'Material collection by selected month'
+            : 'Material collection by selected year';
+    }
+
+    fetchAndRenderMonthlyCollection();
+}
+
 function normalizeMaterialName(name) {
     return String(name || '').trim().toLowerCase();
 }
@@ -302,11 +390,18 @@ async function fetchAndRenderMonthlyCollection() {
         const selectedMonth = monthlyCollectionMonthEl?.value || '01';
         const selectedYear = monthlyCollectionYearEl?.value || new Date().getFullYear();
         const monthValue = `${selectedYear}-${selectedMonth}`;
-        
-        const res = await fetch(`/api/collector/material-collection?period=monthly-by-material&month=${encodeURIComponent(monthValue)}`, { credentials: 'same-origin' });
+        const isYearly = collectionSummaryMode === 'yearly';
+
+        const endpoint = isYearly
+            ? `/api/collector/material-collection?period=yearly-by-material&year=${encodeURIComponent(String(selectedYear))}`
+            : `/api/collector/material-collection?period=monthly-by-material&month=${encodeURIComponent(monthValue)}`;
+
+        const res = await fetch(endpoint, { credentials: 'same-origin' });
 
         if (!res.ok) {
-            let errorMessage = 'Unable to load monthly collection summary';
+            let errorMessage = isYearly
+                ? 'Unable to load yearly collection summary'
+                : 'Unable to load monthly collection summary';
             try {
                 const errJson = await res.json();
                 errorMessage = errJson?.details || errJson?.message || errorMessage;
@@ -323,7 +418,11 @@ async function fetchAndRenderMonthlyCollection() {
             return;
         }
 
-        updateMonthlyCollectionRange(json.selected_month_label || formatMonthDate(json.month_start));
+        if (isYearly) {
+            updateCollectionSummaryYearRange(json.selected_year || selectedYear);
+        } else {
+            updateMonthlyCollectionRange(json.selected_month_label || formatMonthDate(json.month_start));
+        }
 
         const categoryWeightMap = new Map(
             (json.data || []).map(item => [
@@ -349,7 +448,7 @@ async function fetchAndRenderMonthlyCollection() {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Weight (kg)',
+                    label: isYearly ? 'Yearly Weight (kg)' : 'Monthly Weight (kg)',
                     data: values,
                     backgroundColor: colors,
                     borderRadius: 6,
@@ -394,7 +493,11 @@ async function fetchAndRenderMonthlyCollection() {
         });
     } catch (error) {
         console.error('Failed to fetch monthly collection:', error);
-        showMonthlyCollectionEmptyState('Unable to load monthly collection summary');
+        showMonthlyCollectionEmptyState(
+            collectionSummaryMode === 'yearly'
+                ? 'Unable to load yearly collection summary'
+                : 'Unable to load monthly collection summary'
+        );
     }
 }
 
@@ -662,13 +765,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    exportPeriodFilterEl?.addEventListener('change', updateExportLinks);
+    updateExportLinks();
+
     initializeMonthlyCollectionMonthSelect();
+    monthlySummaryModeBtn?.addEventListener('click', () => {
+        setCollectionSummaryMode('monthly');
+    });
+    yearlySummaryModeBtn?.addEventListener('click', () => {
+        setCollectionSummaryMode('yearly');
+    });
     monthlyCollectionMonthEl?.addEventListener('change', () => {
-        fetchAndRenderMonthlyCollection();
+        if (collectionSummaryMode === 'monthly') {
+            fetchAndRenderMonthlyCollection();
+        }
     });
     monthlyCollectionYearEl?.addEventListener('change', () => {
         fetchAndRenderMonthlyCollection();
     });
+    setCollectionSummaryMode('monthly');
     
     refreshDashboard(); // Initial run
     setInterval(refreshDashboard, 30000); // Poll every 30 seconds for smoother performance

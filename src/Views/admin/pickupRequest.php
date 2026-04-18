@@ -5,11 +5,13 @@ $upcomingRequests = $upcomingRequests ?? [];
 $inProgressRequests = $inProgressRequests ?? [];
 $completedRequests = $completedRequests ?? [];
 $cancelledRequests = $cancelledRequests ?? [];
+$failedRequests = $failedRequests ?? [];
 $collectors = $collectors ?? [];
 $timeSlots = $timeSlots ?? ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
 
 // Combine all for client-side data lookup in modals
-$allPickupData = array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests);
+$allPickupData = array_merge($todayRequests, $upcomingRequests, $inProgressRequests, $completedRequests, $cancelledRequests, $failedRequests);
+
 ?>
 <script>
     window.__PICKUP_DATA = <?php echo json_encode($allPickupData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
@@ -68,6 +70,7 @@ $allPickupData = array_merge($todayRequests, $upcomingRequests, $inProgressReque
         if (value === 'in_progress' || value === 'in progress') return '<div class="tag online">In Progress</div>';
         if (value === 'completed') return '<div class="tag completed">Completed</div>';
         if (value === 'cancelled') return '<div class="tag cancelled">Cancelled</div>';
+        if (value === 'failed') return '<div class="tag failed">Failed</div>';
         return '<div class="tag">' + escapeHtml(status ?? 'Unknown') + '</div>';
     }
 
@@ -123,7 +126,7 @@ $allPickupData = array_merge($todayRequests, $upcomingRequests, $inProgressReque
 <?php
 // Helper for table rendering
 if (!function_exists('renderPickupTable')) {
-    function renderPickupTable($requests, $isToday = false) {
+    function renderPickupTable($requests, $isToday = false, $showActions = true) {
     ?>
         <table class="data-table">
             <thead>
@@ -136,7 +139,7 @@ if (!function_exists('renderPickupTable')) {
                     <th>Status</th>
                     <th>Vehicle</th>
                     <th>Collector</th>
-                    <th>Actions</th>
+                    <?php if ($showActions): ?><th>Actions</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -167,6 +170,7 @@ if (!function_exists('renderPickupTable')) {
                         <td data-field="collector">
                             <?= !empty($request['collectorName']) ? htmlspecialchars($request['collectorName']) : '<span style="color: var(--neutral-500);">Unassigned</span>' ?>
                         </td>
+                        <?php if ($showActions): ?>
                         <td>
                             <div style="display:flex; gap:8px;">
                                 <button class="icon-button" onclick="viewDetails(this, '<?= $request['id'] ?>')" title="View Details">
@@ -180,11 +184,12 @@ if (!function_exists('renderPickupTable')) {
                                 </button>
                             </div>
                         </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($requests)): ?>
                     <tr>
-                        <td colspan="<?= $isToday ? 8 : 9 ?>" style="text-align: center; padding: 2rem; color: var(--neutral-500);">
+                        <td colspan="<?= ($isToday ? 7 : 8) - ($showActions ? 0 : 1) ?>" style="text-align: center; padding: 2rem; color: var(--neutral-500);">
                             No pickup requests found.
                         </td>
                     </tr>
@@ -206,6 +211,7 @@ if (!function_exists('getStatusBadge')) {
             case 'in progress': return '<div class="tag online">In Progress</div>';
             case 'completed': return '<div class="tag completed">Completed</div>';
             case 'cancelled': return '<div class="tag cancelled">Cancelled</div>';
+            case 'failed': return '<div class="tag failed">Failed</div>';
             default: return '<div class="tag">' . htmlspecialchars($status) . '</div>';
         }
     }
@@ -260,6 +266,9 @@ if (!function_exists('getStatusBadge')) {
             <button class="tabs-trigger" onclick="showTab('cancelled')" id="cancelled-tab">
                 <i class="fa-solid fa-times-circle"></i> Cancelled (<?= count($cancelledRequests) ?>)
             </button>
+            <button class="tabs-trigger" onclick="showTab('failed')" id="failed-tab">
+                <i class="fa-solid fa-circle-xmark"></i> Failed (<?= count($failedRequests) ?>)
+            </button>
         </div>
 
         <div class="tabs-content active" id="upcoming-content">
@@ -289,7 +298,15 @@ if (!function_exists('getStatusBadge')) {
         <div class="tabs-content" id="cancelled-content">
             <div class="activity-card">
                 <div class="activity-card__content" style="overflow-x: auto;">
-                    <?php renderPickupTable($cancelledRequests); ?>
+                    <?php renderPickupTable($cancelledRequests, false, false); ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs-content" id="failed-content">
+            <div class="activity-card">
+                <div class="activity-card__content" style="overflow-x: auto;">
+                    <?php renderPickupTable($failedRequests, false, false); ?>
                 </div>
             </div>
         </div>
