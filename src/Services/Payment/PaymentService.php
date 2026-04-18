@@ -111,6 +111,13 @@ class PaymentService
             if (!in_array($status, ['pending', 'processing', 'completed', 'failed'], true)) {
                 throw new \InvalidArgumentException('Unsupported payment status.');
             }
+
+            // If the status is changing to 'completed', update the payment date 
+            // so analytics track the actual received date, not the invoice generation date
+            if ($status === 'completed' && ($existing['status'] ?? '') !== 'completed' && !isset($data['date'])) {
+                $data['date'] = date('Y-m-d H:i:s');
+            }
+
             $data['status'] = $status;
         }
 

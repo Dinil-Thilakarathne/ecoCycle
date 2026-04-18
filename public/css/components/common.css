@@ -105,6 +105,18 @@
     color: var(--danger);
   }
 
+  &.cancelled {
+    border: 1px solid #d97706;
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  &.failed {
+    border: 1px solid var(--danger);
+    background-color: var(--danger-light);
+    color: var(--danger);
+  }
+
   &.secondary {
     border: 1px solid var(--neutral-300);
     background-color: var(--neutral-100);

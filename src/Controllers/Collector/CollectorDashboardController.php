@@ -11,7 +11,7 @@ use Models\User;
 use Models\Vehicle;
 use Models\IncomeWaste;
 use Models\CollectorFeedback;
-use Models\CollectorRating; 
+use Models\CollectorRating;
 
 use Models\Notification;
 
@@ -206,7 +206,7 @@ class CollectorDashboardController extends DashboardController
             return count(array_filter(
                 $allPickups,
                 fn(array $pickup) => $this->isPickupForToday($pickup)
-                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
+                && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['assigned', 'in_progress', 'completed'], true)
             ));
         } catch (\Throwable $e) {
             return 0;
@@ -246,7 +246,7 @@ class CollectorDashboardController extends DashboardController
             return array_values(array_filter(
                 $allPickups,
                 fn(array $pickup): bool => $this->isPickupForToday($pickup)
-                    && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
+                && in_array(strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')), ['pending', 'assigned', 'in_progress'], true)
             ));
         } catch (\Throwable $e) {
             return [];
@@ -426,19 +426,19 @@ class CollectorDashboardController extends DashboardController
              WHERE pr.collector_id = ?
                              AND pr.status = 'completed'
                          ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC, pr.customer_id ASC, material_name ASC",
-                                                [$collectorId]
+            [$collectorId]
         ) ?: [];
 
-                $rows = array_values(array_filter($rows, static function (array $row) use ($periodStart, $periodEnd): bool {
-                        $timestamp = strtotime((string) ($row['created_at'] ?? ''));
-                        if (!$timestamp) {
-                                return false;
-                        }
+        $rows = array_values(array_filter($rows, static function (array $row) use ($periodStart, $periodEnd): bool {
+            $timestamp = strtotime((string) ($row['created_at'] ?? ''));
+            if (!$timestamp) {
+                return false;
+            }
 
-                        $start = strtotime($periodStart);
-                        $end = strtotime($periodEnd);
-                        return $timestamp >= $start && $timestamp <= $end;
-                }));
+            $start = strtotime($periodStart);
+            $end = strtotime($periodEnd);
+            return $timestamp >= $start && $timestamp <= $end;
+        }));
 
         $tableRows = [];
         foreach ($rows as $row) {
@@ -630,7 +630,7 @@ class CollectorDashboardController extends DashboardController
                     <th>Material</th>
                     <th>Total Weight</th>
                     <th>Unit Amount (Rs)</th>
-                    <th>Monthly Amount (Rs)</th>
+                    <th>{$sectionTotalLabel} (Rs)</th>
                 </tr>
             </thead>
             <tbody>
@@ -704,12 +704,10 @@ HTML;
 
     private function salaryReportSectionTotalLabel(string $periodKey): string
     {
-        return match ($periodKey) {
-            'daily' => 'Day Total',
-            'weekly' => 'Week Total',
-            'yearly' => 'Month Total',
-            default => 'Monthly Total',
-        };
+        if ($periodKey === 'yearly') {
+            return 'Year Total';
+        }
+        return 'Monthly Total';
     }
 
     private function formatAmount(float $amount): string
@@ -790,10 +788,10 @@ HTML;
             'Generated on: ' . date('Y-m-d H:i:s'),
             str_repeat('=', 95),
             str_pad('Customer ID', 12)
-                . str_pad('Customer Name', 24)
-                . str_pad('Address', 28)
-                . str_pad('Material', 19)
-                . 'Weight',
+            . str_pad('Customer Name', 24)
+            . str_pad('Address', 28)
+            . str_pad('Material', 19)
+            . 'Weight',
             str_repeat('-', 95),
         ];
 
@@ -1511,14 +1509,8 @@ HTML;
 
     public function getLowRatingsCount(int $collectorId, int $maxRating = 2): int
     {
-        $sql = "
-        SELECT COUNT(*) AS count
-        FROM {$this->table}
-        WHERE collector_id = ? AND rating <= ?
-    ";
-
-        $row = $this->db->fetchOne($sql, [$collectorId, $maxRating]);
-        return (int) ($row['count'] ?? 0);
+        $model = new CollectorFeedback();
+        return count($model->getLowRatings($collectorId, $maxRating));
     }
 
 
