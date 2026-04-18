@@ -137,6 +137,21 @@ foreach ($availableYears as $yr) {
     <span style="font-size:13px; color:#666;">to</span>
     <select id="customEnd" style="font-size:13px; padding:5px 8px; border:1px solid #e5e7eb; border-radius:5px;"></select>
     <button id="applyCustom" style="border:1px solid #e5e7eb; padding:5px 8px; border-radius:8px; cursor:pointer;">Apply</button>
+
+    <div style="width:1px; height:24px; background:#e5e7eb; margin:0 4px;"></div>
+
+    <!-- Export buttons -->
+    <label style="font-size:16px;">Export:</label>
+    <a id="exportPdf" href="?export=1&format=pdf"
+       style="display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:5px 12px;
+             border-radius:5px; border:1px solid #e5e7eb; font-weight:500;">
+      <i class="fa-solid fa-file-pdf"></i> Export PDF
+    </a>
+    <a id="exportCsv" href="?export=1&format=csv"
+       style="display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:5px 12px;
+              border-radius:5px; border:1px solid #e5e7eb; font-weight:500;">
+      <i class="fa-solid fa-file-csv"></i> Export CSV
+    </a>
   </div>
 
   <!-- Side-by-side charts -->

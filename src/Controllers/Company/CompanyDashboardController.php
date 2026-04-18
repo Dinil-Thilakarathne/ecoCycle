@@ -88,7 +88,115 @@ class CompanyDashboardController extends DashboardController
      */
     public function reports(): Response
     {
+        $request = app('request');
         $reportData = $this->getReportData();
+
+        // ── Handle PDF Export ───────────────────────────────────────────────
+        if ($request->query('export') === '1' && $request->query('format') === 'pdf') {
+            $date = date('Y-m-d H:i:s');
+            $totalBids = $reportData['totalBids'] ?? 0;
+            $successfulBids = $reportData['successfulBids'] ?? 0;
+            $successRate = $reportData['successRate'] ?? 0;
+            $months = $reportData['months'] ?? [];
+            $totalPerMonth = $reportData['totalBidsPerMonth'] ?? [];
+            $wonPerMonth = $reportData['wonBidsPerMonth'] ?? [];
+
+            // Build monthly trend rows
+            $monthlyRows = '';
+            foreach ($months as $i => $month) {
+                $total = $totalPerMonth[$i] ?? 0;
+                $won = $wonPerMonth[$i] ?? 0;
+                $rate = $total > 0 ? round(($won / $total) * 100, 1) : 0;
+                $monthlyRows .= "<tr>
+                <td>{$month}</td>
+                <td>{$total}</td>
+                <td>{$won}</td>
+                <td>{$rate}%</td>
+            </tr>";
+            }
+
+            // Build category series rows
+            $categoryRows = '';
+            foreach (($reportData['categorySeries'] ?? []) as $category => $values) {
+                $total = number_format(array_sum($values), 2, '.', ',');
+                $categoryRows .= "<tr>
+                <td>" . htmlspecialchars($category) . "</td>
+                <td>" . $total . "</td>
+            </tr>";
+            }
+
+            $html = <<<HTML
+        <style>
+            body { font-family: Helvetica, Arial, sans-serif; color: #333; margin: 20px; }
+            h1 { color: #15803d; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+            h3 { margin-top: 30px; color: #374151; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+            th { background-color: #f3f4f6; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9fafb; }
+        </style>
+        <h1>Company Analytics Report</h1>
+        <p>Generated on: <strong>{$date}</strong></p>
+
+        <h3>Bidding Summary</h3>
+        <table>
+            <tr><th>Metric</th><th>Value</th></tr>
+            <tr><td>Total Bids Placed</td><td>{$totalBids}</td></tr>
+            <tr><td>Successful Bids (Won)</td><td>{$successfulBids}</td></tr>
+            <tr><td>Success Rate</td><td>{$successRate}%</td></tr>
+        </table>
+
+        <h3>Monthly Bid Trends (Last 6 Months)</h3>
+        <table>
+            <tr>
+                <th>Month</th>
+                <th>Total Bids</th>
+                <th>Won</th>
+                <th>Win Rate</th>
+            </tr>
+            {$monthlyRows}
+        </table>
+
+        <h3>Spend by Waste Category</h3>
+        <table>
+            <tr><th>Category</th><th>Total Amount (Rs)</th></tr>
+            {$categoryRows}
+        </table>
+HTML;
+
+            return new \Core\Http\Response($html, 200, ['Content-Type' => 'text/html']);
+        }
+
+        // ── Handle CSV Export ───────────────────────────────────────────────
+        if ($request->query('export') === '1' && $request->query('format') === 'csv') {
+            $csvData = [];
+
+            $csvData[] = ['Bidding Summary', 'Value'];
+            $csvData[] = ['Total Bids Placed', $reportData['totalBids'] ?? 0];
+            $csvData[] = ['Successful Bids (Won)', $reportData['successfulBids'] ?? 0];
+            $csvData[] = ['Success Rate (%)', $reportData['successRate'] ?? 0];
+            $csvData[] = [];
+
+            $csvData[] = ['Month', 'Total Bids', 'Won', 'Win Rate (%)'];
+            $months = $reportData['months'] ?? [];
+            $totalPerMonth = $reportData['totalBidsPerMonth'] ?? [];
+            $wonPerMonth = $reportData['wonBidsPerMonth'] ?? [];
+            foreach ($months as $i => $month) {
+                $total = $totalPerMonth[$i] ?? 0;
+                $won = $wonPerMonth[$i] ?? 0;
+                $rate = $total > 0 ? round(($won / $total) * 100, 1) : 0;
+                $csvData[] = [$month, $total, $won, $rate . '%'];
+            }
+            $csvData[] = [];
+
+            $csvData[] = ['Waste Category', 'Total Amount (Rs)'];
+            foreach (($reportData['categorySeries'] ?? []) as $category => $values) {
+                $csvData[] = [$category, number_format(array_sum($values), 2, '.', '')];
+            }
+
+            $filename = 'company_analytics_' . date('Ymd_His') . '.csv';
+            return \Core\Http\Response::csv($filename, [], $csvData);
+        }
 
         $data = [
             'pageTitle' => 'Analytics & Reports',
