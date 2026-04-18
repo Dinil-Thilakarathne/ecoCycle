@@ -38,13 +38,17 @@ $performanceScore = $assignedTaskCount > 0
   : 0;
 $performanceScore = max(0, min(100, $performanceScore));
 $collectorLevel = max(1, min(10, (int) floor($completedTaskCount / 3) + 1));
-$collectorRank = match (true) {
-  $performanceScore >= 90 => 'Elite',
-  $performanceScore >= 75 => 'Advanced',
-  $performanceScore >= 50 => 'Skilled',
-  $performanceScore >= 25 => 'Steady',
-  default => 'Rookie',
-};
+if ($collectorLevel >= 9) {
+  $collectorRank = 'Elite';
+} elseif ($collectorLevel >= 7) {
+  $collectorRank = 'Advanced';
+} elseif ($collectorLevel >= 5) {
+  $collectorRank = 'Skilled';
+} elseif ($collectorLevel >= 3) {
+  $collectorRank = 'Steady';
+} else {
+  $collectorRank = 'Rookie';
+}
 $nextLevelTarget = $collectorLevel >= 10 ? $completedTaskCount : ($collectorLevel * 3);
 $nextLevelRemaining = $collectorLevel >= 10 ? 0 : max(0, $nextLevelTarget - $completedTaskCount);
 $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTaskCount % 3) / 3) * 100);

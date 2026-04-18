@@ -108,8 +108,12 @@ class CollectorRatingController extends BaseController
             }
         }
 
-        $this->setIfNotEmpty($data, 'customerName', $customerName);
-        $this->setIfNotEmpty($data, 'address', $address);
+        if ($customerName !== '') {
+            $data['customerName'] = $customerName;
+        }
+        if ($address !== '') {
+            $data['address'] = $address;
+        }
 
         if ($pickupRequestId !== '') {
             $data['pickupRequestId'] = $pickupRequestId;

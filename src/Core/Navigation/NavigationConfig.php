@@ -32,7 +32,7 @@ class NavigationConfig
     {
         return [
             'admin' => [
-                ['title' => 'Overview', 'url' => '/admin', 'icon' => 'chart-column', 'description' => 'System overview and statistics'],
+                ['title' => 'Dashboard', 'url' => '/admin', 'icon' => 'home', 'description' => 'System overview and statistics'],
                 ['title' => 'Pickup Requests', 'url' => '/admin/pickup-requests', 'icon' => 'truck', 'description' => 'Manage pickup requests'],
                 ['title' => 'Bidding', 'url' => '/admin/bidding', 'icon' => 'gavel', 'description' => 'Manage waste lot bidding'],
                 ['title' => 'User Management', 'url' => '/admin/users', 'icon' => 'users', 'description' => 'Manage system users'],
@@ -51,16 +51,16 @@ class NavigationConfig
                 ['title' => 'Notification', 'url' => '/customer/notification', 'icon' => 'bell', 'description' => 'See notifications'],
             ],
             'collector' => [
-                ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'tachometer-alt', 'description' => 'Collector dashboard'],
+                ['title' => 'Dashboard', 'url' => '/collector', 'icon' => 'home', 'description' => 'Collector dashboard'],
                 ['title' => 'Daily Tasks', 'url' => '/collector/tasks', 'icon' => 'truck', 'description' => 'Manage pickups'],
                 /* ['title' => 'Earnings', 'url' => '/collector/earnings', 'icon' => 'dollar-sign', 'description' => 'Track earnings'],*/
                 ['title' => 'Analytics', 'url' => '/collector/analytics', 'icon' => 'chart-bar', 'description' => 'Performance reports'],
-                ['title' => 'Notifications', 'url' => '/collector/notification', 'icon' => 'bell', 'description' => 'See notifications'],
                 ['title' => 'Profile', 'url' => '/collector/profile', 'icon' => 'user', 'description' => 'Your profile settings'],
+                ['title' => 'Notifications', 'url' => '/collector/notification', 'icon' => 'bell', 'description' => 'See notifications'],
             ],
             'company' => [
                 // Matches: src/Views/company/dashboard.php -> route: /company (index)
-                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'chart-column', 'description' => 'Company dashboard overview'],
+                ['title' => 'Dashboard', 'url' => '/company', 'icon' => 'home', 'description' => 'Company dashboard overview'],
                 // Matches: src/Views/company/activeBids.php -> route: /company/activeBids
                 ['title' => 'Active Bids', 'url' => '/company/activeBids', 'icon' => 'gavel', 'description' => 'View and manage active bids'],
                 // Matches: src/Views/company/purchases.php -> route: /company/purchases
