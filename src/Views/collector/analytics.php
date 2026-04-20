@@ -1,8 +1,7 @@
 <?php
-// analytics.php
 
-// Feedback data will be fetched via JavaScript API call
-$collectorFeedback = []; // Will be populated by JavaScript
+
+$collectorFeedback = []; 
 $selectedExportFromDate = (string) ($_GET['from_date'] ?? date('Y-m-01'));
 $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
 ?>
@@ -10,9 +9,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div>
-    <!-- Page Header -->
     <page-header title="Collector Feedback & Reports" description="Monitor and review feedback from collectors"></page-header>
-
 
     <!-- Metrics Cards -->
     <div class="feature-cards">
@@ -72,6 +69,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
                 <table class="data-table analytics-table-full-width">
                     <thead class="analytics-table-head-sticky">
                         <tr>
+                            <th class="analytics-left">Customer ID</th>
                             <th class="analytics-left">Customer Name</th>
                             <th class="analytics-left">Date</th>
                             <th class="analytics-left">Feedback</th>
@@ -80,7 +78,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
                     </thead>
                     <tbody id="feedbackTableBody">
                         <tr>
-                            <td colspan="4" class="analytics-table-center-cell">
+                            <td colspan="5" class="analytics-table-center-cell">
                                 <span class="loading">Loading feedback data...</span>
                             </td>
                         </tr>
@@ -158,7 +156,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
 <script>
 const CURRENT_COLLECTOR_ID = <?= (int)($user['id'] ?? 0) ?>;
 
-// Immediate validation on page load
+
 console.log('=== Collector Analytics Debug ===');
 console.log('Collector ID:', CURRENT_COLLECTOR_ID);
 console.log('User Data:', <?= json_encode($user ?? []) ?>);
@@ -482,14 +480,12 @@ async function fetchAndRenderMonthlyCollection() {
     }
 }
 
-/**
- * Main Orchestrator: Fetches all data for the page
- */
+
 async function refreshDashboard() {
     console.log('Refreshing dashboard data...');
     console.log('Current Collector ID:', CURRENT_COLLECTOR_ID);
     
-    // Validate collector ID before making any API calls
+   
     if (!CURRENT_COLLECTOR_ID || CURRENT_COLLECTOR_ID === 0) {
         const errorMsg = 'Collector ID is missing or invalid. Please ensure you are logged in as a collector.';
         console.error(errorMsg);
@@ -501,8 +497,7 @@ async function refreshDashboard() {
     const params = `?collector_id=${CURRENT_COLLECTOR_ID}`;
     
     try {
-        // Add timeout to prevent hanging requests
-        const timeout = 10000; // 10 seconds
+        const timeout = 10000; 
         const fetchWithTimeout = (url) => {
             return Promise.race([
                 fetch(url, { credentials: 'include' }),
@@ -512,14 +507,14 @@ async function refreshDashboard() {
             ]);
         };
         
-        // Run fetches in parallel for better performance
+     
         const [metricsReq, feedbackReq, wasteReq] = await Promise.all([
             fetchWithTimeout(`/api/collector/metrics${params}`),
             fetchWithTimeout(`/api/collector/feedback${params}&limit=50`),
             fetchWithTimeout(`/api/collector/waste-collection${params}&limit=200`)
         ]);
 
-        // Handle metrics
+        
         if (metricsReq.ok) {
             const mData = await metricsReq.json();
             console.log('Metrics response:', mData);
@@ -528,15 +523,16 @@ async function refreshDashboard() {
             } else {
                 console.error('Metrics data invalid:', mData);
                 const errMsg = mData.error || 'Invalid data';
-                if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
-                if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
-                if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
+                const avgRatingEl = document.getElementById('avgRatingValue');
+                const totalFeedbackEl = document.getElementById('totalFeedbackValue');
+                if (avgRatingEl) avgRatingEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
+                if (totalFeedbackEl) totalFeedbackEl.innerHTML = `<small class="analytics-error-text">${errMsg.substring(0, 20)}</small>`;
             }
         } else {
             const errorText = await metricsReq.text();
             console.error('Metrics API failed:', metricsReq.status, errorText);
             
-            // Try to parse error message
+           
             let errorMsg = `Error ${metricsReq.status}`;
             try {
                 const errorJson = JSON.parse(errorText);
@@ -545,12 +541,13 @@ async function refreshDashboard() {
                 errorMsg = errorText.substring(0, 50) || errorMsg;
             }
             
-            if (avgRatingValueEl) avgRatingValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
-            if (totalFeedbackValueEl) totalFeedbackValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
-            if (satisfactionRateValueEl) satisfactionRateValueEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
+            const avgRatingEl = document.getElementById('avgRatingValue');
+            const totalFeedbackEl = document.getElementById('totalFeedbackValue');
+            if (avgRatingEl) avgRatingEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
+            if (totalFeedbackEl) totalFeedbackEl.innerHTML = `<small class="analytics-error-text analytics-error-text-small">${errorMsg}</small>`;
         }
 
-        // Handle feedback
+      
         if (feedbackReq.ok) {
             const fData = await feedbackReq.json();
             console.log('Feedback response:', fData);
@@ -566,7 +563,7 @@ async function refreshDashboard() {
             updateFeedbackTable([], `API Error ${feedbackReq.status}: ${errorText.substring(0, 100)}`);
         }
 
-        // Handle waste collection summary
+       
         if (wasteReq.ok) {
             const wData = await wasteReq.json();
             console.log('Waste response:', wData);
@@ -590,9 +587,7 @@ async function refreshDashboard() {
     }
 }
 
-/**
- * Updates UI Cards
- */
+
 function updateMetricsCards(metrics) {
     if (!metrics) return;
     
@@ -605,9 +600,7 @@ function updateMetricsCards(metrics) {
     console.log('Metrics updated:', { avgRating, totalFeedback });
 }
 
-/**
- * Updates Feedback Table
- */
+
 function updateFeedbackTable(data, error = null) {
     const tableBody = document.getElementById('feedbackTableBody');
     if (error) {
@@ -615,6 +608,7 @@ function updateFeedbackTable(data, error = null) {
     } else if (data && data.length > 0) {
         tableBody.innerHTML = data.map(fb => `
             <tr>
+            <td class="analytics-left">${escapeHtml(fb.customer_id)}</td>
                 <td class="analytics-left">${escapeHtml(fb.customer_name)}</td>
                 <td class="analytics-left">${new Date(fb.rating_date).toLocaleDateString()}</td>
                 <td class="analytics-left">${escapeHtml(fb.description)}</td>
@@ -626,9 +620,7 @@ function updateFeedbackTable(data, error = null) {
     }
 }
 
-/**
- * Updates Waste Table
- */
+
 function updateWasteTable(data, error = null) {
     const tableBody = document.getElementById('wasteCollectionTableBody');
     if (error) {
@@ -704,7 +696,7 @@ function updateWasteTable(data, error = null) {
     }
 }
 
-// Helper: Render Stars
+
 function renderStars(count) {
     let stars = '';
     for (let i = 0; i < 5; i++) {
@@ -715,23 +707,23 @@ function renderStars(count) {
     return stars;
 }
 
-// Helper: Escape HTML
+
 function escapeHtml(text) {
-    if (!text) return '-';
+    if (text === null || text === undefined || text === '') return '-';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
-// Initialize Polling
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM Content Loaded - Starting initialization');
     console.log('Collector ID available:', CURRENT_COLLECTOR_ID);
     
-    // Immediate visual feedback
+    
     document.getElementById('avgRatingValue').textContent = '...';
     document.getElementById('totalFeedbackValue').textContent = '...';
     
-    // Visual confirmation that JS is running
+    
     if (!CURRENT_COLLECTOR_ID) {
         document.getElementById('avgRatingValue').textContent = '⚠️';
         document.getElementById('totalFeedbackValue').textContent = '⚠️';
@@ -761,12 +753,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     setCollectionSummaryMode('monthly');
     
-    refreshDashboard(); // Initial run
-    setInterval(refreshDashboard, 30000); // Poll every 30 seconds for smoother performance
+    refreshDashboard(); 
+    setInterval(refreshDashboard, 30000);
     console.log('Dashboard refresh scheduled every 30 seconds');
 });
 
-// Optional: Add Feedback handler
+
 function addFeedback() {
     alert('Add feedback functionality coming soon!');
 }

@@ -35,7 +35,6 @@ class ProfileController extends BaseController
         try {
             $collectorProfile = $userModel->findById($userId);
             
-            // Get vehicle info if assigned
             $vehicleInfo = null;
             if (!empty($collectorProfile['vehicle_id'])) {
                 $db = new \Core\Database();
@@ -188,22 +187,23 @@ class ProfileController extends BaseController
     {
         $session = session();
 
-        $firstName = trim((string) $request->input('firstName'));
-        $lastName = trim((string) $request->input('lastName'));
+        $firstName = trim((string) ($request->input('firstName') ?? $request->input('name')));
+        $lastName = trim((string) ($request->input('lastName') ?? $request->input('secondName')));
         $email = trim((string) $request->input('email'));
         $phone = trim((string) $request->input('phone'));
         $address = trim((string) $request->input('address'));
         $postalCode = trim((string) $request->input('postalCode'));
         $nic = trim((string) $request->input('nic'));
         $description = trim((string) $request->input('description'));
-        $bankName = trim((string) $request->input('bankName'));
-        $bankBranch = trim((string) $request->input('bankBranch'));
-        $bankHolder = trim((string) $request->input('bankHolder'));
-        $bankAccount = trim((string) $request->input('bankAccount'));
+
+        $bankName = trim((string) ($request->input('bankName') ?? $request->input('bank_name') ?? ($currentUser['bank_name'] ?? '')));
+        $bankBranch = trim((string) ($request->input('bankBranch') ?? $request->input('bank_branch') ?? ($currentUser['bank_branch'] ?? '')));
+        $bankHolder = trim((string) ($request->input('bankHolder') ?? $request->input('bank_account_name') ?? ($currentUser['bank_account_name'] ?? '')));
+        $bankAccount = trim((string) ($request->input('bankAccount') ?? $request->input('bank_account_number') ?? ($currentUser['bank_account_number'] ?? '')));
 
         $errors = [];
 
-        if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $address === '' || $postalCode === '' || $bankName === '' || $bankBranch === '' || $bankHolder === '' || $bankAccount === '') {
+        if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $address === '') {
             $errors[] = 'All fields are required.';
         }
 
@@ -237,7 +237,9 @@ class ProfileController extends BaseController
 
         $oldInput = [
             'firstName' => $firstName,
+            'name' => $firstName,
             'lastName' => $lastName,
+            'secondName' => $lastName,
             'email' => $email,
             'phone' => $phone,
             'address' => $address,

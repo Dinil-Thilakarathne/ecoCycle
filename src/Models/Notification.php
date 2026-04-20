@@ -105,7 +105,6 @@ class Notification extends BaseModel
 
         $limit = max(1, (int) $limit);
 
-        // Normalize role to lowercase to match predefined recipient groups
         $role = strtolower($role);
         $roleGroup = $role . 's';
 
@@ -148,10 +147,10 @@ class Notification extends BaseModel
     public function markAllAsRead(int $userId, string $role = ''): bool
     {
         $roleGroup = $role ? $role . 's' : '';
-        // Same logic as forUser/getStats to target correct notifications
+    
         
          if ($this->db->isPgsql()) {
-             // PGSQL update with complex where
+           
              return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
@@ -167,7 +166,7 @@ class Notification extends BaseModel
                 [$role, $roleGroup, 'user:' . $userId]
              );
          } else {
-             // MySQL update
+           
              return $this->db->query(
                 "UPDATE {$this->table} 
                  SET status = 'read' 
@@ -324,14 +323,14 @@ class Notification extends BaseModel
     {
         $roleGroup = $role ? $role . 's' : '';
         
-        // Base where clause for user targeting
+       
         $userWhere = "
             (
                 recipient_group IN ('all', 'users', ?, ?)
                 OR 
         ";
 
-        // DB specific JSON check
+      
         if ($this->db->isPgsql()) {
             $userWhere .= "
                 EXISTS (
@@ -348,8 +347,7 @@ class Notification extends BaseModel
             $params = [$role, $roleGroup, $userId];
         }
 
-        // Queries
-        // Total
+        //total
         $totalSql = "SELECT COUNT(*) as count FROM {$this->table} WHERE {$userWhere}";
         $total = $this->db->fetch($totalSql, $params)['count'] ?? 0;
 
@@ -454,12 +452,12 @@ class Notification extends BaseModel
 
         $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        // Get total count
+        
         $countSql = "SELECT COUNT(*) as count FROM {$this->table} {$whereClause}";
         $countResult = $this->db->fetch($countSql, $params);
         $total = (int) ($countResult['count'] ?? 0);
 
-        // Get records
+      
         $sql = "SELECT * FROM {$this->table} {$whereClause} 
                 ORDER BY created_at DESC 
                 LIMIT {$limit} OFFSET {$offset}";

@@ -16,7 +16,7 @@ class IncomeWaste
    
 public function saveWeightAndCalculateSingle(string $pickupId, float $weight): float
 {
-    // 1️⃣ Get ONE predefined price_per_unit
+   
     $row = $this->db->fetch(
         "SELECT wc.price_per_unit
          FROM pickup_request_wastes prw
@@ -34,7 +34,7 @@ public function saveWeightAndCalculateSingle(string $pickupId, float $weight): f
     $pricePerUnit = (float)$row['price_per_unit'];
     $amount = $weight * $pricePerUnit;
 
-    // 2️⃣ Update all wastes with same weight & amount
+    
     $this->db->query(
         "UPDATE pickup_request_wastes
          SET weight = ?, amount = ?
@@ -42,7 +42,7 @@ public function saveWeightAndCalculateSingle(string $pickupId, float $weight): f
         [$weight, $amount, $pickupId]
     );
 
-    // 3️⃣ Update pickup summary (NO total logic)
+   
     $this->db->query(
         "UPDATE pickup_requests
          SET weight = ?, price = ?, updated_at = CURRENT_TIMESTAMP
@@ -50,7 +50,7 @@ public function saveWeightAndCalculateSingle(string $pickupId, float $weight): f
         [$weight, $amount, $pickupId]
     );
 
-    // ✅ RETURN ONLY THE AMOUNT
+   
     return $amount;
 }
 

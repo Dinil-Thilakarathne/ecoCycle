@@ -15,9 +15,6 @@ class CollectorFeedback
         $this->db = new Database();
     }
 
-    /**
-     * Get feedback for a specific collector with customer name
-     */
     public function getCollectorFeedback(int $collectorId, int $limit = 50, int $offset = 0): array
     {
         $limit  = max(1, $limit);
@@ -42,9 +39,6 @@ class CollectorFeedback
         return $this->db->fetchAll($sql, [$collectorId]);
     }
 
-    /**
-     * Get average rating for collector
-     */
     public function getAverageRating(int $collectorId): float
     {
         $sql = "
@@ -57,9 +51,6 @@ class CollectorFeedback
         return round((float)($row['avg_rating'] ?? 0), 1);
     }
 
-    /**
-     * Get total feedback count
-     */
     public function getCollectorFeedbackCount(int $collectorId): int
     {
         $sql = "
@@ -72,9 +63,6 @@ class CollectorFeedback
         return (int)($row['count'] ?? 0);
     }
 
-    /**
-     * Get low ratings (≤ 2)
-     */
     public function getLowRatings(int $collectorId, int $maxRating = 2): array
     {
         $sql = "
@@ -95,9 +83,7 @@ class CollectorFeedback
         return $this->db->fetchAll($sql, [$collectorId, $maxRating]);
     }
 
-    /**
-     * Create new feedback
-     */
+
     public function create(array $data): bool
     {
         if (

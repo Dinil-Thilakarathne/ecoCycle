@@ -186,8 +186,7 @@
   background: #fff;
   border-radius: 15px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 400px; /* Adjust width */
-  /*margin: 0 auto;  Center horizontally */
+  width: 400px; 
 }
 
 .profile-image img {
@@ -208,7 +207,6 @@
   color: #555;
 }
 
-/* Bank Details (hidden by default) */
 #bank-details {
   display: none;
   margin-top: 20px;
@@ -229,7 +227,6 @@
 
 .bottom-container {
   display: grid;
-  /*grid-template-columns: 1fr 1fr;*/
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   max-width: 1700px;
@@ -238,7 +235,7 @@
 }
 
 .bottom-container.wide-card {
-  width: 2500px; /* only this one will be wider */
+  width: 2500px; 
 }
 
 .bottom-card {
@@ -255,13 +252,13 @@
   font-size: 20px;
   font-weight: 600;
   color: #0e0d0d;
-  margin-bottom: 4px; /* Small space between header and subheader */
+  margin-bottom: 4px; 
 }
 
 .bottom-card p {
   font-size: 14px;
   color: #666;
-  margin-bottom: 16px; /* Space between subheader and content */
+  margin-bottom: 16px; 
 }
 
 .filters {
@@ -305,7 +302,6 @@
   font-weight: bold;
 }
 
-/* Pickup Cards */
 .pickup-card {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -436,21 +432,6 @@
   color: #333;
 }
 
-/* Tabs */
-/*.tabs-list {
-      display: flex;
-      gap: var(--space-2);
-      margin-bottom: var(--space-6);
-    }*/
-/* .tabs-trigger {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--neutral-300);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  background: var(--neutral-0);
-  transition: background var(--transition-fast);
-} */
 .tabs-trigger.active {
   background: var(--primary);
   color: var(--neutral-0);
@@ -460,17 +441,6 @@
   background: var(--neutral-200);
 }
 
-/* Profile photo */
-/*.profile-card {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  max-width: 900px;
-  margin: auto;
-  overflow: hidden;
-}
-
-/* ===== Left Side (Profile Image) ===== */
 .profile-left {
   flex: 1;
   background: #f8f9fb;
@@ -504,9 +474,6 @@ input[type="file"] {
   background: #0056b3;
 }
 
-/* ===== Right Side (Collector Info) ===== */
-
-/* ===== Profile Picture Styling ===== */
 .profile-section {
   text-align: center;
   display: flex;
@@ -585,9 +552,6 @@ form select {
     box-shadow 0.2s;
 }
 
-/* === Migrated Collector View Styles === */
-
-/* shared */
 .collector-empty-state {
   text-align: center;
   color: #999;
@@ -605,7 +569,6 @@ form select {
   margin: 0;
 }
 
-/* dashboard */
 .collector-performance-panel {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -780,7 +743,6 @@ form select {
   color: var(--neutral-900);
 }
 
-/* analytics */
 .activity-card {
   margin-bottom: 24px;
 }
@@ -954,7 +916,6 @@ form select {
   color: #6b7280;
 }
 
-/* tasks */
 .tasks-data-table th:nth-child(1),
 .tasks-data-table td:nth-child(1),
 .tasks-data-table th:nth-child(6),
@@ -1121,7 +1082,6 @@ form select {
   font-weight: 500;
 }
 
-/* notification */
 .notification-tabs-row {
   display: flex;
   justify-content: space-between;
@@ -1492,10 +1452,6 @@ form select:focus {
   margin-top: 4px;
 }
 
-/*.bottom-card > div:last-child {
-  border-top: 1px solid #ccc;
-  padding-top: 20px;*/
-
 .status-tag {
   background: #e8f5e9;
   color: #388e3c;
@@ -1659,7 +1615,6 @@ form select:focus {
   color: #555;
 }
 
-/* Reports Section */
 .reports {
   margin-top: 20px;
 }
@@ -1688,7 +1643,6 @@ form select:focus {
 }
 
 .feedback-section {
-  /* text-align: center;*/
   margin: 2px;
   max-width: px;
 }
@@ -1730,7 +1684,6 @@ form select:focus {
   background: #f9f9f9;
 }
 
-/* Bad feedback area */
 .bad-feedbacks {
   margin-top: 20px;
   text-align: left;
@@ -1760,7 +1713,6 @@ form select:focus {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* Collection Details Table */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1792,7 +1744,6 @@ th {
   color: #2e7d32;
 }
 
-/* Goals Section */
 .goal {
   margin-bottom: 20px;
 }
@@ -1824,7 +1775,6 @@ th {
   color: #555;
 }
 
-/* Reports Section */
 .reports-card {
   background: #fff;
   padding: 20px;
@@ -1884,7 +1834,6 @@ th {
   color: #777;
 }
 
-/* Info Cards */
 .p-info-card {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1902,7 +1851,6 @@ th {
   position: relative;
 }
 
-/* Profile Card */
 .profile-card {
   display: flex;
   align-items: center;
@@ -1914,16 +1862,14 @@ th {
   margin-bottom: 20px;
 }
 
-/* Profile Image */
 .profile-image img {
   width: 120px;
   height: 120px;
   object-fit: cover;
   border-radius: 50%;
-  border: 4px solid #4caf50; /* green border */
+  border: 4px solid #4caf50; 
 }
 
-/* Profile Details */
 .profile-details h2 {
   font-size: 22px;
   margin: 0;
@@ -1944,7 +1890,6 @@ th {
   color: #111827;
 }
 
-/* Form Groups */
 .form-group {
   margin-bottom: 15px;
   display: flex;
@@ -1978,7 +1923,6 @@ th {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
 }
 
-/* Disabled Inputs */
 .form-group input[disabled],
 .form-group textarea[disabled] {
   background: #f3f4f6;
@@ -1986,7 +1930,6 @@ th {
   cursor: not-allowed;
 }
 
-/* Verification Status */
 .verified {
   color: #22c55e;
   font-weight: bold;
@@ -1996,7 +1939,6 @@ th {
   font-weight: bold;
 }
 
-/* Security Buttons */
 .p-btn {
   background: #f9fafb;
   border: 1px solid #d1d5db;
@@ -2044,7 +1986,6 @@ th {
 
 .form-modal-content {
   background: #fff;
-  /* max-width: 500px; */
   margin: 80px auto;
   padding: 20px;
   border-radius: 12px;
@@ -2071,7 +2012,6 @@ th {
   color: #111827;
 }
 
-/* Stars */
 .fa-star {
   color: #ccc;
 }
@@ -2097,7 +2037,6 @@ th {
   border: 1px solid #ccc;
 }
 
-/* PROFILE */
 .p-info-card {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2117,7 +2056,6 @@ th {
   margin-bottom: 15px;
 }
 
-/* Disabled textboxes style */
 input[disabled],
 textarea[disabled] {
   background: var(--neutral-0);
@@ -2129,7 +2067,6 @@ textarea[disabled] {
   resize: none;
 }
 
-/* Buttons */
 .edit-btn,
 .p-btn,
 .p-btn-delete,
@@ -2200,7 +2137,6 @@ span.unverified {
   color: var(--warning);
 }
 
-/* Modal */
 .form-modal {
   display: none;
   position: fixed;
@@ -2300,7 +2236,6 @@ textarea {
   background: #fafafa;
 }
 
-/* your .p-submit button styles */
 .p-submit {
   background: var(--success-light);
   color: var(--success);

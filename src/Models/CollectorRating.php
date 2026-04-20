@@ -169,7 +169,6 @@ class CollectorRating extends BaseModel
                 $this->db->query("CREATE INDEX IF NOT EXISTS idx_cr_pickup_request ON {$this->table} (pickup_request_id)");
                 $this->db->query("CREATE UNIQUE INDEX IF NOT EXISTS uq_cr_customer_pickup_request ON {$this->table} (customer_id, pickup_request_id) WHERE pickup_request_id IS NOT NULL");
             } catch (\Throwable $e) {
-                // Best effort schema sync.
             }
 
             return;
@@ -188,7 +187,7 @@ class CollectorRating extends BaseModel
                 $this->db->query("CREATE UNIQUE INDEX uq_cr_customer_pickup_request ON {$this->table} (customer_id, pickup_request_id)");
             }
         } catch (\Throwable $e) {
-            // Best effort schema sync.
+          
         }
     }
 
@@ -264,7 +263,7 @@ class CollectorRating extends BaseModel
             }
             $this->pickupRequestIdColumnExists = true;
         } catch (\Throwable $e) {
-            // Ignore; inserts will continue without pickup_request_id on legacy schema.
+           
         }
     }
 
@@ -308,7 +307,7 @@ class CollectorRating extends BaseModel
                 );
             }
         } catch (\Throwable $e) {
-            // Non-blocking maintenance update.
+        
         }
     }
 
@@ -316,7 +315,7 @@ class CollectorRating extends BaseModel
     {
         try {
             if ($this->db->isPgsql()) {
-                // Fill collector_ratings.collector_id from latest pickup_requests per customer.
+              
                 $this->db->query(
                     "WITH latest_pickup AS (
                         SELECT DISTINCT ON (customer_id)
@@ -333,7 +332,7 @@ class CollectorRating extends BaseModel
                       AND (cr.collector_id IS NULL OR cr.collector_id = 0)"
                 );
 
-                // Fill pickup_requests.collector_id from latest collector_ratings per customer.
+               
                 $this->db->query(
                     "WITH latest_rating AS (
                         SELECT DISTINCT ON (customer_id)
@@ -350,7 +349,7 @@ class CollectorRating extends BaseModel
                       AND (pr.collector_id IS NULL OR pr.collector_id = 0)"
                 );
             } else {
-                // Fill collector_ratings.collector_id from latest pickup_requests per customer.
+               
                 $this->db->query(
                     "UPDATE collector_ratings cr
                      INNER JOIN (
@@ -368,7 +367,7 @@ class CollectorRating extends BaseModel
                      WHERE cr.collector_id IS NULL OR cr.collector_id = 0"
                 );
 
-                // Fill pickup_requests.collector_id from latest collector_ratings per customer.
+               
                 $this->db->query(
                     "UPDATE pickup_requests pr
                      INNER JOIN (
@@ -387,7 +386,7 @@ class CollectorRating extends BaseModel
                 );
             }
         } catch (\Throwable $e) {
-            // Non-blocking maintenance sync.
+        
         }
     }
 }

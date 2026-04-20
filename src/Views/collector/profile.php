@@ -9,6 +9,16 @@ $certificationsData = $certifications ?? [];
 
 $displayName = trim($collector['name'] ?? '');
 $displayName = $displayName !== '' ? $displayName : 'N/A';
+$displayNameParts = preg_split('/\s+/', $displayName, 2) ?: [];
+$displayFirstName = trim((string) ($displayNameParts[0] ?? ''));
+$displayLastName = trim((string) ($displayNameParts[1] ?? ''));
+
+if ($displayFirstName === '' && $displayName !== 'N/A') {
+  $displayFirstName = $displayName;
+}
+if ($displayLastName === '' && $displayName !== 'N/A') {
+  $displayLastName = $displayName;
+}
 
 $displayEmail = $collector['email'] ?? '';
 $displayPhone = $collector['phone'] ?? '';
@@ -16,7 +26,7 @@ $displayAddress = $collector['address'] ?? '';
 $displayPostal = $collector['postalCode'] ?? '';
 $displayDescription = $collector['description'] ?? '';
 
-// Parse metadata (may be JSON string or array)
+
 if (isset($collector['metadata'])) {
   if (is_string($collector['metadata'])) {
     $metadata = json_decode($collector['metadata'], true) ?? [];
@@ -29,6 +39,9 @@ if (isset($collector['metadata'])) {
   $metadata = [];
 }
 
+$displayFirstName = trim((string) ($metadata['firstName'] ?? $displayFirstName));
+$displayLastName = trim((string) ($metadata['lastName'] ?? $displayLastName));
+
 $vehiclePreference = $metadata['vehiclePreference'] ?? '';
 $serviceAreas = $metadata['serviceAreas'] ?? [];
 if (!is_array($serviceAreas)) {
@@ -37,7 +50,7 @@ if (!is_array($serviceAreas)) {
 $licenseNumber = $metadata['licenseNumber'] ?? '';
 
 $bankDetails = is_array($collector['bank'] ?? null) ? $collector['bank'] : [];
-// Normalize bank details keys
+
 $bankDetails = array_merge([
   'name' => $bankDetails['bankName'] ?? $bankDetails['name'] ?? '',
   'account_number' => $bankDetails['accountNumber'] ?? $bankDetails['account_number'] ?? $collector['bankAccount'] ?? '',
@@ -45,7 +58,8 @@ $bankDetails = array_merge([
   'branch' => $bankDetails['branch'] ?? $bankDetails['bank_branch'] ?? '',
 ], $bankDetails);
 
-$editName = $oldInput['name'] ?? ($collector['name'] ?? '');
+$editFirstName = $oldInput['firstName'] ?? ($oldInput['name'] ?? $displayFirstName);
+$editLastName = $oldInput['lastName'] ?? ($oldInput['secondName'] ?? $displayLastName);
 $editEmail = $oldInput['email'] ?? $displayEmail;
 $editPhone = $oldInput['phone'] ?? $displayPhone;
 $editAddress = $oldInput['address'] ?? $displayAddress;
@@ -162,17 +176,14 @@ $csrfToken = csrf_token();
         </a>
       </div>
       <div class="form-group"><label>First Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayFirstName) ?>" disabled>
       </div>
       <div class="form-group"><label>Second Name</label>
-        <input type="text" value="<?= htmlspecialchars($displayName) ?>" disabled>
+        <input type="text" value="<?= htmlspecialchars($displayLastName) ?>" disabled>
       </div>
       <div class="form-group"><label>License Number</label>
         <input type="text" value="<?= htmlspecialchars($licenseNumber) ?>" disabled>
       </div>
-      <!-- <div class="form-group"><label>Service Areas</label>
-        <input type="text" value="<?= htmlspecialchars(implode(', ', $serviceAreas)) ?>" disabled>
-      </div> -->
     </div>
 
     <div class="pc-card">
@@ -219,38 +230,8 @@ $csrfToken = csrf_token();
       </div>
     </div>
   </div>
-<!-- 
-  <?php if (!empty($vehicleDisplay) || !empty($certificationsList)): ?>
-    <div class="p-info-card">
-      <?php if (!empty($vehicleDisplay)): ?>
-        <div class="pc-card">
-          <h3 class="collector-section-title">Vehicle Information</h3>
-          <div class="vehicle-info-grid">
-            <?php foreach ($vehicleDisplay as $label => $value): ?>
-              <div class="vehicle-info-item">
-                <span class="vehicle-info-label"><?= htmlspecialchars($label) ?></span>
-                <span class="vehicle-info-value"><?= htmlspecialchars($value) ?></span>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      <?php endif; ?> -->
-<!-- 
-      <?php if (!empty($certificationsList)): ?>
-        <div class="pc-card">
-          <h3 class="collector-section-title">Certifications</h3>
-          <div class="certification-list">
-            <?php foreach ($certificationsList as $cert): ?>
-              <span class="certification-badge"><?= htmlspecialchars($cert) ?></span>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      <?php endif; ?> -->
-    </div>
-  <?php endif; ?>
 </main>
 
-<!-- Photo Upload Modal -->
 <div id="photoUploadModal" class="form-modal">
   <div class="form-modal-content collector-photo-modal-content">
     <a href="#" class="close">&times;</a>
@@ -288,7 +269,7 @@ $csrfToken = csrf_token();
   </div>
 </div>
 
-<!-- Edit Modal -->
+
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
@@ -306,10 +287,10 @@ $csrfToken = csrf_token();
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
       <div class="form-group"><label class="form-lable">First Name</label>
-        <input type="text" name="name" value="<?= htmlspecialchars($editName) ?>" required>
+        <input type="text" name="firstName" value="<?= htmlspecialchars($editFirstName) ?>" required>
       </div>
       <div class="form-group"><label class="form-lable">Second Name</label>
-        <input type="text" name="secondName" value="<?= htmlspecialchars($editName) ?>" required>
+        <input type="text" name="lastName" value="<?= htmlspecialchars($editLastName) ?>" required>
       </div>
       <div class="form-group"><label class="form-lable">Email</label>
         <input type="email" name="email" value="<?= htmlspecialchars($editEmail) ?>" required>
@@ -330,27 +311,27 @@ $csrfToken = csrf_token();
   </div>
 </div>
 
-<!-- Upload Photo Script -->
+
 <script>
-  // Preview selected image before upload
+
   document.getElementById('photoInput')?.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (5MB max)
+
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
         e.target.value = '';
         return;
       }
 
-      // Validate file type
+   
       if (!['image/jpeg', 'image/png', 'image/jpg', 'image/gif'].includes(file.type)) {
         alert('Please select a valid image file (JPG, PNG, or GIF)');
         e.target.value = '';
         return;
       }
 
-      // Show preview
+     
       const reader = new FileReader();
       reader.onload = function(event) {
         document.getElementById('photoPreview').src = event.target.result;
@@ -359,7 +340,7 @@ $csrfToken = csrf_token();
     }
   });
 
-  // Handle form submission with loading state
+ 
   document.getElementById('photoUploadForm')?.addEventListener('submit', function(e) {
     const submitBtn = this.querySelector('button[name="uploadPhoto"]');
     if (submitBtn) {
@@ -367,9 +348,73 @@ $csrfToken = csrf_token();
       submitBtn.textContent = '⏳ Uploading...';
     }
   });
+
+  function openModalById(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add('is-open');
+    modal.style.display = 'flex';
+    window.location.hash = `#${modalId}`;
+  }
+
+  function closeModalElement(modal) {
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove('is-open');
+    modal.style.display = '';
+    if (window.location.hash === `#${modal.id}`) {
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } else {
+        window.location.hash = '';
+      }
+    }
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach(function(link) {
+    const targetId = (link.getAttribute('href') || '').replace('#', '');
+    const targetModal = targetId ? document.getElementById(targetId) : null;
+    if (!targetModal || !targetModal.classList.contains('form-modal')) {
+      return;
+    }
+
+    link.addEventListener('click', function(event) {
+      event.preventDefault();
+      openModalById(targetId);
+    });
+  });
+
+  document.querySelectorAll('.form-modal .close').forEach(function(closeBtn) {
+    closeBtn.addEventListener('click', function(event) {
+      event.preventDefault();
+      closeModalElement(closeBtn.closest('.form-modal'));
+    });
+  });
+
+  document.querySelectorAll('.form-modal').forEach(function(modal) {
+    modal.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        closeModalElement(modal);
+      }
+    });
+  });
+
+  if (window.location.hash) {
+    const hashId = window.location.hash.replace('#', '');
+    const hashModal = document.getElementById(hashId);
+    if (hashModal && hashModal.classList.contains('form-modal')) {
+      hashModal.classList.add('is-open');
+      hashModal.style.display = 'flex';
+    }
+  }
 </script>
 
-<!-- Bank Details Modal -->
+
 <div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
@@ -393,7 +438,7 @@ $csrfToken = csrf_token();
   </div>
 </div>
 
-<!-- Change Password Modal -->
+
 <div id="passwordModal" class="form-modal">
   <div class="form-modal-content">
     <a href="#" class="close">&times;</a>
@@ -418,6 +463,7 @@ $csrfToken = csrf_token();
       <button type="submit" class="btn btn-primary outline collector-full-width">Change Password</button>
     </form>
   </div>
+</div>
 
   <?php if ($showToast && $toastMessage !== ''): ?>
     <script>

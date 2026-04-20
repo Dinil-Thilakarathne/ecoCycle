@@ -15,11 +15,6 @@ use Models\CollectorRating;
 
 use Models\Notification;
 
-/**
- * Collector Dashboard Controller
- * 
- * Handles collector-specific dashboard functionality
- */
 class CollectorDashboardController extends DashboardController
 {
     private ?array $collectorRecord = null;
@@ -28,13 +23,8 @@ class CollectorDashboardController extends DashboardController
     {
         $this->userType = 'collector';
         $this->viewPrefix = 'collector';
-        // Comment out role enforcement for development
-        // $this->ensureRole('collector');
     }
 
-    /**
-     * Collector dashboard home
-     */
     public function index(): \Core\Http\Response
     {
         $data = [
@@ -50,9 +40,6 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('dashboard', $data);
     }
 
-    /**
-     * Pickup assignments
-     */
     public function tasks(): \Core\Http\Response
     {
         $request = request();
@@ -71,9 +58,7 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('tasks', $data);
     }
 
-    /**
-     * Embeddable route preview for pickup navigation
-     */
+
     public function routePreview(): \Core\Http\Response
     {
         $request = request();
@@ -96,9 +81,6 @@ class CollectorDashboardController extends DashboardController
         ]);
     }
 
-    /**
-     * Earnings and payments
-     */
     public function earnings(): \Core\Http\Response
     {
         $data = [
@@ -108,9 +90,6 @@ class CollectorDashboardController extends DashboardController
         return $this->renderDashboard('earnings', $data);
     }
 
-    /**
-     * Collection reporting
-     */
     public function analytics(): \Core\Http\Response
     {
         $request = request();
@@ -152,9 +131,6 @@ class CollectorDashboardController extends DashboardController
     }
 
 
-
-
-
     public function setting(): \Core\Http\Response
     {
         $data = [
@@ -165,9 +141,6 @@ class CollectorDashboardController extends DashboardController
     }
 
 
-    /**
-     * Profile and vehicle info
-     */
     public function profile(): \Core\Http\Response
     {
         $session = session();
@@ -190,7 +163,6 @@ class CollectorDashboardController extends DashboardController
         return NavigationConfig::getNavigation($this->userType);
     }
 
-    // Placeholder methods for data retrieval
     private function getTodayPickups(): int
     {
         $collectorId = (int) ($this->user['id'] ?? 0);
@@ -299,7 +271,7 @@ class CollectorDashboardController extends DashboardController
     {
         try {
             $pickupRequest = new PickupRequest();
-            return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];  // TODO: need to fix this
+            return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];  
         } catch (\Throwable $e) {
             error_log('Collector time slot load failed: ' . $e->getMessage());
         }
@@ -1193,14 +1165,13 @@ class CollectorDashboardController extends DashboardController
                 exit;
             }
             
-            // Validate weight limit (max 100kg)
+    
             if ($weight > 100) {
                 http_response_code(400);
                 echo "<div class='alert error'>Weight cannot exceed 100 kg. You entered: {$weight} kg</div>";
                 exit;
             }
             
-            // Validate decimal places (max 2)
             if (strpos($weight, '.') !== false) {
                 $parts = explode('.', $weight);
                 if (strlen($parts[1]) > 2) {
@@ -1210,15 +1181,12 @@ class CollectorDashboardController extends DashboardController
                 }
             }
 
-            // Save weight & calculate amount
             $incomeWaste = new IncomeWaste();
             $amount = $incomeWaste->saveWeightAndCalculateSingle((string) $pickupId, $weight);
 
-            // Update pickup status
             $pickupRequest = new PickupRequest();
             $pickupRequest->updateStatus((string) $pickupId, 'in progress');
 
-            // ✅ HTML RESPONSE with calculated amount
             echo "
             <div class='weight-result success'>
                 <p><strong>Measured Weight:</strong> {$weight} kg</p>
@@ -1258,7 +1226,6 @@ class CollectorDashboardController extends DashboardController
                 exit;
             }
 
-            // Get collector ID from session
             $collectorId = (int) ($this->user['id'] ?? 0);
             if ($collectorId <= 0) {
                 http_response_code(401);
@@ -1271,15 +1238,13 @@ class CollectorDashboardController extends DashboardController
 
             $pickupRequest = new PickupRequest();
 
-            // Extract weights array if status is completed
             $weights = isset($data['weights']) && is_array($data['weights']) ? $data['weights'] : null;
 
-            // Validate weights if present
+
             if ($weights) {
                 foreach ($weights as $weightEntry) {
                     $weight = floatval($weightEntry['weight'] ?? 0);
                     
-                    // Check weight limit (max 100kg)
                     if ($weight > 100) {
                         http_response_code(400);
                         echo json_encode([
@@ -1289,7 +1254,6 @@ class CollectorDashboardController extends DashboardController
                         exit;
                     }
                     
-                    // Check if weight is positive
                     if ($weight <= 0) {
                         http_response_code(400);
                         echo json_encode([
@@ -1301,13 +1265,11 @@ class CollectorDashboardController extends DashboardController
                 }
             }
 
-            // Log the request for debugging
             error_log("Updating pickup {$pickupId} for collector {$collectorId} to status {$status}");
             if ($weights) {
                 error_log("Weights data: " . json_encode($weights));
             }
 
-            // Use updateStatusForCollector to handle weights and price calculation
             try {
                 $result = $pickupRequest->updateStatusForCollector(
                     (string) $pickupId,
@@ -1335,9 +1297,7 @@ class CollectorDashboardController extends DashboardController
                 exit;
             }
 
-            // 📝 Create payment records if status is completed
             if ($status === 'completed' && $weights) {
-                // Fetch the updated pickup to get total price
                 $completedPickup = $pickupRequest->find((string) $pickupId);
                 $totalPayoutAmount = (float) ($completedPickup['price'] ?? 0);
                 $customerId = (int) ($completedPickup['customerId'] ?? 0);
@@ -1346,7 +1306,6 @@ class CollectorDashboardController extends DashboardController
                     try {
                         $paymentService = new \Services\Payment\PaymentService();
 
-                        // 1. Create Customer Payout Payment
                         $paymentService->createManualPayment([
                             'type' => 'payout',
                             'recipientId' => $customerId,
@@ -1356,10 +1315,8 @@ class CollectorDashboardController extends DashboardController
                             'txnId' => "PO-{$pickupId}-" . time()
                         ]);
 
-                        // 2. Create Collector Commission Payment
-                        // Commission: Rs. 100 base + 10% of customer payout
                         $baseCommission = 100.00;
-                        $percentageCommission = $totalPayoutAmount * 0.10; // 10%
+                        $percentageCommission = $totalPayoutAmount * 0.10; 
                         $totalCommission = round($baseCommission + $percentageCommission, 2);
 
                         $paymentService->createManualPayment([
@@ -1374,17 +1331,14 @@ class CollectorDashboardController extends DashboardController
                         error_log("✅ Payments created: Customer Rs.{$totalPayoutAmount}, Collector Rs.{$totalCommission}");
                     } catch (\Throwable $paymentError) {
                         error_log("❌ Failed to create payment records: " . $paymentError->getMessage());
-                        // Don't fail the entire request if payment creation fails
-                        // Let the status update succeed, but log the error
                     }
                 }
             }
 
-            // Fetch updated pickup data to return to frontend
+
             $updatedPickup = $pickupRequest->find((string) $pickupId);
 
             if (!$updatedPickup) {
-                // Status was updated but we couldn't fetch the record
                 echo json_encode([
                     'success' => true,
                     'message' => 'Status updated successfully',
@@ -1419,10 +1373,8 @@ class CollectorDashboardController extends DashboardController
     {
         header('Content-Type: application/json; charset=utf-8');
         try {
-            // Fix: Use a more reliable way to detect the collector ID
             $collectorId = (int) $request->query('collector_id');
 
-            // Fallback to logged in user if query param is missing
             if ($collectorId <= 0 && isset($this->user['id'])) {
                 $collectorId = (int) $this->user['id'];
             }
@@ -1446,7 +1398,7 @@ class CollectorDashboardController extends DashboardController
             ]);
             exit;
         } catch (\Throwable $e) {
-            http_response_code(400); // 400 is better for 'Invalid Input' than 500
+            http_response_code(400); 
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
             exit;
         }
@@ -1539,8 +1491,6 @@ class CollectorDashboardController extends DashboardController
         header('Content-Type: application/json; charset=utf-8');
 
         try {
-            // 1. Check Query String first (matches your JS ?collector_id=1)
-            // 2. Fallback to Session user id
             $collectorId = (int) ($request->query('collector_id') ?? $this->user['id'] ?? 0);
 
             if ($collectorId <= 0) {
@@ -1548,12 +1498,10 @@ class CollectorDashboardController extends DashboardController
             }
 
             $incomeWaste = new \Models\IncomeWaste();
-            // $records = $incomeWaste->getWasteCollectionForCollector($collectorId);
             $limit = (int) ($request->query('limit') ?? 50);
             $records = $incomeWaste->getWasteCollectionForCollector($collectorId, $limit);
 
 
-            // Clean the data to ensure JS can parse numbers correctly
             $formattedRecords = array_map(function ($r) {
                 return [
                     'customer_id' => $r['customer_id'] ?? 'N/A',
@@ -1585,29 +1533,4 @@ class CollectorDashboardController extends DashboardController
         return count($model->getLowRatings($collectorId, $maxRating));
     }
 
-
-
-    // public function notifications(): \Core\Http\Response
-    // {
-    //     $userId = (int) ($this->user['id'] ?? 0);
-    //     $role = $this->user['role'] ?? 'collector'; // adjust if needed
-
-    //     $notificationModel = new Notification();
-
-    //     // Fetch latest 100 notifications for this user
-    //     $notifications = $notificationModel->forUser(
-    //         $userId,
-    //         $role,
-    //         date('Y-m-d 00:00:00'),
-    //         100
-    //     );
-
-    //     $data = [
-    //         'pageTitle' => 'Notifications',
-    //         'notifications' => $notifications, // Pass to the view
-    //         'authUser' => $this->user
-    //     ];
-
-    //     return $this->renderDashboard('notification', $data);
-    // }
 }

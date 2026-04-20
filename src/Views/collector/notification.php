@@ -1,13 +1,8 @@
 <?php
-/**
- * Collector Notifications View
- * Updated with Pill Tab Switching
- */
 
 $notifications = is_array($notifications ?? null) ? $notifications : [];
 $currentTab = $_GET['tab'] ?? 'all';
 
-// Normalize notifications
 $normalized = array_map(function ($n) {
     $timestamp = $n['timestamp'] ?? ($n['sent_at'] ?? $n['created_at'] ?? null);
     $isRead = $n['is_read'] ?? ($n['isRead'] ?? (($n['status'] ?? '') === 'read' ? true : false));
@@ -147,7 +142,7 @@ function timeAgo(timestamp) {
   return `${month} ${day}, ${year} ${hours}:${minutes}`;
 }
 
-    // Tab Switching Logic
+  
     window.filterTable = function(filter, btn) {
         activeFilter = filter;
         document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
@@ -160,21 +155,21 @@ function timeAgo(timestamp) {
         notificationsState = normalizeNotifications(data);
         tbody.innerHTML = '';
 
-        // Filter based on active pill
+    
         const filtered = notificationsState.filter(n => {
             if (activeFilter === 'unread') return isUnreadNotification(n);
             if (activeFilter === 'read') return !isUnreadNotification(n);
             return true;
         });
 
-        // Calculate counts
+     
         const totalCount = notificationsState.length;
         const unreadCount = notificationsState.filter(isUnreadNotification).length;
         const readCount = totalCount - unreadCount;
         
         console.log('Rendering notifications - Total:', totalCount, 'Unread:', unreadCount, 'Read:', readCount, 'Active filter:', activeFilter);
 
-        // Update Pill Counts
+      
         document.getElementById('count-all').textContent = totalCount;
         document.getElementById('count-unread').textContent = unreadCount;
         document.getElementById('count-read').textContent = readCount;
@@ -233,7 +228,7 @@ function timeAgo(timestamp) {
             ).length;
 
             if (successCount > 0) {
-                // Optimistic local update so unread notifications immediately move to read.
+             
                 notificationsState = notificationsState.map((notif) => ({
                     ...notif,
                     status: isUnreadNotification(notif) ? 'read' : notif.status
@@ -253,7 +248,7 @@ function timeAgo(timestamp) {
         const modal = document.getElementById('notification-detail-modal');
         if (!notif || !modal) return;
 
-        // Match company behavior: viewing an unread notification marks it as read.
+       
         if (isUnreadNotification(notif)) {
             await processMarkRead(notif.id);
             notif.status = 'read';
@@ -313,7 +308,7 @@ function timeAgo(timestamp) {
                 throw new Error(payload?.message || 'Failed to delete notification');
             }
 
-            // Optimistically update list, then sync with backend.
+    
             notificationsState = notificationsState.filter(n => String(n.id) !== String(id));
             renderNotifications(notificationsState);
 
@@ -346,14 +341,14 @@ function timeAgo(timestamp) {
             
             if (result.success) {
                 console.log('Successfully marked as read, updating UI...');
-                // Optimistic update: immediately update local state
+            
                 const notif = notificationsState.find(n => String(n.id) === String(id));
                 console.log('Found notification:', notif);
                 if (notif) {
                     notif.status = 'read';
                     renderNotifications(notificationsState);
                 }
-                // Wait a moment before fetching to ensure DB is updated
+              
                 setTimeout(() => fetchNotifications(), 300);
             } else {
                 console.error("Failed to mark as read:", result.message);

@@ -73,9 +73,6 @@ class CollectorDailyStatus extends BaseModel
         }
     }
 
-    /**
-     * Get today's status for a specific collector
-     */
     public function getTodayStatus(int $collectorId): ?array
     {
         if (!$this->ensureTableReady()) {
@@ -93,9 +90,7 @@ class CollectorDailyStatus extends BaseModel
         return $this->normalizeRow($row);
     }
 
-    /**
-     * Get all statuses for today
-     */
+  
     public function getAllTodayStatuses(): array
     {
         if (!$this->ensureTableReady()) {
@@ -119,9 +114,7 @@ class CollectorDailyStatus extends BaseModel
         return array_map([$this, 'normalizeRow'], $rows);
     }
 
-    /**
-     * Update or create today's status for a collector
-     */
+  
     public function updateStatus(int $collectorId, int $vehicleId, bool $isAvailable, ?string $notes = null): array
     {
         if (!$this->ensureTableReady()) {
@@ -130,11 +123,10 @@ class CollectorDailyStatus extends BaseModel
 
         $today = date('Y-m-d');
 
-        // Check if record exists for today
         $existing = $this->getTodayStatus($collectorId);
 
         if ($existing) {
-            // Update existing record
+        
             $sql = "UPDATE {$this->table} 
                     SET is_available = ?, 
                         notes = ?, 
@@ -146,7 +138,7 @@ class CollectorDailyStatus extends BaseModel
 
             return $this->getTodayStatus($collectorId) ?? [];
         } else {
-            // Create new record
+  
             $sql = "INSERT INTO {$this->table} 
                     (collector_id, vehicle_id, date, is_available, notes, status_updated_at, created_at)
                     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
@@ -165,10 +157,6 @@ class CollectorDailyStatus extends BaseModel
         }
     }
 
-    /**
-     * Reset all statuses to available for a new day
-     * This should be called by a cron job daily
-     */
     public function resetDailyStatuses(): bool
     {
         if (!$this->ensureTableReady()) {
@@ -177,7 +165,6 @@ class CollectorDailyStatus extends BaseModel
 
         $today = date('Y-m-d');
 
-        // Get all collectors with assigned vehicles
         $sql = "SELECT u.id as collector_id, u.vehicle_id 
                 FROM users u 
                 WHERE u.type = 'collector' 
@@ -190,16 +177,14 @@ class CollectorDailyStatus extends BaseModel
             return true;
         }
 
-        // Create today's status records for all collectors (set to available)
         foreach ($collectors as $collector) {
             $collectorId = (int) $collector['collector_id'];
             $vehicleId = (int) $collector['vehicle_id'];
 
-            // Check if record already exists
+       
             $existing = $this->getTodayStatus($collectorId);
 
             if (!$existing) {
-                // Only create if doesn't exist (don't override manual updates)
                 $insertSql = "INSERT INTO {$this->table} 
                              (collector_id, vehicle_id, date, is_available, status_updated_at, created_at)
                              VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
@@ -211,9 +196,7 @@ class CollectorDailyStatus extends BaseModel
         return true;
     }
 
-    /**
-     * Get status for a specific collector on a specific date
-     */
+
     public function getStatusByDate(int $collectorId, string $date): ?array
     {
         if (!$this->ensureTableReady()) {
@@ -230,9 +213,6 @@ class CollectorDailyStatus extends BaseModel
         return $this->normalizeRow($row);
     }
 
-    /**
-     * Get availability history for a collector
-     */
     public function getCollectorHistory(int $collectorId, int $limit = 30): array
     {
         if (!$this->ensureTableReady()) {
@@ -253,9 +233,6 @@ class CollectorDailyStatus extends BaseModel
         return array_map([$this, 'normalizeRow'], $rows);
     }
 
-    /**
-     * Find a status record by ID
-     */
     public function find(int $id): ?array
     {
         if (!$this->ensureTableReady()) {
@@ -272,9 +249,6 @@ class CollectorDailyStatus extends BaseModel
         return $this->normalizeRow($row);
     }
 
-    /**
-     * Normalize database row to camelCase
-     */
     private function normalizeRow(array $row): array
     {
         return [
@@ -287,7 +261,6 @@ class CollectorDailyStatus extends BaseModel
             'notes' => $row['notes'] ?? null,
             'createdAt' => $row['created_at'] ?? null,
             'updatedAt' => $row['updated_at'] ?? null,
-            // Additional fields if joined
             'collectorName' => $row['collector_name'] ?? null,
             'plateNumber' => $row['plate_number'] ?? null,
         ];

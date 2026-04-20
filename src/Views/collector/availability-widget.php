@@ -1,14 +1,10 @@
 <?php
-/**
- * Collector Availability Widget
- * Displays collector's assigned vehicle and daily availability status
- */
+
 
 $user = auth();
 $collectorId = $user['id'] ?? null;
 $vehicleId = $user['vehicleId'] ?? null;
 
-// Fetch today's status if available
 $todayStatus = null;
 if ($collectorId) {
     $statusModel = new \Models\CollectorDailyStatus();
@@ -279,21 +275,21 @@ $lastUpdated = $todayStatus['statusUpdatedAt'] ?? null;
                     const data = await response.json();
 
                     if (response.ok) {
-                        // Show success message
+                        
                         if (typeof window.__createToast === 'function') {
                             window.__createToast('Availability updated successfully', 'success', 3000);
                         } else {
                             alert('Availability updated successfully');
                         }
 
-                        // Update UI
+                       
                         const statusIndicator = document.querySelector('.status-indicator');
                         if (statusIndicator) {
                             statusIndicator.className = 'status-indicator ' + (isAvailable ? 'available' : 'unavailable');
                             statusIndicator.querySelector('span').textContent = isAvailable ? 'Available' : 'Unavailable';
                         }
 
-                        // Update last updated time
+                        
                         const lastUpdated = document.querySelector('.last-updated');
                         if (lastUpdated) {
                             const now = new Date();

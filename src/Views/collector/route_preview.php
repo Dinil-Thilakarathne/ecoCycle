@@ -207,7 +207,7 @@ $hasDestination = $destinationLat !== '' && $destinationLng !== '';
                             };
                         }
                     } catch (_) {
-                        // continue trying other candidates
+                       
                     }
                 }
 

@@ -1,20 +1,16 @@
-<!-- Page Header -->
 <div class="page-header">
   <div class="page-header__content">
     <?php
-// Prefer collector profile name if provided, otherwise resolve from auth/session and fall back to 'Collector'
+
 $collectorProfile = $collectorProfile ?? null;
 $profileName = is_array($collectorProfile) ? ($collectorProfile['name'] ?? null) : null;
 $collectorName = $profileName ?: (auth()['name'] ?? session('user_name') ?? 'Collector');
 
 
-// Optional: debug log
 consoleLog('Collector Name (resolved): ' . $collectorName);
 
-// Escape for HTML output
 $collectorName = htmlspecialchars((string) $collectorName, ENT_QUOTES, 'UTF-8');
 
-// SAME image logic as profile page
 $profileImage = null;
 $sessionImage = session('profileImagePath');
 if (is_string($sessionImage) && trim($sessionImage) !== '') {
@@ -81,16 +77,6 @@ $nextLevelRemaining = $collectorLevel >= 10 ? 0 : max(0, $nextLevelTarget - $com
 $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTaskCount % 3) / 3) * 100);
 ?>
 
-<!-- <img
-      src="<?= htmlspecialchars($profileImageSrc) ?>"
-      alt="Profile Picture"
-      class="header-user__avatar" width="100"
-    >
-<h2 class="page-header__title">Welcome back, <?= $collectorName ?>!</h2>
-<p class="page-header__description">Here is your latest update on your Dashboard</p>
-  </div>
-</div> -->
-
 <div class="collector-header-row">
   <img
     src="<?= htmlspecialchars($profileImageSrc) ?>"
@@ -111,7 +97,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
   </div>
 </div>
 
-<!-- Availability Widget -->
+
 
   <!-- <?php include __DIR__ . '/availability-widget.php'; ?> -->
 
@@ -122,9 +108,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       <div class="feature-card__icon"><i class="fa-solid fa-list-check"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-today-tasks"><?= $todayPickups ?? 0 ?></span></div>
-    <!-- <div class="feature-card__footer">
-      <span class="desc">assigned tasks</span> 
-    </div> -->
+
   </div>
 
   <div class="feature-card">
@@ -133,9 +117,6 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       <div class="feature-card__icon"><i class="fa-solid fa-table-list"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-completed"><?= $completedPickups ?? 0 ?></span></div>
-    <!-- <div class="feature-card__footer">
-       <span class="desc">tasks finished</span>
-    </div> -->
   </div>
 
   <div class="feature-card">
@@ -144,9 +125,6 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       <div class="feature-card__icon"><i class="fa-solid fa-clock"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-pending"><?= count($pendingPickups ?? []) ?></span></div>
-     <!-- <div class="feature-card__footer"> 
-       <span class="desc">tasks left</span> 
-    </div> -->
   </div>
 
   <div class="feature-card">
@@ -155,9 +133,6 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       <div class="feature-card__icon"><i class="fa-solid fa-weight-hanging"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-total-weight">0kg</span></div>
-     <!-- <div class="feature-card__footer"> 
-       <span class="desc">collected today</span>
-    </div> -->
   </div>
 
 
@@ -167,16 +142,11 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       <div class="feature-card__icon"><i class="fa-solid fa-star"></i></div>
     </div>
     <div class="feature-card__body"><span id="stat-rating">-</span></div>
-    <!-- <div class="feature-card__footer">
-      <span class="desc">customer rating</span>
-    </div> -->
   </div>
 </div>
 
-<!-- Bottom Section -->
 <div class="bottom-container">
 
-  <!-- Recent Tasks -->
   <activity-card title="Recent Tasks" description="Your latest pickup activities">
     <?php if (!empty($pendingPickups)): ?>
       <?php foreach (array_slice($pendingPickups, 0, 5) as $pickup): ?>
@@ -231,7 +201,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
 </div>
 
 <script>
-  // Poll collector stats endpoint and update cards in real time
+ 
   (function () {
     const endpoint = '/api/collector/stats';
     const elToday = document.getElementById('stat-today-tasks');
@@ -259,21 +229,21 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
         if (elPending) elPending.textContent = (d.pending ?? 0);
         if (elWeight) elWeight.textContent = formatWeight(d.total_weight ?? 0);
       } catch (e) {
-        // silent fail
+      
       }
     }
 
-    // Initial fetch and interval
+   
     fetchStats();
     setInterval(fetchStats, 10000);
   })();
 
-  // Poll collector material prices and update in real time
+
   (function () {
     const endpoint = '/api/collector/material-prices';
     const container = document.getElementById('material-prices-container');
     
-    // Skip if container doesn't exist (section is commented out)
+  
     if (!container) return;
 
     function formatPrice(val) {
@@ -313,7 +283,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
         const json = await res.json();
         if (!json || json.status !== 'success' || !Array.isArray(json.data)) return;
 
-        // Clear and rebuild the container
+       
         container.innerHTML = '';
         json.data.forEach(material => {
           const div = document.createElement('div');
@@ -332,16 +302,16 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
           container.appendChild(div);
         });
       } catch (e) {
-        // silent fail
+      
       }
     }
 
-    // Initial fetch and interval
+   
     fetchMaterialPrices();
     setInterval(fetchMaterialPrices, 10000);
   })();
 
-  // Real-time rating update
+ 
   (function() {
     const collectorId = <?= (int)($user['id'] ?? 0) ?>;
     
@@ -365,7 +335,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
       }
     }
     
-    // Initial fetch and update every 30 seconds
+   
     updateRating();
     setInterval(updateRating, 30000);
   })();

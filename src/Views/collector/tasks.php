@@ -5,7 +5,7 @@ $selectedStatus = $selectedStatus ?? 'all';
 $assignedRequests = array_values($assignedPickups);
 $csrfToken = csrf_token();
 
-// Status badge generator
+
 function getStatusBadge($status)
 {
     $status = strtolower($status);
@@ -103,14 +103,12 @@ function getStatusBadge($status)
     </div>
 </div>
 
-<!-- Pickup Details Modal -->
+
 <div id="pickup-detail-modal" class="user-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog">
         <button class="close" aria-label="Close" onclick="closeDetailModal()">&times;</button>
         <h3>Pickup Task Details</h3>
         <div class="user-modal__grid">
-            <!-- <div><strong>Request ID</strong></div>
-            <div class="pd-id"></div> -->
             <div><strong>Customer</strong></div>
             <div class="pd-customer"></div>
             <div><strong>Address</strong></div>
@@ -127,7 +125,7 @@ function getStatusBadge($status)
         <div id="weight-entry-row" class="tasks-weight-entry-row">
             <div class="tasks-weight-entry-label"><strong>Measured Weight (kg)</strong></div>
             <div>
-                <!-- Weight inputs will be injected here -->
+               
             </div>
             <div id="price-display-row" class="tasks-price-display-row">
                 <div class="tasks-price-display-inner">
@@ -140,17 +138,16 @@ function getStatusBadge($status)
             <div id="weightError" class="tasks-weight-error">Please
                 enter a valid weight greater than 0.</div>
 
-            <!-- <div id="wasteBreakdown" class="tasks-waste-breakdown"></div> -->
+         
         </div>
 
         <div class="tasks-action-wrap">
-            <!-- <button class="btn" onclick="closeDetailModal()">Close</button> -->
+            
             <button class="btn btn-primary" id="taskActionBtn" onclick="updateTaskStatus()">Start Task</button>
         </div>
     </div>
 </div>
 
-<!-- Route Map Modal -->
 <div id="route-map-modal" class="user-modal tasks-route-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="user-modal__dialog tasks-route-modal__dialog">
         <button class="close" aria-label="Close" onclick="closeRouteModal()">&times;</button>
@@ -166,7 +163,7 @@ function getStatusBadge($status)
 </div>
 
 <script>
-    // Grab modal elements
+  
     const weightInput = document.getElementById('weightInput');
     const calculatedPriceEl = document.getElementById('calculatedPrice');
     const weightError = document.getElementById('weightError');
@@ -174,7 +171,7 @@ function getStatusBadge($status)
     let routePendingPickupId = null;
     let routePendingMode = 'start';
 
-    // Close modal
+
     function closeDetailModal() {
         const modal = document.getElementById('pickup-detail-modal');
         modal.classList.remove('open');
@@ -209,7 +206,7 @@ function getStatusBadge($status)
         
         inputs.forEach(input => {
             const weight = parseFloat(input.value) || 0;
-            // Validate weight is within limits
+          
             if (weight > 100) {
                 hasError = true;
             }
@@ -263,21 +260,21 @@ function getStatusBadge($status)
                 input.setAttribute('data-price', cat.price_per_unit || 0);
                 input.placeholder = '0.00';
                 
-                // Validate decimal places (max 2 decimals) and weight limit (max 100kg)
+              
                 function validateWeightInput(e) {
                     let value = e.target.value;
                     if (value === '') return;
                     
                     const val = parseFloat(value);
                     
-                    // Check weight limit
+                
                     if (val > 100) {
                         e.target.value = '100';
                         showWeightWarning('Weight cannot exceed 100 kg');
                         return;
                     }
                     
-                    // Check decimal places
+                    
                     if (value.includes('.')) {
                         const parts = value.split('.');
                         if (parts[1] && parts[1].length > 2) {
@@ -292,7 +289,7 @@ function getStatusBadge($status)
                 input.addEventListener('change', validateWeightInput);
                 input.addEventListener('blur', validateWeightInput);
                 input.addEventListener('input', function() {
-                    // Allow real-time calculation without strict validation on input
+                    
                     calculateTotal();
                 });
 
@@ -340,7 +337,6 @@ function getStatusBadge($status)
         const modal = document.getElementById('pickup-detail-modal');
         if (!record || !modal) return;
 
-        // modal.querySelector('.pd-id').textContent = record.id;
         modal.querySelector('.pd-customer').textContent = record.customerName;
         modal.querySelector('.pd-address').textContent = record.address;
         modal.querySelector('.pd-waste').textContent = record.wasteCategories.join(', ');
@@ -351,7 +347,7 @@ function getStatusBadge($status)
         const btn = document.getElementById('taskActionBtn');
         btn.style.display = '';
         btn.disabled = false;
-        btn.textContent = 'Open Map'; // Default
+        btn.textContent = 'Open Map'; 
 
         const weightRow = document.getElementById('weight-entry-row');
         const weightVisible = modal.dataset.weightEntryVisible === '1';
@@ -444,9 +440,7 @@ function getStatusBadge($status)
                 const weights = [];
 
                 if (inputs.length === 0) {
-                    // If no inputs (no categories), we might still want to complete? 
-                    // Usually requires at least one weight.
-                    // Let's assume validation is required if inputs exist.
+                   
                 }
 
                 inputs.forEach(input => {
@@ -454,7 +448,7 @@ function getStatusBadge($status)
                     if (isNaN(val) || val <= 0) {
                         allValid = false;
                     }
-                    // Check weight limit
+                   
                     if (val > 100) {
                         allValid = false;
                         showWeightWarning(`Weight for ${input.previousElementSibling.textContent} cannot exceed 100 kg`);

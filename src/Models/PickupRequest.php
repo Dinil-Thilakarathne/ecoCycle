@@ -169,12 +169,12 @@ class PickupRequest extends BaseModel
             $address = $payload['address'] ?? null;
             $timeSlot = $payload['timeSlot'] ?? null;
             $scheduledAt = $payload['scheduledAt'] ?? null;
-            // Normalize empty scheduledAt to null so we don't insert empty strings
+           
             if ($scheduledAt === '') {
                 $scheduledAt = null;
             }
 
-            // If scheduledAt is null, bind a NULL explicitly by using the appropriate SQL fragment
+           
             if ($scheduledAt === null) {
                 $this->db->query(
                     "INSERT INTO {$this->table} (id, customer_id, address, time_slot, status, collector_id, collector_name, scheduled_at, created_at, updated_at)
@@ -269,7 +269,7 @@ class PickupRequest extends BaseModel
             }
 
             if (array_key_exists('scheduledAt', $payload)) {
-                // Allow clearing the scheduledAt by sending null or empty string
+              
                 if ($payload['scheduledAt'] === '' || $payload['scheduledAt'] === null) {
                     $fields[] = 'scheduled_at = NULL';
                 } else {
@@ -321,13 +321,13 @@ class PickupRequest extends BaseModel
             return $updated;
         }
 
-        // Handle the new array format for weights
+        
         if (is_array($weights)) {
             $pdo = $this->db->pdo();
             $pdo->beginTransaction();
 
             try {
-                // 1. Update individual waste items
+             
                 $totalWeight = 0.0;
                 $totalPrice = 0.0;
 
@@ -338,7 +338,7 @@ class PickupRequest extends BaseModel
                     if ($catId <= 0)
                         continue;
 
-                    // Fetch price per unit for this category
+                 
                     $catRow = $this->db->fetch("SELECT price_per_unit FROM waste_categories WHERE id = ?", [$catId]);
                     $pricePerUnit = 0.0;
                     if ($catRow) {
@@ -349,10 +349,7 @@ class PickupRequest extends BaseModel
                     $totalWeight += $weight;
                     $totalPrice += $amount;
 
-                    // Update the specific waste line item
-                    // Note: We assume one entry per category per pickup. 
-                    // If multiple entries exist for same category (rare/duplicate), this updates all of them or the logic needs refinement.
-                    // For now, updating by pickup_id and waste_category_id is safe enough for this schema.
+                    
                     $this->db->query(
                         "UPDATE pickup_request_wastes 
                          SET weight = ?, amount = ? 
@@ -361,7 +358,6 @@ class PickupRequest extends BaseModel
                     );
                 }
 
-                // 2. Update the main request with totals and status
                 error_log("Updating pickup {$id}: status={$status}, weight={$totalWeight}, price={$totalPrice}, collector_id={$collectorId}");
 
                 $updateResult = $this->db->query(
@@ -375,7 +371,7 @@ class PickupRequest extends BaseModel
                     throw new \Exception("Failed to update pickup request. Pickup may not be assigned to collector {$collectorId}");
                 }
 
-                // 3. Release vehicle if completed
+               
                 if ($status === 'completed') {
                     $this->releaseVehicleIfLinked($id);
                 }
@@ -385,14 +381,13 @@ class PickupRequest extends BaseModel
 
             } catch (\Throwable $e) {
                 $pdo->rollBack();
-                // Re-throw the exception so the controller can handle it with proper error messages
+             
                 error_log("Failed updating pickup weights: " . $e->getMessage());
                 throw $e;
             }
         }
 
-        // Fallback for legacy calls (if any) passing single float
-        // logic should ideally be deprecated or removed if we are sure no legacy calls remain
+ 
         $legacyResult = $this->db->query(
             "UPDATE {$this->table} SET status = ?, weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND collector_id = ?",
             [$status, (float) $weights, $id, $collectorId]
@@ -451,23 +446,7 @@ class PickupRequest extends BaseModel
 
     public function listTimeSlots(): array
     {
-        return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; // TODO: need to fix this 
-
-        // $slots = $this->db->fetchAll("SELECT DISTINCT time_slot FROM {$this->table} WHERE time_slot IS NOT NULL AND time_slot != '' ORDER BY time_slot ASC");
-        // $values = array_values(array_filter(array_map(fn($row) => $row['time_slot'] ?? null, $slots)));
-        // if (!empty($values)) {
-        //     return $values;
-        // }
-
-        // $aggregate = $this->db->fetch("SELECT value FROM analytics_aggregates WHERE `key` = 'time_slots' LIMIT 1");
-        // if ($aggregate && !empty($aggregate['value'])) {
-        //     $decoded = json_decode($aggregate['value'], true);
-        //     if (is_array($decoded) && !empty($decoded)) {
-        //         return array_values(array_filter(array_map('strval', $decoded)));
-        //     }
-        // }
-
-        // return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+        return ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00']; 
     }
 
     private function wasteCategoriesForPickups(array $pickupIds): array
@@ -540,8 +519,8 @@ class PickupRequest extends BaseModel
             'vehicleType' => $row['vehicle_type'] ?? '',
             'wasteCategories' => $names,
             'wasteCategoryDetails' => $details,
-            'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   // pickup_requests weight
-            'price' => isset($row['price']) ? (float) $row['price'] : null,      // pickup_requests price
+            'weight' => isset($row['weight']) ? (float) $row['weight'] : null,   
+            'price' => isset($row['price']) ? (float) $row['price'] : null,     
             'createdAt' => $row['created_at'] ?? null,
             'scheduledAt' => $row['scheduled_at'] ?? null,
         ];
@@ -654,7 +633,7 @@ class PickupRequest extends BaseModel
 
             $this->vehicleIdColumnExists = (bool) $row;
         } catch (\Throwable $e) {
-            // Fail safe: assume missing column if schema metadata lookup fails.
+         
             $this->vehicleIdColumnExists = false;
         }
 
@@ -674,10 +653,7 @@ class PickupRequest extends BaseModel
         );
     }
 
-    /**
-     * Get all pickups for a collector (for dashboard)
-     * Includes waste categories, weights, and price per unit
-     */
+   
     public function listForCollectorDashboard(int $collectorId, ?string $status = null): array
     {
         $sql = "SELECT pr.id, pr.collector_id, pr.customer_id, pr.address, pr.time_slot, pr.status, pr.created_at, pr.scheduled_at,
@@ -704,7 +680,6 @@ class PickupRequest extends BaseModel
             return [];
         }
 
-        // Map pickups
         $map = [];
         foreach ($rows as $row) {
             $pid = $row['id'];
@@ -740,12 +715,7 @@ class PickupRequest extends BaseModel
         return array_values($map);
     }
 
-    /**
-     * Get all completed pickups that haven't been allocated to bidding rounds yet
-     * Returns waste grouped by category
-     * 
-     * @return array Array of waste categories with unallocated quantities
-     */
+  
     public function getUnallocatedWaste(): array
     {
         $sql = "SELECT 
@@ -787,14 +757,7 @@ class PickupRequest extends BaseModel
         }, $rows);
     }
 
-    /**
-     * Get pickup IDs that contributed to unallocated waste for a specific category
-     * Used when creating bidding rounds to link source pickups
-     * 
-     * @param int $categoryId The waste category ID
-     * @param float|null $maxQuantity Maximum quantity to allocate (optional)
-     * @return array Array of pickup IDs
-     */
+
     public function getUnallocatedPickupIds(int $categoryId, ?float $maxQuantity = null): array
     {
         $sql = "SELECT 
