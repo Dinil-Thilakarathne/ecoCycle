@@ -604,7 +604,7 @@ function updateMetricsCards(metrics) {
 function updateFeedbackTable(data, error = null) {
     const tableBody = document.getElementById('feedbackTableBody');
     if (error) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="5" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
         tableBody.innerHTML = data.map(fb => `
             <tr>
@@ -616,7 +616,7 @@ function updateFeedbackTable(data, error = null) {
             </tr>
         `).join('');
     } else {
-        tableBody.innerHTML = '<tr><td colspan="4" class="analytics-table-center-cell analytics-muted-text">No feedback records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="analytics-table-center-cell analytics-muted-text">No feedback records found.</td></tr>';
     }
 }
 
