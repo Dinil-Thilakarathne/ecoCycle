@@ -147,15 +147,22 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
 
 <div class="bottom-container">
 
+  <?php
+  $recentTasks = array_values(array_filter($pendingPickups ?? [], static function (array $pickup): bool {
+      $status = strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? ''));
+      return $status !== 'pending';
+  }));
+  ?>
+
   <activity-card title="Recent Tasks" description="Your latest pickup activities">
-    <?php if (!empty($pendingPickups)): ?>
-      <?php foreach (array_slice($pendingPickups, 0, 5) as $pickup): ?>
+    <?php if (!empty($recentTasks)): ?>
+      <?php foreach (array_slice($recentTasks, 0, 5) as $pickup): ?>
         <div class="task">
           <div class="task-info">
             <div class="task-name">
               <span><?= htmlspecialchars($pickup['customerName'] ?? '') ?></span>
               <span class="tag <?= ($pickup['status'] ?? '') === 'completed' ? 'success' : 'warning' ?>">
-                <?= ucfirst(str_replace('_', ' ', $pickup['status'] ?? 'pending')) ?>
+                <?= ucfirst(str_replace('_', ' ', $pickup['status'] ?? 'unknown')) ?>
               </span>
             </div>
             <div class="task-meta">
@@ -167,7 +174,7 @@ $progressToNextLevel = $collectorLevel >= 10 ? 100 : (int) round((($completedTas
         </div>
       <?php endforeach; ?>
     <?php else: ?>
-      <p class="collector-empty-state">No pending tasks</p>
+      <p class="collector-empty-state">No recent tasks</p>
     <?php endif; ?>
   </activity-card>
 

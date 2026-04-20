@@ -247,6 +247,7 @@ class CollectorDashboardController extends DashboardController
                 return array_values(array_filter(
                     $records,
                     fn(array $pickup): bool => $this->isPickupForToday($pickup)
+                        && strtolower((string) ($pickup['statusRaw'] ?? $pickup['status'] ?? '')) !== 'pending'
                 ));
             }
         } catch (\Throwable $e) {
@@ -263,7 +264,7 @@ class CollectorDashboardController extends DashboardController
     {
         return [
             'timeSlots' => $this->getTimeSlots(),
-            'statuses' => ['all', 'pending', 'assigned', 'in progress', 'completed'],
+            'statuses' => ['all', 'assigned', 'in progress', 'completed'],
         ];
     }
 
@@ -296,7 +297,7 @@ class CollectorDashboardController extends DashboardController
             return 'all';
         }
 
-        $allowed = ['pending', 'assigned', 'in progress', 'completed'];
+        $allowed = ['assigned', 'in progress', 'completed'];
         return in_array($candidate, $allowed, true) ? $candidate : 'all';
     }
 
