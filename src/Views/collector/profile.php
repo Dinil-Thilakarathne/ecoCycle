@@ -234,7 +234,7 @@ $csrfToken = csrf_token();
 
 <div id="photoUploadModal" class="form-modal">
   <div class="form-modal-content collector-photo-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" aria-label="Close">&times;</button>
     <h2 class="collector-modal-title collector-modal-title-spaced">Change Profile Photo</h2>
     
         <div class="collector-photo-preview-wrap">
@@ -272,7 +272,7 @@ $csrfToken = csrf_token();
 
 <div id="editModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" aria-label="Close">&times;</button>
     <h2 class="collector-modal-title">Edit Profile</h2>
     <?php if (!empty($errors)): ?>
       <div class="error-box">
@@ -314,6 +314,14 @@ $csrfToken = csrf_token();
 
 <script>
 
+  function getModalById(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal || !modal.classList.contains('form-modal')) {
+      return null;
+    }
+    return modal;
+  }
+
   document.getElementById('photoInput')?.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -350,14 +358,24 @@ $csrfToken = csrf_token();
   });
 
   function openModalById(modalId) {
-    const modal = document.getElementById(modalId);
+    const modal = getModalById(modalId);
     if (!modal) {
       return;
     }
 
+    closeAllModals();
     modal.classList.add('is-open');
     modal.style.display = 'flex';
-    window.location.hash = `#${modalId}`;
+  }
+
+  function isModalOpen(modal) {
+    return !!modal && modal.classList.contains('is-open');
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.form-modal.is-open').forEach(function(modal) {
+      closeModalElement(modal);
+    });
   }
 
   function closeModalElement(modal) {
@@ -367,49 +385,56 @@ $csrfToken = csrf_token();
 
     modal.classList.remove('is-open');
     modal.style.display = '';
-    if (window.location.hash === `#${modal.id}`) {
-      if (window.history && typeof window.history.replaceState === 'function') {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      } else {
-        window.location.hash = '';
-      }
-    }
   }
 
-  document.querySelectorAll('a[href^="#"]').forEach(function(link) {
-    const targetId = (link.getAttribute('href') || '').replace('#', '');
-    const targetModal = targetId ? document.getElementById(targetId) : null;
-    if (!targetModal || !targetModal.classList.contains('form-modal')) {
+  const modalTriggerMap = {
+    '#photoUploadModal': 'photoUploadModal',
+    '#editModal': 'editModal',
+    '#bankdetail': 'bankdetail',
+    '#passwordModal': 'passwordModal',
+  };
+
+  document.addEventListener('click', function(event) {
+    const trigger = event.target.closest('a[href^="#"]');
+    if (trigger) {
+      const selector = trigger.getAttribute('href') || '';
+      const modalId = modalTriggerMap[selector];
+      if (modalId) {
+        event.preventDefault();
+        const modal = getModalById(modalId);
+        if (isModalOpen(modal)) {
+          closeModalElement(modal);
+        } else {
+          openModalById(modalId);
+        }
+        return;
+      }
+    }
+
+    const closeBtn = event.target.closest('.form-modal .close');
+    if (closeBtn) {
+      event.preventDefault();
+      closeModalElement(closeBtn.closest('.form-modal'));
       return;
     }
 
-    link.addEventListener('click', function(event) {
-      event.preventDefault();
-      openModalById(targetId);
-    });
+    const backdrop = event.target.classList.contains('form-modal') ? event.target : null;
+    if (backdrop) {
+      closeModalElement(backdrop);
+    }
   });
 
-  document.querySelectorAll('.form-modal .close').forEach(function(closeBtn) {
-    closeBtn.addEventListener('click', function(event) {
-      event.preventDefault();
-      closeModalElement(closeBtn.closest('.form-modal'));
-    });
-  });
-
-  document.querySelectorAll('.form-modal').forEach(function(modal) {
-    modal.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        closeModalElement(modal);
-      }
-    });
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closeAllModals();
+    }
   });
 
   if (window.location.hash) {
     const hashId = window.location.hash.replace('#', '');
-    const hashModal = document.getElementById(hashId);
-    if (hashModal && hashModal.classList.contains('form-modal')) {
-      hashModal.classList.add('is-open');
-      hashModal.style.display = 'flex';
+    const hashModal = getModalById(hashId);
+    if (hashModal) {
+      openModalById(hashId);
     }
   }
 </script>
@@ -417,7 +442,7 @@ $csrfToken = csrf_token();
 
 <div id="bankdetail" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" aria-label="Close">&times;</button>
     <h2 class="collector-modal-title">Bank Details</h2>
     <form method="POST" action="/api/profile/bankDetails">
       <input type="hidden" name="_token" value="<?= htmlspecialchars($csrfToken) ?>">
@@ -441,7 +466,7 @@ $csrfToken = csrf_token();
 
 <div id="passwordModal" class="form-modal">
   <div class="form-modal-content">
-    <a href="#" class="close">&times;</a>
+    <button type="button" class="close" aria-label="Close">&times;</button>
     <h2 class="collector-modal-title">Change Password</h2>
     <?php if (!empty($errors)): ?>
       <div class="error-box">
