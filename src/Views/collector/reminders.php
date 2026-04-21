@@ -1,0 +1,490 @@
+<?php
+// Initialize notifications from controller
+$notifications = $notifications ?? [];
+$currentTab = $_GET['tab'] ?? 'total';
+$selectedNotificationId = $_GET['id'] ?? null;
+$csrfToken = function_exists('csrf_token') ? csrf_token() : '';
+?>
+
+<style>
+  .company-notification-tabs {
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .company-actions-header,
+  .company-actions-cell {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .company-actions-cell.action-buttons {
+    justify-content: center;
+    align-items: center;
+  }
+</style>
+
+<main class="content">
+  <header class="page-header">
+    <div class="page-header__content">
+      <h2 class="page-header__title"><i class="fa-solid fa-bell"></i> Notifications</h2>
+      <p class="page-header__description">Stay on top of your platform updates</p>
+    </div>
+  </header>
+
+  <div id="alert-container"></div>
+
+  <div class="tabs">
+    <div class="tabs-list company-notification-tabs">
+      <button class="tabs-trigger<?= $currentTab === 'total' ? ' active' : '' ?>" onclick="showTab('total')"
+        id="total-tab">
+        Total (<span id="total-count">0</span>)
+      </button>
+      <button class="tabs-trigger<?= $currentTab === 'unread' ? ' active' : '' ?>" onclick="showTab('unread')"
+        id="unread-tab">
+        Unread (<span id="unread-count">0</span>)
+      </button>
+      <button class="tabs-trigger<?= $currentTab === 'read' ? ' active' : '' ?>" onclick="showTab('read')"
+        id="read-tab">
+        Read (<span id="read-count">0</span>)
+      </button>
+    </div>
+
+    <div id="notification-detail" style="display: none; margin-bottom: 1rem;">
+      <div class="activity-card">
+        <div class="activity-card__header">
+          <h3 class="activity-card__title">
+            <i class="fa-solid fa-envelope-open-text"></i>
+            <span id="detail-title"></span>
+          </h3>
+          <button onclick="closeDetail()"
+            style="background: none; border: none; cursor: pointer; font-size: 1.2rem;">&times;</button>
+        </div>
+        <div class="activity-card__content">
+          <p style="margin-bottom: 0.5rem;">Type: <strong id="detail-type"></strong></p>
+          <p style="margin-bottom: 0.5rem;">Date: <strong id="detail-date"></strong></p>
+          <p style="margin: 0; line-height: 1.6;" id="detail-message"></p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin: 12px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <button onclick="markAllAsRead()" class="btn btn-primary">Mark All as Read</button>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label for="priority-filter" style="font-size: 0.875rem; color: var(--muted);">Priority:</label>
+        <select id="priority-filter" onchange="priorityFilter = this.value; renderNotifications();"
+          style="border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; background: var(--bg); font-size: 0.875rem; cursor: pointer;">
+          <option value="all">All</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="tabs-content<?= $currentTab === 'total' ? ' active' : '' ?>" id="total-content">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Notification</th>
+            <th>Type</th>
+            <th>Priority</th>
+            <th>Date</th>
+            <th class="company-actions-header">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="total-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="tabs-content<?= $currentTab === 'unread' ? ' active' : '' ?>" id="unread-content">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Notification</th>
+            <th>Type</th>
+            <th>Priority</th>
+            <th>Date</th>
+            <th class="company-actions-header">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="unread-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="tabs-content<?= $currentTab === 'read' ? ' active' : '' ?>" id="read-content">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Notification</th>
+            <th>Type</th>
+            <th>Priority</th>
+            <th>Date</th>
+            <th class="company-actions-header">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="read-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Initialize notifications from server-side data
+  let notificationsState = <?= json_encode($notifications) ?>.map(n => ({
+    ...n,
+    isRead: ['read', 'sent'].includes((n.status || '').toLowerCase()),
+    isArchived: false,
+    priority: getPriority(n.type)
+  }));
+
+  let currentTab = '<?= $currentTab ?>';
+  let selectedNotificationId = '<?= $selectedNotificationId ?>';
+  let priorityFilter = 'all'; //priority filter can be 'all', 'high', 'medium', 'low'
+
+  // Load archived state from localStorage
+  function loadArchivedState() {
+    const archived = JSON.parse(localStorage.getItem('archived_notifications') || '[]');
+    notificationsState.forEach(n => {
+      if (archived.includes(String(n.id))) {
+        n.isArchived = true;
+      }
+    });
+  }
+
+  /*function getPriority(type) {
+    const t = (type || 'info').toLowerCase();
+    if (t === 'payment') return 'high';
+    if (t === 'system') return 'low';
+    return 'normal';
+  }*/
+
+  //get priority based on type
+  function getPriority(type) {
+    const t = (type || '').toLowerCase();
+    if (['payment', 'invoice', 'billing'].includes(t)) return 'high';
+    if (['system', 'maintenance'].includes(t)) return 'low';
+    return 'medium';
+  }
+
+  /*function getFilteredNotifications(filter) {
+    switch (filter) {
+      case 'unread':
+        return notificationsState.filter(n => !n.isArchived && !n.isRead);
+      case 'read':
+        return notificationsState.filter(n => !n.isArchived && n.isRead);
+      case 'total':
+      default:
+        return notificationsState.filter(n => !n.isArchived);
+    }
+  }*/
+
+  //apply prority filter on top of read/unread/total filter
+  function getFilteredNotifications(filter) {
+    let list;
+    switch (filter) {
+      case 'unread': list = notificationsState.filter(n => !n.isArchived && !n.isRead); break;
+      case 'read': list = notificationsState.filter(n => !n.isArchived && n.isRead); break;
+      default: list = notificationsState.filter(n => !n.isArchived);
+    }
+    if (priorityFilter !== 'all') {
+      list = list.filter(n => n.priority === priorityFilter);
+    }
+    return list;
+  }
+
+  function renderNotifications() {
+    const filters = ['total', 'unread', 'read'];
+
+    filters.forEach(filter => {
+      const notifications = getFilteredNotifications(filter);
+      const tbody = document.getElementById(`${filter}-tbody`);
+      const countSpan = document.getElementById(`${filter}-count`);
+
+      countSpan.textContent = notifications.length;
+
+      if (notifications.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No notifications found</td></tr>";
+        return;
+      }
+
+      tbody.innerHTML = notifications.map(n => {
+        const rowClass = n.isRead ? '' : 'unread';
+        const title = escapeHtml(n.title || 'Notification');
+        const message = escapeHtml(n.message || '');
+        const type = escapeHtml(ucfirst(n.type || 'info'));
+        const formatted = n.timestamp ? formatDate(n.timestamp) : 'N/A';
+        const isExpanded = n.id == selectedNotificationId;
+
+        let html = `
+        <tr class="${rowClass}" data-id="${n.id}">
+          <td><strong>${title}</strong><br><small>${message}</small></td>
+          <td>${type}</td>
+          <td>${escapeHtml(ucfirst(n.priority || 'medium'))}</td>
+          <td>${formatted}</td>
+          <td class="action-buttons company-actions-cell">
+            ${!n.isRead ? `<a href="#" onclick="markAsRead(${n.id}); return false;" class="icon-button" title="Mark as read"><i class="fas fa-check-circle" aria-hidden="true"></i></a> ` : ''}
+            <a href="#" onclick="viewNotification(${n.id}); return false;" class="icon-button" title="View notification"><i class="fas fa-eye" aria-hidden="true"></i></a> 
+          </td>
+        </tr>
+      `;
+
+        // Add expanded detail row if this notification is selected
+        if (isExpanded) {
+          html += `
+          <tr class="notification-detail-row" data-id="${n.id}">
+            <td colspan="4" style="background: #f8f9fa; padding: 20px; border-left: 4px solid #007bff;">
+              <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                  <h4 style="margin: 0 0 15px 0; color: #333;">
+                    <i class="fa-solid fa-envelope-open-text"></i> ${title}
+                  </h4>
+                  <p style="margin-bottom: 10px;"><strong>Type:</strong> ${type}</p>
+                  <p style="margin-bottom: 10px;"><strong>Date:</strong> ${formatted}</p>
+                  <p style="margin: 0; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(n.message || '')}</p>
+                </div>
+                <button onclick="closeDetail()" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: #666; margin-left: 15px;">&times;</button>
+              </div>
+            </td>
+          </tr>
+        `;
+        }
+
+        return html;
+      }).join('');
+    });
+  }
+
+  async function markAsRead(id) {
+    try {
+      const url = `/api/notifications/${id}/read`;
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : '')
+        },
+        credentials: 'same-origin'
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok) {
+        // Update local state
+        const notification = notificationsState.find(n => n.id == id);
+        if (notification) {
+          notification.isRead = true;
+          notification.status = 'read';
+        }
+
+        renderNotifications();
+        showAlert(data.message || 'Notification marked as read', 'success');
+      } else {
+        const errorMsg = data.error || data.message || `Failed to mark notification as read (${response.status})`;
+        showAlert(errorMsg, 'error');
+      }
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+      showAlert('Network error: ' + error.message, 'error');
+    }
+  }
+
+  async function markAllAsRead() {
+    try {
+      // Get all unread, non-archived notifications
+      const unreadNotifications = notificationsState.filter(n => !n.isRead && !n.isArchived);
+
+      if (unreadNotifications.length === 0) {
+        showAlert('No unread notifications to mark', 'info');
+        return;
+      }
+
+      // Mark each notification individually
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const notification of unreadNotifications) {
+        try {
+          const url = `/api/notifications/${notification.id}/read`;
+          const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRF-TOKEN': (typeof csrfToken !== 'undefined' ? csrfToken : '')
+            }
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.message) {
+            // Update local state
+            notification.isRead = true;
+            notification.status = 'read';
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to mark notification ${notification.id} as read:`, error);
+          errorCount++;
+        }
+      }
+
+      // Re-render to show updated state
+      renderNotifications();
+
+      if (errorCount === 0) {
+        showAlert(`All ${successCount} notifications marked as read`, 'success');
+      } else {
+        showAlert(`Marked ${successCount} as read, ${errorCount} failed`, 'error');
+      }
+
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+      showAlert('Failed to mark all notifications as read', 'error');
+    }
+  }
+
+  function viewNotification(id) {
+    const notification = notificationsState.find(n => n.id == id);
+    if (!notification) return;
+
+    // Mark as read when viewing (optimistic + persist)
+    if (!notification.isRead) {
+      notification.isRead = true;
+      notification.status = 'read';
+      renderNotifications();
+      markAsRead(id);
+    }
+
+    // Build modal content
+    const container = document.createElement('div');
+    container.style.cssText = 'display:grid;gap:1rem;max-width:720px;';
+    const title = notification.title || notification.title_text || 'Notification';
+    const message = notification.message || notification.body || '';
+    const timeVal = notification.timestamp || notification.created_at || '';
+
+    container.innerHTML = `
+    <div style="background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e6edf3;">
+      <div style="display:flex;gap:1rem;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:0.85rem;color:#6b7280;margin-bottom:6px;">${escapeHtml(notification.type || '')}</div>
+          <div style="font-weight:700;font-size:1.05rem;color:#111827;">${escapeHtml(title)}</div>
+          <div style="margin-top:6px;color:#374151;">${escapeHtml(message)}</div>
+        </div>
+        <div style="text-align:right;color:#6b7280;font-size:0.85rem;">
+          ${timeVal ? `<div style=\"margin-bottom:4px;\">${escapeHtml(formatDate(timeVal))}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+    if (window.Modal && typeof window.Modal.open === 'function') {
+      window.Modal.open({
+        title: title || 'Notification',
+        size: 'md',
+        content: container,
+        actions: [{ label: 'Close', variant: 'plain' }]
+      });
+    } else {
+      // Fallback to inline detail expand
+      if (selectedNotificationId == id) { closeDetail(); return; }
+      selectedNotificationId = id;
+      renderNotifications();
+      const params = new URLSearchParams(window.location.search);
+      params.set('id', id);
+      window.history.pushState({}, '', '?' + params.toString());
+    }
+  }
+
+  function closeDetail() {
+    selectedNotificationId = null;
+    renderNotifications();
+
+    // Remove ID from URL
+    const params = new URLSearchParams(window.location.search);
+    params.delete('id');
+    const newUrl = params.toString() ? '?' + params.toString() : window.location.pathname;
+    window.history.pushState({}, '', newUrl);
+  }
+
+  function showTab(tab) {
+    currentTab = tab;
+
+    // Update tabs
+    document.querySelectorAll('.tabs-trigger').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`${tab}-tab`).classList.add('active');
+
+    // Update content
+    document.querySelectorAll('.tabs-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(`${tab}-content`).classList.add('active');
+
+    // Update URL
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', tab);
+    params.delete('msg');
+    window.history.pushState({}, '', '?' + params.toString());
+  }
+
+  function showAlert(message, type = 'success') {
+    const container = document.getElementById('alert-container');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.style.cssText = 'margin: 16px 0; padding: 12px; border: 1px solid var(--success-400); background: var(--success-50); color: var(--success-700);';
+    alert.textContent = message;
+
+    container.innerHTML = '';
+    container.appendChild(alert);
+
+    setTimeout(() => alert.remove(), 5000);
+  }
+
+  // Utility functions
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function ucfirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${month} ${day}, ${year} ${hours}:${minutes}`;
+  }
+
+  // Initialize on page load
+  loadArchivedState();
+  renderNotifications();
+
+  // Auto-view notification if ID in URL
+  if (selectedNotificationId) {
+    viewNotification(selectedNotificationId);
+  }
+</script>
+
+/*format rows 
+'priority' => $row['priority'] ?? 'medium',
+
+
+ALTER TABLE notifications 
+ADD COLUMN priority VARCHAR(10) NOT NULL DEFAULT 'medium' 
+CHECK (priority IN ('high', 'medium', 'low'));
+
+UPDATE notifications SET priority = 'low'  WHERE type IN ('system');
+
+UPDATE notifications SET priority = 'high'  WHERE type IN ('bid');
+*/
