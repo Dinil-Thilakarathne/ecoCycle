@@ -41,6 +41,8 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
             <div class="analytics-summary-toggle-row">
                 <button type="button" id="summary-mode-monthly" class="btn btn-outline analytics-summary-toggle-btn analytics-summary-toggle-btn-active">Monthly Summary</button>
                 <button type="button" id="summary-mode-yearly" class="btn btn-outline analytics-summary-toggle-btn">Yearly Summary</button>
+                <button type="button" id="waste-categories-mode" class="btn btn-outline analytics-summary-toggle-btn">Waste Category</button>
+                
             </div>
             <div class="analytics-filter-row">
                 <label id="monthly-collection-month-label" for="monthly-collection-month" class="analytics-filter-label">Month</label>
@@ -49,6 +51,9 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
                 <label id="monthly-collection-year-label" for="monthly-collection-year" class="analytics-filter-label analytics-filter-label-spaced">Year</label>
                 <select id="monthly-collection-year" class="analytics-filter-select"></select>
                 <span id="monthly-collection-range" class="analytics-range-label">Month: --</span>
+
+                <label id="waste-categories-label" for="waste-categories" class="analytics-filter-label">Type</label>
+                <select id="waste-categories" class="analytics-filter-select"></select>
             </div>
             <div class="analytics-chart-shell">
                 <canvas id="monthlyCollectionChart" class="analytics-chart-canvas"></canvas>
@@ -101,6 +106,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
                 <table class="data-table analytics-table-full-width">
                     <thead class="analytics-table-head-sticky">
                         <tr>
+                            <th class="analytics-left">Customer ID</th>
                             <th class="analytics-left">Customer Name</th>
                             <th class="analytics-left">Location</th>
                             <th class="analytics-left">Waste Collected</th>
@@ -110,7 +116,7 @@ $selectedExportToDate = (string) ($_GET['to_date'] ?? date('Y-m-d'));
                     </thead>
                     <tbody id="wasteCollectionTableBody">
                         <tr>
-                            <td colspan="5" class="analytics-table-center-cell">
+                            <td colspan="6" class="analytics-table-center-cell">
                                 <span class="loading">Loading waste collection summary...</span>
                             </td>
                         </tr>
@@ -166,10 +172,13 @@ let collectionSummaryMode = 'monthly';
 const monthlyCollectionRangeEl = document.getElementById('monthly-collection-range');
 const monthlyCollectionMonthEl = document.getElementById('monthly-collection-month');
 const monthlyCollectionYearEl = document.getElementById('monthly-collection-year');
+const WasteCategory = document.getElementById('waste-categories');
 const monthlyCollectionMonthLabelEl = document.getElementById('monthly-collection-month-label');
 const monthlyCollectionYearLabelEl = document.getElementById('monthly-collection-year-label');
+const WasteCategoryLabelEl = document.getElementById('waste-categories-label');
 const monthlySummaryModeBtn = document.getElementById('summary-mode-monthly');
 const yearlySummaryModeBtn = document.getElementById('summary-mode-yearly');
+const WasteCategoryModeBtn = document.getElementById('waste-categories-mode');
 const collectionSummaryDescriptionEl = document.getElementById('collection-summary-description');
 const monthlyCollectionChartContainer = document.getElementById('monthlyCollectionChart')?.parentElement || null;
 const exportFromDateEl = document.getElementById('exportFromDate');
@@ -236,6 +245,40 @@ function buildYearOptions(limit = 5) {
     return years;
 }
 
+function buildWasteOptions(limit = 5) {
+    const type = [
+        { value: '01', label: 'Plastic' },
+        { value: '02', label: 'Paper' },
+        { value: '03', label: 'Glass' },
+        { value: '04', label: 'Metal' },
+        { value: '05', label: 'Cardboard' } ];
+    const currenttype = plastic;
+    return type;
+}
+
+function initializeWasteCollection() {
+
+    const currentDate = new Date();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(currentDate.getFullYear());
+
+    const monthOptions = buildMonthOptions();
+    monthlyCollectionMonthEl.innerHTML = monthOptions
+        .map(option => `<option value="${option.value}" ${option.value === currentMonth ? 'selected' : ''}>${option.label}</option>`)
+        .join('');
+
+    const yearOptions = buildYearOptions(5);
+    monthlyCollectionYearEl.innerHTML = yearOptions
+        .map(option => `<option value="${option.value}" ${option.value === currentYear ? 'selected' : ''}>${option.label}</option>`)
+        .join('');
+
+     const wasteOptions = buildWasteOptions(5);
+     WasteCategory.innerHTML = wasteOptions
+        .map(option => `<option value="${option.value}" ${option.value === c ? 'selected' : ''}>${option.label}</option>`)
+        .join('');
+}
+
+
 function initializeMonthlyCollectionMonthSelect() {
     if (!monthlyCollectionMonthEl || !monthlyCollectionYearEl) return;
 
@@ -298,6 +341,7 @@ function setCollectionSummaryMode(mode) {
 
     monthlySummaryModeBtn?.classList.toggle('analytics-summary-toggle-btn-active', isMonthly);
     yearlySummaryModeBtn?.classList.toggle('analytics-summary-toggle-btn-active', !isMonthly);
+    WasteCategoryModeBtn?.classList.toggle('analytics-summary-toggle-btn-active', isMonthly);
 
     if (monthlyCollectionMonthEl) {
         monthlyCollectionMonthEl.disabled = !isMonthly;
@@ -624,7 +668,7 @@ function updateFeedbackTable(data, error = null) {
 function updateWasteTable(data, error = null) {
     const tableBody = document.getElementById('wasteCollectionTableBody');
     if (error) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" class="analytics-table-center-cell analytics-error-text">Error: ${escapeHtml(error)}</td></tr>`;
     } else if (data && data.length > 0) {
         const grouped = new Map();
 
@@ -640,6 +684,10 @@ function updateWasteTable(data, error = null) {
             const materialName = getRowMaterialName(row);
             const rowWeight = Number(row.weight ?? row.total_weight ?? row.quantity ?? 0);
 
+            if (!customerId || customerId === '') {
+                return;
+            }
+
             if (!customerId || customerName === 'Unknown Customer') {
                 return;
             }
@@ -650,6 +698,7 @@ function updateWasteTable(data, error = null) {
 
             if (!grouped.has(customerId)) {
                 grouped.set(customerId, {
+                    customerId,
                     customerName,
                     location,
                     pickupIds: new Set(),
@@ -679,6 +728,7 @@ function updateWasteTable(data, error = null) {
 
             return `
                 <tr>
+                    <td class="analytics-left">${escapeHtml(item.customerId)}</td>
                     <td class="analytics-left">${escapeHtml(item.customerName)}</td>
                     <td class="analytics-left">${escapeHtml(item.location)}</td>
                     <td class="analytics-left">${escapeHtml(wasteCollected)}</td>
@@ -692,7 +742,7 @@ function updateWasteTable(data, error = null) {
 
         tableBody.innerHTML = rows.join('');
     } else {
-        tableBody.innerHTML = '<tr><td colspan="5" class="analytics-table-center-cell analytics-muted-text">No waste records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="analytics-table-center-cell analytics-muted-text">No waste records found.</td></tr>';
     }
 }
 
@@ -742,6 +792,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     yearlySummaryModeBtn?.addEventListener('click', () => {
         setCollectionSummaryMode('yearly');
+    });
+    WasteCategoryModeBtn?.addEventListener('click', () => {
+        setCollectionSummaryMode('monthly');
     });
     monthlyCollectionMonthEl?.addEventListener('change', () => {
         if (collectionSummaryMode === 'monthly') {

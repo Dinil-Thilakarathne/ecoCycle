@@ -127,6 +127,7 @@ class CollectorStatsController extends BaseController
                 return $this->json($this->buildYearlyMaterialByCategoryResponse((int) $collectorId, $year));
             }
 
+
             // Get the start of the week (7 days ago) and end of today
             $weekStart = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
             $weekEnd = date('Y-m-d') . ' 23:59:59';
